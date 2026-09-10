@@ -1,56 +1,142 @@
-# Welcome to your Expo app 👋
+# 뱅! (BANG!) 리메이크
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+보드게임 **뱅!**(dV Giochi)을 React Native Web 으로 다시 만든 것이다.
+브라우저에서 바로 돌아가고, 같은 코드가 iOS·안드로이드에서도 돈다.
 
-## Get started
+- **혼자서**: AI 상대 4~7인 대전. 난이도 상·중·하
+- **온라인**: 방 코드로 최대 7인. Firebase 를 붙이면 열린다
+- **확장**: 하이 눈 15종
 
-1. Install dependencies
+## 지금 되는 것
 
-   ```bash
-   npm install
-   ```
+| 범위 | 상태 |
+|---|---|
+| 기본판 카드 22종 / 80장 | 완료 |
+| 기본 캐릭터 16종 | 완료 |
+| 하이 눈 이벤트 15종 | 완료 |
+| 4~7인 (8인은 엔진만) | 완료 |
+| AI 3단계 + 자가검증 시뮬레이터 | 완료 |
+| 2D 테이블 UI (PC / 모바일) | 완료 |
+| Firebase 온라인 대전 | 구현 완료, 설정 필요 |
+| 닷지 시티 등 나머지 확장 | 범위 밖 |
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## 시작하기
 
 ```bash
-npm run reset-project
+npm install
+npm run web
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+브라우저가 열리면 **AI와 대전**을 누른다. Firebase 설정이 없어도 로컬 대전은 그대로 된다.
 
-### Other setup steps
+### 조작
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+카드를 누르면 낸다. 지목이 필요한 카드는 한 번 더 눌러 상대를 고른다.
 
-## Learn more
+| 키 | 동작 |
+|---|---|
+| `Q` | 차례 마치기 |
+| `W` | 반응하지 않음 |
+| `1`~`0` | 손패 n번째 카드 |
+| `Esc` | 선택 취소 |
 
-To learn more about developing your project with Expo, look at the following resources:
+원본 SC2 아케이드 맵의 단축키를 그대로 이었다.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### 구경만 하기
 
-## Join the community
+`?auto=1` 을 붙이면 내 자리까지 AI가 둔다. 규칙을 익히거나 AI를 지켜볼 때 쓴다.
 
-Join our community of developers creating universal apps.
+```
+/game/local?players=7&tier=hard&highnoon=1&seed=42&auto=1
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## 명령
+
+```bash
+npm run web          # 웹 개발 서버
+npm run ios          # iOS 시뮬레이터
+npm run android      # 안드로이드
+npm test             # vitest (273건)
+npm run typecheck    # tsc --noEmit
+npm run simulate     # AI 자가검증 시뮬레이터
+```
+
+시뮬레이터는 사람 없이 수백 판을 돌려 엔진의 불변식을 확인하고 난이도별 실력 차이를 잰다.
+
+```bash
+npm run simulate -- --games 200 --players 7 --highnoon
+```
+
+## 구조
+
+```
+src/
+  app/              expo-router 화면 (홈 · 판 설정 · 대기실 · 게임)
+  game/
+    engine/         ★ 순수 TypeScript. React·RN·Firebase 를 import 하지 않는다
+    data/           카드 80장, 캐릭터 16종, 역할 분배, 하이 눈 15종
+    modifiers/      캐릭터·장비·이벤트의 능력 훅
+    ai/             역할 추론, 휴리스틱, 결정화 몬테카를로
+    store/          zustand + 트랜스포트 (로컬 / Firebase 락스텝)
+    ui/             테이블·카드·손패·인라인 프롬프트
+  firebase/         익명 로그인, 방, 보안 규칙
+docs/
+  edge-cases.md     원본 맵 11년치 패치노트에서 추린 케이스 118건
+  multiplayer.md    락스텝 구조와 한계
+reference/          SC2 아케이드 맵 수집 자료 (구현 참고용)
+```
+
+### 지켜야 하는 경계
+
+`engine` · `data` · `modifiers` · `ai` 는 **순수 TypeScript** 다.
+React·React Native·Expo·zustand·Firebase 를 import 하지 않고, 전역 `Math.random()` 도 쓰지 않는다.
+`src/game/engine/__tests__/boundary.test.ts` 가 이 규칙을 강제한다.
+
+이 경계 덕분에 세 가지가 공짜로 나온다.
+
+1. **테스트**: 브라우저 없이 수백 판을 돌린다
+2. **락스텝 멀티플레이**: 서버 없이 액션 로그만으로 같은 판을 만든다
+3. **AI**: 리듀서를 그대로 시뮬레이션에 쓴다
+
+## 설계에서 어려웠던 곳
+
+**반응 체인이 전부다.** 렌더링은 쉽다. 뱅! 한 장이 실제로 만드는 흐름은 이렇다.
+
+```
+뱅! → 술통 판정(러키 듀크면 2장 중 선택) → 주르도네 능력
+    → 빗나감 N장 요구(슬랩이면 2장) → 칼라미티 자넷은 뱅!으로 대신
+    → 피해 → 바트 캐시디 드로우 / 엘 그링고 강탈
+    → 목숨 0 → 생존맥주(2인이면 무효) → 탈락
+    → 벌쳐 샘 회수 → 현상금 → 보안관 벌칙 → 승리 판정
+```
+
+이걸 if 문으로 짜면 무너진다. 그래서:
+
+- 모든 단계가 **독립된 프레임**이고, 프레임은 자기 진행 상태를 직접 들고 있다
+- **판정은 함수가 아니라 프레임**이다. 러키 듀크가 두 장을 보고 고르는 동안 멈춰야 하기 때문이다
+- 캐릭터 능력은 **훅**으로만 끼어든다. 엔진 코어는 캐릭터 id 를 검사하지 않는다
+
+자세한 근거는 `docs/edge-cases.md` 의 「설계에 주는 교훈」에 있다.
+
+## 원본 자료
+
+`reference/sc2-arcade/` 는 SC2 아케이드 맵 "뱅!"(region 3 / bnetId 86515, 제작자 WillyTheKid,
+2014~2025, 572개 버전)에서 모은 공개 메타데이터다. 맵 아카이브는 받을 수 없어 원본 코드는 없다.
+
+가장 값어치 있는 것은 **11년치 패치노트 918줄**이다. 제작자가 밟은 지뢰가 그대로 적혀 있어서,
+그걸 `docs/edge-cases.md` 로 옮긴 뒤 테스트로 만들었다. 실제로 구현 중에 그 케이스들이
+버그를 여러 개 잡아냈다.
+
+카드 일러스트는 dV Giochi 의 저작물이라 **앱에 넣지 않는다.** 개발 중 참조만 하고,
+화면의 카드는 테두리 색·무늬·심벌 줄로만 그린다.
+
+## 온라인 대전 설정
+
+`docs/multiplayer.md` 를 보라. 요약하면:
+
+1. Firebase 프로젝트를 만들고 웹 앱을 등록한다
+2. 익명 로그인을 켠다
+3. `.env.example` 을 `.env` 로 복사해 `EXPO_PUBLIC_FIREBASE_*` 를 채운다
+4. `npx firebase deploy --only firestore:rules`
+
+값이 비어 있으면 홈의 온라인 메뉴가 잠긴다.
