@@ -193,8 +193,8 @@ export type PendingInput =
   | { k: 'duelBang'; pid: PlayerId; opponent: PlayerId; options: CardId[] }
   /** 죽음 직전에 맥주를 내거나 포기 */
   | { k: 'beerToSurvive'; pid: PlayerId; needed: number; options: CardId[] }
-  /** 러키 듀크: 펼칠 카드 2장 중 1장 선택 */
-  | { k: 'luckyDuke'; pid: PlayerId; purpose: JudgementPurpose; options: CardId[] }
+  /** 판정에서 펼칠 카드를 고른다 (러키 듀크가 두 장을 볼 때) */
+  | { k: 'judgementChoice'; pid: PlayerId; purpose: JudgementPurpose; options: CardId[] }
   /** 잡화점: 펼쳐진 카드 중 1장 선택 */
   | { k: 'generalStore'; pid: PlayerId; options: CardId[] }
   /** 강탈·캣 발루: 대상의 카드 1장 선택 (손패는 뒷면이라 인덱스로 고른다) */

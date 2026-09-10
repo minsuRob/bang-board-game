@@ -147,7 +147,7 @@ export function defaultAction(state: GameState, pid: PlayerId): Action | null {
   const a = state.awaiting;
   if (a && a.pid === pid) {
     // 러키 듀크의 판정 선택만은 유리한 쪽을 자동으로 고른다.
-    if (a.k === 'luckyDuke') {
+    if (a.k === 'judgementChoice') {
       const best = favourableJudgementCard(state, a.options, a.purpose);
       const match = legal.find(
         (x) => x.type === 'respond' && x.choice.c === 'card' && x.choice.card === best,

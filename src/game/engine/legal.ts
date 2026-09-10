@@ -146,7 +146,7 @@ function respondActions(state: GameState, pid: PlayerId): Action[] {
       }
       out.push(pass);
       break;
-    case 'luckyDuke':
+    case 'judgementChoice':
     case 'generalStore':
     case 'kitCarlson':
     case 'daltonsDiscard':

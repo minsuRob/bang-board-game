@@ -53,7 +53,7 @@ export function resolveJudgement(
 
   if (frame.candidates.length > 0) {
     // 이미 후보를 뽑아 두고 선택을 기다리는 중이다.
-    return { ...state, awaiting: { k: 'luckyDuke', pid: frame.pid, purpose: frame.purpose, options: frame.candidates } };
+    return { ...state, awaiting: { k: 'judgementChoice', pid: frame.pid, purpose: frame.purpose, options: frame.candidates } };
   }
 
   const peek = judgementPeekOf(state, frame.pid);
@@ -67,7 +67,7 @@ export function resolveJudgement(
   return {
     ...replaceTop(drawn.state, { ...frame, candidates: drawn.cards }),
     awaiting: {
-      k: 'luckyDuke',
+      k: 'judgementChoice',
       pid: frame.pid,
       purpose: frame.purpose,
       options: drawn.cards,

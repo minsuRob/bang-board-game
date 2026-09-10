@@ -38,14 +38,16 @@ export function resolveDamage(state: GameState, frame: Frame & { k: 'damage' }):
     });
   }
 
-  const hp = Math.max(0, p.hp - frame.amount);
+  // 0 에서 자르지 않는다. 다이너마이트로 -2 가 되면 살아나는 데 맥주가 3장 필요하고,
+  // 여기서 잘라 버리면 그 계산이 무너진다. (원본 맵 v0.36 패치노트)
+  const hp = p.hp - frame.amount;
   cur = updatePlayer(cur, p.id, (x) => ({ ...x, hp }));
   cur = log(cur, {
     t: 'damage',
     pid: frame.source ?? undefined,
     target: p.id,
     amount: frame.amount,
-    text: `${p.name}이(가) 목숨 ${frame.amount}을(를) 잃었다 (남은 목숨 ${hp}).`,
+    text: `${p.name}이(가) 목숨 ${frame.amount}을(를) 잃었다 (남은 목숨 ${Math.max(0, hp)}).`,
   });
 
   // 능력이 먼저 울린다. 바트 캐시디가 뽑은 카드에 맥주가 있을 수 있기 때문이다.
@@ -95,11 +97,13 @@ export function resolveCheckDeath(
   if (p.hp > 0) return popFrame(state);
 
   const survivors = alivePlayers(state).length;
+  const needed = 1 - p.hp;
   const beers = survivors > 2 ? survivableBeers(state, frame.target) : [];
-  const canUseAbility =
-    survivors > 2 && anytimeAbilitiesOf(state, frame.target).length > 0 && p.hand.length >= 2;
+  // 시드 케첨은 맥주 카드가 아니므로 목사 중에도, 맥주가 모자라도 살아날 길이 된다.
+  const canUseAbility = anytimeAbilitiesOf(state, frame.target).length > 0 && p.hand.length >= 2;
 
-  if (beers.length === 0 && !canUseAbility) {
+  // 살아날 가능성이 없으면 물어보지 않는다.
+  if (beers.length < needed && !canUseAbility) {
     return pushSeq(popFrame(state), [
       { k: 'eliminate', target: frame.target, killer: frame.source },
     ]);
@@ -109,7 +113,7 @@ export function resolveCheckDeath(
     awaiting: {
       k: 'beerToSurvive',
       pid: frame.target,
-      needed: 1 - p.hp,
+      needed,
       options: beers,
     },
   };

@@ -73,7 +73,9 @@ export function scenario(spec: ScenarioSpec): GameState {
   const used = new Set<CardId>();
 
   const players: Player[] = spec.players.map((p, i) => {
-    const character = p.character ?? 'willyTheKid';
+    // 기본 캐릭터는 카드 사용 단계에 아무 영향이 없는 블랙 잭으로 둔다.
+    // (능력이 드로우 단계에서만 울리므로 시나리오를 오염시키지 않는다)
+    const character = p.character ?? 'blackJack';
     const role: Role = p.role ?? (i === 0 ? 'sheriff' : 'outlaw');
     const maxHp = p.maxHp ?? CHARACTERS[character].maxHp + (role === 'sheriff' ? 1 : 0);
     return {
@@ -176,3 +178,8 @@ export function totalCards(state: GameState): number {
 }
 
 export { resolveStack };
+
+/** 지정한 사람의 차례를 처음부터 시작시킨다 (다이너마이트·감옥·이벤트 검증용) */
+export function beginTurn(state: GameState, pid: PlayerId): GameState {
+  return resolveStack({ ...state, stack: [{ k: 'turnStart', pid }], awaiting: null });
+}
