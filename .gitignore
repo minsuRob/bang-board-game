@@ -41,3 +41,9 @@ example
 # generated native folders
 /ios
 /android
+
+# 참고 자료 (dV Giochi 저작물 - 커밋 금지)
+reference/sc2-arcade/images/
+
+# 로컬 환경 변수
+.env

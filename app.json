@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "bang-board-game",
+    "name": "BANG!",
     "slug": "bang-board-game",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "bangboardgame",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "ios": {
       "icon": "./assets/expo.icon"
     },
