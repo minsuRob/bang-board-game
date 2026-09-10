@@ -6,7 +6,7 @@
  * 술통·주르도네·다이너마이트·감옥이 전부 이 한 프레임을 지나간다.
  */
 
-import { RANK_VALUE } from '../../data/types';
+import { RANK_VALUE, SUIT_GLYPH, type Suit } from '../../data/types';
 import {
   cardOf,
   drawFromDeck,
@@ -24,6 +24,7 @@ import {
 import { judgementPeekOf, turnDirectionOf } from '../hooks';
 import type { Choice, Frame, GameState, JudgementPurpose, PlayerId } from '../types';
 import { skipRestOfTurn } from './turn';
+import { ga, neun } from '../josa';
 
 const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
   barrel: '술통',
@@ -102,7 +103,7 @@ function applyJudgement(
     t: 'judgement',
     pid,
     card,
-    text: `${nameOf(cur, pid)}의 ${PURPOSE_LABEL[purpose]} 판정: ${inst.rank}${suit}`,
+    text: `${nameOf(cur, pid)}의 ${PURPOSE_LABEL[purpose]} 판정: ${inst.rank}${SUIT_GLYPH[suit]}`,
   });
 
   switch (purpose) {
@@ -126,7 +127,7 @@ function applyJudgement(
 function resolveDynamiteResult(
   state: GameState,
   pid: PlayerId,
-  suit: string,
+  suit: Suit,
   rank: keyof typeof RANK_VALUE,
 ): GameState {
   const p = playerOf(state, pid);
@@ -143,7 +144,7 @@ function resolveDynamiteResult(
 
   if (explodes) {
     cur = toDiscard(cur, [dyn]);
-    cur = log(cur, { t: 'dynamite', pid, text: `다이너마이트가 터졌다! ${p.name}이(가) 목숨 3을 잃는다.` });
+    cur = log(cur, { t: 'dynamite', pid, text: `다이너마이트가 터졌다! ${ga(p.name)} 목숨 3을 잃는다.` });
     return pushSeq(cur, [
       { k: 'damage', target: pid, amount: 3, source: null, cause: 'dynamite' },
     ]);
@@ -167,7 +168,7 @@ function resolveDynamiteResult(
   return toDiscard(cur, [dyn]);
 }
 
-function resolveJailResult(state: GameState, pid: PlayerId, suit: string): GameState {
+function resolveJailResult(state: GameState, pid: PlayerId, suit: Suit): GameState {
   const p = playerOf(state, pid);
   const jailCard = p.equipment.find((c) => cardOf(c).kind === 'jail');
   if (!jailCard) return state;
@@ -179,8 +180,8 @@ function resolveJailResult(state: GameState, pid: PlayerId, suit: string): GameS
   cur = toDiscard(cur, [jailCard]);
 
   if (suit === 'hearts') {
-    return log(cur, { t: 'jailEscape', pid, text: `${p.name}이(가) 감옥에서 탈출했다.` });
+    return log(cur, { t: 'jailEscape', pid, text: `${ga(p.name)} 감옥에서 탈출했다.` });
   }
-  cur = log(cur, { t: 'jailSkip', pid, text: `${p.name}은(는) 감옥에 갇혀 차례를 건너뛴다.` });
+  cur = log(cur, { t: 'jailSkip', pid, text: `${neun(p.name)} 감옥에 갇혀 차례를 건너뛴다.` });
   return skipRestOfTurn(cur, pid);
 }

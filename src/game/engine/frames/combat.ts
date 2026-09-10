@@ -23,6 +23,7 @@ import {
 } from '../cards';
 import { onTargetedByBangFrames, playableAs } from '../hooks';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
+import { ga, neun } from '../josa';
 
 /**
  * 손에서 카드 한 장을 버린 더미로 보낸다.
@@ -49,7 +50,7 @@ export function resolveBang(state: GameState, frame: Frame & { k: 'bang' }): Gam
     return log(popFrame(state), {
       t: 'ghostImmune',
       target: t.id,
-      text: `${t.name}은(는) 유령이라 총알이 통하지 않는다.`,
+      text: `${neun(t.name)} 유령이라 총알이 통하지 않는다.`,
     });
   }
 
@@ -63,7 +64,7 @@ export function resolveBang(state: GameState, frame: Frame & { k: 'bang' }): Gam
     return log(popFrame(state), {
       t: 'missed',
       target: t.id,
-      text: `${t.name}이(가) 총알을 피했다.`,
+      text: `${ga(t.name)} 총알을 피했다.`,
     });
   }
 
@@ -116,7 +117,7 @@ export function respondBang(
     t: 'playMissed',
     pid: frame.target,
     card: choice.card,
-    text: `${nameOf(cur, frame.target)}이(가) 빗나감!을 냈다.`,
+    text: `${ga(nameOf(cur, frame.target))} 빗나감!을 냈다.`,
   });
   return replaceTop(cur, { ...frame, missesRequired: frame.missesRequired - 1 });
 }
@@ -202,7 +203,7 @@ export function respondIndians(
     t: 'indiansBang',
     pid,
     card: choice.card,
-    text: `${nameOf(cur, pid)}이(가) 뱅!을 버려 인디언을 물리쳤다.`,
+    text: `${ga(nameOf(cur, pid))} 뱅!을 버려 인디언을 물리쳤다.`,
   });
   return replaceTop(cur, { ...frame, queue: rest });
 }
@@ -243,7 +244,7 @@ export function respondDuel(
     t: 'duelBang',
     pid: frame.toPlay,
     card: choice.card,
-    text: `${nameOf(cur, frame.toPlay)}이(가) 결투에서 뱅!을 냈다.`,
+    text: `${ga(nameOf(cur, frame.toPlay))} 결투에서 뱅!을 냈다.`,
   });
   const next = frame.toPlay === frame.a ? frame.b : frame.a;
   return replaceTop(cur, { ...frame, toPlay: next });
@@ -262,7 +263,7 @@ function duelLoss(
     t: 'duelLoss',
     pid: winner,
     target: loser,
-    text: `${nameOf(state, loser)}이(가) 결투에서 졌다.`,
+    text: `${ga(nameOf(state, loser))} 결투에서 졌다.`,
   });
   return pushSeq(cur, [
     { k: 'damage', target: loser, amount: 1, source, credit: winner, cause: 'duel' },

@@ -23,6 +23,7 @@ import {
 import { generalStoreQueue } from './frames/cards';
 import { outgoingBangMissesOf } from './hooks';
 import type { Frame, GameState, PlayerId } from './types';
+import { eul, ga } from './josa';
 
 /** 자신을 제외한 생존자를, 자기 왼쪽(다음 좌석)부터 시계 방향으로 */
 export function othersInOrder(state: GameState, source: PlayerId): PlayerId[] {
@@ -61,7 +62,7 @@ export function applyPlayCard(
     card,
     target,
     text:
-      `${nameOf(cur, pid)}이(가) ${def.nameKo}을(를) 냈다` +
+      `${ga(nameOf(cur, pid))} ${eul(def.nameKo)} 냈다` +
       (target ? ` → ${nameOf(cur, target)}.` : '.'),
   });
 

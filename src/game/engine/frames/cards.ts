@@ -2,7 +2,7 @@
  * 카드가 오가는 프레임: 가져오기 · 뺏기 · 잡화점 · 캐릭터별 드로우 변형.
  */
 
-import { RED_SUITS } from '../../data/types';
+import { RED_SUITS, SUIT_GLYPH } from '../../data/types';
 import {
   drawFromDeck,
   effectiveSuit,
@@ -22,6 +22,7 @@ import {
 import { afterDrawFrames } from '../hooks';
 import { nextInt } from '../rng';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
+import { ga } from '../josa';
 
 export function resolveDrawCards(
   state: GameState,
@@ -37,7 +38,7 @@ export function resolveDrawCards(
     t: 'draw',
     pid: frame.pid,
     amount: drawn.cards.length,
-    text: `${p.name}이(가) 카드 ${drawn.cards.length}장을 가져왔다.`,
+    text: `${ga(p.name)} 카드 ${drawn.cards.length}장을 가져왔다.`,
   });
 
   // 블랙 잭처럼 뽑은 카드를 보고 반응하는 훅은 정규 드로우 단계에서만 울린다.
@@ -76,7 +77,7 @@ export function resolveDrawFromPlayer(
     pid: frame.pid,
     target: frame.from,
     amount: taken.length,
-    text: `${taker.name}이(가) ${nameOf(cur, frame.from)}의 손에서 ${taken.length}장을 가져갔다.`,
+    text: `${ga(taker.name)} ${nameOf(cur, frame.from)}의 손에서 ${taken.length}장을 가져갔다.`,
   });
 }
 
@@ -97,7 +98,7 @@ export function resolveTakeAllCards(
     pid: frame.pid,
     target: frame.from,
     amount: cards.length,
-    text: `${nameOf(cur, frame.pid)}이(가) ${victim.name}의 카드 ${cards.length}장을 챙겼다.`,
+    text: `${ga(nameOf(cur, frame.pid))} ${victim.name}의 카드 ${cards.length}장을 챙겼다.`,
   });
 }
 
@@ -150,7 +151,7 @@ export function respondGeneralStore(
     t: 'generalStorePick',
     pid,
     card,
-    text: `${nameOf(cur, pid)}이(가) 잡화점에서 카드를 골랐다.`,
+    text: `${ga(nameOf(cur, pid))} 잡화점에서 카드를 골랐다.`,
   });
   return replaceTop(cur, {
     ...frame,
@@ -218,7 +219,7 @@ export function respondSteal(
       t: 'panic',
       pid: frame.source,
       target: frame.target,
-      text: `${nameOf(cur, frame.source)}이(가) ${t.name}의 카드를 강탈했다.`,
+      text: `${ga(nameOf(cur, frame.source))} ${t.name}의 카드를 강탈했다.`,
     });
   }
   cur = toDiscard(cur, [picked]);
@@ -226,7 +227,7 @@ export function respondSteal(
     t: 'catBalou',
     pid: frame.source,
     target: frame.target,
-    text: `${nameOf(cur, frame.source)}이(가) ${t.name}의 카드를 버리게 했다.`,
+    text: `${ga(nameOf(cur, frame.source))} ${t.name}의 카드를 버리게 했다.`,
   });
 }
 
@@ -349,7 +350,7 @@ export function respondPedroRamirez(
       t: 'pedroRamirez',
       pid: frame.pid,
       card,
-      text: `${nameOf(cur, frame.pid)}이(가) 버린 더미에서 카드를 가져왔다.`,
+      text: `${ga(nameOf(cur, frame.pid))} 버린 더미에서 카드를 가져왔다.`,
     });
     return frame.rest > 0
       ? pushSeq(cur, [
@@ -378,7 +379,7 @@ export function resolveBlackJackReveal(
     t: 'blackJack',
     pid: frame.pid,
     card: frame.card,
-    text: `${nameOf(cur, frame.pid)}의 두 번째 카드 공개: ${suit}${bonus ? ' — 한 장 더!' : ''}`,
+    text: `${nameOf(cur, frame.pid)}의 두 번째 카드 공개 ${SUIT_GLYPH[suit]} ${bonus ? '— 한 장 더!' : '— 그대로'}`,
   });
   return bonus
     ? pushSeq(logged, [{ k: 'drawCards', pid: frame.pid, count: 1, reason: 'blackJack' }])

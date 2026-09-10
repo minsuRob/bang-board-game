@@ -26,6 +26,7 @@ import { applyPlayCard } from './play';
 import { createGame } from './setup';
 import { resolveStack } from './stack';
 import type { Action, Choice, GameState, PlayerId } from './types';
+import { ga } from './josa';
 
 export function reduce(state: GameState | null, action: Action): GameState {
   if (action.type === 'startGame') {
@@ -95,7 +96,7 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
         t: 'discard',
         pid: action.pid,
         card: action.card,
-        text: `${nameOf(cur, action.pid)}이(가) 카드를 버렸다.`,
+        text: `${ga(nameOf(cur, action.pid))} 카드를 버렸다.`,
       });
       break;
     }
@@ -134,7 +135,7 @@ function applyAbility(
     t: 'sidKetchum',
     pid,
     cards,
-    text: `${nameOf(cur, pid)}이(가) 카드 2장을 버리고 목숨을 1 회복했다.`,
+    text: `${ga(nameOf(cur, pid))} 카드 2장을 버리고 목숨을 1 회복했다.`,
   });
 }
 

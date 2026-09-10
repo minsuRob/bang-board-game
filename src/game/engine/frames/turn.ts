@@ -9,8 +9,9 @@
  * 엔진은 해결을 멈추고 플레이어의 액션을 기다린다.
  */
 
+import { HIGHNOON_EVENTS } from '../../data/cards.highnoon';
 import { CHARACTERS } from '../../data/characters';
-import type { Suit } from '../../data/types';
+import { SUIT_GLYPH, type Suit } from '../../data/types';
 import {
   inPlay,
   log,
@@ -32,6 +33,7 @@ import {
   turnDirectionOf,
 } from '../hooks';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
+import { ga, neun } from '../josa';
 
 /** 감옥에 걸려 차례를 건너뛸 때, 이번 차례의 남은 단계를 스택에서 걷어낸다. */
 export function skipRestOfTurn(state: GameState, pid: PlayerId): GameState {
@@ -101,7 +103,7 @@ export function resolveRevealEvent(state: GameState): GameState {
       past: ev.current ? [...ev.past, ev.current] : ev.past,
     },
   };
-  cur = log(cur, { t: 'event', card: next, text: `이벤트 공개: ${next}` });
+  cur = log(cur, { t: 'event', card: next, text: `이벤트 공개 — ${HIGHNOON_EVENTS[next].nameKo}` });
 
   return pushSeq(cur, onEventEnterFrames(cur));
 }
@@ -194,7 +196,7 @@ export function resolveAdvanceTurn(
       cur = log(cur, {
         t: 'ghostRise',
         pid: cand.id,
-        text: `${cand.name}이(가) 유령으로 되살아났다.`,
+        text: `${ga(cand.name)} 유령으로 되살아났다.`,
       });
       return pushSeq(cur, [{ k: 'turnStart', pid: cand.id }]);
     }
@@ -230,7 +232,7 @@ export function respondNewIdentity(
     return log(cur, {
       t: 'newIdentity',
       pid: frame.pid,
-      text: `${p.name}은(는) 신분을 그대로 유지했다.`,
+      text: `${neun(p.name)} 신분을 그대로 유지했다.`,
     });
   }
   const next = p.spareCharacter;
@@ -245,7 +247,7 @@ export function respondNewIdentity(
   return log(cur, {
     t: 'newIdentity',
     pid: frame.pid,
-    text: `${p.name}이(가) ${CHARACTERS[next].nameKo}(으)로 신분을 바꿨다 (목숨 2).`,
+    text: `${ga(p.name)} ${CHARACTERS[next].nameKo}(으)로 신분을 바꿨다 (목숨 2).`,
   });
 }
 
@@ -273,7 +275,7 @@ export function respondDeclareSuit(
     {
       t: 'declareSuit',
       pid: frame.pid,
-      text: `${nameOf(cur, frame.pid)}이(가) 무늬 ${suit}를 선언했다.`,
+      text: `${ga(nameOf(cur, frame.pid))} 무늬 ${SUIT_GLYPH[suit]}를 선언했다.`,
     },
   );
 }
@@ -319,7 +321,7 @@ export function respondDaltonsDiscard(
     t: 'daltons',
     pid,
     card,
-    text: `달톤 형제: ${p.name}이(가) 장착 카드 1장을 버렸다.`,
+    text: `달톤 형제: ${ga(p.name)} 장착 카드 1장을 버렸다.`,
   });
 
   return {
