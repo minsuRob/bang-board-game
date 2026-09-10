@@ -28,6 +28,7 @@ export {
   weaponOf,
 } from './cards';
 export { bangLimitOf, getModifiers, anytimeAbilitiesOf, playableAs } from './hooks';
+export { viewFor, isHidden, roleVisibleTo, HIDDEN_CARD } from './view';
 export { createRng } from './rng';
 export type { RngState } from './rng';
 export type {

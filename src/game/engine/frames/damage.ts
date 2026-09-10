@@ -139,6 +139,9 @@ export function respondCheckDeath(
     ]);
   }
   const card = choice.card;
+  // 손에 없는 카드로는 살아날 수 없다 (카드 복제 방지)
+  if (!p.hand.includes(card)) return state;
+
   let cur = updatePlayer(state, p.id, (x) => ({
     ...x,
     hand: x.hand.filter((c) => c !== card),

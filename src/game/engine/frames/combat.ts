@@ -24,8 +24,13 @@ import {
 import { onTargetedByBangFrames, playableAs } from '../hooks';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 
-/** 손에서 카드 한 장을 버린 더미로 보낸다. */
+/**
+ * 손에서 카드 한 장을 버린 더미로 보낸다.
+ *
+ * 손에 없는 카드는 그냥 무시한다. 없는 카드를 버린 더미에 넣으면 카드가 복제된다.
+ */
 function discardFromHand(state: GameState, pid: PlayerId, card: string): GameState {
+  if (!playerOf(state, pid).hand.includes(card)) return state;
   const cur = updatePlayer(state, pid, (p) => ({
     ...p,
     hand: p.hand.filter((c) => c !== card),
@@ -213,7 +218,9 @@ export function resolveDuel(state: GameState, frame: Frame & { k: 'duel' }): Gam
   const cur = playerOf(state, frame.toPlay);
   const opponent = frame.toPlay === frame.a ? frame.b : frame.a;
 
-  if (!cur.alive) return popFrame(state);
+  // 유령도 결투에 참가한다. 지더라도 목숨을 잃지 않을 뿐이고, 그 면역은
+  // damage 프레임이 처리한다. 여기서 통째로 빼면 결투가 흔적 없이 증발한다.
+  if (!inPlay(cur)) return popFrame(state);
 
   const options = playableAs(state, frame.toPlay, 'bang', true);
   if (options.length === 0) return duelLoss(state, frame, frame.toPlay);

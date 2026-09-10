@@ -4,7 +4,6 @@
 
 import { RED_SUITS } from '../../data/types';
 import {
-  alivePlayers,
   drawFromDeck,
   effectiveSuit,
   giveCards,
@@ -16,6 +15,7 @@ import {
   pushSeq,
   putOnDeck,
   replaceTop,
+  seatedPlayers,
   toDiscard,
   updatePlayer,
 } from '../cards';
@@ -124,7 +124,7 @@ export function resolveGeneralStore(
     });
   }
 
-  queue = queue.filter((id) => playerOf(cur, id).alive);
+  queue = queue.filter((id) => inPlay(playerOf(cur, id)));
   if (queue.length === 0 || revealed.length === 0) {
     // 고를 사람이 없으면 남은 카드는 버린 더미로.
     return toDiscard(popFrame(cur), revealed);
@@ -385,10 +385,16 @@ export function resolveBlackJackReveal(
     : logged;
 }
 
-/** 잡화점이 펼칠 카드 수 = 생존자 수 (원본 맵 v0.275 패치노트) */
+/**
+ * 잡화점이 펼칠 카드 수 = 지금 자리에 앉아 있는 사람 수.
+ *
+ * '생존자 수'가 아니라 '링 참여자 수'다. 유령도시로 되살아난 유령은 생존자가
+ * 아니지만 자리에는 앉아 있으므로 한 장을 고른다. 이 둘을 뭉뚱그리면
+ * 카드가 모자라거나 남는다. (원본 맵 v0.275 / v0.418 패치노트)
+ */
 export function generalStoreQueue(state: GameState, source: PlayerId): PlayerId[] {
-  const alive = alivePlayers(state);
-  const start = alive.findIndex((p) => p.id === source);
-  if (start < 0) return alive.map((p) => p.id);
-  return [...alive.slice(start), ...alive.slice(0, start)].map((p) => p.id);
+  const ring = seatedPlayers(state);
+  const start = ring.findIndex((p) => p.id === source);
+  if (start < 0) return ring.map((p) => p.id);
+  return [...ring.slice(start), ...ring.slice(0, start)].map((p) => p.id);
 }

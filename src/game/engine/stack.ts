@@ -22,7 +22,11 @@ const MAX_STEPS = 20000;
 export function isBlocked(state: GameState): boolean {
   const f = topFrame(state);
   if (!f) return false;
-  if (f.k === 'playPhase') return state.turn.phase === 'play';
+  if (f.k === 'playPhase') {
+    // 자기 차례에 죽는 경우가 있다 (자기가 건 결투에서 지거나, 인디언을 맞고 쓰러지거나).
+    // 그때는 멈추면 안 된다. 아무도 둘 수 없는 상태로 게임이 굳는다.
+    return state.turn.phase === 'play' && inPlay(playerOf(state, f.pid));
+  }
   if (f.k === 'discardPhase') {
     const p = playerOf(state, f.pid);
     return state.turn.phase === 'discard' && inPlay(p) && p.hand.length > p.hp;

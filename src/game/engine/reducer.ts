@@ -77,9 +77,14 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
       cur = respondToFrame({ ...cur, awaiting: null }, frame, action.choice);
       break;
     }
-    case 'useAbility':
+    case 'useAbility': {
       cur = applyAbility(cur, action.pid, action.ability, action.cards ?? []);
+      // '언제든' 능력은 반응 대기 도중에도 쓸 수 있고, 그 과정에서 손패가 바뀐다.
+      // 대기 상태에 박혀 있던 선택지는 그 순간 낡은 값이 되므로 버리고 다시 만든다.
+      // (시드 케첨이 능력으로 빗나감!을 버린 뒤 그 카드를 다시 내던 버그)
+      cur = { ...cur, awaiting: null };
       break;
+    }
     case 'discardCard': {
       cur = updatePlayer(cur, action.pid, (p) => ({
         ...p,
