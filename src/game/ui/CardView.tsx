@@ -1,16 +1,24 @@
 /**
  * 카드 한 장.
  *
- * 원작의 일러스트는 쓰지 않는다. 테두리 색(갈색=즉시, 파랑=장착), 무늬와 숫자,
- * 그리고 심벌 줄만으로 카드를 읽을 수 있게 만든다.
+ * 두 가지 방식으로 그린다.
+ *
+ * 1. 원본 그림이 설치되어 있으면 그 그림을 쓴다 (`node scripts/install-art.mjs`).
+ *    다만 그림에 인쇄된 무늬·숫자는 대표값 하나로 고정이라, 이 판에서 실제로 쓰이는
+ *    무늬·숫자를 왼쪽 아래에 덮어 그린다. 판정(술통·감옥·다이너마이트)이 그 값을 보기 때문이다.
+ *    그림 속 글자는 이탈리아어라 한국어 이름을 띠로 얹는다.
+ *
+ * 2. 그림이 없으면 테두리 색(갈색=즉시, 파랑=장착), 무늬와 숫자, 심벌 줄만으로 그린다.
+ *    카드 일러스트는 dV Giochi 의 저작물이라 저장소에 넣지 않으므로, 이쪽이 기본 모습이다.
  */
 
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../data/cards.base';
 import { SUIT_GLYPH, type CardId } from '../data/types';
 import { cardOf, kindOf } from '../engine';
+import { cardBackArt, playingCardArt } from './card-art';
 import { chipFor } from './card-symbols';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
@@ -43,19 +51,41 @@ function CardViewBase({
 }: CardViewProps) {
   const dim = DIMENSIONS[size];
   const inst = cardOf(card);
-  const def = CARD_DEFS[kindOf(card)];
-  const suitColor = inst.suit === 'hearts' || inst.suit === 'diamonds' ? Colors.suitRed : Colors.suitBlack;
+  const kind = kindOf(card);
+  const def = CARD_DEFS[kind];
+  const suitColor =
+    inst.suit === 'hearts' || inst.suit === 'diamonds' ? Colors.suitRed : Colors.suitBlack;
   const accent = def.category === 'blue' ? Colors.cardBlue : Colors.cardBrown;
+  const art = playingCardArt(kind);
 
-  const body = (
-    <View
-      style={[
-        styles.card,
-        { width: dim.width, height: dim.height, borderColor: accent },
-        highlighted && styles.highlighted,
-        selected && styles.selected,
-        disabled && styles.disabled,
-      ]}>
+  const frame = [
+    styles.card,
+    { width: dim.width, height: dim.height, borderColor: accent },
+    highlighted && styles.highlighted,
+    selected && styles.selected,
+    disabled && styles.disabled,
+  ];
+
+  const body = art ? (
+    <View style={[...frame, styles.artCard]}>
+      <Image source={art} style={styles.art} resizeMode="cover" />
+
+      {size !== 'sm' && (
+        <View style={styles.nameStrip}>
+          <Text style={[styles.stripText, { fontSize: dim.title - 1 }]} numberOfLines={1}>
+            {def.nameKo}
+          </Text>
+        </View>
+      )}
+
+      {/* 그림에 인쇄된 무늬·숫자를 덮는다 */}
+      <View style={styles.suitBadge}>
+        <Text style={[styles.badgeRank, { color: suitColor }]}>{inst.rank}</Text>
+        <Text style={[styles.badgeSuit, { color: suitColor }]}>{SUIT_GLYPH[inst.suit]}</Text>
+      </View>
+    </View>
+  ) : (
+    <View style={frame}>
       <View style={styles.corner}>
         <Text style={[styles.rank, { color: suitColor }]}>{inst.rank}</Text>
         <Text style={[styles.suit, { color: suitColor }]}>{SUIT_GLYPH[inst.suit]}</Text>
@@ -95,6 +125,17 @@ export const CardView = memo(CardViewBase);
 
 export function CardBack({ size = 'md' }: { size?: CardSize }) {
   const dim = DIMENSIONS[size];
+  const art = cardBackArt();
+
+  if (art) {
+    return (
+      <Image
+        source={art}
+        style={[styles.backArt, { width: dim.width, height: dim.height }]}
+        resizeMode="cover"
+      />
+    );
+  }
   return (
     <View style={[styles.back, { width: dim.width, height: dim.height }]}>
       <Text style={styles.backMark}>✷</Text>
@@ -111,6 +152,36 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
     justifyContent: 'space-between',
   },
+  artCard: { padding: 0, overflow: 'hidden', justifyContent: 'flex-start' },
+  art: { width: '100%', height: '100%' },
+  nameStrip: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    // 그림에 인쇄된 이탈리아어 제목을 완전히 덮는다. 반투명이면 두 글자가 겹쳐 읽힌다.
+    backgroundColor: 'rgb(30, 20, 11)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(212, 160, 23, 0.55)',
+    paddingVertical: 2,
+    paddingHorizontal: 2,
+  },
+  stripText: { color: Colors.paper, fontWeight: '800', textAlign: 'center' },
+  suitBadge: {
+    position: 'absolute',
+    left: 1,
+    bottom: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 1,
+    backgroundColor: 'rgba(252, 250, 244, 0.94)',
+    borderRadius: 3,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+  },
+  badgeRank: { fontSize: 9, fontWeight: '900' },
+  badgeSuit: { fontSize: 10 },
+
   highlighted: {
     borderColor: Colors.highlight,
     boxShadow: `0 0 6px ${Colors.highlight}`,
@@ -145,5 +216,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  backArt: { borderRadius: Radius.md },
   backMark: { color: Colors.cardBrown, fontSize: 20 },
 });

@@ -7,13 +7,14 @@
  */
 
 import { useMemo } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ImageBackground, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { CHARACTERS } from '../data/characters';
 import { ROLE_GOAL, ROLE_LABEL } from '../data/roles';
 import type { CardId } from '../data/types';
 import type { GameState, PlayerId } from '../engine';
 import { ActionBar } from './ActionBar';
+import { feltArt, woodArt } from './card-art';
 import { Hand } from './Hand';
 import { LogPanel } from './LogPanel';
 import { PlayerSeat } from './PlayerSeat';
@@ -72,6 +73,9 @@ export function Table({ view, viewer, api }: TableProps) {
 
   const steal = api.prompt?.steal ?? null;
   const targets = api.selected ? api.targetsFor(api.selected) : [];
+  // 나무 판자와 가죽. 설치돼 있지 않으면 단색으로 간다.
+  const wood = woodArt();
+  const felt = feltArt();
 
   const onSeatPress = (pid: PlayerId) => {
     if (api.selected && targets.includes(pid)) api.playCard(api.selected, pid);
@@ -92,36 +96,52 @@ export function Table({ view, viewer, api }: TableProps) {
     );
   }
 
+  const table = (
+    <View style={[styles.table, { width: tableWidth, height: tableHeight }]}>
+      {felt ? (
+        <ImageBackground source={felt} style={styles.felt} imageStyle={styles.feltImage} />
+      ) : (
+        <View style={styles.felt} />
+      )}
+
+      {seats.map(({ player, left, top }) => (
+        <View key={player.id} style={[styles.seatSlot, { left, top }]}>
+          <PlayerSeat
+            view={view}
+            player={player}
+            viewer={viewer}
+            active={view.turn.active === player.id}
+            targetable={targets.includes(player.id)}
+            onPress={() => onSeatPress(player.id)}
+            picking={steal && steal.target === player.id ? steal : null}
+            onPickHand={(index) => api.respond({ c: 'pick', pick: { zone: 'hand', index } })}
+            onPickEquipment={(card: CardId) =>
+              api.respond({ c: 'pick', pick: { zone: 'equipment', card } })
+            }
+            compact={!wide}
+          />
+        </View>
+      ))}
+
+      <View style={styles.centerSlot}>
+        <TableCenter view={view} message={statusMessage(view, viewer)} />
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.root}>
+      {/* 나무 판자는 배경일 뿐이라 흐름에서 빼고 뒤에 깐다 */}
+      {wood && (
+        <ImageBackground
+          source={wood}
+          style={styles.woodBackdrop}
+          imageStyle={styles.woodImage}
+        />
+      )}
+
       <View style={styles.main}>
-        <View style={[styles.table, { width: tableWidth, height: tableHeight }]}>
-          <View style={styles.felt} />
-
-          {seats.map(({ player, left, top }) => (
-            <View key={player.id} style={[styles.seatSlot, { left, top }]}>
-              <PlayerSeat
-                view={view}
-                player={player}
-                viewer={viewer}
-                active={view.turn.active === player.id}
-                targetable={targets.includes(player.id)}
-                onPress={() => onSeatPress(player.id)}
-                picking={steal && steal.target === player.id ? steal : null}
-                onPickHand={(index) => api.respond({ c: 'pick', pick: { zone: 'hand', index } })}
-                onPickEquipment={(card: CardId) =>
-                  api.respond({ c: 'pick', pick: { zone: 'equipment', card } })
-                }
-                compact={!wide}
-              />
-            </View>
-          ))}
-
-          <View style={styles.centerSlot}>
-            <TableCenter view={view} message={statusMessage(view, viewer)} />
-          </View>
-        </View>
-
+        {table}
         {wide && <LogPanel log={view.log} style={styles.log} />}
       </View>
 
@@ -225,6 +245,15 @@ function bottomStatus(view: GameState, viewer: PlayerId, api: TableApi): string 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
   main: { flex: 1, flexDirection: 'row', gap: Spacing.three, padding: Spacing.two },
+  woodBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    pointerEvents: 'none',
+  },
+  woodImage: { resizeMode: 'repeat', opacity: 0.3 },
   table: { position: 'relative' },
   felt: {
     position: 'absolute',
@@ -237,7 +266,9 @@ const styles = StyleSheet.create({
     margin: Spacing.four,
     borderWidth: 2,
     borderColor: Colors.border,
+    overflow: 'hidden',
   },
+  feltImage: { borderRadius: 400, opacity: 0.22 },
   seatSlot: { position: 'absolute', width: SEAT_W, alignItems: 'center' },
   centerSlot: {
     // 가운데 표시는 좌석 클릭을 가로막으면 안 된다
@@ -250,7 +281,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  log: { width: LOG_WIDTH, marginVertical: Spacing.two },
+  log: {
+    width: LOG_WIDTH,
+    marginVertical: Spacing.two,
+    backgroundColor: 'rgba(28, 19, 11, 0.92)',
+  },
   bottom: { backgroundColor: Colors.surface },
   myRow: {
     flexDirection: 'row',

@@ -7,7 +7,16 @@
  */
 
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {
+  Image,
+  ImageBackground,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 
 import { CARD_DEFS } from '../data/cards.base';
 import { HIGHNOON_EVENTS } from '../data/cards.highnoon';
@@ -18,6 +27,7 @@ import type { DimensionValue } from 'react-native';
 import type { CardId, Role } from '../data/types';
 import { distance, kindOf, type GameState, type Player, type PlayerId } from '../engine';
 import { ActionBar } from './ActionBar';
+import { cardBackArt, characterArt, eventArt, woodArt } from './card-art';
 import { CardView } from './CardView';
 import { Hand } from './Hand';
 import { LogPanel } from './LogPanel';
@@ -65,9 +75,19 @@ export function TableMobile({
   const steal = api.prompt?.steal ?? null;
   const top = view.discard[view.discard.length - 1];
   const event = view.event?.current ? HIGHNOON_EVENTS[view.event.current] : null;
+  const eventImage = view.event?.current ? eventArt(view.event.current) : null;
+  const back = cardBackArt();
+  const wood = woodArt();
 
   return (
     <View style={styles.root}>
+      {wood && (
+        <ImageBackground
+          source={wood}
+          style={styles.woodBackdrop}
+          imageStyle={styles.woodImage}
+        />
+      )}
       <View style={styles.topBar}>
         <Text style={styles.headline} numberOfLines={1}>
           {headline}
@@ -102,20 +122,28 @@ export function TableMobile({
 
         <View style={styles.center}>
           <Pile label={`덱 ${view.deck.length}`}>
-            <View style={styles.cardBack}>
-              <Text style={styles.cardBackMark}>✷</Text>
-            </View>
+            {back ? (
+              <Image source={back} style={styles.cardBackArt} resizeMode="cover" />
+            ) : (
+              <View style={styles.cardBack}>
+                <Text style={styles.cardBackMark}>✷</Text>
+              </View>
+            )}
           </Pile>
           <Pile label={`버린 더미 ${view.discard.length}`}>
             {top ? <CardView card={top} size="sm" /> : <View style={styles.emptyPile} />}
           </Pile>
           {event && (
             <Pile label="이벤트">
-              <View style={styles.eventCard}>
-                <Text style={styles.eventName} numberOfLines={2}>
-                  {event.nameKo}
-                </Text>
-              </View>
+              {eventImage ? (
+                <Image source={eventImage} style={styles.eventArt} resizeMode="cover" />
+              ) : (
+                <View style={styles.eventCard}>
+                  <Text style={styles.eventName} numberOfLines={2}>
+                    {event.nameKo}
+                  </Text>
+                </View>
+              )}
             </Pile>
           )}
         </View>
@@ -213,6 +241,7 @@ function CompactSeat({
   const isSelf = player.id === viewer;
   const dead = !player.alive && !player.ghost;
   const dist = !isSelf && !dead ? safeDistance(view, viewer, player.id) : null;
+  const portrait = characterArt(player.character);
 
   return (
     <Pressable
@@ -240,11 +269,14 @@ function CompactSeat({
         )}
       </View>
 
-      <Text style={styles.compactCharacter} numberOfLines={1}>
-        {CHARACTERS[player.character].nameKo}
-        {player.ghost ? ' · 유령' : ''}
-        {dead ? ' · 제거됨' : ''}
-      </Text>
+      <View style={styles.compactCharRow}>
+        {portrait && <Image source={portrait} style={styles.compactPortrait} resizeMode="cover" />}
+        <Text style={styles.compactCharacter} numberOfLines={2}>
+          {CHARACTERS[player.character].nameKo}
+          {player.ghost ? ' · 유령' : ''}
+          {dead ? ' · 제거됨' : ''}
+        </Text>
+      </View>
 
       <View style={styles.compactRow}>
         <Text style={styles.compactHp}>
@@ -304,6 +336,24 @@ function Pile({ label, children }: { label: string; children: React.ReactNode })
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
+  woodBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    // 배경일 뿐이므로 손가락을 가로막지 않는다
+    pointerEvents: 'none',
+  },
+  woodImage: { resizeMode: 'repeat', opacity: 0.35 },
+  cardBackArt: { width: 46, height: 66, borderRadius: Radius.md },
+  eventArt: {
+    width: 46,
+    height: 66,
+    borderRadius: Radius.md,
+    borderWidth: 2,
+    borderColor: Colors.renegade,
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -384,7 +434,9 @@ const styles = StyleSheet.create({
   compactRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flexWrap: 'wrap' },
   compactName: { color: Colors.text, fontSize: 12, fontWeight: '800', flexShrink: 1 },
   compactRole: { fontSize: 9, fontWeight: '800' },
-  compactCharacter: { color: Colors.textMuted, fontSize: 10 },
+  compactCharRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  compactPortrait: { width: 20, height: 28, borderRadius: 2 },
+  compactCharacter: { color: Colors.textMuted, fontSize: 10, flexShrink: 1 },
   compactHp: { color: Colors.hp, fontSize: 10, letterSpacing: 1 },
   compactHpEmpty: { color: Colors.border },
   compactMeta: { color: Colors.textMuted, fontSize: 9 },

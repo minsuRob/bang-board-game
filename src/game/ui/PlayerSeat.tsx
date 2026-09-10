@@ -6,13 +6,14 @@
  * (원본 맵 v0.4 "선택 가능한 것들을 강조표시합니다").
  */
 
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CHARACTERS } from '../data/characters';
 import { ROLE_LABEL } from '../data/roles';
 import type { CardId, Role } from '../data/types';
 import type { GameState, Player, PlayerId } from '../engine';
 import { distance } from '../engine';
+import { characterArt } from './card-art';
 import { CardView } from './CardView';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
@@ -53,6 +54,8 @@ export function PlayerSeat({
   const character = CHARACTERS[player.character];
   const dead = !player.alive && !player.ghost;
   const dist = !isSelf && !dead ? safeDistance(view, viewer, player.id) : null;
+  // 캐릭터 카드 그림이 설치돼 있으면 초상으로 쓴다. 없으면 이름만 나온다.
+  const portrait = characterArt(player.character);
 
   return (
     <Pressable
@@ -79,10 +82,15 @@ export function PlayerSeat({
         ) : null}
       </View>
 
-      <Text style={styles.character} numberOfLines={1}>
-        {character.nameKo}
-        {player.ghost ? ' · 유령' : ''}
-      </Text>
+      <View style={styles.characterRow}>
+        {portrait && (
+          <Image source={portrait} style={styles.portrait} resizeMode="cover" />
+        )}
+        <Text style={styles.character} numberOfLines={2}>
+          {character.nameKo}
+          {player.ghost ? ' · 유령' : ''}
+        </Text>
+      </View>
 
       <View style={styles.row}>
         <Bullets hp={Math.max(0, player.hp)} maxHp={player.maxHp} />
@@ -163,7 +171,8 @@ function HandStrip({
 
 const styles = StyleSheet.create({
   seat: {
-    backgroundColor: Colors.surface,
+    // 테이블 질감 위에 얹히므로 불투명해야 글자가 읽힌다
+    backgroundColor: 'rgba(38, 26, 15, 0.94)',
     borderRadius: Radius.lg,
     borderWidth: 2,
     borderColor: Colors.border,
@@ -173,7 +182,7 @@ const styles = StyleSheet.create({
     maxWidth: 190,
   },
   seatCompact: { minWidth: 128, maxWidth: 150, padding: Spacing.one },
-  active: { borderColor: Colors.sheriff, backgroundColor: Colors.surfaceRaised },
+  active: { borderColor: Colors.sheriff, backgroundColor: 'rgba(64, 46, 27, 0.96)' },
   targetable: {
     borderColor: Colors.highlight,
     boxShadow: `0 0 8px ${Colors.highlight}`,
@@ -183,7 +192,15 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 4 },
   name: { color: Colors.text, fontWeight: '800', fontSize: 13, flexShrink: 1 },
   role: { fontSize: 10, fontWeight: '800' },
-  character: { color: Colors.textMuted, fontSize: 11 },
+  characterRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  portrait: {
+    width: 26,
+    height: 36,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  character: { color: Colors.textMuted, fontSize: 11, flexShrink: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flexWrap: 'wrap' },
   bullets: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   bullet: { width: 7, height: 7, borderRadius: 4 },

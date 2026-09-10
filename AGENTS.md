@@ -32,8 +32,15 @@ SDK 56 이하의 기억으로 API 를 쓰면 조용히 틀린다.
 
 ## 카드 아트
 
-참고 이미지(`reference/sc2-arcade/images/`)의 카드 일러스트는 dV Giochi 의 저작물이다.
-**앱 에셋으로 복사하지 않는다.** 화면의 카드는 도형과 글자로 그린다.
+카드 일러스트는 dV Giochi 의 저작물이다. **저장소에 커밋하지 않는다.**
+
+- `assets-source/`, `assets/cards/`, `assets/board/`, `reference/sc2-arcade/images/` 는
+  전부 `.gitignore` 로 막혀 있다. 이 규칙을 풀지 마라
+- 그림이 없어도 앱은 정상 동작해야 한다. `src/game/ui/card-art.ts` 가 `require.context` 로
+  폴더를 읽고, 비어 있으면 도형·타이포 카드로 되돌아간다
+- 새 그림을 붙일 때도 파일을 하나하나 `require` 하지 마라. 없을 때 번들이 깨진다
+
+자세한 것은 `docs/assets.md`.
 
 ## 한국어
 
