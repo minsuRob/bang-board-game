@@ -76,3 +76,10 @@ export const Radius = { sm: 4, md: 8, lg: 14, pill: 999 } as const;
 
 /** 이 폭 미만이면 모바일 레이아웃으로 전환한다. */
 export const MobileBreakpoint = 820;
+
+/**
+ * 이 높이 미만이어도 모바일 레이아웃을 쓴다.
+ *
+ * 폰을 가로로 눕히면 폭은 넉넉해지지만 높이가 모자라 원형 배치의 좌석이 겹친다.
+ */
+export const MinTableHeight = 560;

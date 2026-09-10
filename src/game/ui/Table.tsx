@@ -18,8 +18,9 @@ import { Hand } from './Hand';
 import { LogPanel } from './LogPanel';
 import { PlayerSeat } from './PlayerSeat';
 import { TableCenter } from './TableCenter';
+import { TableMobile } from './TableMobile';
 import type { TableApi } from './use-table';
-import { Colors, MobileBreakpoint, Radius, Spacing } from '@/constants/theme';
+import { Colors, MinTableHeight, MobileBreakpoint, Radius, Spacing } from '@/constants/theme';
 import { ga } from '../engine/josa';
 
 const BOTTOM_HEIGHT = 232;
@@ -35,7 +36,8 @@ export type TableProps = {
 
 export function Table({ view, viewer, api }: TableProps) {
   const { width, height } = useWindowDimensions();
-  const wide = width >= MobileBreakpoint;
+  // 폭도 높이도 넉넉해야 원형 배치를 쓴다. 하나라도 모자라면 좌석이 겹친다.
+  const wide = width >= MobileBreakpoint && height >= MinTableHeight;
 
   const tableWidth = wide ? width - LOG_WIDTH - Spacing.four : width;
   const tableHeight = Math.max(280, height - BOTTOM_HEIGHT);
@@ -74,6 +76,21 @@ export function Table({ view, viewer, api }: TableProps) {
   const onSeatPress = (pid: PlayerId) => {
     if (api.selected && targets.includes(pid)) api.playCard(api.selected, pid);
   };
+
+  if (!wide) {
+    return (
+      <TableMobile
+        view={view}
+        viewer={viewer}
+        api={api}
+        status={bottomStatus(view, viewer, api)}
+        headline={statusMessage(view, viewer)}
+        onSeatPress={onSeatPress}
+        targets={targets}
+        onCardPress={(card) => onCardPress(api, card)}
+      />
+    );
+  }
 
   return (
     <View style={styles.root}>
