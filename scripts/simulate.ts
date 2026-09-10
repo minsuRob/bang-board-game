@@ -153,6 +153,8 @@ export type SimulationReport = {
   failures: { seed: number; message: string }[];
   byRole: Record<string, { wins: number; games: number }>;
   byTier: Record<string, { wins: number; seats: number }>;
+  /** 난이도 × 역할. 어느 역할에서 실력 차이가 나는지 보려면 이쪽을 본다 */
+  byTierRole: Record<string, { wins: number; seats: number }>;
   avgTurns: number;
   avgSteps: number;
 };
@@ -160,6 +162,7 @@ export type SimulationReport = {
 export function simulate(opts: Options): SimulationReport {
   const byRole: Record<string, { wins: number; games: number }> = {};
   const byTier: Record<string, { wins: number; seats: number }> = {};
+  const byTierRole: Record<string, { wins: number; seats: number }> = {};
   const failures: { seed: number; message: string }[] = [];
   let turns = 0;
   let steps = 0;
@@ -183,6 +186,11 @@ export function simulate(opts: Options): SimulationReport {
         byTier[tier] ??= { wins: 0, seats: 0 };
         byTier[tier].seats++;
         if (won) byTier[tier].wins++;
+
+        const key = `${tier}/${role}`;
+        byTierRole[key] ??= { wins: 0, seats: 0 };
+        byTierRole[key].seats++;
+        if (won) byTierRole[key].wins++;
       }
       if (opts.verbose) {
         console.log(`seed ${seed}: ${out.winners.join('·')} 승 (${out.turns}라운드, ${out.steps}수)`);
@@ -202,6 +210,7 @@ export function simulate(opts: Options): SimulationReport {
     failures,
     byRole,
     byTier,
+    byTierRole,
     avgTurns: done ? turns / done : 0,
     avgSteps: done ? steps / done : 0,
   };
@@ -228,6 +237,18 @@ function main() {
   console.log('\n난이도별 승률');
   for (const [tier, s] of Object.entries(report.byTier)) {
     console.log(`  ${tier.padEnd(9)} ${((s.wins / s.seats) * 100).toFixed(1)}%  (${s.wins}/${s.seats})`);
+  }
+
+  console.log('\n난이도 × 역할');
+  const roles = ['sheriff', 'deputy', 'outlaw', 'renegade'];
+  const tiers = Object.keys(report.byTier).sort();
+  console.log(`  ${''.padEnd(9)}${roles.map((r) => r.padStart(11)).join('')}`);
+  for (const tier of tiers) {
+    const cells = roles.map((role) => {
+      const s = report.byTierRole[`${tier}/${role}`];
+      return (s ? `${((s.wins / s.seats) * 100).toFixed(0)}% (${s.seats})` : '-').padStart(11);
+    });
+    console.log(`  ${tier.padEnd(9)}${cells.join('')}`);
   }
 
   if (report.failures.length > 0) {

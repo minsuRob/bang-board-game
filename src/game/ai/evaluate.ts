@@ -38,10 +38,18 @@ export function evaluate(state: GameState, me: PlayerId): number {
       return mine * 0.6 - sheriffHp * 10 - lawPower + allies * 6;
     }
     case 'renegade': {
-      // 혼자 남는 게 목표다. 남은 사람이 적을수록, 내가 튼튼할수록 좋다.
-      const others = alive.length - (my.alive ? 1 : 0);
-      const spread = alive.reduce((n, p) => (p.id === me ? n : n + p.hp), 0);
-      return mine - others * 10 - spread * 1.5 - Math.abs(sheriffHp - 2) * 2;
+      // 혼자 남는 게 목표다. 다만 무법자가 살아 있는 동안 보안관이 죽으면
+      // 그 순간 진다. 그래서 '보안관이 살아 있는 채로 나머지가 줄어드는' 상태가 가장 좋다.
+      const others = alive.filter((p) => p.id !== me);
+      const spread = others.reduce((n, p) => n + p.hp, 0);
+      const sheriffGone = sheriffHp === 0 && others.length > 0;
+      return (
+        mine -
+        others.length * 12 -
+        spread * 1.5 +
+        (sheriffHp > 0 ? 8 : 0) -
+        (sheriffGone ? 200 : 0)
+      );
     }
   }
 }

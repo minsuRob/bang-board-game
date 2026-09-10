@@ -21,6 +21,15 @@ import type { AiContext, AiTier } from './types';
 const BUDGET: Record<AiTier, number> = { easy: 0, medium: 0, hard: 14 };
 
 /**
+ * 난이도별로 '최선이 아닌 수'를 둘 확률.
+ *
+ * 난이도 차이를 계산 깊이로만 두면 실력 차이가 잡음에 묻힌다 (측정해 봤다).
+ * 사람이 그렇듯 실수의 빈도로 가르는 편이 확실하고, 보기에도 자연스럽다.
+ * 살아남는 수(생존맥주·빗나감)만은 어느 난이도든 놓치지 않는다.
+ */
+const MISTAKE_CHANCE: Record<AiTier, number> = { easy: 0.85, medium: 0.2, hard: 0 };
+
+/**
  * 난이도별로 무엇까지 보는가.
  *
  * - 하: 공개된 역할만 보고, 그마저도 거의 무시한 채 아무렇게나 둔다
@@ -42,35 +51,42 @@ export function chooseAction(ctx: AiContext): Action | null {
 
   switch (tier) {
     case 'easy':
-      return chooseEasy(view, me, legal, rng);
+      return chooseFallible(view, me, legal, rng, READS_HISTORY.easy, MISTAKE_CHANCE.easy);
     case 'medium':
-      return chooseBest(view, me, legal, rng, READS_HISTORY.medium);
+      return chooseFallible(view, me, legal, rng, READS_HISTORY.medium, MISTAKE_CHANCE.medium);
     case 'hard':
       return chooseHard(view, me, seed, ctx.budget ?? BUDGET.hard);
   }
 }
 
 /**
- * 하 — 대체로 아무렇게나 두지만, 죽는 것만은 피한다.
- * 초보 상대에게는 이 정도가 오히려 자연스럽다.
+ * 가끔 실수하는 플레이어.
+ *
+ * 살아남는 수는 언제나 챙기고, 그 밖에서는 mistakeChance 만큼 아무 수나 고른다.
+ * 하 난이도는 자주, 중 난이도는 가끔 어긋난다.
  */
-function chooseEasy(
+function chooseFallible(
   view: GameState,
   me: PlayerId,
   legal: Action[],
   rng: RngState,
+  naive: boolean,
+  mistakeChance: number,
 ): Action {
-  const beliefs = beliefsFor(view, me, true);
+  const beliefs = beliefsFor(view, me, naive);
 
-  // 살아남는 수는 놓치지 않는다
+  // 죽지 않는 수는 어느 난이도든 놓치지 않는다
   const reflex = legal.find((a) => scoreAction(view, me, a, beliefs) >= REFLEX_SCORE);
   if (reflex) return reflex;
 
-  const rolled = nextInt(rng, legal.length);
-  return legal[rolled.value];
+  const roll = nextInt(rng, 1000);
+  if (roll.value / 1000 < mistakeChance) {
+    return legal[nextInt(roll.rng, legal.length).value];
+  }
+  return chooseBest(view, me, legal, roll.rng, naive);
 }
 
-/** 중 — 휴리스틱 점수가 가장 높은 수. 동점이면 결정적으로 흔든다. */
+/** 휴리스틱 점수가 가장 높은 수. 동점이면 결정적으로 흔든다. */
 function chooseBest(
   view: GameState,
   me: PlayerId,

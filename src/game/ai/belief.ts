@@ -129,11 +129,16 @@ export function hostility(
       return clamp01(0.3 + them.alignment * 0.3);
     }
     case 'renegade': {
-      // 배신자는 마지막까지 혼자 남아야 한다.
-      // 사람이 많을 땐 강한 쪽을, 셋 이하로 줄면 보안관을 노린다.
-      if (alive <= 3) return isSheriff ? 1 : 0.6;
-      if (isSheriff) return 0.15;
-      return clamp01(0.4 - them.alignment * 0.2);
+      // 배신자는 '마지막까지 혼자' 남아야 이긴다.
+      //
+      // 여기에 함정이 하나 있다. 무법자가 살아 있는 동안 보안관이 죽으면
+      // 무법자가 이기고 배신자는 진다. 그래서 보안관은 마지막에서 두 번째까지
+      // 살려 둬야 하고, 오히려 그동안은 지켜 주는 편이 낫다.
+      const othersLeft = alive - 1;
+      if (othersLeft === 1) return 1; // 단둘이 남았다. 누구든 죽이면 이긴다
+      if (isSheriff) return 0.02; // 보안관은 마지막까지 남겨 둔다
+      // 나머지는 위협적인 쪽부터. 보안관 편으로 보이는 사람도 결국 치워야 한다.
+      return clamp01(0.55 - them.alignment * 0.15);
     }
   }
 }
