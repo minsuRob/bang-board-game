@@ -100,7 +100,7 @@ export function Table({ view, viewer, api }: TableProps) {
             </View>
           ))}
 
-          <View style={styles.centerSlot} pointerEvents="box-none">
+          <View style={styles.centerSlot}>
             <TableCenter view={view} message={statusMessage(view, viewer)} />
           </View>
         </View>
@@ -223,6 +223,8 @@ const styles = StyleSheet.create({
   },
   seatSlot: { position: 'absolute', width: SEAT_W, alignItems: 'center' },
   centerSlot: {
+    // 가운데 표시는 좌석 클릭을 가로막으면 안 된다
+    pointerEvents: 'box-none',
     position: 'absolute',
     top: 0,
     left: 0,

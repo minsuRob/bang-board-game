@@ -1,10 +1,14 @@
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { isFirebaseConfigured } from '@/firebase/config';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const online = isFirebaseConfigured();
+  const [code, setCode] = useState('');
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -23,10 +27,45 @@ export default function HomeScreen() {
           <Text style={styles.primaryHint}>4~7인 · 난이도 상중하 · 하이 눈 확장</Text>
         </Pressable>
 
-        <View style={styles.disabled}>
-          <Text style={styles.disabledText}>온라인 대전</Text>
-          <Text style={styles.disabledHint}>Firebase 설정을 채우면 열린다</Text>
-        </View>
+        {online ? (
+          <>
+            <Pressable
+              style={styles.secondary}
+              accessibilityRole="button"
+              accessibilityLabel="방 만들기"
+              onPress={() => router.push({ pathname: '/room/[id]', params: { id: 'new' } })}>
+              <Text style={styles.secondaryText}>방 만들기</Text>
+              <Text style={styles.secondaryHint}>코드를 친구에게 알려 주면 들어온다</Text>
+            </Pressable>
+
+            <View style={styles.joinRow}>
+              <TextInput
+                value={code}
+                onChangeText={(t) => setCode(t.toUpperCase().slice(0, 6))}
+                placeholder="방 코드"
+                placeholderTextColor={Colors.textMuted}
+                autoCapitalize="characters"
+                style={styles.input}
+                accessibilityLabel="방 코드"
+              />
+              <Pressable
+                style={[styles.joinButton, code.length < 4 && styles.joinDisabled]}
+                disabled={code.length < 4}
+                accessibilityRole="button"
+                accessibilityLabel="참가"
+                onPress={() => router.push({ pathname: '/room/[id]', params: { id: code } })}>
+                <Text style={styles.secondaryText}>참가</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          <View style={styles.disabled}>
+            <Text style={styles.disabledText}>온라인 대전</Text>
+            <Text style={styles.disabledHint}>
+              .env 에 EXPO_PUBLIC_FIREBASE_* 를 채우면 열린다
+            </Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.notes}>
@@ -61,6 +100,38 @@ const styles = StyleSheet.create({
   },
   primaryText: { color: Colors.paper, fontSize: 20, fontWeight: '900' },
   primaryHint: { color: Colors.paperEdge, fontSize: 12 },
+  secondary: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    padding: Spacing.three,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  secondaryText: { color: Colors.text, fontSize: 16, fontWeight: '800' },
+  secondaryHint: { color: Colors.textMuted, fontSize: 12 },
+  joinRow: { flexDirection: 'row', gap: Spacing.two },
+  input: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    color: Colors.text,
+    fontSize: 16,
+    letterSpacing: 3,
+  },
+  joinButton: {
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  joinDisabled: { opacity: 0.4 },
   disabled: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,

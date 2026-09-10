@@ -113,10 +113,7 @@ const styles = StyleSheet.create({
   },
   highlighted: {
     borderColor: Colors.highlight,
-    shadowColor: Colors.highlight,
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-    elevation: 6,
+    boxShadow: `0 0 6px ${Colors.highlight}`,
   },
   selected: {
     borderColor: Colors.highlight,

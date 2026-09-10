@@ -1,0 +1,62 @@
+rules_version = '2';
+
+// 뱅! 온라인 대전 보안 규칙
+//
+// 서버에는 게임 상태가 없다. 액션 로그만 있고, 그 로그는 한 번 쓰이면 바뀌지 않는다.
+// 규칙이 지키는 것은 세 가지다.
+//   1. 로그인한 사람만 읽고 쓴다
+//   2. 액션은 자리에 앉은 사람이, 자기 이름으로, 빈틈없는 순번으로만 덧붙인다
+//   3. 방 설정은 호스트만 바꾼다
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /rooms/{code} {
+      function signedIn() {
+        return request.auth != null;
+      }
+      function isHost() {
+        return signedIn() && resource.data.hostUid == request.auth.uid;
+      }
+      // seats 는 배열이라 규칙 언어로 훑기 번거롭다.
+      // 참가 여부는 참가자가 직접 만드는 members 하위 문서로 확인한다.
+      function joined() {
+        return signedIn()
+          && exists(/databases/$(database)/documents/rooms/$(code)/members/$(request.auth.uid));
+      }
+
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.hostUid == request.auth.uid
+        && request.resource.data.status == 'lobby'
+        && request.resource.data.actionCount == 0
+        && request.resource.data.playerCount >= 4
+        && request.resource.data.playerCount <= 8;
+
+      // 호스트는 설정을 바꾼다. 나머지는 자리 배정과 액션 순번만 건드릴 수 있다.
+      allow update: if isHost()
+        || (signedIn()
+            && request.resource.data.hostUid == resource.data.hostUid
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['seats', 'actionCount', 'updatedAt']));
+
+      allow delete: if isHost();
+
+      // 참가자 표식 겸 생존 신호. 자기 것만 쓴다.
+      match /members/{uid} {
+        allow read: if signedIn();
+        allow write: if signedIn() && request.auth.uid == uid;
+      }
+
+      // 액션 로그. 덧붙이기만 되고 고치거나 지울 수 없다.
+      match /actions/{seq} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.seq == int(seq)
+          && joined();
+        allow update, delete: if false;
+      }
+    }
+  }
+}

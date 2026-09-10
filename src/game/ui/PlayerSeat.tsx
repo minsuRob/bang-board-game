@@ -176,10 +176,7 @@ const styles = StyleSheet.create({
   active: { borderColor: Colors.sheriff, backgroundColor: Colors.surfaceRaised },
   targetable: {
     borderColor: Colors.highlight,
-    shadowColor: Colors.highlight,
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-    elevation: 6,
+    boxShadow: `0 0 8px ${Colors.highlight}`,
   },
   dead: { opacity: 0.4 },
   ghost: { borderColor: Colors.renegade, borderStyle: 'dashed' },

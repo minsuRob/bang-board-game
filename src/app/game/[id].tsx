@@ -6,6 +6,8 @@ import type { AiTier } from '@/game/ai/types';
 import { ROLE_LABEL } from '@/game/data/roles';
 import { makeView, useGameStore, type SeatSetup } from '@/game/store/game-store';
 import { useAiDriver } from '@/game/store/ai-driver';
+import { useTimeoutDriver } from '@/game/store/online-driver';
+import { useOnlineGameSession, useRoomConnection } from '@/game/store/use-online-game';
 import { Table } from '@/game/ui/Table';
 import { useHotkeys } from '@/game/ui/use-hotkeys';
 import { useTable } from '@/game/ui/use-table';
@@ -25,9 +27,14 @@ export default function GameScreen() {
   }>();
   const router = useRouter();
 
+  // id 가 'local' 이면 혼자 하는 판, 아니면 그 값이 곧 방 코드다.
+  const online = Boolean(params.id && params.id !== 'local');
+  const code = online ? (params.id as string) : null;
+
   const state = useGameStore((s) => s.state);
   const viewer = useGameStore((s) => s.viewer);
-  const storeSeats = useGameStore((s) => s.seats);
+  const controlled = useGameStore((s) => s.controlled);
+  const status = useGameStore((s) => s.status);
   const start = useGameStore((s) => s.start);
   const reset = useGameStore((s) => s.reset);
 
@@ -45,7 +52,11 @@ export default function GameScreen() {
     return { seed, players, highnoon, seats, auto: params.auto === '1' };
   }, [params.players, params.tier, params.seed, params.highnoon, params.auto]);
 
+  const conn = useRoomConnection(code);
+  useOnlineGameSession(code, conn);
+
   useEffect(() => {
+    if (online) return;
     start({
       seed: setup.seed,
       config: {
@@ -57,11 +68,11 @@ export default function GameScreen() {
       controlled: setup.auto ? [] : ['p0'],
     });
     return () => reset();
-  }, [setup, start, reset]);
+  }, [online, setup, start, reset]);
 
   useAiDriver(true, setup.auto ? 6 : 1);
+  useTimeoutDriver(controlled);
 
-  void storeSeats;
   const view = useMemo(() => makeView(state, viewer), [state, viewer]);
   const api = useTable(view, viewer);
 
@@ -104,7 +115,9 @@ export default function GameScreen() {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={Colors.highlight} />
-        <Text style={styles.loadingText}>판을 짜는 중</Text>
+        <Text style={styles.loadingText}>
+          {conn.error ?? (online ? '판을 받아오는 중' : '판을 짜는 중')}
+        </Text>
       </View>
     );
   }
@@ -112,6 +125,14 @@ export default function GameScreen() {
   return (
     <View style={styles.root}>
       <Table view={view} viewer={viewer} api={api} />
+
+      {online && status !== 'ready' && (
+        <View style={styles.connection}>
+          <Text style={styles.connectionText}>
+            {status === 'connecting' ? '연결하는 중' : '연결이 끊겼다. 다시 붙는 중'}
+          </Text>
+        </View>
+      )}
 
       {state.result && (
         <View style={styles.overlay}>
@@ -160,6 +181,18 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   loadingText: { color: Colors.textMuted, fontSize: 13 },
+  connection: {
+    position: 'absolute',
+    top: Spacing.two,
+    alignSelf: 'center',
+    backgroundColor: Colors.surfaceRaised,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  connectionText: { color: Colors.textMuted, fontSize: 11 },
   overlay: {
     position: 'absolute',
     top: 0,

@@ -37,6 +37,12 @@ export type StartOptions = {
   transport?: Transport;
   /** 이 클라이언트가 AI 좌석과 시간 만료를 대신 굴리는가 */
   drives?: boolean;
+  /**
+   * 판을 여는 액션을 이 클라이언트가 제출하는가.
+   *
+   * 온라인에서는 호스트 하나만 제출한다. 나머지는 로그를 받아 접기만 한다.
+   */
+  submitStart?: boolean;
 };
 
 type GameStore = {
@@ -54,6 +60,7 @@ type GameStore = {
   start(options: StartOptions): void;
   submit(action: Action): void;
   setViewer(pid: PlayerId): void;
+  setDrives(drives: boolean): void;
   confirmHandoff(): void;
   reset(): void;
 };
@@ -75,7 +82,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     get().reset();
 
     transport = options.transport ?? createLocalTransport();
-    unsubscribe = transport.subscribe((action) => {
+    const stopStatus = transport.onStatus?.((status) => set({ status }));
+    const stopActions = transport.subscribe((action) => {
       set((prev) => {
         try {
           const next = reduce(prev.state, action);
@@ -86,6 +94,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
       });
     });
+    unsubscribe = () => {
+      stopActions();
+      stopStatus?.();
+    };
 
     set({
       seats: options.seats,
@@ -97,12 +109,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       handoffPending: false,
     });
 
-    transport.submit({
-      type: 'startGame',
-      seed: options.seed,
-      config: options.config,
-      seats: options.seats.map((s) => ({ id: s.id, name: s.name })),
-    });
+    if (options.submitStart ?? true) {
+      transport.submit({
+        type: 'startGame',
+        seed: options.seed,
+        config: options.config,
+        seats: options.seats.map((s) => ({ id: s.id, name: s.name })),
+      });
+    }
   },
 
   submit(action) {
@@ -111,6 +125,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setViewer(pid) {
     set({ viewer: pid, handoffPending: false });
+  },
+
+  setDrives(drives) {
+    set({ drives });
   },
 
   confirmHandoff() {
