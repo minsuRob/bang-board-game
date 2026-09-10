@@ -12,7 +12,7 @@
 import { BOUNTY_CARDS } from '../../data/roles';
 import {
   alivePlayers,
-  inPlay,
+  kindOf,
   log,
   playerOf,
   popFrame,
@@ -21,9 +21,8 @@ import {
   updatePlayer,
 } from '../cards';
 import { anytimeAbilitiesOf, canPlayCard, onDamagedFrames, onEliminatedFrames } from '../hooks';
-import { kindOf } from '../cards';
 import type { Choice, Frame, GameState } from '../types';
-import { eul, ga, neun } from '../josa';
+import { ga, neun } from '../josa';
 
 export function resolveDamage(state: GameState, frame: Frame & { k: 'damage' }): GameState {
   let cur = popFrame(state);

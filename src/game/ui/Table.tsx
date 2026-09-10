@@ -20,7 +20,7 @@ import { PlayerSeat } from './PlayerSeat';
 import { TableCenter } from './TableCenter';
 import { TableMobile } from './TableMobile';
 import type { TableApi } from './use-table';
-import { Colors, MinTableHeight, MobileBreakpoint, Radius, Spacing } from '@/constants/theme';
+import { Colors, MinTableHeight, MobileBreakpoint, Spacing } from '@/constants/theme';
 import { ga } from '../engine/josa';
 
 const BOTTOM_HEIGHT = 232;

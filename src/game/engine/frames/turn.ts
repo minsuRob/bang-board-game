@@ -23,7 +23,6 @@ import {
   updatePlayer,
 } from '../cards';
 import {
-  afterDrawFrames,
   drawCountOf,
   drawPhaseOverride,
   onDrawPhaseEndFrames,

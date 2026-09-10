@@ -15,7 +15,6 @@ import {
   kindOf,
   log,
   nameOf,
-  playerOf,
   toDiscard,
   topFrame,
   updatePlayer,

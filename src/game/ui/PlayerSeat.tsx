@@ -12,7 +12,7 @@ import { CHARACTERS } from '../data/characters';
 import { ROLE_LABEL } from '../data/roles';
 import type { CardId, Role } from '../data/types';
 import type { GameState, Player, PlayerId } from '../engine';
-import { distance, kindOf } from '../engine';
+import { distance } from '../engine';
 import { CardView } from './CardView';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 

@@ -21,7 +21,7 @@ import type { AiTier } from '../game/ai/types';
 import { MAX_PLAYERS, MIN_PLAYERS } from '../game/data/roles';
 import { getDb } from './config';
 import type { Identity } from './auth';
-import { PRESENCE_TIMEOUT_MS, type RoomDoc, type RoomMember, type RoomSeat } from './room-model';
+import type { RoomDoc, RoomMember, RoomSeat } from './room-model';
 
 export { PRESENCE_TIMEOUT_MS, pickDriver } from './room-model';
 export type { RoomDoc, RoomMember, RoomSeat } from './room-model';

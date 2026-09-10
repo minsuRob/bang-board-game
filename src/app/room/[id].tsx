@@ -23,8 +23,9 @@ export default function RoomScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [code, setCode] = useState<string | null>(id === 'new' ? null : (id ?? null));
-  const [busy, setBusy] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  // 존재 표시등을 다시 그리기 위한 시계. 렌더 중에 Date.now() 를 부르면 안 된다.
+  const [now, setNow] = useState(() => Date.now());
 
   const conn = useRoomConnection(code);
   const { room, members, identity, mySeat, isHost } = conn;
@@ -33,15 +34,13 @@ export default function RoomScreen() {
   useEffect(() => {
     if (id !== 'new' || code || !identity) return;
     let alive = true;
-    setBusy('방을 만드는 중');
     createRoom(identity, { playerCount: 5, highnoon: false, tier: 'medium' })
       .then((made) => {
         if (!alive) return;
         setCode(made);
         router.setParams({ id: made });
       })
-      .catch((err) => alive && setLocalError(err.message))
-      .finally(() => alive && setBusy(null));
+      .catch((err) => alive && setLocalError(err.message));
     return () => {
       alive = false;
     };
@@ -53,6 +52,12 @@ export default function RoomScreen() {
     if (room.status !== 'lobby') return;
     joinRoom(code, identity).catch((err) => setLocalError(err.message));
   }, [code, identity, room, mySeat]);
+
+  // 접속 표시등을 5초마다 다시 그린다.
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 5_000);
+    return () => clearInterval(timer);
+  }, []);
 
   // 판이 열리면 게임 화면으로 넘어간다.
   useEffect(() => {
@@ -80,12 +85,13 @@ export default function RoomScreen() {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={Colors.highlight} />
-        <Text style={styles.loadingText}>{busy ?? '방에 들어가는 중'}</Text>
+        <Text style={styles.loadingText}>
+          {id === 'new' && !code ? '방을 만드는 중' : '방에 들어가는 중'}
+        </Text>
       </View>
     );
   }
 
-  const now = Date.now();
   const seated = room.seats.filter((s) => s.uid).length;
 
   return (

@@ -11,7 +11,6 @@
 
 import {
   inPlay,
-  kindOf,
   log,
   nameOf,
   playerOf,
