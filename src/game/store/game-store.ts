@@ -17,6 +17,7 @@ import {
   type PlayerId,
 } from '../engine';
 import { createLocalTransport } from './local-transport';
+import { emitTransition } from './transition-bus';
 import type { Transport, TransportStatus } from './transport';
 
 export type SeatSetup = {
@@ -84,15 +85,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
     transport = options.transport ?? createLocalTransport();
     const stopStatus = transport.onStatus?.((status) => set({ status }));
     const stopActions = transport.subscribe((action) => {
-      set((prev) => {
-        try {
-          const next = reduce(prev.state, action);
-          return { state: next, viewer: prev.viewer ?? options.controlled[0] ?? null };
-        } catch (err) {
-          console.warn('액션을 적용하지 못했다', action, err);
-          return prev;
-        }
-      });
+      const prev = get().state;
+      let next: GameState;
+      try {
+        next = reduce(prev, action);
+      } catch (err) {
+        console.warn('액션을 적용하지 못했다', action, err);
+        return;
+      }
+      set({ state: next, viewer: get().viewer ?? options.controlled[0] ?? null });
+      // 연출 층은 가리지 않은 prev/next 가 필요하다. 커밋 전에 동기로 알린다.
+      emitTransition({ prev, next, action });
     });
     unsubscribe = () => {
       stopActions();
