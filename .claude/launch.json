@@ -5,8 +5,25 @@
     {
       "name": "bang-web",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["expo", "start", "--web", "--port", "8082"],
+      "runtimeArgs": [
+        "expo",
+        "start",
+        "--web",
+        "--port",
+        "8082"
+      ],
       "port": 8082
+    },
+    {
+      "name": "bang-native",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "expo",
+        "start",
+        "--port",
+        "8081"
+      ],
+      "port": 8081
     }
   ]
 }
