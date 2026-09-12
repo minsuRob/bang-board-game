@@ -13,6 +13,7 @@ import { CHARACTERS } from '../data/characters';
 import { ROLE_GOAL, ROLE_LABEL } from '../data/roles';
 import type { CardId } from '../data/types';
 import type { GameState, PlayerId } from '../engine';
+import { Table3D, useTableMode } from '../table3d';
 import { ActionBar } from './ActionBar';
 import { feltArt, woodArt } from './card-art';
 import { Hand } from './Hand';
@@ -20,9 +21,9 @@ import { LogPanel } from './LogPanel';
 import { PlayerSeat } from './PlayerSeat';
 import { TableCenter } from './TableCenter';
 import { TableMobile } from './TableMobile';
+import { bottomStatus, handleCardPress, statusMessage } from './table-text';
 import type { TableApi } from './use-table';
 import { Colors, MinTableHeight, MobileBreakpoint, Spacing } from '@/constants/theme';
-import { ga } from '../engine/josa';
 
 const BOTTOM_HEIGHT = 232;
 const LOG_WIDTH = 268;
@@ -36,6 +37,7 @@ export type TableProps = {
 };
 
 export function Table({ view, viewer, api }: TableProps) {
+  const mode = useTableMode();
   const { width, height } = useWindowDimensions();
   // 폭도 높이도 넉넉해야 원형 배치를 쓴다. 하나라도 모자라면 좌석이 겹친다.
   const wide = width >= MobileBreakpoint && height >= MinTableHeight;
@@ -81,6 +83,9 @@ export function Table({ view, viewer, api }: TableProps) {
     if (api.selected && targets.includes(pid)) api.playCard(api.selected, pid);
   };
 
+  // 3D 테이블. `?flat=1` 이거나 GL 이 없으면 아래 2D 로 간다.
+  if (mode === '3d') return <Table3D view={view} viewer={viewer} api={api} />;
+
   if (!wide) {
     return (
       <TableMobile
@@ -91,7 +96,7 @@ export function Table({ view, viewer, api }: TableProps) {
         headline={statusMessage(view, viewer)}
         onSeatPress={onSeatPress}
         targets={targets}
-        onCardPress={(card) => onCardPress(api, card)}
+        onCardPress={(card) => handleCardPress(api, card)}
       />
     );
   }
@@ -186,7 +191,7 @@ export function Table({ view, viewer, api }: TableProps) {
               playable={api.playable}
               discardable={api.discardable}
               selected={api.selected}
-              onSelect={(card) => onCardPress(api, card)}
+              onSelect={(card) => handleCardPress(api, card)}
               showIndex
             />
           </View>
@@ -194,52 +199,6 @@ export function Table({ view, viewer, api }: TableProps) {
       </View>
     </View>
   );
-}
-
-function onCardPress(api: TableApi, card: CardId) {
-  // 버리기 단계에서는 누르는 즉시 버린다.
-  if (api.discardable.has(card)) {
-    api.discard(card);
-    return;
-  }
-  if (!api.playable.has(card)) return;
-
-  const targets = api.targetsFor(card);
-  if (targets.length === 0) {
-    api.playCard(card);
-    return;
-  }
-  // 지목이 필요한 카드는 한 번 더 눌러 대상을 고르게 한다.
-  api.select(api.selected === card ? null : card);
-}
-
-function statusMessage(view: GameState, viewer: PlayerId): string {
-  if (view.result) {
-    return `${view.result.reason} — ${view.result.winners.map((r) => ROLE_LABEL[r]).join('·')} 승리`;
-  }
-  const active = view.players.find((p) => p.id === view.turn.active);
-  const who = active?.id === viewer ? '내' : `${active?.name}의`;
-  const phase = view.turn.phase === 'discard' ? '버리기' : view.turn.phase === 'draw' ? '카드 가져오기' : '카드 사용';
-  return `${who} 차례 · ${phase} 단계 · ${view.turn.round}라운드`;
-}
-
-function bottomStatus(view: GameState, viewer: PlayerId, api: TableApi): string {
-  if (view.result) return '게임이 끝났다.';
-  if (api.waitingOnMe) return '';
-  if (view.awaiting) {
-    const who = view.players.find((p) => p.id === view.awaiting!.pid)?.name;
-    return `${who}의 반응을 기다리는 중`;
-  }
-  if (view.turn.active !== viewer) {
-    const name = view.players.find((p) => p.id === view.turn.active)?.name ?? '';
-    return `${ga(name)} 생각하는 중`;
-  }
-  if (view.turn.phase === 'discard') {
-    const me = view.players.find((p) => p.id === viewer)!;
-    return `손패를 목숨 수(${me.hp}장)까지 줄여야 한다`;
-  }
-  if (api.selected) return '지목할 상대를 고른다 (Esc 취소)';
-  return '낼 카드를 고른다';
 }
 
 const styles = StyleSheet.create({
