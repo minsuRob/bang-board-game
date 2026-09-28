@@ -62,11 +62,28 @@ export function actionKey(action: Action): string {
       return ['discardCard', action.pid, action.card].join('|');
     case 'endTurn':
       return ['endTurn', action.pid].join('|');
+    case 'pickCharacter':
+      return ['pickCharacter', action.pid, action.character].join('|');
     case 'timeout':
       return ['timeout', action.pid].join('|');
     case 'startGame':
       return 'startGame';
   }
+}
+
+/**
+ * 지금 행동해야 하는 사람들.
+ *
+ * 평소에는 한 명(입력 대기 중인 사람, 아니면 차례인 사람)이다.
+ * 캐릭터 드래프트 중에만 아직 안 고른 사람 전원이 동시에 행동한다.
+ */
+export function actorsOf(state: GameState): PlayerId[] {
+  if (state.result) return [];
+  if (state.draft) {
+    const d = state.draft;
+    return state.players.filter((p) => d.picked[p.id] === null).map((p) => p.id);
+  }
+  return [state.awaiting ? state.awaiting.pid : state.turn.active];
 }
 
 /** 이 플레이어가 지금 낼 수 있는 모든 액션 */
@@ -76,6 +93,16 @@ export function legalActions(state: GameState, pid: PlayerId): Action[] {
   const out: Action[] = [];
   const me = state.players.find((p) => p.id === pid);
   if (!me || !inPlay(me)) return out;
+
+  // 드래프트 중에는 캐릭터 고르기만 할 수 있다. 자리표시자 캐릭터의 능력은 열지 않는다.
+  if (state.draft) {
+    if (state.draft.picked[pid] !== null) return out;
+    return (state.draft.offers[pid] ?? []).map((character) => ({
+      type: 'pickCharacter' as const,
+      pid,
+      character,
+    }));
+  }
 
   out.push(...anytimeActions(state, pid));
 

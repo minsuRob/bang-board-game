@@ -183,3 +183,17 @@ export { resolveStack };
 export function beginTurn(state: GameState, pid: PlayerId): GameState {
   return resolveStack({ ...state, stack: [{ k: 'turnStart', pid }], awaiting: null });
 }
+
+/**
+ * 캐릭터 드래프트를 끝낸다. 아직 안 고른 사람은 모두 첫 후보를 고른다.
+ * 게임 흐름을 시험하는 테스트가 startGame 직후에 쓴다.
+ */
+export function autoDraft(state: GameState): GameState {
+  let cur = state;
+  for (const p of state.players) {
+    const d = cur.draft;
+    if (!d || d.picked[p.id] !== null) continue;
+    cur = reduce(cur, { type: 'pickCharacter', pid: p.id, character: d.offers[p.id][0] });
+  }
+  return cur;
+}

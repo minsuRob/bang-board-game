@@ -5,8 +5,8 @@
  */
 
 export { reduce, defaultAction } from './reducer';
-export { createGame } from './setup';
-export { legalActions, actionKey, hasReaction } from './legal';
+export { createGame, draftOfferCount } from './setup';
+export { legalActions, actionKey, hasReaction, actorsOf } from './legal';
 export { checkWin } from './frames/win';
 export {
   distance,
@@ -34,6 +34,7 @@ export type { RngState } from './rng';
 export type {
   Action,
   Choice,
+  DraftState,
   Frame,
   GameConfig,
   GameEvent,

@@ -19,6 +19,7 @@ import {
   topFrame,
   updatePlayer,
 } from './cards';
+import { applyPick } from './draft';
 import { respondToFrame } from './frames';
 import { actionKey, legalActions } from './legal';
 import { applyPlayCard } from './play';
@@ -66,6 +67,10 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
   }
 
   switch (action.type) {
+    case 'pickCharacter': {
+      cur = applyPick(cur, action.pid, action.character);
+      break;
+    }
     case 'playCard': {
       const as = action.as ?? kindOf(action.card);
       cur = applyPlayCard(cur, action.pid, action.card, as, action.target);

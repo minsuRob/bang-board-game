@@ -276,6 +276,8 @@ export type Action =
   | { type: 'discardCard'; pid: PlayerId; card: CardId }
   /** 차례 마치기 */
   | { type: 'endTurn'; pid: PlayerId }
+  /** 캐릭터 드래프트: 받은 후보 중 하나를 고른다 */
+  | { type: 'pickCharacter'; pid: PlayerId; character: CharacterId }
   /** 제한시간 만료. 구동기가 발행하며 기본 행동을 대신 수행한다. */
   | { type: 'timeout'; pid: PlayerId };
 
@@ -316,6 +318,22 @@ export type GameState = {
   result: GameResult | null;
   /** 처리한 액션 수 */
   seq: number;
+  /**
+   * 게임 시작 직후의 캐릭터 드래프트. 모두가 고르면 null 이 된다.
+   * 이 구간만은 여러 사람이 동시에 행동한다 (actorsOf 참고).
+   * 드래프트 없이 만든 상태(테스트 시나리오)에는 이 필드가 없을 수 있다.
+   */
+  draft?: DraftState | null;
+};
+
+export type DraftState = {
+  /** 각자 받은 후보. 셔플된 순서 그대로라 첫 장이 시간 초과 때의 기본 선택이다 */
+  offers: Record<PlayerId, CharacterId[]>;
+  /**
+   * 고른 캐릭터. 아직이면 null.
+   * viewFor 가 남의 후보와 선택을 가리므로, 남에 대해서는 null 인지만 믿는다.
+   */
+  picked: Record<PlayerId, CharacterId | null>;
 };
 
 /** 어떤 카드를 어떤 종류로 취급해 사용하는지 (칼라미티 자넷용) */

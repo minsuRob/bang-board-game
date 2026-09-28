@@ -65,7 +65,7 @@ export function resolveStack(state: GameState): GameState {
   let cur = state;
 
   for (let step = 0; step < MAX_STEPS; step++) {
-    if (cur.result || cur.awaiting) return cur;
+    if (cur.result || cur.awaiting || cur.draft) return cur;
 
     const swept = sweepHandEmpty(cur);
     if (swept !== cur) {

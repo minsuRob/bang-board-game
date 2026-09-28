@@ -37,12 +37,28 @@ export function roleVisibleTo(
  * 가려지는 것: 남의 손패, 덱, 남은 이벤트 덱, 감춰진 역할.
  */
 export function viewFor(state: GameState, pid: PlayerId): GameState {
+  // 드래프트 중에는 남의 후보와 선택을 가린다. 남의 캐릭터 칸에는 자리표시자로
+  // 내 후보 첫 장을 채운다 (남의 후보 첫 장이 새지 않게). 선택 여부만 남긴다.
+  const d = state.draft;
+  const mask = d ? (d.offers[pid]?.[0] ?? state.players[0].character) : null;
+  const draft = d
+    ? {
+        offers: Object.fromEntries(
+          Object.entries(d.offers).map(([id, o]) => [id, id === pid ? o : []]),
+        ),
+        picked: Object.fromEntries(
+          Object.entries(d.picked).map(([id, c]) => [id, id === pid || c === null ? c : mask]),
+        ),
+      }
+    : d;
   return {
     ...state,
+    draft,
     players: state.players.map((p) => {
       if (p.id === pid) return p;
       return {
         ...p,
+        character: mask ?? p.character,
         hand: hiddenList(p.hand.length),
         role: roleVisibleTo(pid, p) ? p.role : ('outlaw' as Role),
         // 역할이 안 보이면 UI 와 AI 는 roleRevealed 로 판단해야 한다.

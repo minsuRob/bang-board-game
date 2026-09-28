@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { legalActions } from '../legal';
+import { actorsOf, legalActions } from '../legal';
 import { reduce } from '../reducer';
 import { createRng, nextInt, type RngState } from '../rng';
 import type { Action, GameState } from '../types';
@@ -30,7 +30,7 @@ function fuzzGame(seed: number, playerCount: number, highnoon: boolean, maxSteps
   let steps = 0;
 
   while (!state.result && steps < maxSteps) {
-    const actor = state.awaiting ? state.awaiting.pid : state.turn.active;
+    const actor = actorsOf(state)[0];
     let legal = legalActions(state, actor);
 
     // 대기 중인 사람은 반드시 낼 수 있는 액션이 있어야 한다.
@@ -125,7 +125,7 @@ describe('재현성', () => {
     const revived: GameState = JSON.parse(JSON.stringify(state));
 
     if (!state.result) {
-      const actor = state.awaiting ? state.awaiting.pid : state.turn.active;
+      const actor = actorsOf(state)[0];
       const legal = legalActions(revived, actor);
       if (legal.length > 0) {
         expect(JSON.stringify(reduce(revived, legal[0]))).toBe(

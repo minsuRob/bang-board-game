@@ -4,7 +4,7 @@ import { CHARACTERS } from '../../data/characters';
 import { legalActions } from '../legal';
 import { reduce } from '../reducer';
 import type { Action, GameState } from '../types';
-import { totalCards } from './helpers';
+import { autoDraft, totalCards } from './helpers';
 
 function startGame(seed = 7, count = 4): GameState {
   const seats = Array.from({ length: count }, (_, i) => ({ id: `p${i}`, name: `P${i}` }));
@@ -14,7 +14,7 @@ function startGame(seed = 7, count = 4): GameState {
     config: { playerCount: count, expansions: [] },
     seats,
   };
-  return reduce(null, action);
+  return autoDraft(reduce(null, action));
 }
 
 describe('게임 시작', () => {

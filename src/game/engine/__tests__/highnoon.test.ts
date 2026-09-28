@@ -7,6 +7,7 @@ import { legalActions } from '../legal';
 import { reduce } from '../reducer';
 import type { Action, GameState, PlayerId } from '../types';
 import {
+  autoDraft,
   beginTurn,
   handCard,
   logged,
@@ -30,7 +31,7 @@ function startGame(seed: number, count = 4, expansions: 'highnoon'[] = ['highnoo
     config: { playerCount: count, expansions },
     seats,
   };
-  return reduce(null, action);
+  return autoDraft(reduce(null, action));
 }
 
 /** 지금 행동해야 하는 사람에게 제한시간 기본 행동을 한 번 먹인다. */
