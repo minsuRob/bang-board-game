@@ -31,6 +31,13 @@ import { Colors, MobileBreakpoint, Radius, Spacing } from '@/constants/theme';
 
 const LOG_WIDTH = 268;
 
+/**
+ * 캔버스는 입력을 받지 않는다 (라벨·손패는 RN 이 받는다). r3f 기본 이벤트 계층을 끈다.
+ * 켜 두면 웹에서 GL 이 비동기로 뜨는 사이 Canvas 가 내려갔을 때
+ * onCreated 가 null 컨테이너에 addEventListener 를 걸다 터진다 (온라인 판 진입 때 재현).
+ */
+const noEvents = () => ({ enabled: false, priority: 0 });
+
 export type Table3DProps = {
   view: GameState;
   viewer: PlayerId;
@@ -112,6 +119,7 @@ export function Table3D({ view, viewer, api }: Table3DProps) {
           <View style={styles.canvasLayer}>
             <GlBoundary>
               <Canvas
+                events={noEvents}
                 frameloop="demand"
                 dpr={[1, 2]}
                 flat
