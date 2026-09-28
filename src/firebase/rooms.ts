@@ -216,6 +216,19 @@ export async function touchMember(code: string, me: Identity): Promise<void> {
   );
 }
 
+/** 드래프트 중 내가 올려 둔 후보. 남의 화면에 3D 로 들썩이게 하는 연출용이다. */
+export async function setDraftHoverRemote(
+  code: string,
+  uid: string,
+  index: number | null,
+): Promise<void> {
+  await setDoc(
+    doc(getDb(), 'rooms', code.toUpperCase(), 'members', uid),
+    { draftHover: index },
+    { merge: true },
+  );
+}
+
 export async function markEnded(code: string): Promise<void> {
   await updateDoc(doc(getDb(), 'rooms', code.toUpperCase()), {
     status: 'ended',

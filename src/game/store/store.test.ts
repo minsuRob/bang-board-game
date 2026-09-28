@@ -21,6 +21,13 @@ function startLocal(transport?: Transport) {
     controlled: ['p0'],
     transport,
   });
+  // 드래프트는 각자 첫 후보로 끝낸다
+  let s = useGameStore.getState().state!;
+  while (s.draft) {
+    const pid = s.players.find((p) => s.draft!.picked[p.id] === null)!.id;
+    useGameStore.getState().submit({ type: 'pickCharacter', pid, character: s.draft.offers[pid][0] });
+    s = useGameStore.getState().state!;
+  }
 }
 
 describe('게임 스토어', () => {

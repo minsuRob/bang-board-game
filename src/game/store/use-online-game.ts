@@ -5,16 +5,18 @@
  * 새로고침해도 액션 로그를 처음부터 다시 접기 때문에 그대로 이어진다.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { getIdentity, type Identity } from '../../firebase/auth';
 import {
   markStarted,
+  setDraftHoverRemote,
   watchMembers,
   watchRoom,
   type RoomDoc,
   type RoomMember,
 } from '../../firebase/rooms';
+import { draftUi, setDraftHover } from './draft-ui';
 import { createFirebaseTransport } from './firebase-transport';
 import { useGameStore, type SeatSetup } from './game-store';
 import { useDriverElection, useHeartbeat } from './online-driver';
@@ -120,7 +122,57 @@ export function useOnlineGameSession(code: string | null, conn: OnlineGame) {
     // room.seed / playerCount 가 바뀌면 다른 판이므로 다시 띄운다.
   }, [ready, code, room?.seed, room?.playerCount, room?.highnoon, identity?.uid, mySeat, isHost, start, reset, room, identity]);
 
+  useDraftHoverSync(code, conn);
   return ready;
+}
+
+/** 내 hover 를 흘려보내는 최소 간격 */
+const HOVER_THROTTLE_MS = 150;
+
+/**
+ * 드래프트 hover 를 members 문서로 주고받는다.
+ * 액션 로그와 달리 순서·유실이 상관없는 연출이라 가벼운 채널로 충분하다.
+ */
+function useDraftHoverSync(code: string | null, conn: OnlineGame) {
+  const { room, members, identity, mySeat } = conn;
+  const drafting = useGameStore((s) => Boolean(s.state?.draft));
+  const myPid = mySeat === null ? null : `p${mySeat}`;
+
+  // 받기: 남의 좌석만 적는다. 내 hover 는 내 화면이 이미 알고 있다.
+  useEffect(() => {
+    if (!room || !drafting) return;
+    room.seats.forEach((seat, i) => {
+      const pid = `p${i}`;
+      if (!seat.uid || pid === myPid) return;
+      setDraftHover(pid, members[seat.uid]?.draftHover ?? null);
+    });
+  }, [room, members, drafting, myPid]);
+
+  // 보내기: 바뀔 때만, 너무 잦으면 마지막 값만
+  const last = useRef<number | null | undefined>(undefined);
+  useEffect(() => {
+    if (!code || !identity || !myPid || !drafting) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const flush = () => {
+      timer = null;
+      const index = draftUi.getState().hover[myPid] ?? null;
+      if (index === last.current) return;
+      last.current = index;
+      setDraftHoverRemote(code, identity.uid, index).catch(() => {});
+    };
+    const stop = draftUi.subscribe(() => {
+      if (!timer) timer = setTimeout(flush, HOVER_THROTTLE_MS);
+    });
+    return () => {
+      stop();
+      if (timer) clearTimeout(timer);
+      // 드래프트가 끝나면 남은 hover 를 지운다
+      if (last.current !== null && last.current !== undefined) {
+        setDraftHoverRemote(code, identity.uid, null).catch(() => {});
+      }
+      last.current = undefined;
+    };
+  }, [code, identity, myPid, drafting]);
 }
 
 export { markStarted };

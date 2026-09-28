@@ -5,11 +5,11 @@
  * 온라인에서는 드라이버로 뽑힌 클라이언트 하나만 이걸 돌린다.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { decide } from '../ai';
 import { fxPacing } from './fx-pacing';
-import { selectActor, seatOf, useGameStore } from './game-store';
+import { selectActor, selectActors, seatOf, useGameStore } from './game-store';
 
 /** 사람이 보기에 자연스러운 정도의 뜸 */
 const THINK_MS = { play: 620, respond: 420 } as const;
@@ -27,8 +27,28 @@ export function useAiDriver(enabled = true, speed = 1) {
     fxPacing.setState({ timeScale: Math.min(Math.max(1, speed), 3) });
   }, [speed]);
 
+  // 캐릭터 드래프트: AI 는 뜸 들이지 않고 모두 한꺼번에 바로 고른다.
+  // 제출한 액션이 돌아오기 전에 효과가 다시 돌 수 있으니 이미 낸 자리는 기억해 둔다.
+  const drafted = useRef(new Set<string>());
   useEffect(() => {
-    if (!enabled || !drives || !state || state.result) return;
+    if (!state?.draft) {
+      drafted.current.clear();
+      return;
+    }
+    if (!enabled || !drives) return;
+    for (const pid of selectActors(state)) {
+      if (controlled.includes(pid) || drafted.current.has(pid)) continue;
+      const tier = seatOf(seats, pid)?.tier ?? 'medium';
+      const seat = state.players.findIndex((p) => p.id === pid);
+      const action = decide(state, pid, tier, seed * 7919 + seat * 131);
+      if (!action) continue;
+      drafted.current.add(pid);
+      submit(action);
+    }
+  }, [enabled, drives, state, seats, controlled, submit, seed]);
+
+  useEffect(() => {
+    if (!enabled || !drives || !state || state.result || state.draft) return;
 
     const actor = selectActor(state);
     if (!actor || controlled.includes(actor)) return;

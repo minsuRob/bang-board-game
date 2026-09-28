@@ -34,6 +34,8 @@ export type RoomMember = {
   nick: string;
   /** 마지막으로 살아 있다고 알린 시각 (ms) */
   lastSeen: number;
+  /** 캐릭터 드래프트에서 마우스를 올려 둔 후보 인덱스 (화면 연출용) */
+  draftHover?: number | null;
 };
 
 /**

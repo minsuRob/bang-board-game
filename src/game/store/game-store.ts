@@ -9,6 +9,7 @@ import { create } from 'zustand';
 
 import type { AiTier } from '../ai/types';
 import {
+  actorsOf,
   reduce,
   viewFor,
   type Action,
@@ -169,10 +170,15 @@ export function makeView(state: GameState | null, viewer: PlayerId | null): Game
   return viewFor(state, viewer);
 }
 
-/** 지금 행동해야 하는 사람 */
+/** 지금 행동해야 하는 사람 (드래프트 중이면 아직 안 고른 첫 사람) */
 export function selectActor(state: GameState | null): PlayerId | null {
-  if (!state || state.result) return null;
-  return state.awaiting ? state.awaiting.pid : state.turn.active;
+  if (!state) return null;
+  return actorsOf(state)[0] ?? null;
+}
+
+/** 지금 행동해야 하는 사람 전원. 캐릭터 드래프트 중에만 여럿이다. */
+export function selectActors(state: GameState | null): PlayerId[] {
+  return state ? actorsOf(state) : [];
 }
 
 export function seatOf(seats: SeatSetup[], pid: PlayerId | null): SeatSetup | null {

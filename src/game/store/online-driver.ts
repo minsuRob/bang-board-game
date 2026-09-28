@@ -14,7 +14,8 @@ import { useEffect, useRef } from 'react';
 import type { Identity } from '../../firebase/auth';
 import { touchMember } from '../../firebase/rooms';
 import { pickDriver, type RoomDoc, type RoomMember } from '../../firebase/room-model';
-import { selectActor, useGameStore } from './game-store';
+import { syncDraftClock } from './draft-ui';
+import { selectActor, selectActors, useGameStore } from './game-store';
 
 /** 생존 신호 주기 */
 const HEARTBEAT_MS = 12_000;
@@ -27,6 +28,8 @@ export const TIME_LIMIT_MS = {
   reaction: 12_000,
   play: 60_000,
   discard: 30_000,
+  /** 캐릭터 드래프트. 모두가 동시에 고르므로 드래프트가 열린 순간부터 한 번만 잰다 */
+  draft: 30_000,
 } as const;
 
 export function useHeartbeat(code: string | null, me: Identity | null) {
@@ -71,7 +74,21 @@ export function useTimeoutDriver(controlled: string[]) {
   const startedAt = useRef<{ seq: number; at: number }>({ seq: -1, at: 0 });
 
   useEffect(() => {
-    if (!drives || !state || state.result) return;
+    const startedAt = syncDraftClock(Boolean(state?.draft));
+    if (!drives || !state?.draft || startedAt === null) return;
+
+    // 드래프트: 시계는 액션마다 다시 재지 않는다. 끝나면 못 고른 사람 전원을 기본 선택시킨다.
+    const timer = setTimeout(
+      () => {
+        for (const pid of selectActors(state)) submit({ type: 'timeout', pid });
+      },
+      Math.max(0, startedAt + TIME_LIMIT_MS.draft - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [state, drives, submit]);
+
+  useEffect(() => {
+    if (!drives || !state || state.result || state.draft) return;
 
     const actor = selectActor(state);
     if (!actor) return;
