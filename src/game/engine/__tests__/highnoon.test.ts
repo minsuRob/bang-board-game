@@ -249,6 +249,19 @@ describe('유령도시', () => {
     expect(totalCards(s)).toBe(80);
   });
 
+  it('유령은 손패 제한으로 버리지 않는다 — 수지 라파예트 유령이 버리고 뽑기를 반복하지 않는다', () => {
+    const s0 = scenario({
+      players: [{}, { alive: false, hp: 0, character: 'suzyLafayette' }, {}, {}],
+      event: 'ghostTown',
+    });
+    const s1 = reduce(s0, { type: 'endTurn', pid: 'p0' });
+    expect(p(s1, 'p1').ghost).toBe(true);
+    const s2 = reduce(s1, { type: 'endTurn', pid: 'p1' });
+    expect(s2.turn.active).toBe('p2');
+    expect(p(s2, 'p1').ghost).toBe(false);
+    expect(totalCards(s2)).toBe(80);
+  });
+
   it('유령은 카드를 3장 가져온다', () => {
     const s0 = scenario({
       players: [{}, { alive: false, hp: 0 }, {}, {}],

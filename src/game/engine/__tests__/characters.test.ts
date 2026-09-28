@@ -521,21 +521,24 @@ describe('수지 라파예트', () => {
     expect(totalCards(s)).toBe(80);
   });
 
-  it('유령이 손패 제한으로 마지막 장을 버려도 발동한다 (v0.460)', () => {
+  it('유령도 마지막 손패를 빼앗기면 발동한다 (v0.460)', () => {
+    // 유령은 손패 제한으로 버리지 않는다 (목숨 0 이라 버리고 뽑기를 끝없이 되풀이한다).
+    // 대신 캣 발루로 마지막 장을 잃는 경로로 능력이 유령에게도 걸리는지 본다.
     const s0 = scenario({
       players: [
-        { character: 'suzyLafayette', hand: ['bang'], alive: false, ghost: true, hp: 0 },
-        {},
+        { hand: ['catBalou'] },
+        { character: 'suzyLafayette', hand: ['beer'], alive: false, ghost: true, hp: 0 },
         {},
         {},
       ],
       event: 'ghostTown',
     });
-    let s = reduce(s0, { type: 'endTurn', pid: 'p0' });
-    expect(s.turn.phase).toBe('discard');
-
-    s = reduce(s, { type: 'discardCard', pid: 'p0', card: p(s, 'p0').hand[0] });
-    expect(p(s, 'p0').hand).toHaveLength(1);
+    let s = reduce(s0, { type: 'playCard', pid: 'p0', card: p(s0, 'p0').hand[0], target: 'p1' });
+    s = reduce(s, { type: 'respond', pid: 'p0', choice: { c: 'pick', pick: { zone: 'hand', index: 0 } } });
+    // 맥주는 버려졌고, 비어 버린 손에 새 카드가 들어왔다
+    expect(s.discard).toContain(p(s0, 'p1').hand[0]);
+    expect(p(s, 'p1').hand).toHaveLength(1);
+    expect(p(s, 'p1').hand[0]).not.toBe(p(s0, 'p1').hand[0]);
     expect(totalCards(s)).toBe(80);
   });
 });

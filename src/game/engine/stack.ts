@@ -29,6 +29,10 @@ export function isBlocked(state: GameState): boolean {
   }
   if (f.k === 'discardPhase') {
     const p = playerOf(state, f.pid);
+    // 유령(유령도시)은 목숨이 0 이라 손패 제한이 0 장이 된다. 어차피 차례가 끝나면 카드를
+    // 전부 잃으므로(EC-101) 버리기를 건너뛴다. 수지 라파예트 유령이 버리고 뽑기를
+    // 끝없이 되풀이하던 문제.
+    if (p.ghost) return false;
     return state.turn.phase === 'discard' && inPlay(p) && p.hand.length > p.hp;
   }
   return false;
