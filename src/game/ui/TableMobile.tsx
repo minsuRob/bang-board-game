@@ -27,6 +27,8 @@ import type { DimensionValue } from 'react-native';
 import type { CardId, Role } from '../data/types';
 import { distance, kindOf, type GameState, type Player, type PlayerId } from '../engine';
 import { ActionBar } from './ActionBar';
+import { DraftPanel } from './DraftPanel';
+import { DraftSeatStatus } from './DraftSeatStatus';
 import { cardBackArt, characterArt, eventArt, woodArt } from './card-art';
 import { CardView } from './CardView';
 import { Hand } from './Hand';
@@ -149,41 +151,47 @@ export function TableMobile({
         </View>
       </ScrollView>
 
-      <ActionBar
-        prompt={api.prompt}
-        onRespond={api.respond}
-        status={status}
-        canEndTurn={api.canEndTurn}
-        onEndTurn={api.endTurn}
-        playerNameOf={(pid) => view.players.find((p) => p.id === pid)?.name ?? pid}
-        abilities={api.abilities}
-        onUseAbility={api.useAbility}
-      />
-
-      <View style={[styles.mine, squat && styles.mineRow]}>
-        <CompactSeat
-          view={view}
-          viewer={viewer}
-          player={me}
-          active={view.turn.active === viewer}
-          targetable={targets.includes(viewer)}
-          onPress={() => onSeatPress(viewer)}
-          picking={steal && steal.target === viewer ? steal : null}
-          onPickHand={(index) => api.respond({ c: 'pick', pick: { zone: 'hand', index } })}
-          onPickEquipment={(card) => api.respond({ c: 'pick', pick: { zone: 'equipment', card } })}
-          wide={!squat}
-          basis={squat ? 220 : undefined}
-        />
-        <View style={[styles.handArea, squat && styles.handAreaSquat]}>
-          <Hand
-            cards={me.hand}
-            playable={api.playable}
-            discardable={api.discardable}
-            selected={api.selected}
-            onSelect={onCardPress}
+      {api.draft ? (
+        <DraftPanel draft={api.draft} viewer={viewer} onPick={api.pickCharacter} compact />
+      ) : (
+        <>
+          <ActionBar
+            prompt={api.prompt}
+            onRespond={api.respond}
+            status={status}
+            canEndTurn={api.canEndTurn}
+            onEndTurn={api.endTurn}
+            playerNameOf={(pid) => view.players.find((p) => p.id === pid)?.name ?? pid}
+            abilities={api.abilities}
+            onUseAbility={api.useAbility}
           />
-        </View>
-      </View>
+
+          <View style={[styles.mine, squat && styles.mineRow]}>
+            <CompactSeat
+              view={view}
+              viewer={viewer}
+              player={me}
+              active={view.turn.active === viewer}
+              targetable={targets.includes(viewer)}
+              onPress={() => onSeatPress(viewer)}
+              picking={steal && steal.target === viewer ? steal : null}
+              onPickHand={(index) => api.respond({ c: 'pick', pick: { zone: 'hand', index } })}
+              onPickEquipment={(card) => api.respond({ c: 'pick', pick: { zone: 'equipment', card } })}
+              wide={!squat}
+              basis={squat ? 220 : undefined}
+            />
+            <View style={[styles.handArea, squat && styles.handAreaSquat]}>
+              <Hand
+                cards={me.hand}
+                playable={api.playable}
+                discardable={api.discardable}
+                selected={api.selected}
+                onSelect={onCardPress}
+              />
+            </View>
+          </View>
+        </>
+      )}
 
       {logOpen && (
         <View style={styles.logOverlay}>
@@ -269,24 +277,30 @@ function CompactSeat({
         )}
       </View>
 
-      <View style={styles.compactCharRow}>
-        {portrait && <Image source={portrait} style={styles.compactPortrait} resizeMode="cover" />}
-        <Text style={styles.compactCharacter} numberOfLines={2}>
-          {CHARACTERS[player.character].nameKo}
-          {player.ghost ? ' · 유령' : ''}
-          {dead ? ' · 제거됨' : ''}
-        </Text>
-      </View>
+      {view.draft ? (
+        <DraftSeatStatus view={view} pid={player.id} isSelf={isSelf} />
+      ) : (
+        <>
+          <View style={styles.compactCharRow}>
+            {portrait && <Image source={portrait} style={styles.compactPortrait} resizeMode="cover" />}
+            <Text style={styles.compactCharacter} numberOfLines={2}>
+              {CHARACTERS[player.character].nameKo}
+              {player.ghost ? ' · 유령' : ''}
+              {dead ? ' · 제거됨' : ''}
+            </Text>
+          </View>
 
-      <View style={styles.compactRow}>
-        <Text style={styles.compactHp}>
-          {'●'.repeat(Math.max(0, player.hp))}
-          <Text style={styles.compactHpEmpty}>
-            {'○'.repeat(Math.max(0, player.maxHp - Math.max(0, player.hp)))}
-          </Text>
-        </Text>
-        {dist !== null && <Text style={styles.compactMeta}>거리 {dist}</Text>}
-      </View>
+          <View style={styles.compactRow}>
+            <Text style={styles.compactHp}>
+              {'●'.repeat(Math.max(0, player.hp))}
+              <Text style={styles.compactHpEmpty}>
+                {'○'.repeat(Math.max(0, player.maxHp - Math.max(0, player.hp)))}
+              </Text>
+            </Text>
+            {dist !== null && <Text style={styles.compactMeta}>거리 {dist}</Text>}
+          </View>
+        </>
+      )}
 
       <View style={styles.compactRow}>
         <View style={styles.compactHand}>

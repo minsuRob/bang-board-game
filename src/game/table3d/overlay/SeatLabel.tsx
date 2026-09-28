@@ -99,6 +99,39 @@ export function SeatLabel({
 
   const w = compact ? LABEL_W_COMPACT : LABEL_W;
 
+  // 캐릭터 드래프트 중: 캐릭터·목숨은 아직 없다. 골랐는지만 보인다
+  if (view.draft) {
+    const done = view.draft.picked[player.id] !== null;
+    return (
+      <View style={[styles.slot, { left: x - w / 2, width: w }, place]}>
+        <View
+          accessibilityLabel={`${player.name} · ${done ? '선택 완료' : '고르는 중'}`}
+          style={[styles.label, done && styles.drafted]}>
+          <View style={styles.row}>
+            <Text style={styles.name} numberOfLines={1}>
+              {player.name}
+            </Text>
+            {(player.roleRevealed || isSelf) && (
+              <Text style={[styles.role, { color: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
+            )}
+          </View>
+          <View style={styles.draftRow}>
+            {done ? (
+              <>
+                <View style={styles.check}>
+                  <Text style={styles.checkText}>✓</Text>
+                </View>
+                <Text style={styles.draftDone}>선택 완료</Text>
+              </>
+            ) : (
+              <Text style={styles.character}>캐릭터 고르는 중…</Text>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.slot, { left: x - w / 2, width: w }, place]}>
       <Pressable
@@ -183,4 +216,16 @@ const styles = StyleSheet.create({
   meta: { color: Colors.textMuted, fontSize: 9 },
   equipment: { color: Colors.deputy, fontSize: 9 },
   detail: { color: Colors.textMuted, fontSize: 9, lineHeight: 12 },
+  drafted: { borderColor: Colors.success },
+  draftRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, minHeight: 18 },
+  check: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkText: { color: '#fff', fontSize: 11, fontWeight: '900', lineHeight: 13 },
+  draftDone: { color: Colors.success, fontSize: 10, fontWeight: '800' },
 });

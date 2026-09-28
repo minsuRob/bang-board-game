@@ -14,6 +14,7 @@ import type { CardId, Role } from '../data/types';
 import type { GameState, Player, PlayerId } from '../engine';
 import { distance } from '../engine';
 import { characterArt } from './card-art';
+import { DraftSeatStatus } from './DraftSeatStatus';
 import { CardView } from './CardView';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
@@ -82,20 +83,26 @@ export function PlayerSeat({
         ) : null}
       </View>
 
-      <View style={styles.characterRow}>
-        {portrait && (
-          <Image source={portrait} style={styles.portrait} resizeMode="cover" />
-        )}
-        <Text style={styles.character} numberOfLines={2}>
-          {character.nameKo}
-          {player.ghost ? ' · 유령' : ''}
-        </Text>
-      </View>
+      {view.draft ? (
+        <DraftSeatStatus view={view} pid={player.id} isSelf={isSelf} />
+      ) : (
+        <>
+          <View style={styles.characterRow}>
+            {portrait && (
+              <Image source={portrait} style={styles.portrait} resizeMode="cover" />
+            )}
+            <Text style={styles.character} numberOfLines={2}>
+              {character.nameKo}
+              {player.ghost ? ' · 유령' : ''}
+            </Text>
+          </View>
 
-      <View style={styles.row}>
-        <Bullets hp={Math.max(0, player.hp)} maxHp={player.maxHp} />
-        {dist !== null && <Text style={styles.distance}>거리 {dist}</Text>}
-      </View>
+          <View style={styles.row}>
+            <Bullets hp={Math.max(0, player.hp)} maxHp={player.maxHp} />
+            {dist !== null && <Text style={styles.distance}>거리 {dist}</Text>}
+          </View>
+        </>
+      )}
 
       <View style={styles.row}>
         <HandStrip

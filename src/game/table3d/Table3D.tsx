@@ -14,6 +14,7 @@ import type { GameState, PlayerId } from '../engine';
 import { useGameStore } from '../store/game-store';
 import type { CardId } from '../data/types';
 import { ActionBar } from '../ui/ActionBar';
+import { DraftPanel } from '../ui/DraftPanel';
 import { LogPanel } from '../ui/LogPanel';
 import { bottomStatus, handleCardPress, statusMessage } from '../ui/table-text';
 import type { TableApi } from '../ui/use-table';
@@ -165,28 +166,34 @@ export function Table3D({ view, viewer, api }: Table3DProps) {
       </View>
 
       <View style={[styles.bottom, { paddingBottom: insets.bottom }]}>
-        <ActionBar
-          prompt={api.prompt}
-          onRespond={api.respond}
-          status={bottomStatus(view, viewer, api)}
-          canEndTurn={api.canEndTurn}
-          onEndTurn={api.endTurn}
-          playerNameOf={(pid) => view.players.find((p) => p.id === pid)?.name ?? pid}
-          abilities={api.abilities}
-          onUseAbility={api.useAbility}
-        />
-        <View style={styles.handArea}>
-          <DragHand
-            cards={me.hand}
-            playable={api.playable}
-            discardable={api.discardable}
-            selected={api.selected}
-            onSelect={(card) => handleCardPress(api, card)}
-            onDragStart={onDragStart}
-            onDrop={onDrop}
-            showIndex={wide}
-          />
-        </View>
+        {api.draft ? (
+          <DraftPanel draft={api.draft} viewer={viewer} onPick={api.pickCharacter} compact={!wide} />
+        ) : (
+          <>
+            <ActionBar
+              prompt={api.prompt}
+              onRespond={api.respond}
+              status={bottomStatus(view, viewer, api)}
+              canEndTurn={api.canEndTurn}
+              onEndTurn={api.endTurn}
+              playerNameOf={(pid) => view.players.find((p) => p.id === pid)?.name ?? pid}
+              abilities={api.abilities}
+              onUseAbility={api.useAbility}
+            />
+            <View style={styles.handArea}>
+              <DragHand
+                cards={me.hand}
+                playable={api.playable}
+                discardable={api.discardable}
+                selected={api.selected}
+                onSelect={(card) => handleCardPress(api, card)}
+                onDragStart={onDragStart}
+                onDrop={onDrop}
+                showIndex={wide}
+              />
+            </View>
+          </>
+        )}
       </View>
 
       {!wide && logOpen && (

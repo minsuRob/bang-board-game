@@ -79,6 +79,12 @@ export default function GameScreen() {
   const onPickIndex = useCallback(
     (index: number) => {
       if (!view || !viewer) return;
+      // 캐릭터 드래프트 중이면 숫자키로 후보를 고른다
+      if (api.draft) {
+        const id = api.draft.offers[index];
+        if (id) api.pickCharacter(id);
+        return;
+      }
       // 반응 대기 중이면 프롬프트의 선택지를, 아니면 손패를 고른다.
       if (api.prompt?.cardOptions.length) {
         const card = api.prompt.cardOptions[index];

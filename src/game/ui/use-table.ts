@@ -8,7 +8,7 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { CARD_DEFS } from '../data/cards.base';
-import type { CardId, Suit } from '../data/types';
+import type { CardId, CharacterId, Suit } from '../data/types';
 import {
   actionKey,
   kindOf,
@@ -51,6 +51,17 @@ export type TableApi = {
   respond: (choice: Choice) => void;
   abilities: { key: string; label: string; cards: CardId[] }[];
   useAbility: (key: string, cards: CardId[]) => void;
+  /** 캐릭터 드래프트 중이면 내 후보와 진행 상황. 아니면 null */
+  draft: DraftInfo | null;
+  pickCharacter: (id: CharacterId) => void;
+};
+
+export type DraftInfo = {
+  offers: CharacterId[];
+  picked: CharacterId | null;
+  /** 고른 사람 수 / 전체 */
+  done: number;
+  total: number;
 };
 
 export function useTable(view: GameState | null, viewer: PlayerId | null): TableApi {
@@ -145,6 +156,26 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     [legal, submit, viewer],
   );
 
+  const draft = useMemo<DraftInfo | null>(() => {
+    const d = view?.draft;
+    if (!d || !viewer) return null;
+    const picks = Object.values(d.picked);
+    return {
+      offers: d.offers[viewer] ?? [],
+      picked: d.picked[viewer] ?? null,
+      done: picks.filter((c) => c !== null).length,
+      total: picks.length,
+    };
+  }, [view, viewer]);
+
+  const pickCharacter = useCallback(
+    (id: CharacterId) => {
+      const match = legal.find((a) => a.type === 'pickCharacter' && a.character === id);
+      if (match) submit(match);
+    },
+    [legal, submit],
+  );
+
   const prompt = useMemo(() => (view && waitingOnMe ? buildPrompt(view) : null), [view, waitingOnMe]);
 
   return {
@@ -166,6 +197,8 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     respond,
     abilities,
     useAbility,
+    draft,
+    pickCharacter,
   };
 }
 

@@ -31,6 +31,10 @@ export function statusMessage(view: GameState, viewer: PlayerId): string {
   if (view.result) {
     return `${view.result.reason} — ${view.result.winners.map((r) => ROLE_LABEL[r]).join('·')} 승리`;
   }
+  if (view.draft) {
+    const picks = Object.values(view.draft.picked);
+    return `캐릭터 선택 · ${picks.filter((c) => c !== null).length}/${picks.length}명 완료`;
+  }
   const active = view.players.find((p) => p.id === view.turn.active);
   const who = active?.id === viewer ? '내' : `${active?.name}의`;
   const phase = view.turn.phase === 'discard' ? '버리기' : view.turn.phase === 'draw' ? '카드 가져오기' : '카드 사용';
@@ -40,6 +44,7 @@ export function statusMessage(view: GameState, viewer: PlayerId): string {
 export function bottomStatus(view: GameState, viewer: PlayerId, api: TableApi): string {
   if (view.result) return '게임이 끝났다.';
   if (api.waitingOnMe) return '';
+  if (api.draft) return api.draft.picked ? '다른 사람이 고르기를 기다리는 중' : '캐릭터를 고른다';
   if (view.awaiting) {
     const who = view.players.find((p) => p.id === view.awaiting!.pid)?.name;
     return `${who}의 반응을 기다리는 중`;

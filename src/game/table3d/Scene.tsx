@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
 import type { GameState, PlayerId } from '../engine';
+import { draftUi } from '../store/draft-ui';
 import { frameCamera } from './core/camera';
 import { dragStore } from './core/drag-store';
 import { fxStore, isReserved } from './core/fx-store';
@@ -17,6 +18,7 @@ import { setMaterialSwapListener } from './materials/card-materials';
 import { AnchorProjector } from './scene/AnchorProjector';
 import { CameraRig } from './scene/CameraRig';
 import { CardWorld } from './scene/CardWorld';
+import { DraftCards } from './scene/DraftCards';
 import { DragTracker } from './scene/DragTracker';
 import { FxLayer } from './scene/FxLayer';
 import { Particles } from './scene/Particles';
@@ -50,9 +52,10 @@ export function Scene({ state, viewerIndex, budget, targets, selected }: ScenePr
   const [seq] = useState(
     () => new Sequencer({ world, rig, fx, particles, onBatchDone: (snap) => world.resettle(snap, isReserved) }),
   );
+  const [draftCards] = useState(() => new DraftCards());
   const [root] = useState(() => {
     const g = new THREE.Group();
-    g.add(world.root, fx.root, particles.points);
+    g.add(world.root, draftCards.root, fx.root, particles.points);
     return g;
   });
   // 첫 배치는 즉시 스냅, 그 뒤로는 감쇠로 붙는다
@@ -68,21 +71,26 @@ export function Scene({ state, viewerIndex, budget, targets, selected }: ScenePr
     const aspect = size.width / size.height;
     const layout = layoutTable(n, viewerIndex, aspect);
     world.setLayout(layout);
+    draftCards.setLayout(layout);
     rig.setBase(frameCamera(aspect, layout), !booted.current);
     rig.apply(camera);
     projector.project(camera, size.width, size.height, layout);
     booted.current = true;
     invalidate();
-  }, [n, viewerIndex, size.width, size.height, world, rig, projector, camera, invalidate]);
+  }, [n, viewerIndex, size.width, size.height, world, draftCards, rig, projector, camera, invalidate]);
 
   // 상태가 바뀌면 정답 자리로. 큐에 든 연출이 옮길 카드는 건너뛴다
   useEffect(() => {
     world.settle(state, viewerIndex, !booted.current, isReserved);
     world.highlightTargets(targets);
+    draftCards.update(state, viewerIndex);
     // 판이 끝났으면 남은 연출을 정리한다
     if (state.result) seq.flush();
     invalidate();
-  }, [state, viewerIndex, targets, world, seq, invalidate]);
+  }, [state, viewerIndex, targets, world, draftCards, seq, invalidate]);
+
+  // 드래프트 중 누가 후보 위에 마우스를 올리면 한 프레임 깨운다
+  useEffect(() => draftUi.subscribe(() => invalidate()), [invalidate]);
 
   useEffect(() => {
     particles.setPixelRatio(gl.getPixelRatio());
@@ -127,6 +135,7 @@ export function Scene({ state, viewerIndex, budget, targets, selected }: ScenePr
     )
       active = true;
     if (world.tick(step, now)) active = true;
+    if (draftCards.tick(step, now, draftUi.getState().hover)) active = true;
     if (fx.tick(now)) active = true;
     if (particles.tick(now / 1000)) active = true;
     if (rig.tick(step, now)) active = true;

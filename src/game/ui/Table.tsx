@@ -15,6 +15,7 @@ import type { CardId } from '../data/types';
 import type { GameState, PlayerId } from '../engine';
 import { Table3D, useTableMode } from '../table3d';
 import { ActionBar } from './ActionBar';
+import { DraftPanel } from './DraftPanel';
 import { feltArt, woodArt } from './card-art';
 import { Hand } from './Hand';
 import { LogPanel } from './LogPanel';
@@ -151,51 +152,57 @@ export function Table({ view, viewer, api }: TableProps) {
       </View>
 
       <View style={styles.bottom}>
-        <ActionBar
-          prompt={api.prompt}
-          onRespond={api.respond}
-          status={bottomStatus(view, viewer, api)}
-          canEndTurn={api.canEndTurn}
-          onEndTurn={api.endTurn}
-          playerNameOf={(pid) => view.players.find((p) => p.id === pid)?.name ?? pid}
-          abilities={api.abilities}
-          onUseAbility={api.useAbility}
-        />
-
-        <View style={styles.myRow}>
-          <View style={styles.mySeat}>
-            <PlayerSeat
-              view={view}
-              player={me}
-              viewer={viewer}
-              active={view.turn.active === viewer}
-              targetable={targets.includes(viewer)}
-              onPress={() => onSeatPress(viewer)}
-              picking={steal && steal.target === viewer ? steal : null}
-              onPickHand={(index) => api.respond({ c: 'pick', pick: { zone: 'hand', index } })}
-              onPickEquipment={(card: CardId) =>
-                api.respond({ c: 'pick', pick: { zone: 'equipment', card } })
-              }
+        {api.draft ? (
+          <DraftPanel draft={api.draft} viewer={viewer} onPick={api.pickCharacter} />
+        ) : (
+          <>
+            <ActionBar
+              prompt={api.prompt}
+              onRespond={api.respond}
+              status={bottomStatus(view, viewer, api)}
+              canEndTurn={api.canEndTurn}
+              onEndTurn={api.endTurn}
+              playerNameOf={(pid) => view.players.find((p) => p.id === pid)?.name ?? pid}
+              abilities={api.abilities}
+              onUseAbility={api.useAbility}
             />
-            <Text style={styles.goal} numberOfLines={2}>
-              {ROLE_LABEL[me.role]} · {ROLE_GOAL[me.role]}
-            </Text>
-            <Text style={styles.ability} numberOfLines={3}>
-              {CHARACTERS[me.character].ability}
-            </Text>
-          </View>
 
-          <View style={styles.handArea}>
-            <Hand
-              cards={me.hand}
-              playable={api.playable}
-              discardable={api.discardable}
-              selected={api.selected}
-              onSelect={(card) => handleCardPress(api, card)}
-              showIndex
-            />
-          </View>
-        </View>
+            <View style={styles.myRow}>
+              <View style={styles.mySeat}>
+                <PlayerSeat
+                  view={view}
+                  player={me}
+                  viewer={viewer}
+                  active={view.turn.active === viewer}
+                  targetable={targets.includes(viewer)}
+                  onPress={() => onSeatPress(viewer)}
+                  picking={steal && steal.target === viewer ? steal : null}
+                  onPickHand={(index) => api.respond({ c: 'pick', pick: { zone: 'hand', index } })}
+                  onPickEquipment={(card: CardId) =>
+                    api.respond({ c: 'pick', pick: { zone: 'equipment', card } })
+                  }
+                />
+                <Text style={styles.goal} numberOfLines={2}>
+                  {ROLE_LABEL[me.role]} · {ROLE_GOAL[me.role]}
+                </Text>
+                <Text style={styles.ability} numberOfLines={3}>
+                  {CHARACTERS[me.character].ability}
+                </Text>
+              </View>
+
+              <View style={styles.handArea}>
+                <Hand
+                  cards={me.hand}
+                  playable={api.playable}
+                  discardable={api.discardable}
+                  selected={api.selected}
+                  onSelect={(card) => handleCardPress(api, card)}
+                  showIndex
+                />
+              </View>
+            </View>
+          </>
+        )}
       </View>
     </View>
   );
