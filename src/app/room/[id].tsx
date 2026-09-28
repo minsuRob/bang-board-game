@@ -27,7 +27,7 @@ export default function RoomScreen() {
   // 존재 표시등을 다시 그리기 위한 시계. 렌더 중에 Date.now() 를 부르면 안 된다.
   const [now, setNow] = useState(() => Date.now());
 
-  const conn = useRoomConnection(code);
+  const conn = useRoomConnection(code, { signIn: true });
   const { room, members, identity, mySeat, isHost } = conn;
 
   // 'new' 로 들어오면 방을 만들고 그 코드로 갈아탄다.
@@ -38,7 +38,8 @@ export default function RoomScreen() {
       .then((made) => {
         if (!alive) return;
         setCode(made);
-        router.setParams({ id: made });
+        // 주소를 방 코드로 바꿔 둔다. /room/new 에 남으면 새로고침할 때 방이 또 생긴다.
+        router.replace({ pathname: '/room/[id]', params: { id: made } });
       })
       .catch((err) => alive && setLocalError(err.message));
     return () => {

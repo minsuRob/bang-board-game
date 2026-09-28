@@ -28,7 +28,14 @@ export type OnlineGame = {
   error: string | null;
 };
 
-export function useRoomConnection(code: string | null): OnlineGame {
+/**
+ * `signIn` 을 켜면 방 코드가 아직 없어도 로그인한다.
+ * 방을 새로 만드는 화면은 identity 가 있어야 코드를 받아 오기 때문이다.
+ */
+export function useRoomConnection(
+  code: string | null,
+  { signIn = false }: { signIn?: boolean } = {},
+): OnlineGame {
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [room, setRoom] = useState<RoomDoc | null>(null);
   const [members, setMembers] = useState<Record<string, RoomMember>>({});
@@ -36,7 +43,7 @@ export function useRoomConnection(code: string | null): OnlineGame {
 
   useEffect(() => {
     // 로컬 대전에서는 이 훅이 code 없이 불린다. 그때는 로그인도 하지 않는다.
-    if (!code) return;
+    if (!code && !signIn) return;
     let alive = true;
     getIdentity()
       .then((id) => alive && setIdentity(id))
@@ -44,17 +51,19 @@ export function useRoomConnection(code: string | null): OnlineGame {
     return () => {
       alive = false;
     };
-  }, [code]);
+  }, [code, signIn]);
 
+  // 규칙이 로그인한 사람만 읽게 한다. 로그인 전에 구독하면 권한 오류로 끊긴다.
+  const uid = identity?.uid ?? null;
   useEffect(() => {
-    if (!code) return;
+    if (!code || !uid) return;
     const stopRoom = watchRoom(code, setRoom, (err) => setError(err.message));
     const stopMembers = watchMembers(code, setMembers);
     return () => {
       stopRoom();
       stopMembers();
     };
-  }, [code]);
+  }, [code, uid]);
 
   useHeartbeat(code, identity);
   useDriverElection(room, members, identity?.uid ?? null);
