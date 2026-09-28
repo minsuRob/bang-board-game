@@ -13,6 +13,7 @@ import {
 } from '../engine';
 import { viewFor } from '../engine/view';
 import { nextInt, type RngState } from '../engine/rng';
+import { chooseDraft } from './draft';
 import { chooseHard } from './hard';
 import { beliefsFor, scoreAction } from './policy';
 import type { AiContext, AiTier } from './types';
@@ -48,6 +49,8 @@ export function chooseAction(ctx: AiContext): Action | null {
   if (legal.length === 1) return legal[0];
 
   const rng: RngState = { seed: (seed ^ (view.seq * 2654435761)) | 0, n: 0 };
+
+  if (view.draft) return chooseDraft(view, me, legal, rng, tier === 'easy');
 
   switch (tier) {
     case 'easy':

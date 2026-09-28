@@ -8,7 +8,7 @@
  */
 
 import { decide, type AiTier } from '../src/game/ai';
-import { legalActions, reduce, type Action, type GameState } from '../src/game/engine';
+import { actorsOf, legalActions, reduce, type Action, type GameState } from '../src/game/engine';
 import { viewFor } from '../src/game/engine/view';
 
 type Options = {
@@ -74,7 +74,7 @@ function playOne(seed: number, opts: Options): GameOutcome {
   let steps = 0;
 
   while (!state.result && steps < opts.maxSteps) {
-    const actor = state.awaiting ? state.awaiting.pid : state.turn.active;
+    const actor = actorsOf(state)[0];
     const seat = state.players.findIndex((p) => p.id === actor);
     const tier = tierBySeat[seat] ?? 'medium';
 

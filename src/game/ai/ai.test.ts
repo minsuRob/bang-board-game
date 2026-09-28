@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { actionKey, legalActions, reduce, type Action, type GameState } from '../engine';
+import { actionKey, actorsOf, legalActions, reduce, type Action, type GameState } from '../engine';
 import { viewFor } from '../engine/view';
 import { decide } from './index';
 import type { AiTier } from './types';
@@ -13,6 +13,16 @@ function startGame(seed: number, count: number, highnoon = false): GameState {
     config: { playerCount: count, expansions: highnoon ? ['highnoon'] : [] },
     seats,
   });
+}
+
+/** 드래프트까지 AI 가 마친 판 */
+function startDrafted(seed: number, count: number): GameState {
+  let state = startGame(seed, count);
+  while (state.draft) {
+    const actor = actorsOf(state)[0];
+    state = reduce(state, decide(state, actor, 'medium', seed) as Action);
+  }
+  return state;
 }
 
 type PlayResult = { state: GameState; steps: number };
@@ -28,7 +38,7 @@ function playOut(
   let steps = 0;
 
   while (!state.result && steps < maxSteps) {
-    const actor = state.awaiting ? state.awaiting.pid : state.turn.active;
+    const actor = actorsOf(state)[0];
     const seat = state.players.findIndex((p) => p.id === actor);
     const action = decide(state, actor, tierOf(seat), seed * 31 + steps);
     if (!action) break;
@@ -45,7 +55,7 @@ describe('AI 기본 동작', () => {
     for (const tier of ['easy', 'medium', 'hard'] as AiTier[]) {
       let state = startGame(5, 5);
       for (let i = 0; i < 40 && !state.result; i++) {
-        const actor = state.awaiting ? state.awaiting.pid : state.turn.active;
+        const actor = actorsOf(state)[0];
         const action = decide(state, actor, tier, i);
         expect(action, `${tier} 가 수를 못 골랐다`).not.toBeNull();
         const legal = legalActions(state, actor).map(actionKey);
@@ -56,7 +66,7 @@ describe('AI 기본 동작', () => {
   });
 
   it('가려진 시야만 보고 판단한다 (전체 상태를 줘도 결과가 같다)', () => {
-    const state = startGame(9, 6);
+    const state = startDrafted(9, 6);
     const actor = state.turn.active;
     const fromFull = decide(state, actor, 'medium', 3);
     const fromView = decide(viewFor(state, actor), actor, 'medium', 3);
@@ -64,7 +74,7 @@ describe('AI 기본 동작', () => {
   });
 
   it('같은 국면 + 같은 시드면 같은 수를 둔다', () => {
-    const state = startGame(13, 5);
+    const state = startDrafted(13, 5);
     const actor = state.turn.active;
     for (const tier of ['easy', 'medium', 'hard'] as AiTier[]) {
       const a = decide(state, actor, tier, 77);
@@ -74,7 +84,7 @@ describe('AI 기본 동작', () => {
   });
 
   it('시드가 다르면 하 난이도는 다른 수도 낸다', () => {
-    const state = startGame(21, 6);
+    const state = startDrafted(21, 6);
     const actor = state.turn.active;
     const seen = new Set<string>();
     for (let seed = 0; seed < 30; seed++) {
