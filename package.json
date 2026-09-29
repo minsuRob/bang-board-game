@@ -6,8 +6,10 @@
     "@expo/ui": "~57.0.17",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-three/fiber": "^9.7.0",
+    "@shopify/react-native-skia": "2.6.2",
     "expo": "~57.0.21",
     "expo-asset": "~57.0.17",
+    "expo-audio": "~57.0.5",
     "expo-constants": "~57.0.17",
     "expo-device": "~57.0.1",
     "expo-file-system": "~57.0.7",
@@ -57,7 +59,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "simulate": "tsx scripts/simulate.ts"
+    "simulate": "tsx scripts/simulate.ts",
+    "gen:sfx": "node scripts/gen-sfx.mjs",
+    "postinstall": "setup-skia-web public"
   },
   "private": true
 }

@@ -10,6 +10,7 @@ import { useAiDriver } from '@/game/store/ai-driver';
 import { useTimeoutDriver } from '@/game/store/online-driver';
 import { useOnlineGameSession, useRoomConnection } from '@/game/store/use-online-game';
 import { PauseButton } from '@/game/ui/PauseButton';
+import { SoundButton } from '@/game/ui/SoundButton';
 import { SpeedControl } from '@/game/ui/SpeedControl';
 import { Table } from '@/game/ui/Table';
 import { useHotkeys } from '@/game/ui/use-hotkeys';
@@ -152,10 +153,11 @@ export default function GameScreen() {
     <View style={styles.root}>
       <Table view={view} viewer={viewer} api={api} />
 
-      {(canPause || (!setup.auto && !state.result)) && (
+      {!state.result && (
         <View style={styles.topLeft}>
           {!setup.auto && !state.result && <SpeedControl speed={speed} onChange={onSpeedChange} />}
           {canPause && <PauseButton paused={paused} onToggle={() => setPaused((v) => !v)} />}
+          <SoundButton />
         </View>
       )}
 

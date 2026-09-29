@@ -24,7 +24,7 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 
 export type CardSize = 'sm' | 'md' | 'lg' | 'xl';
 
-const DIMENSIONS: Record<CardSize, { width: number; height: number; title: number }> = {
+export const CARD_DIMENSIONS: Record<CardSize, { width: number; height: number; title: number }> = {
   sm: { width: 46, height: 66, title: 9 },
   md: { width: 78, height: 112, title: 12 },
   lg: { width: 104, height: 150, title: 14 },
@@ -55,7 +55,7 @@ function CardViewBase({
   onHoverIn,
   onHoverOut,
 }: CardViewProps) {
-  const dim = DIMENSIONS[size];
+  const dim = CARD_DIMENSIONS[size];
   const inst = cardOf(card);
   const kind = kindOf(card);
   const def = CARD_DEFS[kind];
@@ -136,7 +136,7 @@ function CardViewBase({
 export const CardView = memo(CardViewBase);
 
 export function CardBack({ size = 'md' }: { size?: CardSize }) {
-  const dim = DIMENSIONS[size];
+  const dim = CARD_DIMENSIONS[size];
   const art = cardBackArt();
 
   if (art) {

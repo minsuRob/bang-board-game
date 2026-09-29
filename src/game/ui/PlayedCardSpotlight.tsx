@@ -6,18 +6,29 @@
  * 2. 내 손패를 살펴보는 동안(웹 hover, 폰 첫 탭) 그 카드가 떠 있다. 이쪽이 우선이다.
  *
  * 카드 아래에는 드래프트와 같은 종이 명판으로 상황과 카드 효과를 적는다.
+ * 연출이 붙은 카드(fx/card-fx.ts)는 카드가 올라선 직후 소리와 화면 효과가 같은 틱에 터진다.
+ * 첫 메뉴에서 고화질을 골랐고 Skia 가 준비됐으면 Skia 연출(fx/skia), 아니면 일반 연출(RN Animated).
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { cancelAnimation, Easing as ReEasing, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useStore } from 'zustand';
 
+import { BASE_DECK } from '../data/cards.base';
 import type { CardId } from '../data/types';
 import { defOf, isHidden, type GameEvent, type GameState, type PlayerId } from '../engine';
 import { fxPacing } from '../store/fx-pacing';
 import { CAN_HOVER, cardPeek, setPeek } from './card-peek';
-import { CardView } from './CardView';
+import { CARD_DIMENSIONS, CardView } from './CardView';
+import { cardFxFor, type CardFx } from './fx/card-fx';
+import { GUNSHOT_MS, GunshotFx, recoilStyle, screenFlashStyle } from './fx/GunshotFx';
+import { fxQuality } from './fx/quality';
+import { loadSkiaFx, skiaFx } from './fx/skia/load';
+import { ShotCardWrap } from './fx/skia/ShotCardWrap';
+import { EMPTY_GEOM, GUNSHOT_HQ_MS, RELEASE_MS, type ShotGeom } from './fx/skia/timeline';
 import { PaperPlaque, plaque } from './PaperPlaque';
+import { playSfx, preloadSfx } from './sfx';
 import type { TableApi } from './use-table';
 import { Spacing } from '@/constants/theme';
 
@@ -29,12 +40,18 @@ const PLAY_EVENTS = new Set(['playCard', 'playMissed', 'indiansBang', 'duelBang'
 /** 1배속에서 떠 있는 시간 */
 const SHOW_MS = 2200;
 
+/** 카드가 튀어 오른 뒤 총이 터지기까지 (1배속) */
+const FIRE_DELAY_MS = 180;
+
 export type PlayedCardSpotlightProps = {
   view: GameState;
   viewer: PlayerId;
   api: Pick<TableApi, 'playable' | 'discardable'>;
   compact?: boolean;
 };
+
+/** 고화질 총격이 쓰는 무대: 진행도, 총구 자리, 자리를 잴 기준 레이어 */
+type HqStage = { progress: SharedValue<number>; geom: SharedValue<ShotGeom>; layer: React.RefObject<View | null> };
 
 export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSpotlightProps) {
   const [shown, setShown] = useState<GameEvent | null>(null);
@@ -43,6 +60,43 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
   const peek = useStore(cardPeek, (s) => s.card);
   const hand = view.players.find((p) => p.id === viewer)?.hand ?? [];
   const peeking = peek !== null && hand.includes(peek) ? peek : null;
+
+  // 첫 총성이 늦게 나지 않게 판에 들어올 때 소리와 고화질 연출을 불러 둔다
+  useEffect(preloadSfx, []);
+  const quality = useStore(fxQuality, (s) => s.quality);
+  useEffect(() => {
+    if (quality === 'high') void loadSkiaFx();
+  }, [quality]);
+
+  // 고화질 캔버스는 판마다 하나만 띄워 두고 총격마다 다시 쓴다 (GunshotSkia 머리말 참고)
+  const skia = useStore(skiaFx, (s) => s.gunshot);
+  const hqLayer = quality === 'high' ? skia : null;
+  const progress = useSharedValue(0);
+  const geom = useSharedValue<ShotGeom>(EMPTY_GEOM);
+  const layer = useRef<View>(null);
+  const stage: HqStage | null = hqLayer ? { progress, geom, layer } : null;
+
+  // 개발용 (웹): 주소에 ?fxloop=1 이면 뱅! 연출을 3초마다 되풀이한다.
+  // ?fxloop=hold 면 되풀이하지 않고 globalThis.__shot 으로 진행도를 손으로 멈춰 한 장면씩 본다
+  // (__shot.progress.value = 0.2 로 멈추기, __shot.start() 로 한 번 돌리기)
+  useEffect(() => {
+    const mode = __DEV__ && Platform.OS === 'web' ? /[?&]fxloop=(\w+)/.exec(globalThis.location?.search ?? '')?.[1] : null;
+    if (!mode) return;
+    (globalThis as { __shot?: unknown }).__shot = {
+      progress,
+      geom,
+      start: (ms = 2000) => {
+        progress.value = 0;
+        progress.value = withTiming(1, { duration: ms, easing: ReEasing.linear });
+      },
+    };
+    if (mode !== '1') return;
+    const bang = BASE_DECK.find((c) => c.kind === 'bang');
+    if (!bang) return;
+    let seq = 1_000_000;
+    const timer = setInterval(() => setShown({ t: 'playCard', card: bang.id, text: '연출 시험 — 뱅!', seq: seq++ }), 3200);
+    return () => clearInterval(timer);
+  }, [progress, geom]);
 
   useEffect(() => {
     const lastSeq = view.log[view.log.length - 1]?.seq ?? 0;
@@ -54,32 +108,34 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
     if (latest) setShown(latest);
   }, [view.log]);
 
+
   // 살펴보던 카드가 손을 떠났다 (냈거나 뺏겼다)
   useEffect(() => {
     if (peek !== null && peeking === null) setPeek(null);
   }, [peek, peeking]);
 
-  // 살펴보기가 앞을 가리면 그동안 뜬 카드는 접는다. 닫은 뒤 옛 카드가 다시 튀지 않게
-  useEffect(() => {
-    if (peeking) setShown(null);
-  }, [peeking]);
-
-  if (peeking) {
-    return (
-      <View style={styles.layer}>
-        <PeekSpot key={peeking} card={peeking} meta={peekHint(api, peeking)} compact={compact} />
-      </View>
-    );
-  }
-  if (!shown) return null;
+  // 살펴보기가 앞을 가리는 동안에도 낸 카드는 보이지 않게 제 시간을 다 돌고 사라진다.
+  // 내렸다가 다시 올리면 닫은 뒤 옛 카드가 다시 튀어 오르기 때문이다. 총성은 그대로 들린다
   return (
-    <View style={[styles.layer, styles.passThrough]}>
-      <PlayedSpot
-        key={`${shown.seq}:${shown.card}`}
-        event={shown}
-        compact={compact}
-        onDone={() => setShown((cur) => (cur === shown ? null : cur))}
-      />
+    <View ref={layer} style={styles.root}>
+      {shown && (
+        <View style={[styles.layer, styles.passThrough, peeking && styles.hidden]}>
+          <PlayedSpot
+            key={`${shown.seq}:${shown.card}`}
+            event={shown}
+            compact={compact}
+            stage={stage}
+            onDone={() => setShown((cur) => (cur === shown ? null : cur))}
+          />
+        </View>
+      )}
+      {peeking && (
+        <View style={styles.layer}>
+          <PeekSpot key={peeking} card={peeking} meta={peekHint(api, peeking)} compact={compact} />
+        </View>
+      )}
+      {/* 카드 위에 그려야 총구 섬광이 카드에 가리지 않는다. 쉬는 동안은 비어 있다 */}
+      {hqLayer && <hqLayer.Layer progress={progress} geom={geom} />}
     </View>
   );
 }
@@ -90,15 +146,35 @@ function peekHint(api: PlayedCardSpotlightProps['api'], card: CardId): string {
   return '지금은 낼 수 없다';
 }
 
-/** 누가 낸 카드. 튀어 올랐다가 잠시 뒤 사라진다 */
-function PlayedSpot({ event, compact, onDone }: { event: GameEvent; compact?: boolean; onDone: () => void }) {
+/** 누가 낸 카드. 튀어 올랐다가 잠시 뒤 사라진다. 연출이 붙은 카드면 올라선 직후 터진다 */
+type PlayedSpotProps = {
+  event: GameEvent;
+  compact?: boolean;
+  /** 고화질 무대. 없으면 일반 연출 */
+  stage: HqStage | null;
+  onDone: () => void;
+};
+
+function PlayedSpot({ event, compact, stage, onDone }: PlayedSpotProps) {
   const [t] = useState(() => new Animated.Value(0));
+  const [shot] = useState(() => new Animated.Value(0));
+  const fx = cardFxFor(event);
+  // 화질은 카드가 뜰 때 한 번 정한다. 도중에 설정이 바뀌어도 연출이 섞이지 않게
+  const [hq] = useState(() => (fx?.visual === 'gunshot' ? stage : null));
+  const anchor = useRef<View>(null);
+  const size = compact ? 'lg' : 'xl';
+  const dim = CARD_DIMENSIONS[size];
   const done = useRef(onDone);
-  done.current = onDone;
+  useEffect(() => {
+    done.current = onDone;
+  });
 
   useEffect(() => {
     const scale = Math.max(1, fxPacing.getState().timeScale);
-    const hold = Math.max(600, SHOW_MS / scale - 400);
+    const fireAt = FIRE_DELAY_MS / scale;
+    const shotMs = (hq ? GUNSHOT_HQ_MS : GUNSHOT_MS) / scale;
+    // 총격이 끝날 때까지는 떠 있는다
+    const hold = Math.max(600, SHOW_MS / scale - 400, fx ? fireAt + shotMs - 200 : 0);
     const anim = Animated.sequence([
       Animated.spring(t, { toValue: 1, friction: 6, tension: 140, useNativeDriver: NATIVE_DRIVER }),
       Animated.delay(hold),
@@ -107,14 +183,98 @@ function PlayedSpot({ event, compact, onDone }: { event: GameEvent; compact?: bo
     anim.start(({ finished }) => {
       if (finished) done.current();
     });
-    return () => anim.stop();
-  }, [t]);
+
+    let cancelled = false;
+    let whiz: ReturnType<typeof setTimeout> | undefined;
+
+    // 일반: 소리와 화면 효과가 같은 틱에서 함께 출발한다
+    const fireBasic = () => {
+      playSfx(fx!.sfx);
+      Animated.timing(shot, { toValue: 1, duration: shotMs, easing: Easing.linear, useNativeDriver: NATIVE_DRIVER }).start();
+    };
+
+    // 고화질: 카드가 테이블 캔버스의 어디에 있는지 재고, 소리와 진행도를 같은 틱에 출발시킨다
+    const fireHq = (s: HqStage) => {
+      void Promise.all([measure(s.layer.current), measure(anchor.current)]).then(([layerBox, cardBox]) => {
+        if (cancelled || !fx) return;
+        if (layerBox && cardBox) {
+          const cx = cardBox.x - layerBox.x + cardBox.w / 2;
+          const cy = cardBox.y - layerBox.y + cardBox.h / 2;
+          const cw = dim.width;
+          const ch = dim.height;
+          s.geom.value = { cx, cy, cw, ch, mx: cx - cw / 2 + fx.muzzle.x * cw, my: cy - ch / 2 + fx.muzzle.y * ch };
+        }
+        playSfx(fx.sfx);
+        s.progress.value = 0;
+        s.progress.value = withTiming(1, { duration: shotMs, easing: ReEasing.linear });
+        // 슬로모션이 풀리며 총알이 날아가는 순간 휘익
+        whiz = setTimeout(() => playSfx('bullet_whiz'), RELEASE_MS / scale);
+      });
+    };
+
+    const fire = fx ? setTimeout(() => (hq ? fireHq(hq) : fireBasic()), fireAt) : undefined;
+
+    return () => {
+      cancelled = true;
+      anim.stop();
+      clearTimeout(fire);
+      clearTimeout(whiz);
+      shot.stopAnimation();
+      if (hq) {
+        cancelAnimation(hq.progress);
+        // 도중에 끊겼으면 캔버스에 남은 그림을 지운다
+        hq.progress.value = 0;
+      }
+    };
+  }, [t, shot, fx, hq, dim.width, dim.height]);
+
+  if (fx && hq) {
+    return (
+      <Animated.View style={[styles.spot, popStyle(t)]}>
+        <CardSpotlight
+          card={event.card!}
+          meta={event.text}
+          compact={compact}
+          anchorRef={anchor}
+          cardWrap={(card) => <ShotCardWrap progress={hq.progress}>{card}</ShotCardWrap>}
+        />
+      </Animated.View>
+    );
+  }
 
   return (
-    <Animated.View style={[styles.spot, popStyle(t)]}>
-      <CardSpotlight card={event.card!} meta={event.text} compact={compact} />
-    </Animated.View>
+    <>
+      {fx && <Animated.View style={[styles.screenFlash, screenFlashStyle(shot)]} />}
+      <Animated.View style={[styles.spot, popStyle(t)]}>
+        <CardSpotlight
+          card={event.card!}
+          meta={event.text}
+          compact={compact}
+          cardStyle={fx ? recoilStyle(shot) : undefined}
+          overlay={fx ? <CardFxOverlay fx={fx} shot={shot} width={dim.width} height={dim.height} compact={compact} /> : null}
+        />
+      </Animated.View>
+    </>
   );
+}
+
+function CardFxOverlay({
+  fx,
+  shot,
+  width,
+  height,
+  compact,
+}: {
+  fx: CardFx;
+  shot: Animated.Value;
+  width: number;
+  height: number;
+  compact?: boolean;
+}) {
+  switch (fx.visual) {
+    case 'gunshot':
+      return <GunshotFx shot={shot} width={width} height={height} muzzle={fx.muzzle} compact={compact} />;
+  }
 }
 
 /** 손패에서 살펴보는 카드. 손을 떼거나 다시 누를 때까지 떠 있다. 폰은 창을 누르면 닫힌다 */
@@ -141,12 +301,33 @@ function PeekSpot({ card, meta, compact }: { card: CardId; meta: string; compact
   );
 }
 
-function CardSpotlight({ card, meta, hint, compact }: { card: CardId; meta: string; hint?: boolean; compact?: boolean }) {
+type CardSpotlightProps = {
+  card: CardId;
+  meta: string;
+  hint?: boolean;
+  compact?: boolean;
+  /** 카드에 걸 움직임 (반동 등) */
+  cardStyle?: Animated.WithAnimatedValue<StyleProp<ViewStyle>>;
+  /** 카드 자리를 잴 때 쓰는 ref (변환이 걸리지 않은 감싸개) */
+  anchorRef?: React.RefObject<View | null>;
+  /** 카드를 감쌀 움직임 (고화질 연출의 흔들림·확대) */
+  cardWrap?: (card: React.ReactNode) => React.ReactNode;
+  /** 카드 위에 겹칠 연출 */
+  overlay?: React.ReactNode;
+};
+
+function CardSpotlight({ card, meta, hint, compact, cardStyle, anchorRef, cardWrap, overlay }: CardSpotlightProps) {
   const def = defOf(card);
+  const cardNode = (
+    <Animated.View style={[styles.cardShadow, cardStyle]}>
+      <CardView card={card} size={compact ? 'lg' : 'xl'} />
+    </Animated.View>
+  );
   return (
     <>
-      <View style={styles.cardShadow}>
-        <CardView card={card} size={compact ? 'lg' : 'xl'} />
+      <View ref={anchorRef}>
+        {cardWrap ? cardWrap(cardNode) : cardNode}
+        {overlay}
       </View>
       <PaperPlaque compact={compact} style={compact ? styles.plaqueCompact : styles.plaque}>
         <Text style={[plaque.meta, hint && plaque.hint]} numberOfLines={1}>
@@ -162,6 +343,15 @@ function CardSpotlight({ card, meta, hint, compact }: { card: CardId; meta: stri
   );
 }
 
+type Box = { x: number; y: number; w: number; h: number };
+
+function measure(v: View | null): Promise<Box | null> {
+  return new Promise((resolve) => {
+    if (!v) return resolve(null);
+    v.measureInWindow((x, y, w, h) => resolve(w > 0 ? { x, y, w, h } : null));
+  });
+}
+
 function popStyle(t: Animated.Value) {
   return {
     opacity: t.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 1] }),
@@ -173,6 +363,7 @@ function popStyle(t: Animated.Value) {
 }
 
 const styles = StyleSheet.create({
+  root: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' },
   // 좌석·손패 입력을 가로막지 않는다
   layer: {
     position: 'absolute',
@@ -185,6 +376,8 @@ const styles = StyleSheet.create({
     pointerEvents: 'box-none',
   },
   passThrough: { pointerEvents: 'none' },
+  hidden: { opacity: 0 },
+  screenFlash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#FFF6DA' },
   spot: { alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three },
   cardShadow: { borderRadius: 8, boxShadow: '0 12px 28px rgba(0,0,0,0.6)' },
   plaque: { width: 340, gap: 2 },

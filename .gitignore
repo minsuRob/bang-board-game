@@ -56,3 +56,6 @@ assets/cards/*
 !assets/cards/.gitkeep
 assets/board/*
 !assets/board/.gitkeep
+
+# Skia 웹 런타임. npm install 때 postinstall 이 public/ 에 복사한다
+public/canvaskit.wasm

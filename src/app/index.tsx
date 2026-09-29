@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { isFirebaseConfigured } from '@/firebase/config';
+import { QualityPicker } from '@/game/ui/QualityPicker';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 export default function HomeScreen() {
@@ -66,6 +67,8 @@ export default function HomeScreen() {
             </Text>
           </View>
         )}
+
+        <QualityPicker />
       </View>
 
       <View style={styles.notes}>
