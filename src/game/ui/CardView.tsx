@@ -22,12 +22,13 @@ import { cardBackArt, playingCardArt } from './card-art';
 import { chipFor } from './card-symbols';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
-export type CardSize = 'sm' | 'md' | 'lg';
+export type CardSize = 'sm' | 'md' | 'lg' | 'xl';
 
 const DIMENSIONS: Record<CardSize, { width: number; height: number; title: number }> = {
   sm: { width: 46, height: 66, title: 9 },
   md: { width: 78, height: 112, title: 12 },
   lg: { width: 104, height: 150, title: 14 },
+  xl: { width: 140, height: 202, title: 17 },
 };
 
 export type CardViewProps = {
@@ -39,6 +40,9 @@ export type CardViewProps = {
   onPress?: () => void;
   /** 지금 낼 수 있는 카드인가 (원본 맵 v0.4 "선택 가능한 것 강조") */
   highlighted?: boolean;
+  /** 웹 마우스 hover (손패 살펴보기) */
+  onHoverIn?: () => void;
+  onHoverOut?: () => void;
 };
 
 function CardViewBase({
@@ -48,6 +52,8 @@ function CardViewBase({
   disabled,
   onPress,
   highlighted,
+  onHoverIn,
+  onHoverOut,
 }: CardViewProps) {
   const dim = DIMENSIONS[size];
   const inst = cardOf(card);
@@ -115,7 +121,13 @@ function CardViewBase({
 
   if (!onPress) return body;
   return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityLabel={def.nameKo}>
+    <Pressable
+      onPress={onPress}
+      onHoverIn={onHoverIn}
+      onHoverOut={onHoverOut}
+      // 흐린 카드도 살펴볼 수는 있어야 한다. 낼 수 있는지는 누른 쪽이 판단한다
+      disabled={disabled && !onHoverIn}
+      accessibilityLabel={def.nameKo}>
       {body}
     </Pressable>
   );

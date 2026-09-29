@@ -9,6 +9,7 @@ import { useStore } from 'zustand';
 import { HIGHNOON_EVENTS } from '../../data/cards.highnoon';
 import type { CardId } from '../../data/types';
 import type { GameState, PlayerId } from '../../engine';
+import { PlayedCardSpotlight } from '../../ui/PlayedCardSpotlight';
 import type { TableApi } from '../../ui/use-table';
 import { ANCHOR_DECK, ANCHOR_DISCARD, ANCHOR_EVENT, anchorsStore, seatKey } from '../core/anchors-store';
 import { Caption } from './Caption';
@@ -73,6 +74,7 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, headline, w
       {event && ev?.visible && <Pill x={ev.x} y={ev.y} text={event.nameKo} tone={Colors.renegade} />}
 
       <FloatingNumbers view={view} />
+      <PlayedCardSpotlight view={view} viewer={viewer} api={api} compact={!wide} />
       <Caption />
 
       {wide && (

@@ -16,7 +16,7 @@ import type { CardId } from '../data/types';
 import { ActionBar } from '../ui/ActionBar';
 import { DraftPanel } from '../ui/DraftPanel';
 import { LogPanel } from '../ui/LogPanel';
-import { bottomStatus, handleCardPress, statusMessage } from '../ui/table-text';
+import { bottomStatus, handleHandTap, statusMessage } from '../ui/table-text';
 import type { TableApi } from '../ui/use-table';
 import { Canvas } from './canvas/Canvas';
 import { anchorsStore, seatKey } from './core/anchors-store';
@@ -186,7 +186,7 @@ export function Table3D({ view, viewer, api }: Table3DProps) {
                 playable={api.playable}
                 discardable={api.discardable}
                 selected={api.selected}
-                onSelect={(card) => handleCardPress(api, card)}
+                onSelect={(card) => handleHandTap(api, card)}
                 onDragStart={onDragStart}
                 onDrop={onDrop}
                 showIndex={wide}

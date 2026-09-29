@@ -8,6 +8,7 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { CardId } from '../data/types';
+import { clearPeek, setPeek } from './card-peek';
 import { CardView } from './CardView';
 import { Colors, Spacing } from '@/constants/theme';
 
@@ -46,6 +47,8 @@ export function Hand({ cards, playable, selected, onSelect, discardable, showInd
               disabled={!usable}
               selected={selected === card}
               onPress={() => onSelect(card)}
+              onHoverIn={() => setPeek(card)}
+              onHoverOut={() => clearPeek(card)}
             />
             {showIndex && i < 10 && (
               <Text style={styles.index}>{i === 9 ? 0 : i + 1}</Text>

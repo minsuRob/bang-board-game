@@ -10,6 +10,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import type { CardId } from '../../data/types';
+import { clearPeek, setPeek } from '../../ui/card-peek';
 import { CardView } from '../../ui/CardView';
 import { beginDrag, dragStore, endDrag, moveDrag } from '../core/drag-store';
 import { Colors, Spacing } from '@/constants/theme';
@@ -49,6 +50,7 @@ export function DragHand({ cards, playable, discardable, selected, onSelect, onD
             usable={usable}
             hidden={dragging === card}
             onDragStart={() => {
+              setPeek(null);
               setDragging(card);
               onDragStart(card);
             }}
@@ -64,6 +66,8 @@ export function DragHand({ cards, playable, discardable, selected, onSelect, onD
                 disabled={!usable}
                 selected={selected === card}
                 onPress={() => onSelect(card)}
+                onHoverIn={() => setPeek(card)}
+                onHoverOut={() => clearPeek(card)}
               />
               {showIndex && <Text style={styles.index}>{(i + 1) % 10}</Text>}
             </View>

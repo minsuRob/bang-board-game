@@ -28,6 +28,7 @@ import type { CardId, Role } from '../data/types';
 import { distance, kindOf, type GameState, type Player, type PlayerId } from '../engine';
 import { ActionBar } from './ActionBar';
 import { DraftPanel } from './DraftPanel';
+import { PlayedCardSpotlight } from './PlayedCardSpotlight';
 import { DraftSeatStatus } from './DraftSeatStatus';
 import { cardBackArt, characterArt, eventArt, woodArt } from './card-art';
 import { CardView } from './CardView';
@@ -103,53 +104,56 @@ export function TableMobile({
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.body}>
-        <View style={styles.seatGrid}>
-          {others.map((player) => (
-            <CompactSeat
-              key={player.id}
-              basis={seatBasis}
-              view={view}
-              viewer={viewer}
-              player={player}
-              active={view.turn.active === player.id}
-              targetable={targets.includes(player.id)}
-              onPress={() => onSeatPress(player.id)}
-              picking={steal && steal.target === player.id ? steal : null}
-              onPickHand={(index) => api.respond({ c: 'pick', pick: { zone: 'hand', index } })}
-              onPickEquipment={(card) => api.respond({ c: 'pick', pick: { zone: 'equipment', card } })}
-            />
-          ))}
-        </View>
+      <View style={styles.scrollArea}>
+        <ScrollView contentContainerStyle={styles.body}>
+          <View style={styles.seatGrid}>
+            {others.map((player) => (
+              <CompactSeat
+                key={player.id}
+                basis={seatBasis}
+                view={view}
+                viewer={viewer}
+                player={player}
+                active={view.turn.active === player.id}
+                targetable={targets.includes(player.id)}
+                onPress={() => onSeatPress(player.id)}
+                picking={steal && steal.target === player.id ? steal : null}
+                onPickHand={(index) => api.respond({ c: 'pick', pick: { zone: 'hand', index } })}
+                onPickEquipment={(card) => api.respond({ c: 'pick', pick: { zone: 'equipment', card } })}
+              />
+            ))}
+          </View>
 
-        <View style={styles.center}>
-          <Pile label={`덱 ${view.deck.length}`}>
-            {back ? (
-              <Image source={back} style={styles.cardBackArt} resizeMode="cover" />
-            ) : (
-              <View style={styles.cardBack}>
-                <Text style={styles.cardBackMark}>✷</Text>
-              </View>
-            )}
-          </Pile>
-          <Pile label={`버린 더미 ${view.discard.length}`}>
-            {top ? <CardView card={top} size="sm" /> : <View style={styles.emptyPile} />}
-          </Pile>
-          {event && (
-            <Pile label="이벤트">
-              {eventImage ? (
-                <Image source={eventImage} style={styles.eventArt} resizeMode="cover" />
+          <View style={styles.center}>
+            <Pile label={`덱 ${view.deck.length}`}>
+              {back ? (
+                <Image source={back} style={styles.cardBackArt} resizeMode="cover" />
               ) : (
-                <View style={styles.eventCard}>
-                  <Text style={styles.eventName} numberOfLines={2}>
-                    {event.nameKo}
-                  </Text>
+                <View style={styles.cardBack}>
+                  <Text style={styles.cardBackMark}>✷</Text>
                 </View>
               )}
             </Pile>
-          )}
-        </View>
-      </ScrollView>
+            <Pile label={`버린 더미 ${view.discard.length}`}>
+              {top ? <CardView card={top} size="sm" /> : <View style={styles.emptyPile} />}
+            </Pile>
+            {event && (
+              <Pile label="이벤트">
+                {eventImage ? (
+                  <Image source={eventImage} style={styles.eventArt} resizeMode="cover" />
+                ) : (
+                  <View style={styles.eventCard}>
+                    <Text style={styles.eventName} numberOfLines={2}>
+                      {event.nameKo}
+                    </Text>
+                  </View>
+                )}
+              </Pile>
+            )}
+          </View>
+        </ScrollView>
+        <PlayedCardSpotlight view={view} viewer={viewer} api={api} compact />
+      </View>
 
       {api.draft ? (
         <DraftPanel draft={api.draft} viewer={viewer} onPick={api.pickCharacter} compact />
@@ -349,6 +353,7 @@ function Pile({ label, children }: { label: string; children: React.ReactNode })
 }
 
 const styles = StyleSheet.create({
+  scrollArea: { flex: 1 },
   root: { flex: 1, backgroundColor: Colors.background },
   woodBackdrop: {
     position: 'absolute',

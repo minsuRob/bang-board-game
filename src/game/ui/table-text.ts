@@ -8,7 +8,18 @@ import type { CardId } from '../data/types';
 import { ROLE_LABEL } from '../data/roles';
 import type { GameState, PlayerId } from '../engine';
 import { ga } from '../engine/josa';
+import { CAN_HOVER, cardPeek, setPeek } from './card-peek';
 import type { TableApi } from './use-table';
+
+/** 손패 탭. 폰은 첫 탭이 보기, 같은 카드를 다시 탭하면 낸다 (웹은 hover 가 보기) */
+export function handleHandTap(api: TableApi, card: CardId) {
+  if (!CAN_HOVER && cardPeek.getState().card !== card) {
+    setPeek(card);
+    return;
+  }
+  setPeek(null);
+  handleCardPress(api, card);
+}
 
 export function handleCardPress(api: TableApi, card: CardId) {
   // 버리기 단계에서는 누르는 즉시 버린다.

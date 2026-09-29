@@ -20,9 +20,10 @@ import { feltArt, woodArt } from './card-art';
 import { Hand } from './Hand';
 import { LogPanel } from './LogPanel';
 import { PlayerSeat } from './PlayerSeat';
+import { PlayedCardSpotlight } from './PlayedCardSpotlight';
 import { TableCenter } from './TableCenter';
 import { TableMobile } from './TableMobile';
-import { bottomStatus, handleCardPress, statusMessage } from './table-text';
+import { bottomStatus, handleHandTap, statusMessage } from './table-text';
 import type { TableApi } from './use-table';
 import { Colors, MinTableHeight, MobileBreakpoint, Spacing } from '@/constants/theme';
 
@@ -97,7 +98,7 @@ export function Table({ view, viewer, api }: TableProps) {
         headline={statusMessage(view, viewer)}
         onSeatPress={onSeatPress}
         targets={targets}
-        onCardPress={(card) => handleCardPress(api, card)}
+        onCardPress={(card) => handleHandTap(api, card)}
       />
     );
   }
@@ -132,6 +133,8 @@ export function Table({ view, viewer, api }: TableProps) {
       <View style={styles.centerSlot}>
         <TableCenter view={view} message={statusMessage(view, viewer)} />
       </View>
+
+      <PlayedCardSpotlight view={view} viewer={viewer} api={api} />
     </View>
   );
 
@@ -196,7 +199,7 @@ export function Table({ view, viewer, api }: TableProps) {
                   playable={api.playable}
                   discardable={api.discardable}
                   selected={api.selected}
-                  onSelect={(card) => handleCardPress(api, card)}
+                  onSelect={(card) => handleHandTap(api, card)}
                   showIndex
                 />
               </View>

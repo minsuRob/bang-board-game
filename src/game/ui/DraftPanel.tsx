@@ -15,6 +15,7 @@ import type { PlayerId } from '../engine';
 import { draftUi, setDraftHover } from '../store/draft-ui';
 import { TIME_LIMIT_MS } from '../store/online-driver';
 import { CharacterCard } from './CharacterCard';
+import { PaperPlaque, plaque } from './PaperPlaque';
 import type { DraftInfo } from './use-table';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
@@ -84,19 +85,19 @@ export function DraftPanel({ draft, viewer, onPick, compact }: DraftPanelProps) 
         ))}
       </View>
 
-      <View style={[styles.plaque, compact && styles.plaqueCompact]}>
+      <PaperPlaque compact={compact} style={[styles.plaque, compact && styles.plaqueCompact]}>
         {focused ? (
-          <Text style={[styles.plaqueText, compact && styles.plaqueTextCompact]} numberOfLines={2}>
-            <Text style={styles.plaqueName}>{CHARACTERS[focused].nameKo}</Text>
+          <Text style={[plaque.text, compact && plaque.textCompact]} numberOfLines={2}>
+            <Text style={plaque.name}>{CHARACTERS[focused].nameKo}</Text>
             {'  '}
             {CHARACTERS[focused].ability}
           </Text>
         ) : (
-          <Text style={[styles.plaqueText, styles.plaqueHint, compact && styles.plaqueTextCompact]} numberOfLines={2}>
+          <Text style={[plaque.text, plaque.hint, compact && plaque.textCompact]} numberOfLines={2}>
             {WEB ? '카드에 마우스를 올려 능력을 보고, 눌러서 고른다' : '카드를 눌러 능력을 보고, 한 번 더 눌러 고른다'}
           </Text>
         )}
-      </View>
+      </PaperPlaque>
     </View>
   );
 }
@@ -192,23 +193,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkText: { color: '#fff', fontSize: 18, fontWeight: '900', lineHeight: 20 },
-  // 캐릭터 카드와 같은 낡은 종이 명판
-  plaque: {
-    maxWidth: 560,
-    minWidth: 320,
-    minHeight: 52,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderRadius: Radius.md,
-    borderWidth: 2,
-    borderColor: Colors.paperEdge,
-    backgroundColor: Colors.paper,
-    boxShadow: `inset 0 0 0 1px ${Colors.cardBrown}55, 0 4px 12px rgba(0,0,0,0.45)`,
-  },
-  plaqueCompact: { minWidth: 0, minHeight: 44, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
-  plaqueText: { color: Colors.textOnPaper, fontSize: 12, lineHeight: 17, textAlign: 'center' },
-  plaqueTextCompact: { fontSize: 11, lineHeight: 15 },
-  plaqueName: { fontSize: 13, fontWeight: '900' },
-  plaqueHint: { color: Colors.cardBrown, fontStyle: 'italic' },
+  // 크기는 고정해 hover 할 때 높이가 튀지 않게 한다
+  plaque: { minWidth: 320, minHeight: 52 },
+  plaqueCompact: { minWidth: 0, minHeight: 44 },
 });
