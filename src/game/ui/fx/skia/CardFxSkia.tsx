@@ -1,5 +1,7 @@
 /**
- * 고화질 총격 (슬로모션 총알 + 사실풍 효과). Skia 로 그린다.
+ * 고화질 카드 연출 캔버스. 총격(뱅!)은 여기서, 빗나감(빗나감!)은 MissedSkia 가 그린다.
+ *
+ * 총격 = 슬로모션 총알 + 사실풍 효과.
  *
  * 이 모듈은 Skia 를 곧바로 import 하므로, 웹에서는 CanvasKit 을 불러온 뒤에만 불러야 한다
  * (`load.ts` 가 맡는다).
@@ -28,10 +30,11 @@ import {
 } from '@shopify/react-native-skia';
 import { useDerivedValue, useSharedValue, type SharedValue } from 'react-native-reanimated';
 
+import { MissedSkia } from './MissedSkia';
 import { smokeEffect } from './shaders';
-import { shotFrame, type ShotGeom } from './timeline';
+import { cardMotion, FX_GUNSHOT, missFrame, shotFrame, type ShotGeom } from './timeline';
 
-export type GunshotSkiaLayerProps = {
+export type CardFxSkiaLayerProps = {
   progress: SharedValue<number>;
   geom: SharedValue<ShotGeom>;
 };
@@ -71,24 +74,26 @@ const RAYS = [
 // 웹의 Skia Canvas 는 스타일 배열을 펼치지 않고 DOM 에 넘긴다. 한 객체로 준다
 const LAYER_STYLE = { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' } as const;
 
-export function GunshotSkiaLayer({ progress, geom }: GunshotSkiaLayerProps) {
+export function CardFxSkiaLayer({ progress, geom }: CardFxSkiaLayerProps) {
   const size = useSharedValue({ width: 0, height: 0 });
-  const f = useDerivedValue(() => shotFrame(progress.value));
+  // 총격 그림은 총격일 때만. 다른 연출이면 끝난 상태(아무것도 안 그림)로 둔다
+  const f = useDerivedValue(() => shotFrame(geom.value.kind === FX_GUNSHOT ? progress.value : 1));
 
   // ── 테이블 전체: 슬로모션 비네트와 번쩍임
   const w = useDerivedValue(() => size.value.width);
   const h = useDerivedValue(() => size.value.height);
   const center = useDerivedValue(() => vec(size.value.width / 2, size.value.height / 2));
   const radius = useDerivedValue(() => Math.max(1, Math.max(size.value.width, size.value.height) * 0.72));
-  const vignette = useDerivedValue(() => f.value.vignette);
+  const vignette = useDerivedValue(() =>
+    geom.value.kind === FX_GUNSHOT ? f.value.vignette : missFrame(progress.value).vignette,
+  );
   const screenFlash = useDerivedValue(() => f.value.screenFlash * 0.35);
 
   // ── 카드 둘레: 카드 감싸개(RN)와 같은 흔들림·반동·확대를 건다
-  const stage = useDerivedValue(() => [
-    { translateX: f.value.shakeX - f.value.recoil },
-    { translateY: f.value.shakeY },
-    { scale: f.value.zoom },
-  ]);
+  const stage = useDerivedValue(() => {
+    const c = cardMotion(geom.value, progress.value);
+    return [{ translateX: c.tx }, { translateY: c.ty }, { scale: c.zoom }];
+  });
   const stageOrigin = useDerivedValue(() => vec(geom.value.cx, geom.value.cy));
 
   const smokeUniforms = useDerivedValue(() => ({
@@ -216,6 +221,8 @@ export function GunshotSkiaLayer({ progress, geom }: GunshotSkiaLayerProps) {
       </Rect>
 
       <Group transform={stage} origin={stageOrigin}>
+        <MissedSkia progress={progress} geom={geom} />
+
         {/* 화약 연기 */}
         {smokeEffect && (
           <Rect x={0} y={0} width={w} height={h} opacity={smokeOpacity}>

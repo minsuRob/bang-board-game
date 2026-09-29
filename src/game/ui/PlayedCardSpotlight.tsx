@@ -26,7 +26,16 @@ import { GUNSHOT_MS, GunshotFx, recoilStyle, screenFlashStyle } from './fx/Gunsh
 import { fxQuality } from './fx/quality';
 import { loadSkiaFx, skiaFx } from './fx/skia/load';
 import { ShotCardWrap } from './fx/skia/ShotCardWrap';
-import { EMPTY_GEOM, GUNSHOT_HQ_MS, RELEASE_MS, type ShotGeom } from './fx/skia/timeline';
+import {
+  EMPTY_GEOM,
+  FX_GUNSHOT,
+  FX_MISSED,
+  GUNSHOT_HQ_MS,
+  MISSED_HQ_MS,
+  MISSED_RELEASE_MS,
+  RELEASE_MS,
+  type ShotGeom,
+} from './fx/skia/timeline';
 import { PaperPlaque, plaque } from './PaperPlaque';
 import { playSfx, preloadSfx } from './sfx';
 import type { TableApi } from './use-table';
@@ -68,7 +77,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
     if (quality === 'high') void loadSkiaFx();
   }, [quality]);
 
-  // 고화질 캔버스는 판마다 하나만 띄워 두고 총격마다 다시 쓴다 (GunshotSkia 머리말 참고)
+  // 고화질 캔버스는 판마다 하나만 띄워 두고 연출마다 다시 쓴다 (CardFxSkia 머리말 참고)
   const skia = useStore(skiaFx, (s) => s.gunshot);
   const hqLayer = quality === 'high' ? skia : null;
   const progress = useSharedValue(0);
@@ -76,7 +85,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
   const layer = useRef<View>(null);
   const stage: HqStage | null = hqLayer ? { progress, geom, layer } : null;
 
-  // 개발용 (웹): 주소에 ?fxloop=1 이면 뱅! 연출을 3초마다 되풀이한다.
+  // 개발용 (웹): 주소에 ?fxloop=1 이면 뱅!, ?fxloop=missed 면 빗나감! 연출을 3초마다 되풀이한다.
   // ?fxloop=hold 면 되풀이하지 않고 globalThis.__shot 으로 진행도를 손으로 멈춰 한 장면씩 본다
   // (__shot.progress.value = 0.2 로 멈추기, __shot.start() 로 한 번 돌리기)
   useEffect(() => {
@@ -90,11 +99,16 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
         progress.value = withTiming(1, { duration: ms, easing: ReEasing.linear });
       },
     };
-    if (mode !== '1') return;
-    const bang = BASE_DECK.find((c) => c.kind === 'bang');
-    if (!bang) return;
+    if (mode !== '1' && mode !== 'missed') return;
+    const isMissed = mode === 'missed';
+    const card = BASE_DECK.find((c) => c.kind === (isMissed ? 'missed' : 'bang'));
+    if (!card) return;
     let seq = 1_000_000;
-    const timer = setInterval(() => setShown({ t: 'playCard', card: bang.id, text: '연출 시험 — 뱅!', seq: seq++ }), 3200);
+    const make = (): GameEvent =>
+      isMissed
+        ? { t: 'playMissed', card: card.id, text: '연출 시험 — 빗나감!', seq: seq++ }
+        : { t: 'playCard', card: card.id, text: '연출 시험 — 뱅!', seq: seq++ };
+    const timer = setInterval(() => setShown(make()), 3400);
     return () => clearInterval(timer);
   }, [progress, geom]);
 
@@ -156,11 +170,16 @@ type PlayedSpotProps = {
 };
 
 function PlayedSpot({ event, compact, stage, onDone }: PlayedSpotProps) {
-  const [t] = useState(() => new Animated.Value(0));
-  const [shot] = useState(() => new Animated.Value(0));
-  const fx = cardFxFor(event);
+  const found = cardFxFor(event);
   // 화질은 카드가 뜰 때 한 번 정한다. 도중에 설정이 바뀌어도 연출이 섞이지 않게
-  const [hq] = useState(() => (fx?.visual === 'gunshot' ? stage : null));
+  const [hq] = useState(() => (found ? stage : null));
+  // 빗나감은 아직 고화질에만 있다
+  const fx = found && (found.visual === 'gunshot' || hq) ? found : null;
+  // 빗나감은 카드가 튀어 오르지 않는다. 그림 조각이 준비된 뒤에 한꺼번에 나타난다
+  const missed = fx?.visual === 'missed';
+  const [t] = useState(() => new Animated.Value(missed ? 1 : 0));
+  const [shot] = useState(() => new Animated.Value(0));
+  const [armed, setArmed] = useState(!missed);
   const anchor = useRef<View>(null);
   const size = compact ? 'lg' : 'xl';
   const dim = CARD_DIMENSIONS[size];
@@ -171,12 +190,12 @@ function PlayedSpot({ event, compact, stage, onDone }: PlayedSpotProps) {
 
   useEffect(() => {
     const scale = Math.max(1, fxPacing.getState().timeScale);
-    const fireAt = FIRE_DELAY_MS / scale;
-    const shotMs = (hq ? GUNSHOT_HQ_MS : GUNSHOT_MS) / scale;
-    // 총격이 끝날 때까지는 떠 있는다
+    const fireAt = missed ? 0 : FIRE_DELAY_MS / scale;
+    const shotMs = (missed ? MISSED_HQ_MS : hq ? GUNSHOT_HQ_MS : GUNSHOT_MS) / scale;
+    // 연출이 끝날 때까지는 떠 있는다
     const hold = Math.max(600, SHOW_MS / scale - 400, fx ? fireAt + shotMs - 200 : 0);
     const anim = Animated.sequence([
-      Animated.spring(t, { toValue: 1, friction: 6, tension: 140, useNativeDriver: NATIVE_DRIVER }),
+      ...(missed ? [] : [Animated.spring(t, { toValue: 1, friction: 6, tension: 140, useNativeDriver: NATIVE_DRIVER })]),
       Animated.delay(hold),
       Animated.timing(t, { toValue: 0, duration: 220, useNativeDriver: NATIVE_DRIVER }),
     ]);
@@ -189,7 +208,8 @@ function PlayedSpot({ event, compact, stage, onDone }: PlayedSpotProps) {
 
     // 일반: 소리와 화면 효과가 같은 틱에서 함께 출발한다
     const fireBasic = () => {
-      playSfx(fx!.sfx);
+      if (!fx) return;
+      playSfx(fx.sfx);
       Animated.timing(shot, { toValue: 1, duration: shotMs, easing: Easing.linear, useNativeDriver: NATIVE_DRIVER }).start();
     };
 
@@ -202,13 +222,30 @@ function PlayedSpot({ event, compact, stage, onDone }: PlayedSpotProps) {
           const cy = cardBox.y - layerBox.y + cardBox.h / 2;
           const cw = dim.width;
           const ch = dim.height;
-          s.geom.value = { cx, cy, cw, ch, mx: cx - cw / 2 + fx.muzzle.x * cw, my: cy - ch / 2 + fx.muzzle.y * ch };
+          if (fx.visual === 'gunshot') {
+            const mx = cx - cw / 2 + fx.muzzle.x * cw;
+            const my = cy - ch / 2 + fx.muzzle.y * ch;
+            s.geom.value = { kind: FX_GUNSHOT, cx, cy, cw, ch, mx, my, fx: 0, fy: 0 };
+          } else {
+            // 원본 그림은 카드에 cover 로 깔린다 (CardView). 얼굴 자리를 카드 가운데 기준으로 바꾼다
+            const k = Math.max(cw / 250, ch / 389);
+            const fx0 = (fx.focus.x - 0.5) * 250 * k;
+            const fy0 = (fx.focus.y - 0.5) * 389 * k;
+            s.geom.value = { kind: FX_MISSED, cx, cy, cw, ch, mx: cx, my: cy, fx: fx0, fy: fy0 };
+          }
         }
-        playSfx(fx.sfx);
-        s.progress.value = 0;
+        // 0 이 아닌 작은 값에서 출발한다. 0 과 1 은 "쉬는 중"이라 그림 조각을 덮지 않는다
+        s.progress.value = 0.0001;
         s.progress.value = withTiming(1, { duration: shotMs, easing: ReEasing.linear });
-        // 슬로모션이 풀리며 총알이 날아가는 순간 휘익
-        whiz = setTimeout(() => playSfx('bullet_whiz'), RELEASE_MS / scale);
+        if (fx.visual === 'gunshot') {
+          playSfx(fx.sfx);
+          // 슬로모션이 풀리며 총알이 날아가는 순간 휘익
+          whiz = setTimeout(() => playSfx('bullet_whiz'), RELEASE_MS / scale);
+        } else {
+          // 스친 총알이 빠져나가는 순간 휘익
+          whiz = setTimeout(() => playSfx(fx.sfx), MISSED_RELEASE_MS / scale);
+          setArmed(true);
+        }
       });
     };
 
@@ -226,17 +263,21 @@ function PlayedSpot({ event, compact, stage, onDone }: PlayedSpotProps) {
         hq.progress.value = 0;
       }
     };
-  }, [t, shot, fx, hq, dim.width, dim.height]);
+  }, [t, shot, fx, hq, missed, dim.width, dim.height]);
 
   if (fx && hq) {
     return (
-      <Animated.View style={[styles.spot, popStyle(t)]}>
+      <Animated.View style={[styles.spot, popStyle(t), !armed && styles.hidden]}>
         <CardSpotlight
           card={event.card!}
           meta={event.text}
           compact={compact}
           anchorRef={anchor}
-          cardWrap={(card) => <ShotCardWrap progress={hq.progress}>{card}</ShotCardWrap>}
+          cardWrap={(card) => (
+            <ShotCardWrap progress={hq.progress} geom={hq.geom}>
+              {card}
+            </ShotCardWrap>
+          )}
         />
       </Animated.View>
     );

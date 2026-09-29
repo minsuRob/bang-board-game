@@ -9,9 +9,9 @@
 import { Platform } from 'react-native';
 import { createStore } from 'zustand/vanilla';
 
-import type { GunshotSkiaLayer } from './GunshotSkia';
+import type { CardFxSkiaLayer } from './CardFxSkia';
 
-export type SkiaGunshot = { Layer: typeof GunshotSkiaLayer };
+export type SkiaGunshot = { Layer: typeof CardFxSkiaLayer };
 
 export const skiaFx = createStore<{ gunshot: SkiaGunshot | null; failed: boolean }>(() => ({
   gunshot: null,
@@ -28,8 +28,8 @@ export function loadSkiaFx(): Promise<void> {
         // postinstall 이 public/ 에 복사해 둔 canvaskit.wasm
         await LoadSkiaWeb({ locateFile: (file: string) => `/${file}` });
       }
-      const mod = await import('./GunshotSkia');
-      skiaFx.setState({ gunshot: { Layer: mod.GunshotSkiaLayer } });
+      const mod = await import('./CardFxSkia');
+      skiaFx.setState({ gunshot: { Layer: mod.CardFxSkiaLayer } });
     } catch (err) {
       console.warn('고화질 연출을 불러오지 못했다. 일반 연출로 대신한다', err);
       skiaFx.setState({ failed: true });
