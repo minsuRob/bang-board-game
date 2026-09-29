@@ -17,6 +17,11 @@ export const AI_TIER_LABEL: Record<AiTier, string> = {
   hard: '상',
 };
 
+/** AI 가 두는 빠르기. 방장이 판 도중에 고른다 (1배 = 한 수에 3초) */
+export type AiSpeed = 1 | 2 | 3 | 4;
+
+export const AI_SPEEDS: AiSpeed[] = [1, 2, 3, 4];
+
 export type AiContext = {
   /** 가려진 상태 */
   view: GameState;

@@ -11,8 +11,13 @@ import { decide } from '../ai';
 import { fxPacing } from './fx-pacing';
 import { selectActor, selectActors, seatOf, useGameStore } from './game-store';
 
-/** 사람이 보기에 자연스러운 정도의 뜸 */
-const THINK_MS = { play: 620, respond: 420 } as const;
+/** 1배속에서 AI 가 한 과정(액션 하나)마다 들이는 뜸. 사람이 흐름을 따라올 수 있는 정도 */
+export const AI_STEP_MS = 3000;
+
+/** 다음 AI 수까지 기다릴 시간. 연출이 더 오래 걸리면 연출이 끝난 뒤에 둔다 */
+export function aiDelayMs(speed: number, holdMs: number): number {
+  return Math.max(AI_STEP_MS / Math.max(0.1, speed), holdMs + 80);
+}
 
 export function useAiDriver(enabled = true, speed = 1) {
   const state = useGameStore((s) => s.state);
@@ -22,9 +27,9 @@ export function useAiDriver(enabled = true, speed = 1) {
   const submit = useGameStore((s) => s.submit);
   const seed = useGameStore((s) => s.seed);
 
-  // 관전 모드처럼 빠르게 둘 때는 연출도 그만큼 빨리 넘긴다 (최대 3배)
+  // 빠르게 둘 때는 연출도 그만큼 빨리 넘긴다 (최대 4배)
   useEffect(() => {
-    fxPacing.setState({ timeScale: Math.min(Math.max(1, speed), 3) });
+    fxPacing.setState({ timeScale: Math.min(Math.max(1, speed), 4) });
   }, [speed]);
 
   // 캐릭터 드래프트: AI 는 뜸 들이지 않고 모두 한꺼번에 바로 고른다.
@@ -55,10 +60,9 @@ export function useAiDriver(enabled = true, speed = 1) {
 
     const seat = seatOf(seats, actor);
     const tier = seat?.tier ?? 'medium';
-    const think = (state.awaiting ? THINK_MS.respond : THINK_MS.play) / Math.max(0.1, speed);
-    // 연출이 끝나기 전에는 두지 않는다. 2D 모드에서는 busyUntil 이 0 이라 예전 그대로다.
+    // 연출이 끝나기 전에는 두지 않는다. 2D 모드에서는 busyUntil 이 0 이다.
     const hold = Math.max(0, fxPacing.getState().busyUntil - Date.now());
-    const delay = Math.max(think, hold + 80);
+    const delay = aiDelayMs(speed, hold);
 
     const timer = setTimeout(() => {
       const action = decide(state, actor, tier, seed * 7919 + state.seq);

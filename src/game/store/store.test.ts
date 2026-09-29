@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { pickDriver, type RoomDoc, type RoomMember } from '../../firebase/room-model';
 import type { Action } from '../engine';
+import { aiDelayMs } from './ai-driver';
 import { createLocalTransport } from './local-transport';
 import { selectActor, useGameStore } from './game-store';
 import type { Transport } from './transport';
@@ -155,5 +156,17 @@ describe('드라이버 선출', () => {
     const now = 1_000_000;
     const stale = { u0: { nick: 'u0', lastSeen: now - 60_000 } };
     expect(pickDriver(room(['u0', null]), stale, now)).toBeNull();
+  });
+});
+
+describe('AI 박자', () => {
+  it('1배속이면 한 과정에 3초, 배속만큼 줄어든다', () => {
+    expect(aiDelayMs(1, 0)).toBe(3000);
+    expect(aiDelayMs(2, 0)).toBe(1500);
+    expect(aiDelayMs(4, 0)).toBe(750);
+  });
+
+  it('연출이 더 오래 걸리면 연출이 끝난 뒤에 둔다', () => {
+    expect(aiDelayMs(4, 1500)).toBe(1580);
   });
 });

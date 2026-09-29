@@ -5,7 +5,7 @@
  * 나중에 서버(Cloud Functions)로 옮겨도 같은 코드를 쓴다.
  */
 
-import type { AiTier } from '../game/ai/types';
+import type { AiSpeed, AiTier } from '../game/ai/types';
 
 /** 이 시간 안에 소식이 없으면 자리를 비운 것으로 본다 */
 export const PRESENCE_TIMEOUT_MS = 30_000;
@@ -28,6 +28,8 @@ export type RoomDoc = {
   seats: RoomSeat[];
   seed: number;
   actionCount: number;
+  /** 판 도중 방장이 고른 AI 빠르기. 예전 방에는 없다 (1배) */
+  aiSpeed?: AiSpeed;
 };
 
 export type RoomMember = {

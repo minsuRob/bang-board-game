@@ -1,13 +1,15 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { AiTier } from '@/game/ai/types';
+import type { AiSpeed, AiTier } from '@/game/ai/types';
+import { setAiSpeed } from '@/firebase/rooms';
 import { ROLE_LABEL } from '@/game/data/roles';
 import { makeView, useGameStore, type SeatSetup } from '@/game/store/game-store';
 import { useAiDriver } from '@/game/store/ai-driver';
 import { useTimeoutDriver } from '@/game/store/online-driver';
 import { useOnlineGameSession, useRoomConnection } from '@/game/store/use-online-game';
+import { SpeedControl } from '@/game/ui/SpeedControl';
 import { Table } from '@/game/ui/Table';
 import { useHotkeys } from '@/game/ui/use-hotkeys';
 import { useTable } from '@/game/ui/use-table';
@@ -70,7 +72,19 @@ export default function GameScreen() {
     return () => reset();
   }, [online, setup, start, reset]);
 
-  useAiDriver(true, setup.auto ? 6 : 1);
+  // AI 빠르기. 온라인은 방 문서의 값을 모두가 따르고 방장만 바꾼다. 혼자 하는 판은 내가 방장이다.
+  const [localSpeed, setLocalSpeed] = useState<AiSpeed>(1);
+  const speed: AiSpeed = online ? (conn.room?.aiSpeed ?? 1) : localSpeed;
+  const onSpeedChange = useMemo(() => {
+    if (!online) return setLocalSpeed;
+    if (!conn.isHost || !code) return null;
+    return (next: AiSpeed) => {
+      setAiSpeed(code, next).catch(() => {});
+    };
+  }, [online, conn.isHost, code]);
+
+  // 관전 모드는 예전처럼 빠르게 흘려 본다
+  useAiDriver(true, setup.auto ? 6 : speed);
   useTimeoutDriver(controlled);
 
   const view = useMemo(() => makeView(state, viewer), [state, viewer]);
@@ -132,6 +146,10 @@ export default function GameScreen() {
     <View style={styles.root}>
       <Table view={view} viewer={viewer} api={api} />
 
+      {!setup.auto && !state.result && (
+        <SpeedControl speed={speed} onChange={onSpeedChange} style={styles.speed} />
+      )}
+
       {online && status !== 'ready' && (
         <View style={styles.connection}>
           <Text style={styles.connectionText}>
@@ -187,6 +205,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   loadingText: { color: Colors.textMuted, fontSize: 13 },
+  speed: { position: 'absolute', top: Spacing.two, left: Spacing.two },
   connection: {
     position: 'absolute',
     top: Spacing.two,

@@ -17,7 +17,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 
-import type { AiTier } from '../game/ai/types';
+import type { AiSpeed, AiTier } from '../game/ai/types';
 import { MAX_PLAYERS, MIN_PLAYERS } from '../game/data/roles';
 import { getDb } from './config';
 import type { Identity } from './auth';
@@ -227,6 +227,14 @@ export async function setDraftHoverRemote(
     { draftHover: index },
     { merge: true },
   );
+}
+
+/** 판 도중 AI 빠르기. 규칙상 방장만 쓸 수 있다 */
+export async function setAiSpeed(code: string, aiSpeed: AiSpeed): Promise<void> {
+  await updateDoc(doc(getDb(), 'rooms', code.toUpperCase()), {
+    aiSpeed,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function markEnded(code: string): Promise<void> {
