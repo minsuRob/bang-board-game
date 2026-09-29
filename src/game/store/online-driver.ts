@@ -67,7 +67,8 @@ export function useDriverElection(
  * (기관총·인디언·잡화점)은 한 사람이 사라져도 끝까지 풀려야 한다.
  * 원본 맵의 패치노트에서 가장 많은 비중을 차지한 문제가 이것이다.
  */
-export function useTimeoutDriver(controlled: string[]) {
+/** enabled 가 false 면 (일시정지) 시계를 세우고, 다시 켜지면 그 수의 시간을 처음부터 잰다 */
+export function useTimeoutDriver(controlled: string[], enabled = true) {
   const state = useGameStore((s) => s.state);
   const drives = useGameStore((s) => s.drives);
   const submit = useGameStore((s) => s.submit);
@@ -88,6 +89,10 @@ export function useTimeoutDriver(controlled: string[]) {
   }, [state, drives, submit]);
 
   useEffect(() => {
+    if (!enabled) {
+      startedAt.current = { seq: -1, at: 0 };
+      return;
+    }
     if (!drives || !state || state.result || state.draft) return;
 
     const actor = selectActor(state);
@@ -111,7 +116,7 @@ export function useTimeoutDriver(controlled: string[]) {
       Math.max(0, limit - elapsed),
     );
     return () => clearTimeout(timer);
-  }, [state, drives, submit, controlled]);
+  }, [state, drives, submit, controlled, enabled]);
 }
 
 function isHumanSeat(state: { players: { id: string }[] }, pid: string): boolean {

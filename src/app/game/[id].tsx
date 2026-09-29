@@ -9,6 +9,7 @@ import { makeView, useGameStore, type SeatSetup } from '@/game/store/game-store'
 import { useAiDriver } from '@/game/store/ai-driver';
 import { useTimeoutDriver } from '@/game/store/online-driver';
 import { useOnlineGameSession, useRoomConnection } from '@/game/store/use-online-game';
+import { PauseButton } from '@/game/ui/PauseButton';
 import { SpeedControl } from '@/game/ui/SpeedControl';
 import { Table } from '@/game/ui/Table';
 import { useHotkeys } from '@/game/ui/use-hotkeys';
@@ -83,9 +84,14 @@ export default function GameScreen() {
     };
   }, [online, conn.isHost, code]);
 
+  // 혼자 하는 판(상대가 전부 AI)은 멈출 수 있다. 온라인은 남을 붙잡으므로 안 된다.
+  const [paused, setPaused] = useState(false);
+  const canPause = !online && Boolean(state) && !state?.result && !state?.draft;
+  const halted = canPause && paused;
+
   // 관전 모드는 예전처럼 빠르게 흘려 본다
-  useAiDriver(true, setup.auto ? 6 : speed);
-  useTimeoutDriver(controlled);
+  useAiDriver(!halted, setup.auto ? 6 : speed);
+  useTimeoutDriver(controlled, !halted);
 
   const view = useMemo(() => makeView(state, viewer), [state, viewer]);
   const api = useTable(view, viewer);
@@ -146,8 +152,17 @@ export default function GameScreen() {
     <View style={styles.root}>
       <Table view={view} viewer={viewer} api={api} />
 
-      {!setup.auto && !state.result && (
-        <SpeedControl speed={speed} onChange={onSpeedChange} style={styles.speed} />
+      {(canPause || (!setup.auto && !state.result)) && (
+        <View style={styles.topLeft}>
+          {!setup.auto && !state.result && <SpeedControl speed={speed} onChange={onSpeedChange} />}
+          {canPause && <PauseButton paused={paused} onToggle={() => setPaused((v) => !v)} />}
+        </View>
+      )}
+
+      {halted && (
+        <View style={styles.pausedBanner}>
+          <Text style={styles.pausedText}>일시정지</Text>
+        </View>
       )}
 
       {online && status !== 'ready' && (
@@ -205,7 +220,27 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   loadingText: { color: Colors.textMuted, fontSize: 13 },
-  speed: { position: 'absolute', top: Spacing.two, left: Spacing.two },
+  topLeft: {
+    position: 'absolute',
+    top: Spacing.two,
+    left: Spacing.two,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  pausedBanner: {
+    position: 'absolute',
+    top: '40%',
+    alignSelf: 'center',
+    pointerEvents: 'none',
+    backgroundColor: Colors.overlay,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: Colors.highlight,
+    paddingHorizontal: Spacing.five,
+    paddingVertical: Spacing.two,
+  },
+  pausedText: { color: Colors.paper, fontSize: 18, fontWeight: '900', letterSpacing: 2 },
   connection: {
     position: 'absolute',
     top: Spacing.two,
