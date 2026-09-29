@@ -101,6 +101,7 @@ docs/
   edge-cases.md     원본 맵 11년치 패치노트에서 추린 케이스 118건
   rules.md          구현이 실제로 어떻게 판단하는지와 그 코드 위치
   multiplayer.md    락스텝 구조와 한계
+  ai.md             AI 가 행동에서 역할을 읽는 방법과 역할별 판단
   assets.md         카드 그림을 넣는 방법과 저작권 경계
 reference/          SC2 아케이드 맵 수집 자료 (구현 참고용)
 ```

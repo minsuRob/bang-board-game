@@ -68,9 +68,11 @@ describe('AI 기본 동작', () => {
   it('가려진 시야만 보고 판단한다 (전체 상태를 줘도 결과가 같다)', () => {
     const state = startDrafted(9, 6);
     const actor = state.turn.active;
-    const fromFull = decide(state, actor, 'medium', 3);
-    const fromView = decide(viewFor(state, actor), actor, 'medium', 3);
-    expect(actionKey(fromView as Action)).toBe(actionKey(fromFull as Action));
+    for (const tier of ['easy', 'medium', 'hard'] as AiTier[]) {
+      const fromFull = decide(state, actor, tier, 3);
+      const fromView = decide(viewFor(state, actor), actor, tier, 3);
+      expect(actionKey(fromView as Action), tier).toBe(actionKey(fromFull as Action));
+    }
   });
 
   it('같은 국면 + 같은 시드면 같은 수를 둔다', () => {

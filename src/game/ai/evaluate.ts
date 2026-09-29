@@ -29,7 +29,9 @@ export function evaluate(state: GameState, me: PlayerId): number {
     case 'deputy': {
       const enemies = alive.filter((p) => p.role === 'outlaw' || p.role === 'renegade');
       const enemyPower = enemies.reduce((n, p) => n + p.hp * 3 + p.hand.length, 0);
-      return mine + sheriffHp * 8 - enemyPower;
+      // 보안관에게 부관은 방패다. 스스로 부관을 깎는 수를 막는다
+      const deputies = alive.filter((p) => p.role === 'deputy' && p.id !== me).length;
+      return mine + sheriffHp * 8 - enemyPower + (my.role === 'sheriff' ? deputies * 4 : 0);
     }
     case 'outlaw': {
       const allies = alive.filter((p) => p.role === 'outlaw' && p.id !== me).length;
@@ -43,12 +45,21 @@ export function evaluate(state: GameState, me: PlayerId): number {
       const others = alive.filter((p) => p.id !== me);
       const spread = others.reduce((n, p) => n + p.hp, 0);
       const sheriffGone = sheriffHp === 0 && others.length > 0;
+      // 무법자가 남아 있는 동안은 두 세력이 비슷하게 깎여 나가는 편이 좋다.
+      // 한쪽이 먼저 이기면 배신자는 혼자 남을 기회를 잃는다.
+      const outlaws = others.filter((p) => p.role === 'outlaw');
+      const power = (ps: typeof others) => ps.reduce((n, p) => n + p.hp * 2 + p.hand.length * 0.5, 0);
+      const law = others.filter((p) => p.role === 'sheriff' || p.role === 'deputy');
+      const imbalance = outlaws.length > 0 ? Math.abs(power(law) - power(outlaws)) * 0.5 : 0;
+      const sheriffAtRisk = outlaws.length > 0 && sheriffHp === 1 ? 15 : 0;
       return (
         mine -
         others.length * 12 -
         spread * 1.5 +
         (sheriffHp > 0 ? 8 : 0) -
-        (sheriffGone ? 200 : 0)
+        (sheriffGone ? 200 : 0) -
+        imbalance -
+        sheriffAtRisk
       );
     }
   }

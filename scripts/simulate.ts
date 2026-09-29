@@ -7,8 +7,15 @@
  *   npm run simulate -- --games 200 --players 7 --highnoon
  */
 
-import { decide, type AiTier } from '../src/game/ai';
-import { actorsOf, legalActions, reduce, type Action, type GameState } from '../src/game/engine';
+import { analyze, decide, inferDepthOf, type AiTier } from '../src/game/ai';
+import {
+  actorsOf,
+  kindOf,
+  legalActions,
+  reduce,
+  type Action,
+  type GameState,
+} from '../src/game/engine';
 import { viewFor } from '../src/game/engine/view';
 
 type Options = {
@@ -47,7 +54,58 @@ type GameOutcome = {
   turns: number;
   tierBySeat: AiTier[];
   roleBySeat: string[];
+  /** 좌석별 (개인 공격 수, 같은 편을 겨냥한 수) */
+  attacks: { total: number; friendly: number }[];
+  /** 난이도별 역할 추정 성적 */
+  reads: Record<string, ReadStat>;
 };
+
+type ReadStat = { guesses: number; hits: number; trueProb: number };
+
+/**
+ * 차례가 바뀔 때마다 모든 생존자가 감춰진 역할을 얼마나 맞히는지 잰다.
+ * hits: 가장 그럴듯한 역할이 실제와 같은 비율, trueProb: 실제 역할에 준 평균 확률.
+ */
+function measureReads(state: GameState, tierBySeat: AiTier[], into: Record<string, ReadStat>) {
+  state.players.forEach((me, seat) => {
+    if (!me.alive) return;
+    const tier = tierBySeat[seat] ?? 'medium';
+    const beliefs = analyze(viewFor(state, me.id), me.id, inferDepthOf(tier));
+    for (const p of state.players) {
+      if (p.id === me.id || p.roleRevealed) continue;
+      const pr = beliefs[p.id].probs;
+      const guess = (Object.keys(pr) as (keyof typeof pr)[]).reduce((a, b) => (pr[b] > pr[a] ? b : a));
+      into[tier] ??= { guesses: 0, hits: 0, trueProb: 0 };
+      into[tier].guesses++;
+      if (guess === p.role) into[tier].hits++;
+      into[tier].trueProb += pr[p.role];
+    }
+  });
+}
+
+/** 한 사람을 겨냥하는 공격 카드. 빗나감이 대상과 함께 나오면 칼라미티 자넷의 뱅!이다 */
+const ATTACK_KINDS = new Set(['bang', 'missed', 'duel', 'jail']);
+
+function sideOf(role: string): string {
+  return role === 'sheriff' || role === 'deputy' ? 'law' : role;
+}
+
+/** 판이 끝난 뒤 로그를 훑어 같은 편을 겨냥한 공격을 센다 */
+function countAttacks(state: GameState): { total: number; friendly: number }[] {
+  const out = state.players.map(() => ({ total: 0, friendly: 0 }));
+  for (const ev of state.log) {
+    if (ev.t !== 'playCard' || !ev.pid || !ev.target || !ev.card || ev.pid === ev.target) continue;
+    if (!ATTACK_KINDS.has(kindOf(ev.card))) continue;
+    const seat = state.players.findIndex((p) => p.id === ev.pid);
+    const actor = state.players[seat];
+    const target = state.players.find((p) => p.id === ev.target);
+    if (!actor || !target) continue;
+    out[seat].total++;
+    const a = sideOf(actor.role);
+    if (a !== 'renegade' && a === sideOf(target.role)) out[seat].friendly++;
+  }
+  return out;
+}
 
 class SimulationError extends Error {
   constructor(
@@ -72,11 +130,19 @@ function playOne(seed: number, opts: Options): GameOutcome {
   const history: Action[] = [start];
   let state = reduce(null, start);
   let steps = 0;
+  const reads: Record<string, ReadStat> = {};
+  let lastTurnKey = '';
 
   while (!state.result && steps < opts.maxSteps) {
     const actor = actorsOf(state)[0];
     const seat = state.players.findIndex((p) => p.id === actor);
     const tier = tierBySeat[seat] ?? 'medium';
+
+    const turnKey = `${state.turn.round}:${state.turn.active}`;
+    if (!state.draft && turnKey !== lastTurnKey) {
+      lastTurnKey = turnKey;
+      measureReads(state, tierBySeat, reads);
+    }
 
     const action = decide(state, actor, tier, seed * 7919 + steps);
     if (!action) {
@@ -115,6 +181,8 @@ function playOne(seed: number, opts: Options): GameOutcome {
     turns: state.turn.round,
     tierBySeat,
     roleBySeat: state.players.map((p) => p.role),
+    attacks: countAttacks(state),
+    reads,
   };
 }
 
@@ -155,6 +223,9 @@ export type SimulationReport = {
   byTier: Record<string, { wins: number; seats: number }>;
   /** 난이도 × 역할. 어느 역할에서 실력 차이가 나는지 보려면 이쪽을 본다 */
   byTierRole: Record<string, { wins: number; seats: number }>;
+  /** 난이도 × 역할별 같은 편 오사 */
+  friendlyFire: Record<string, { total: number; friendly: number }>;
+  reads: Record<string, ReadStat>;
   avgTurns: number;
   avgSteps: number;
 };
@@ -163,6 +234,8 @@ export function simulate(opts: Options): SimulationReport {
   const byRole: Record<string, { wins: number; games: number }> = {};
   const byTier: Record<string, { wins: number; seats: number }> = {};
   const byTierRole: Record<string, { wins: number; seats: number }> = {};
+  const friendlyFire: Record<string, { total: number; friendly: number }> = {};
+  const reads: Record<string, ReadStat> = {};
   const failures: { seed: number; message: string }[] = [];
   let turns = 0;
   let steps = 0;
@@ -173,6 +246,12 @@ export function simulate(opts: Options): SimulationReport {
     try {
       const out = playOne(seed, opts);
       done++;
+      for (const [tier, r] of Object.entries(out.reads)) {
+        reads[tier] ??= { guesses: 0, hits: 0, trueProb: 0 };
+        reads[tier].guesses += r.guesses;
+        reads[tier].hits += r.hits;
+        reads[tier].trueProb += r.trueProb;
+      }
       turns += out.turns;
       steps += out.steps;
 
@@ -191,6 +270,10 @@ export function simulate(opts: Options): SimulationReport {
         byTierRole[key] ??= { wins: 0, seats: 0 };
         byTierRole[key].seats++;
         if (won) byTierRole[key].wins++;
+
+        friendlyFire[key] ??= { total: 0, friendly: 0 };
+        friendlyFire[key].total += out.attacks[seat].total;
+        friendlyFire[key].friendly += out.attacks[seat].friendly;
       }
       if (opts.verbose) {
         console.log(`seed ${seed}: ${out.winners.join('·')} 승 (${out.turns}라운드, ${out.steps}수)`);
@@ -211,6 +294,8 @@ export function simulate(opts: Options): SimulationReport {
     byRole,
     byTier,
     byTierRole,
+    friendlyFire,
+    reads,
     avgTurns: done ? turns / done : 0,
     avgSteps: done ? steps / done : 0,
   };
@@ -249,6 +334,26 @@ function main() {
       return (s ? `${((s.wins / s.seats) * 100).toFixed(0)}% (${s.seats})` : '-').padStart(11);
     });
     console.log(`  ${tier.padEnd(9)}${cells.join('')}`);
+  }
+
+  console.log('\n같은 편 오사율 (같은 편을 겨냥한 공격 / 개인 공격)');
+  console.log(`  ${''.padEnd(9)}${roles.map((r) => r.padStart(14)).join('')}`);
+  for (const tier of tiers) {
+    const cells = roles.map((role) => {
+      const s = report.friendlyFire[`${tier}/${role}`];
+      if (!s || s.total === 0) return '-'.padStart(14);
+      return `${((s.friendly / s.total) * 100).toFixed(1)}% (${s.total})`.padStart(14);
+    });
+    console.log(`  ${tier.padEnd(9)}${cells.join('')}`);
+  }
+
+  console.log('\n역할 추정 (적중률 / 실제 역할에 준 평균 확률)');
+  for (const tier of tiers) {
+    const r = report.reads[tier];
+    if (!r || r.guesses === 0) continue;
+    console.log(
+      `  ${tier.padEnd(9)} ${((r.hits / r.guesses) * 100).toFixed(1)}%  /  ${(r.trueProb / r.guesses).toFixed(3)}  (${r.guesses}회)`,
+    );
   }
 
   if (report.failures.length > 0) {

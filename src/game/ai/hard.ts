@@ -18,6 +18,7 @@ import {
 } from '../engine';
 import { shuffle, type RngState } from '../engine/rng';
 import { nextInt } from '../engine/rng';
+import { sampleRoles, type Beliefs } from './belief';
 import { evaluate } from './evaluate';
 import { beliefsFor, scoreAction } from './policy';
 
@@ -37,7 +38,12 @@ const ROLLOUT_PLIES = 30;
  * 남의 손패 장수·장비·버린 더미·펼쳐진 카드는 실제 값이므로 그대로 두고,
  * 나머지 카드를 섞어 손패와 덱에 배분한다.
  */
-export function determinize(view: GameState, me: PlayerId, rng: RngState): {
+export function determinize(
+  view: GameState,
+  me: PlayerId,
+  rng: RngState,
+  beliefs?: Beliefs,
+): {
   state: GameState;
   rng: RngState;
 } {
@@ -66,7 +72,19 @@ export function determinize(view: GameState, me: PlayerId, rng: RngState): {
     return { ...p, hand };
   });
 
-  // 감춰진 역할을 남은 역할 중에서 뽑아 채운다.
+  // 감춰진 역할은 추론한 분포대로 지어낸다. 보안관을 쏜 사람은 대개 무법자로 채워진다.
+  if (beliefs) {
+    const sampled = sampleRoles(view, me, beliefs, cur);
+    cur = sampled.rng;
+    if (Object.keys(sampled.roles).length > 0) {
+      const withRoles = players.map((p) =>
+        sampled.roles[p.id] ? { ...p, role: sampled.roles[p.id] } : p,
+      );
+      return { state: { ...view, players: withRoles, deck: bag.slice(at) }, rng: cur };
+    }
+  }
+
+  // 믿음이 없으면 남은 역할 중에서 고르게 뽑아 채운다.
   const all = [...(ROLE_DISTRIBUTION[view.config.playerCount] ?? [])];
   for (const p of players) {
     if (p.id === me || p.roleRevealed) {
@@ -106,8 +124,8 @@ function rollout(state: GameState, me: PlayerId, rng: RngState, plies: number): 
     const legal = legalActions(cur, actor).filter((a) => a.type !== 'useAbility');
     if (legal.length === 0) break;
 
-    // 굴리는 동안 상대는 중 난이도로 둔다고 본다 (공개된 역할만 보고 판단)
-    const beliefs = beliefsFor(cur, actor, true);
+    // 굴리는 동안 상대는 공개된 역할만 보고 둔다고 본다 (수마다 로그를 다시 읽으면 너무 느리다)
+    const beliefs = beliefsFor(cur, actor, 'public');
     let best = legal[0];
     let bestScore = -Infinity;
     for (const a of legal) {
@@ -154,7 +172,7 @@ export function chooseHard(
   for (const cand of candidates) {
     let total = 0;
     for (let i = 0; i < budget; i++) {
-      const guess = determinize(view, me, rng);
+      const guess = determinize(view, me, rng, beliefs);
       rng = guess.rng;
       const after = reduce(guess.state, cand.action);
       // 수를 둔 직후의 값과 한 라운드 굴린 뒤의 값을 함께 본다.

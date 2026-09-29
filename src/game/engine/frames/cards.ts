@@ -219,6 +219,8 @@ export function respondSteal(
       t: 'panic',
       pid: frame.source,
       target: frame.target,
+      // 장비는 원래 앞면이라 공개해도 된다. 손패에서 뽑은 카드는 남긴다면 정보가 샌다.
+      ...(fromEquipment ? { card: picked } : {}),
       text: `${ga(nameOf(cur, frame.source))} ${t.name}의 카드를 강탈했다.`,
     });
   }
@@ -227,6 +229,7 @@ export function respondSteal(
     t: 'catBalou',
     pid: frame.source,
     target: frame.target,
+    ...(fromEquipment ? { card: picked } : {}),
     text: `${ga(nameOf(cur, frame.source))} ${t.name}의 카드를 버리게 했다.`,
   });
 }

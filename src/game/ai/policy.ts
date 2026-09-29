@@ -21,13 +21,89 @@ import {
   type PlayerId,
 } from '../engine';
 import { isHidden } from '../engine/view';
-import { analyze, hostility, type Beliefs } from './belief';
+import {
+  analyze,
+  hostility,
+  situation,
+  type Beliefs,
+  type InferDepth,
+  type Situation,
+} from './belief';
 import { cardValue, danger } from './evaluate';
 
 const NEUTRAL = 0;
 
-export function beliefsFor(view: GameState, me: PlayerId, naive = false): Beliefs {
-  return analyze(view, me, naive);
+export function beliefsFor(view: GameState, me: PlayerId, depth: InferDepth = 'full'): Beliefs {
+  return analyze(view, me, depth);
+}
+
+/** 이보다 적대도가 낮으면 같은 편으로 본다 */
+const FRIEND = 0.15;
+
+function hasKind(cards: readonly CardId[], kind: CardKind): boolean {
+  return cards.some((c) => !isHidden(c) && kindOf(c) === kind);
+}
+
+/**
+ * 보안관이 죽으면 지는 쪽인가.
+ * 보안관 편은 물론이고, 무법자가 살아 있는 동안의 배신자도 그렇다.
+ */
+function needsSheriffAlive(view: GameState, me: PlayerId, sit: Situation): boolean {
+  const role = playerOf(view, me).role;
+  if (role === 'sheriff' || role === 'deputy') return true;
+  return role === 'renegade' && sit.alive.outlaw > 0.5 && sit.othersAlive > 1;
+}
+
+/**
+ * 광역 카드 (기관총·인디언).
+ * 적이 맞는 만큼 더하고 같은 편이 맞는 만큼 뺀다. 보안관이 한 방에 죽을 수 있으면
+ * 역할에 따라 결정타이거나 자살이다.
+ */
+function scoreArea(view: GameState, me: PlayerId, beliefs: Beliefs, sit: Situation, perHit: number): number {
+  let s = 0;
+  for (const p of alivePlayers(view)) {
+    if (p.id === me) continue;
+    const h = hostility(view, me, p.id, beliefs, sit);
+    s += (h - 0.4) * perHit;
+    if (p.hp === 1) s += (h - 0.4) * perHit;
+  }
+  if (sit.sheriffId && sit.sheriffId !== me) {
+    const role = playerOf(view, me).role;
+    if (needsSheriffAlive(view, me, sit)) {
+      if (sit.sheriffHp === 1) s -= 100;
+      else if (sit.sheriffHp === 2) s -= 12;
+    } else if (role === 'outlaw' && sit.sheriffHp === 1) {
+      s += 30;
+    }
+  }
+  return s;
+}
+
+/**
+ * 같은 편을 해치는 수인가.
+ *
+ * 하 난이도는 자주 엉뚱한 수를 두지만, 같은 편을 쏘는 일만은 하지 않는다.
+ * 사람도 초보는 수를 못 읽을 뿐 제 편이 누군지는 안다.
+ */
+export function isBetrayal(view: GameState, me: PlayerId, action: Action, beliefs: Beliefs): boolean {
+  if (action.type !== 'playCard') return false;
+  const kind = action.as ?? safeKind(action.card);
+  if (!kind) return false;
+  const sit = situation(view, me, beliefs);
+
+  if (kind === 'gatling' || kind === 'indians') {
+    return needsSheriffAlive(view, me, sit) && sit.sheriffHp === 1 && sit.sheriffId !== me;
+  }
+  if (!action.target || action.target === me) return false;
+  const h = hostility(view, me, action.target, beliefs, sit);
+  if (h >= FRIEND) return false;
+  if (kind === 'bang' || kind === 'duel' || kind === 'jail') return true;
+  if (kind === 'panic' || kind === 'catBalou') {
+    // 같은 편의 감옥·다이너마이트를 떼어 주는 것은 돕는 수다
+    const eq = playerOf(view, action.target).equipment;
+    return !hasKind(eq, 'jail') && !hasKind(eq, 'dynamite');
+  }
+  return false;
 }
 
 /** 손패에서 이 종류의 카드를 몇 장 들고 있는가 */
@@ -80,12 +156,15 @@ function scorePlay(
   if (!kind) return 0;
 
   const target = action.target ? playerOf(view, action.target) : null;
-  const enemy = target ? hostility(view, me, target.id, beliefs) : 0;
+  const sit = situation(view, me, beliefs);
+  const enemy = target ? hostility(view, me, target.id, beliefs, sit) : 0;
   const survivors = alivePlayers(view).length;
+  const friend = target !== null && target.id !== me && enemy < FRIEND;
 
   switch (kind) {
     case 'bang': {
       if (!target) return -10;
+      if (friend) return -12;
       let s = 12 * enemy;
       // 마지막 한 대면 크게 오른다
       if (target.hp === 1) s += 18 * enemy;
@@ -108,7 +187,9 @@ function scorePlay(
       let s = my.hp < my.maxHp ? 5 : -2;
       for (const p of alivePlayers(view)) {
         if (p.id === me || p.hp >= p.maxHp) continue;
-        s += hostility(view, me, p.id, beliefs) > 0.5 ? -3 : 2;
+        s += (0.4 - hostility(view, me, p.id, beliefs, sit)) * 8;
+        // 보안관이 살아야 이기는 쪽이면 다친 보안관을 챙긴다
+        if (p.id === sit.sheriffId && needsSheriffAlive(view, me, sit)) s += p.hp <= 2 ? 8 : 3;
       }
       return s;
     }
@@ -119,28 +200,14 @@ function scorePlay(
     case 'generalStore':
       // 내가 먼저 고르니 이득이지만 모두가 카드를 얻는다
       return survivors <= 4 ? 7 : 4;
-    case 'gatling': {
-      let s = 0;
-      for (const p of alivePlayers(view)) {
-        if (p.id === me) continue;
-        const h = hostility(view, me, p.id, beliefs);
-        s += h > 0.5 ? 9 : -6;
-        if (p.hp === 1 && h > 0.5) s += 10;
-      }
-      return s;
-    }
-    case 'indians': {
-      let s = 0;
-      for (const p of alivePlayers(view)) {
-        if (p.id === me) continue;
-        const h = hostility(view, me, p.id, beliefs);
-        // 뱅!을 버리게 만드는 것 자체도 이득이다
-        s += h > 0.5 ? 7 : -5;
-      }
-      return s;
-    }
+    case 'gatling':
+      return scoreArea(view, me, beliefs, sit, 15) + 2;
+    case 'indians':
+      // 뱅!을 버리게 만드는 것 자체도 이득이다
+      return scoreArea(view, me, beliefs, sit, 12) + 1;
     case 'duel': {
       if (!target) return -10;
+      if (friend) return -12;
       // 내 손의 뱅!이 많을수록 이길 가능성이 높다
       const myBangs = countKind(view, me, 'bang');
       const edge = myBangs - Math.min(2, target.hand.length / 2);
@@ -152,9 +219,11 @@ function scorePlay(
         // 자기 앞의 다이너마이트를 치우는 용도
         return my.equipment.some((c) => kindOf(c) === 'dynamite') ? 14 : -8;
       }
+      const rescue = rescueScore(view, me, target.id, friend, sit);
+      if (rescue !== null) return rescue;
       let s = 9 * enemy;
-      if (target.equipment.some((c) => kindOf(c) === 'barrel')) s += 5;
-      if (target.equipment.some((c) => CARD_DEFS[kindOf(c)].equip === 'weapon')) s += 4;
+      if (target.equipment.some((c) => kindOf(c) === 'barrel')) s += 5 * enemy;
+      if (target.equipment.some((c) => CARD_DEFS[kindOf(c)].equip === 'weapon')) s += 4 * enemy;
       return s;
     }
     case 'catBalou': {
@@ -162,15 +231,21 @@ function scorePlay(
       if (target.id === me) {
         return my.equipment.some((c) => kindOf(c) === 'dynamite') ? 15 : -8;
       }
+      const rescue = rescueScore(view, me, target.id, friend, sit);
+      if (rescue !== null) return rescue;
       let s = 8 * enemy;
-      if (target.equipment.some((c) => kindOf(c) === 'barrel')) s += 5;
+      if (target.equipment.some((c) => kindOf(c) === 'barrel')) s += 5 * enemy;
       if (target.hand.length === 0 && target.equipment.length === 0) s -= 20;
       return s;
     }
     case 'jail': {
       if (!target) return -10;
+      if (friend) return -12;
       // 강한 적의 차례를 통째로 날린다
-      return 12 * enemy + (target.hand.length > 3 ? 3 : 0);
+      let s = 12 * enemy + (target.hand.length > 3 ? 3 * enemy : 0);
+      // 확신이 없는 보안관은 쏘기보다 가둔다. 부관이어도 벌칙이 없다
+      if (my.role === 'sheriff' && maxProb(beliefs, target.id) < 0.6) s += 3;
+      return s;
     }
     case 'dynamite':
       // 스스로 들 이유가 거의 없다. 아주 가끔만.
@@ -234,8 +309,6 @@ function scoreRespond(
       if (choice.c !== 'card') return 0;
       const suit = effectiveSuit(view, choice.card);
       if (a.purpose === 'dynamite') {
-        const def = CARD_DEFS[kindOf(choice.card)];
-        void def;
         // 터지지 않는 쪽을 고른다
         return explodes(view, choice.card) ? -50 : 50;
       }
@@ -258,12 +331,19 @@ function scoreRespond(
 
     case 'stealCard': {
       if (choice.c !== 'pick') return 0;
+      const ally = a.target !== me && hostility(view, me, a.target, beliefs) < FRIEND;
       if (choice.pick.zone === 'equipment') {
         const kind = safeKind(choice.pick.card);
-        return kind ? 20 + cardValue(kind) * 3 : 20;
+        if (!kind) return 20;
+        // 감옥·다이너마이트는 같은 편이면 떼어 주고, 적이면 그대로 둔다
+        if (kind === 'jail' || kind === 'dynamite') return ally || a.target === me ? 80 : 5;
+        // 같은 편의 장비는 건드리지 않는다
+        if (ally) return 0;
+        // 무기는 사정거리를, 술통은 방어를 빼앗는다
+        return 20 + cardValue(kind) * 3;
       }
       // 손패는 뒷면이라 어느 장이든 같다
-      return 20;
+      return ally ? 10 : 20;
     }
 
     case 'jesseJones': {
@@ -291,6 +371,33 @@ function scoreRespond(
     default:
       return 0;
   }
+}
+
+/**
+ * 같은 편 앞의 감옥·다이너마이트를 떼어 주는 수의 점수.
+ * 같은 편이 아니면 null (평소처럼 적을 괴롭히는 수로 매긴다).
+ */
+function rescueScore(
+  view: GameState,
+  me: PlayerId,
+  target: PlayerId,
+  friend: boolean,
+  sit: Situation,
+): number | null {
+  if (!friend) return null;
+  const eq = playerOf(view, target).equipment;
+  const jailed = hasKind(eq, 'jail');
+  const dynamite = hasKind(eq, 'dynamite');
+  if (!jailed && !dynamite) return -10;
+  let s = jailed ? 11 : 8;
+  // 갇힌 보안관은 한 차례를 통째로 잃는다. 보안관이 살아야 이기는 쪽이면 더 급하다
+  if (target === sit.sheriffId && needsSheriffAlive(view, me, sit)) s += 5;
+  return s;
+}
+
+function maxProb(beliefs: Beliefs, id: PlayerId): number {
+  const pr = beliefs[id]?.probs;
+  return pr ? Math.max(pr.sheriff, pr.deputy, pr.outlaw, pr.renegade) : 1;
 }
 
 function explodes(view: GameState, card: CardId): boolean {
