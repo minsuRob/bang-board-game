@@ -225,8 +225,8 @@ export class Sequencer {
     const h = world.handle(cmd.card);
     const salt = ++this.salt;
 
-    const from: Pose = existed && h.group.visible ? { ...h.current } : world.anchorFor(cmd.from, cmd.fromIndex, cmd.fromCount);
-    const to: Pose = world.anchorFor(cmd.to, cmd.toIndex, cmd.toCount);
+    const from: Pose = existed && h.group.visible ? { ...h.current } : world.anchorFor(cmd.from, cmd.fromIndex, cmd.fromCount, cmd.card);
+    const to: Pose = world.anchorFor(cmd.to, cmd.toIndex, cmd.toCount, cmd.card);
     if (cmd.face === 'down') to.flip = Math.PI;
 
     h.driven = true;

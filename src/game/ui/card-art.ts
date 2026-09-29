@@ -82,4 +82,9 @@ export function feltArt(): ImageSourcePropType | null {
   return BOARD_ASSETS['felt.jpg'] ?? null;
 }
 
+/** 좌석마다 까는 플레이어 보드 (총알 5칸 · 직업/캐릭터/무기 슬롯) */
+export function playerBoardArt(): ImageSourcePropType | null {
+  return BOARD_ASSETS['player-board.webp'] ?? BOARD_ASSETS['player-board.jpg'] ?? BOARD_ASSETS['player-board.png'] ?? null;
+}
+
 export const hasBoardArt = Object.keys(BOARD_ASSETS).length > 0;

@@ -5,8 +5,9 @@
  * three 없이 투영을 직접 계산하므로 테스트에서 그대로 검증한다.
  */
 
+import { seatFootprint } from './layout';
 import { vadd, vcross, vdot, vnorm, vsub } from './math';
-import { MAT_SIZE, type CameraFrame, type TableLayout, type Vec3 } from './types';
+import type { CameraFrame, TableLayout, Vec3 } from './types';
 
 const UP: Vec3 = [0, 1, 0];
 
@@ -34,12 +35,9 @@ export function projectPoint(frame: CameraFrame, aspect: number, p: Vec3): Proje
 /** 화면에 꼭 들어와야 하는 점들 */
 export function framingSamples(layout: TableLayout): Vec3[] {
   const out: Vec3[] = [];
-  const hw = MAT_SIZE.w / 2 + 0.15;
-  const hh = MAT_SIZE.h / 2 + 0.15;
   for (const s of layout.seats) {
-    const [x, , z] = s.pos;
-    out.push([x - hw, 0, z - hh], [x + hw, 0, z - hh], [x - hw, 0, z + hh], [x + hw, 0, z + hh]);
-    out.push(s.equipment, s.label);
+    out.push(...seatFootprint(s, 0.12));
+    out.push(s.label);
   }
   out.push(layout.deck, layout.discard, layout.event, layout.center);
   return out;

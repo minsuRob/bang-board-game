@@ -21,6 +21,9 @@ const ROLE_COLOR: Record<Role, string> = {
 
 export const LABEL_W = 148;
 export const LABEL_W_COMPACT = 118;
+/** 내 정보창. 보드 옆에 크게 */
+export const LABEL_W_SELF = 220;
+export const LABEL_W_SELF_COMPACT = 180;
 
 export type SeatLabelProps = {
   view: GameState;
@@ -36,11 +39,14 @@ export type SeatLabelProps = {
   onPickEquipment: (card: CardId) => void;
   /** 넓은 화면에서 내 자리에만 목표·능력을 덧붙인다 */
   detail?: boolean;
-  /** 매트가 차지하는 화면 세로 범위 */
+  /** 보드가 차지하는 화면 세로 범위 */
   top: number;
   bottom: number;
-  /** 매트 위에 붙일지, 아래에 붙일지, 매트 한가운데 얹을지 */
-  mode: 'above' | 'below' | 'center';
+  /**
+   * 보드 위에 붙일지, 아래에 붙일지, 옆(x 가 창의 가운데)에 아랫변을 맞춰 붙일지,
+   * 보드 아랫변 안쪽에 얹을지(좁은 화면의 내 자리)
+   */
+  mode: 'above' | 'below' | 'side' | 'inside';
   /** 좁은 화면: 폭을 줄이고 캐릭터 줄을 뺀다 */
   compact?: boolean;
   canvasHeight: number;
@@ -95,9 +101,11 @@ export function SeatLabel({
       ? { bottom: canvasHeight - top + 2 }
       : mode === 'below'
         ? { top: bottom + 2 }
-        : { top: Math.max(0, y - 30) };
+        : // 옆·안쪽: 보드 아랫변에 바닥을 맞추고 위로 자란다. 캔버스 아래로 넘치지 않는다
+          { bottom: Math.max(4, canvasHeight - bottom + (mode === 'inside' ? 4 : 0)) };
 
-  const w = compact ? LABEL_W_COMPACT : LABEL_W;
+  const w = isSelf ? (compact ? LABEL_W_SELF_COMPACT : LABEL_W_SELF) : compact ? LABEL_W_COMPACT : LABEL_W;
+  const big = isSelf;
 
   // 캐릭터 드래프트 중: 캐릭터·목숨은 아직 없다. 골랐는지만 보인다
   if (view.draft) {
@@ -141,40 +149,50 @@ export function SeatLabel({
         accessibilityLabel={`${player.name} · ${character.nameKo}`}
         style={[
           styles.label,
+          big && styles.selfLabel,
           active && styles.active,
           targetable && styles.targetable,
           dead && styles.dead,
           player.ghost && styles.ghost,
         ]}>
         <View style={styles.row}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={[styles.name, big && styles.selfName]} numberOfLines={1}>
             {player.name}
           </Text>
-          {(player.roleRevealed || isSelf) && (
-            <Text style={[styles.role, { color: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
-          )}
+          {(player.roleRevealed || isSelf) &&
+            (big ? (
+              <Text style={[styles.roleChip, { backgroundColor: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
+            ) : (
+              <Text style={[styles.role, { color: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
+            ))}
         </View>
-        {(!compact || player.ghost || dead) && (
-          <Text style={styles.character} numberOfLines={1}>
+        {(!compact || big || player.ghost || dead) && (
+          <Text style={[styles.character, big && styles.selfCharacter]} numberOfLines={1}>
             {character.nameKo}
             {player.ghost ? ' · 유령' : dead ? ' · 제거됨' : ''}
           </Text>
         )}
         <View style={styles.row}>
-          <Text style={styles.hp}>
+          <Text style={[styles.hp, big && styles.selfHp]}>
             {'●'.repeat(Math.max(0, player.hp))}
             <Text style={styles.hpEmpty}>{'○'.repeat(Math.max(0, player.maxHp - Math.max(0, player.hp)))}</Text>
+            {big && (
+              <Text style={styles.selfHpNumber}>
+                {'  '}
+                {Math.max(0, player.hp)}/{player.maxHp}
+              </Text>
+            )}
           </Text>
           {!isSelf && <Text style={styles.meta}>손패 {player.hand.length}</Text>}
           {dist !== null && <Text style={styles.meta}>거리 {dist}</Text>}
         </View>
         {player.equipment.length > 0 && (
-          <Text style={styles.equipment} numberOfLines={1}>
+          <Text style={[styles.equipment, big && styles.selfEquipment]} numberOfLines={big ? 2 : 1}>
             {player.equipment.map((c) => CARD_DEFS[kindOf(c)].nameKo).join(' · ')}
           </Text>
         )}
-        {detail && isSelf && (
-          <Text style={styles.detail} numberOfLines={3}>
+        {isSelf && (
+          <Text style={[styles.detail, styles.selfDetail]} numberOfLines={detail ? 4 : compact ? 1 : 2}>
             {ROLE_GOAL[player.role]} · {character.ability}
           </Text>
         )}
@@ -217,6 +235,30 @@ const styles = StyleSheet.create({
   equipment: { color: Colors.deputy, fontSize: 9 },
   detail: { color: Colors.textMuted, fontSize: 9, lineHeight: 12 },
   drafted: { borderColor: Colors.success },
+  selfLabel: {
+    backgroundColor: 'rgba(22, 14, 7, 0.94)',
+    borderWidth: 2,
+    borderColor: Colors.hp,
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    gap: 3,
+  },
+  selfName: { fontSize: 18, fontWeight: '900' },
+  roleChip: {
+    color: '#1A120A',
+    fontSize: 12,
+    fontWeight: '900',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    overflow: 'hidden',
+  },
+  selfCharacter: { fontSize: 14, color: Colors.text, fontWeight: '700' },
+  selfHp: { fontSize: 16, letterSpacing: 2 },
+  selfHpNumber: { color: Colors.text, fontSize: 13, fontWeight: '800', letterSpacing: 0 },
+  selfEquipment: { fontSize: 12 },
+  selfDetail: { fontSize: 11, lineHeight: 15 },
   draftRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, minHeight: 18 },
   check: {
     width: 16,

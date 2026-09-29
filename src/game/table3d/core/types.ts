@@ -12,20 +12,28 @@ export type Vec3 = readonly [number, number, number];
 /** 카드 한 장의 3D 크기. 2D CardView 의 78×112 비율(0.696)을 따른다. */
 export const CARD_SIZE = { w: 0.7, h: 1.0, thickness: 0.012 } as const;
 
-/** 좌석 매트 크기 */
-export const MAT_SIZE = { w: 2.0, h: 1.35 } as const;
+/** 좌석 보드 크기. 플레이어 보드 그림(747×531)의 비율을 따른다 */
+export const BOARD_SIZE = { w: 2.2, h: 1.56 } as const;
 
 export type SeatAnchor = {
   index: number;
-  /** 매트 중심 */
+  /** 보드 중심 */
   pos: Vec3;
-  /** y축 회전. 카드 윗변이 테이블 중심을 향한다 */
+  /** y축 회전. 카드 윗변(보드의 총알 줄)이 테이블 중심을 향한다 */
   yaw: number;
   /** 중심을 향하는 xz 단위 벡터 */
   inward: Vec3;
-  /** 장착 카드 줄의 중심 */
+  /** 보드 기준 오른쪽 xz 단위 벡터 */
+  right: Vec3;
+  /** 보드 배율. 내 자리만 크다 */
+  scale: number;
+  /** 보드 슬롯 중심: 왼쪽 직업, 가운데 캐릭터, 오른쪽 무기 */
+  slots: { role: Vec3; character: Vec3; weapon: Vec3 };
+  /** 목숨 총알 칸 중심. 왼쪽부터 */
+  bullets: Vec3[];
+  /** 무기 외 장착 카드 줄의 중심 (보드 윗변 너머) */
   equipment: Vec3;
-  /** 상대 손패 부채꼴의 중심 */
+  /** 상대 손패 부채꼴의 중심 (보드 아랫변 너머) */
   hand: Vec3;
   /** RN 라벨을 붙일 지점 */
   label: Vec3;

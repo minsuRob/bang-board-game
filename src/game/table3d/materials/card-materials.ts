@@ -4,10 +4,20 @@
 
 import * as THREE from 'three';
 
-import type { CardKind, Suit } from '../../data/types';
+import type { CardKind, CharacterId, Role, Suit } from '../../data/types';
 import { cardOf } from '../../engine';
-import { playingCardArt, cardBackArt } from '../../ui/card-art';
-import { cardBackTexture, cardFaceTexture, eventCardTexture, loadArtTexture } from './textures';
+import { playingCardArt, cardBackArt, characterArt, playerBoardArt, roleArt } from '../../ui/card-art';
+import {
+  bulletTexture,
+  cardBackTexture,
+  cardFaceTexture,
+  characterFrameTexture,
+  eventCardTexture,
+  loadArtTexture,
+  playerBoardTexture,
+  roleBackTexture,
+  roleFaceTexture,
+} from './textures';
 
 const faceMaterials = new Map<string, THREE.MeshBasicMaterial>();
 
@@ -48,8 +58,12 @@ export function backMaterialShared(): THREE.MeshBasicMaterial {
   if (art) {
     void loadArtTexture(art).then((tex) => {
       if (!tex || !backMaterial) return;
-      backMaterial.map = tex;
-      backMaterial.needsUpdate = true;
+      // 양면 복제본도 같이 바꾼다. clone 은 이 시점 이전의 map 을 들고 있다
+      for (const m of [backMaterial, backDoubleMaterial]) {
+        if (!m) continue;
+        m.map = tex;
+        m.needsUpdate = true;
+      }
       onMaterialSwapped?.();
     });
   }
@@ -65,6 +79,78 @@ export function backMaterialDouble(): THREE.MeshBasicMaterial {
   backDoubleMaterial = base.clone();
   backDoubleMaterial.side = THREE.DoubleSide;
   return backDoubleMaterial;
+}
+
+/** 그림이 있으면 뒤늦게 map 을 바꿔 끼운다 */
+function swapInArt(mat: THREE.MeshBasicMaterial, art: Parameters<typeof loadArtTexture>[0] | null, onLoad?: () => void) {
+  if (!art) return;
+  void loadArtTexture(art).then((tex) => {
+    if (!tex) return;
+    mat.map = tex;
+    mat.needsUpdate = true;
+    onLoad?.();
+    onMaterialSwapped?.();
+  });
+}
+
+let boardMat: THREE.MeshBasicMaterial | null = null;
+
+/** 좌석 보드. 모든 좌석이 공유한다 (탈락자 어둡게는 좌석별 color 가 아니라 덮개로) */
+export function boardMaterial(): THREE.MeshBasicMaterial {
+  if (boardMat) return boardMat;
+  boardMat = new THREE.MeshBasicMaterial({ map: playerBoardTexture() });
+  swapInArt(boardMat, playerBoardArt());
+  return boardMat;
+}
+
+let bulletMat: THREE.MeshBasicMaterial | null = null;
+
+export function bulletMaterial(): THREE.MeshBasicMaterial {
+  if (bulletMat) return bulletMat;
+  bulletMat = new THREE.MeshBasicMaterial({ map: bulletTexture(), transparent: true, depthWrite: false });
+  return bulletMat;
+}
+
+let roleBackMat: THREE.MeshBasicMaterial | null = null;
+
+/** 역할 카드 뒷면. 원본 뒷면 그림은 없으니 늘 배지 텍스처다 */
+export function roleBackMaterial(): THREE.MeshBasicMaterial {
+  if (roleBackMat) return roleBackMat;
+  roleBackMat = new THREE.MeshBasicMaterial({ map: roleBackTexture(), transparent: true });
+  return roleBackMat;
+}
+
+const roleFaceMats = new Map<Role, THREE.MeshBasicMaterial>();
+
+export function roleFaceMaterial(role: Role): THREE.MeshBasicMaterial {
+  const hit = roleFaceMats.get(role);
+  if (hit) return hit;
+  const mat = new THREE.MeshBasicMaterial({ map: roleFaceTexture(role), transparent: true });
+  roleFaceMats.set(role, mat);
+  swapInArt(mat, roleArt(role));
+  return mat;
+}
+
+let characterFrameMat: THREE.MeshBasicMaterial | null = null;
+
+export function characterFrameMaterial(): THREE.MeshBasicMaterial {
+  if (characterFrameMat) return characterFrameMat;
+  characterFrameMat = new THREE.MeshBasicMaterial({ map: characterFrameTexture(), transparent: true });
+  return characterFrameMat;
+}
+
+const portraitMats = new Map<CharacterId, THREE.MeshBasicMaterial>();
+
+/** 캐릭터 초상. 그림이 도착하기 전(또는 없으면)에는 투명이라 틀의 실루엣이 보인다 */
+export function portraitMaterial(id: CharacterId): THREE.MeshBasicMaterial {
+  const hit = portraitMats.get(id);
+  if (hit) return hit;
+  const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+  portraitMats.set(id, mat);
+  swapInArt(mat, characterArt(id), () => {
+    mat.opacity = 1;
+  });
+  return mat;
 }
 
 let eventMaterial: THREE.MeshBasicMaterial | null = null;

@@ -13,7 +13,8 @@ import {
   seatKey,
   type AnchorPoint,
 } from '../core/anchors-store';
-import { MAT_SIZE, type TableLayout, type Vec3 } from '../core/types';
+import { seatFootprint } from '../core/layout';
+import type { TableLayout, Vec3 } from '../core/types';
 
 const v = new THREE.Vector3();
 
@@ -30,25 +31,26 @@ export class AnchorProjector {
       };
     };
     for (const s of layout.seats) {
-      // 매트 중심을 앵커로, 매트+손패 부채가 차지하는 세로 범위를 같이 준다
+      // 보드 중심을 앵커로, 보드+장비 줄+손패 부채가 차지하는 화면 범위를 같이 준다
       put(seatKey(s.index), s.pos, 0);
-      const hw = MAT_SIZE.w / 2 + 0.25;
-      const hh = MAT_SIZE.h / 2 + 0.35;
-      const rx = -s.inward[2];
-      const rz = s.inward[0];
       let top = Infinity;
       let bottom = -Infinity;
-      for (const [u, w] of [[-hw, -hh], [hw, -hh], [-hw, hh], [hw, hh]] as const) {
-        const x = s.pos[0] + rx * u + s.inward[0] * w;
-        const z = s.pos[2] + rz * u + s.inward[2] * w;
-        v.set(x, 0, z).project(camera);
+      let left = Infinity;
+      let right = -Infinity;
+      for (const p of seatFootprint(s, 0.05)) {
+        v.set(p[0], 0, p[2]).project(camera);
+        const x = ((v.x + 1) / 2) * width;
         const y = ((1 - v.y) / 2) * height;
         top = Math.min(top, y);
         bottom = Math.max(bottom, y);
+        left = Math.min(left, x);
+        right = Math.max(right, x);
       }
       const pt = points[seatKey(s.index)];
       pt.top = top;
       pt.bottom = bottom;
+      pt.left = left;
+      pt.right = right;
     }
     put(ANCHOR_DECK, layout.deck, 0.05);
     put(ANCHOR_DISCARD, layout.discard, 0.05);
@@ -70,6 +72,7 @@ function same(a: Record<string, AnchorPoint>, b: Record<string, AnchorPoint>): b
     if (!q) return false;
     if (Math.abs(p.x - q.x) > 0.5 || Math.abs(p.y - q.y) > 0.5 || p.visible !== q.visible) return false;
     if (Math.abs((p.top ?? 0) - (q.top ?? 0)) > 0.5 || Math.abs((p.bottom ?? 0) - (q.bottom ?? 0)) > 0.5) return false;
+    if (Math.abs((p.left ?? 0) - (q.left ?? 0)) > 0.5 || Math.abs((p.right ?? 0) - (q.right ?? 0)) > 0.5) return false;
   }
   return true;
 }

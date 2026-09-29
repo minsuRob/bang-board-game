@@ -62,6 +62,18 @@ export class CardHandle {
     this.front.material = faceMaterialFor(card);
   }
 
+  /** 트럼프가 아닌 판(역할·캐릭터 카드)에 쓴다. 앞뒤 머티리얼을 직접 준다 */
+  dress(front: THREE.Material, back: THREE.Material) {
+    this.card = null;
+    if (this.front.material !== front) this.front.material = front;
+    if (this.back.material !== back) this.back.material = back;
+  }
+
+  /** 앞면 위에 겹쳐 붙인다 (캐릭터 초상). 앞면 평면의 로컬 좌표 */
+  addToFront(obj: THREE.Object3D) {
+    this.front.add(obj);
+  }
+
   show(visible: boolean) {
     this.group.visible = visible;
   }

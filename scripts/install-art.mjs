@@ -57,6 +57,7 @@ for (const [src, name] of [
   [join(SRC, 'board', 'wood-table.jpg'), 'wood-table.jpg'],
   [join(SRC, 'board', 'wood-tile.jpg'), 'wood-tile.jpg'],
   [join(SRC, 'board', 'leather-1.jpg'), 'felt.jpg'],
+  [join(SRC, 'board', 'player-board.webp'), 'player-board.webp'],
 ]) {
   if (!existsSync(src)) continue;
   copyFileSync(src, join(DEST, 'board', name));
@@ -65,4 +66,4 @@ for (const [src, name] of [
 }
 
 console.log(`\n총 ${total}장 설치. 개발 서버를 다시 시작해야 반영된다.`);
-console.log('되돌리려면: rm -rf assets/cards/card assets/cards/character assets/cards/role assets/cards/event assets/cards/back.png assets/board/*.jpg');
+console.log('되돌리려면: rm -rf assets/cards/card assets/cards/character assets/cards/role assets/cards/event assets/cards/back.png assets/board/*.jpg assets/board/*.webp');

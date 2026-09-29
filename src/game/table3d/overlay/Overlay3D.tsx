@@ -14,7 +14,7 @@ import type { TableApi } from '../../ui/use-table';
 import { ANCHOR_DECK, ANCHOR_DISCARD, ANCHOR_EVENT, anchorsStore, seatKey } from '../core/anchors-store';
 import { Caption } from './Caption';
 import { FloatingNumbers } from './FloatingNumbers';
-import { LABEL_W, LABEL_W_COMPACT, SeatLabel } from './SeatLabel';
+import { LABEL_W, LABEL_W_COMPACT, LABEL_W_SELF, LABEL_W_SELF_COMPACT, SeatLabel } from './SeatLabel';
 import { Colors, Spacing } from '@/constants/theme';
 
 export type Overlay3DProps = {
@@ -35,16 +35,30 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, headline, w
   const discard = anchors.points[ANCHOR_DISCARD];
   const ev = anchors.points[ANCHOR_EVENT];
 
+  const compact = anchors.width < 520;
+  const selfBox = selfLabelBox(anchors, view, viewer, compact);
+
   return (
     <View style={styles.layer}>
       {view.players.map((player, i) => {
         const p = anchors.points[seatKey(i)];
         if (!p || !p.visible) return null;
-        const compact = anchors.width < 520;
-        const half = (compact ? LABEL_W_COMPACT : LABEL_W) / 2 + 4;
-        const x = Math.max(half, Math.min(anchors.width - half, p.x));
-        // 내 자리는 매트 위에 얹고, 위쪽 좌석은 매트 위로, 아래쪽 좌석은 매트 아래로
-        const mode = player.id === viewer ? 'center' : p.y < anchors.height * 0.5 ? 'above' : 'below';
+        const self = player.id === viewer;
+        const w = self ? (compact ? LABEL_W_SELF_COMPACT : LABEL_W_SELF) : compact ? LABEL_W_COMPACT : LABEL_W;
+        const half = w / 2 + 4;
+        let x = Math.max(half, Math.min(anchors.width - half, p.x));
+        // 위쪽 좌석은 보드 위로, 아래쪽 좌석은 보드 아래로.
+        // 내 자리는 보드를 가리지 않게 왼쪽 옆에. 자리가 없으면 보드 아랫변 안쪽에 얹는다
+        let mode: 'above' | 'below' | 'side' | 'inside' = p.y < anchors.height * 0.5 ? 'above' : 'below';
+        if (self && selfBox) {
+          mode = selfBox.mode;
+          x = selfBox.x;
+        } else if (mode === 'below' && selfBox) {
+          // 내 정보창과 겹치면 보드 위로 올린다
+          const top = (p.bottom ?? p.y) + 2;
+          const hit = x + w / 2 > selfBox.x0 && x - w / 2 < selfBox.x1 && top < selfBox.y1 && top + OTHER_LABEL_H > selfBox.y0;
+          if (hit) mode = 'above';
+        }
         return (
           <SeatLabel
             key={player.id}
@@ -86,6 +100,40 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, headline, w
       )}
     </View>
   );
+}
+
+/** 남의 라벨 대략 높이. 겹침 판정에만 쓴다 */
+const OTHER_LABEL_H = 72;
+/** 내 정보창 대략 높이 */
+const SELF_LABEL_H = 150;
+/** 좁은 화면 내 정보창 대략 높이 (능력 한 줄) */
+const SELF_LABEL_H_COMPACT = 96;
+
+type SelfBox = { mode: 'side' | 'below' | 'inside'; x: number; x0: number; x1: number; y0: number; y1: number };
+
+/** 내 정보창이 놓일 자리와 대략의 사각형 */
+function selfLabelBox(
+  anchors: ReturnType<typeof anchorsStore.getState>,
+  view: GameState,
+  viewer: PlayerId,
+  compact: boolean,
+): SelfBox | null {
+  const i = view.players.findIndex((p) => p.id === viewer);
+  const p = i >= 0 ? anchors.points[seatKey(i)] : null;
+  if (!p || !p.visible) return null;
+  const w = compact ? LABEL_W_SELF_COMPACT : LABEL_W_SELF;
+  const gap = 10;
+  const bottom = Math.min(anchors.height, p.bottom ?? p.y);
+  const sideX = (p.left ?? p.x) - gap - w / 2;
+  if (sideX - w / 2 >= 4) {
+    return { mode: 'side', x: sideX, x0: sideX - w / 2, x1: sideX + w / 2, y0: bottom - SELF_LABEL_H, y1: bottom };
+  }
+  // 옆에 자리가 없으면 보드 아래 (세로 화면은 layout 이 그 자리를 비워 둔다). 그래도 모자라면 보드 아랫변 안쪽
+  const x = Math.max(w / 2 + 4, Math.min(anchors.width - w / 2 - 4, p.x));
+  if (anchors.height - bottom >= SELF_LABEL_H_COMPACT) {
+    return { mode: 'below', x, x0: x - w / 2, x1: x + w / 2, y0: bottom, y1: bottom + SELF_LABEL_H_COMPACT };
+  }
+  return { mode: 'inside', x, x0: x - w / 2, x1: x + w / 2, y0: bottom - SELF_LABEL_H, y1: bottom };
 }
 
 function Pill({ x, y, text, tone }: { x: number; y: number; text: string; tone?: string }) {

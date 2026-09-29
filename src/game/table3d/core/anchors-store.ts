@@ -12,9 +12,11 @@ export type AnchorPoint = {
   y: number;
   depth: number;
   visible: boolean;
-  /** 좌석이면 매트+손패가 차지하는 화면 세로 범위 */
+  /** 좌석이면 보드+장비+손패가 차지하는 화면 범위 */
   top?: number;
   bottom?: number;
+  left?: number;
+  right?: number;
 };
 
 export type AnchorsState = {

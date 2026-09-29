@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 
-import { fanOffset } from '../core/layout';
+import { FAN_CARD_SCALE, fanOffset } from '../core/layout';
 import { CARD_SIZE, type TableLayout } from '../core/types';
 import { backMaterialDouble, cardPlaneGeometry } from '../materials/card-materials';
 
@@ -30,16 +30,13 @@ export class OpponentFans {
       const n = Math.min(counts[i], 12);
       for (let j = 0; j < n && k < MAX; j++) {
         const { dx, rot } = fanOffset(j, n);
-        // 매트 기준 오른쪽 방향 = inward 를 y 축으로 -90° 돌린 것
-        const rx = -seat.inward[2];
-        const rz = seat.inward[0];
         d.position.set(
-          seat.hand[0] + rx * dx,
+          seat.hand[0] + seat.right[0] * dx,
           0.01 + j * CARD_SIZE.thickness,
-          seat.hand[2] + rz * dx,
+          seat.hand[2] + seat.right[2] * dx,
         );
         d.rotation.set(-Math.PI / 2, seat.yaw, rot);
-        d.scale.setScalar(0.92);
+        d.scale.setScalar(FAN_CARD_SCALE);
         d.updateMatrix();
         this.mesh.setMatrixAt(k++, d.matrix);
       }

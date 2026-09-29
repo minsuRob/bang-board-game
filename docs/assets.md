@@ -33,6 +33,7 @@ assets-source/
   cards/back.png                   카드 뒷면
   board/wood-table.jpg             화면 바탕
   board/leather-1.jpg              테이블 표면
+  board/player-board.webp          좌석마다 까는 플레이어 보드 (총알 5칸 · 직업/캐릭터/무기 슬롯)
 ```
 
 이름은 `src/game/data/` 의 id 와 정확히 같아야 한다.
@@ -47,6 +48,10 @@ const art = playingCardArt(kind);   // 없으면 null
 ```
 
 `CardView` 는 `art` 가 있으면 그림을, 없으면 타이포를 그린다.
+
+3D 테이블의 좌석 보드는 `playerBoardArt()` 를 쓴다. 없으면 `playerBoardTexture()` 가
+총알 윤곽과 슬롯만 찍은 판으로 대신한다. 슬롯·총알 좌표는 `table3d/core/layout.ts` 의
+`BOARD_SLOTS` 가 원본(747×531) 비율로 들고 있으니, 다른 판 그림을 쓰면 그 값도 맞춘다.
 
 ## 무늬와 숫자는 왜 덮어 그리나
 

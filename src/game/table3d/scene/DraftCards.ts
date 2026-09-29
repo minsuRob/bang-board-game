@@ -65,11 +65,11 @@ export class DraftCards {
   private restPose(seatIndex: number, j: number, per: number): Pose {
     const seat = this.layout!.seats[seatIndex];
     const dx = (j - (per - 1) / 2) * SPACING;
-    const rx = -seat.inward[2];
-    const rz = seat.inward[0];
+    // 아직 캐릭터가 없는 보드 위에 후보를 펼친다
+    const at = seat.slots.character;
     return {
       ...IDLE_POSE,
-      pos: [seat.hand[0] + rx * dx, 0.012, seat.hand[2] + rz * dx],
+      pos: [at[0] + seat.right[0] * dx, 0.012, at[2] + seat.right[2] * dx],
       yaw: seat.yaw,
       flip: Math.PI,
       scale: REST_SCALE,

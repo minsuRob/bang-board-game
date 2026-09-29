@@ -10,13 +10,23 @@
 
 import * as THREE from 'three';
 
+import { CARD_DEFS } from '../../data/cards.base';
 import type { CardId } from '../../data/types';
-import type { GameState, PlayerId } from '../../engine';
-import { equipmentOffset, fanOffset, storeSlot } from '../core/layout';
+import { kindOf, type GameState, type PlayerId } from '../../engine';
+import {
+  equipmentOffset,
+  FAN_CARD_SCALE,
+  fanOffset,
+  ROW_CARD_SCALE,
+  SLOT_CARD_SCALE,
+  storeSlot,
+} from '../core/layout';
 import { CARD_SIZE, type FxBudget, type TableLayout, type Vec3, type Zone } from '../core/types';
 import { backMaterialShared, eventMaterialShared, cardPlaneGeometry } from '../materials/card-materials';
+import { BoardBullets } from './BoardBullets';
 import { CardHandle, IDLE_POSE, type Pose } from './CardHandle';
 import { OpponentFans } from './OpponentFans';
+import { SeatCards } from './SeatCards';
 import { TableGeometry } from './TableGeometry';
 
 const T = CARD_SIZE.thickness;
@@ -25,6 +35,8 @@ export class CardWorld {
   readonly root = new THREE.Group();
   readonly table = new TableGeometry();
   readonly fans = new OpponentFans();
+  readonly seatCards = new SeatCards();
+  readonly bullets = new BoardBullets();
   layout: TableLayout | null = null;
   private state: GameState | null = null;
   private viewerIndex = 0;
@@ -45,12 +57,22 @@ export class CardWorld {
     this.eventCard.rotation.x = -Math.PI / 2;
     this.eventCard.scale.setScalar(1.05);
     this.eventCard.visible = false;
-    this.root.add(this.table.root, this.fans.mesh, this.deckStack, this.discardStack, this.eventCard, this.cards);
+    this.root.add(
+      this.table.root,
+      this.bullets.root,
+      this.seatCards.root,
+      this.fans.mesh,
+      this.deckStack,
+      this.discardStack,
+      this.eventCard,
+      this.cards,
+    );
   }
 
   setLayout(layout: TableLayout) {
     this.layout = layout;
     this.table.setLayout(layout);
+    this.seatCards.setLayout(layout);
     this.eventCard.position.set(layout.event[0], 0.01, layout.event[2]);
     if (this.state) this.settle(this.state, this.viewerIndex, true);
   }
@@ -118,12 +140,16 @@ export class CardWorld {
       else h.setTarget(pose);
     };
 
-    // 장착 카드 (공개)
+    // 장착 카드 (공개). 무기는 보드 오른쪽 칸, 나머지는 보드 너머 줄
     state.players.forEach((p, i) => {
       const seat = layout.seats[i];
       if (!seat) return;
-      p.equipment.forEach((card, j) => place(card, this.equipmentPose(seat.index, j, p.equipment.length)));
+      p.equipment.forEach((card, j) => place(card, this.equipmentPose(seat.index, j, p.equipment.length, card)));
     });
+
+    // 보드 위 직업·캐릭터 카드와 목숨 총알
+    this.seatCards.update(state, viewerIndex, snap);
+    this.bullets.update(layout, state);
 
     // 버린 더미 맨 위 (공개)
     const top = state.discard[state.discard.length - 1];
@@ -190,16 +216,32 @@ export class CardWorld {
   // 자리 계산. 앞면 여부는 여기서만 정한다
   // -------------------------------------------------------------------------
 
-  equipmentPose(seatIndex: number, i: number, count: number): Pose {
+  /**
+   * 장착 카드 자리. card 를 알면 무기는 보드의 무기 칸에, 나머지는 무기를 뺀 순번으로 줄에 둔다.
+   * card 를 모르면 (옛 호출) i/count 를 그대로 줄 순번으로 쓴다.
+   */
+  equipmentPose(seatIndex: number, i: number, count: number, card?: CardId): Pose {
     const seat = this.layout!.seats[seatIndex];
-    const rx = -seat.inward[2];
-    const rz = seat.inward[0];
-    const dx = equipmentOffset(i, count);
+    if (card && isWeapon(card)) {
+      const at = seat.slots.weapon;
+      return { ...IDLE_POSE, pos: [at[0], 0.02, at[2]], yaw: seat.yaw, scale: SLOT_CARD_SCALE * seat.scale };
+    }
+    let j = i;
+    let n = count;
+    const owned = this.state?.players[seatIndex]?.equipment;
+    if (card && owned) {
+      const row = owned.filter((c) => !isWeapon(c));
+      const k = row.indexOf(card);
+      // 아직 상태에 없는 카드(날아오는 중)는 줄 끝에 붙는다
+      j = k >= 0 ? k : row.length;
+      n = k >= 0 ? row.length : row.length + 1;
+    }
+    const dx = equipmentOffset(j, n) * seat.scale;
     return {
       ...IDLE_POSE,
-      pos: [seat.equipment[0] + rx * dx, 0.012, seat.equipment[2] + rz * dx],
+      pos: [seat.equipment[0] + seat.right[0] * dx, 0.012, seat.equipment[2] + seat.right[2] * dx],
       yaw: seat.yaw,
-      scale: 0.82,
+      scale: ROW_CARD_SCALE * seat.scale,
     };
   }
 
@@ -227,15 +269,13 @@ export class CardWorld {
     const seat = layout.seats[seatIndex];
     const n = Math.max(count, 1);
     const { dx, rot } = fanOffset(Math.min(ordinal, n - 1), n);
-    const rx = -seat.inward[2];
-    const rz = seat.inward[0];
     return {
       ...IDLE_POSE,
-      pos: [seat.hand[0] + rx * dx, 0.01 + ordinal * T, seat.hand[2] + rz * dx],
+      pos: [seat.hand[0] + seat.right[0] * dx, 0.01 + ordinal * T, seat.hand[2] + seat.right[2] * dx],
       yaw: seat.yaw,
       spin: rot,
       flip: Math.PI,
-      scale: 0.92,
+      scale: FAN_CARD_SCALE,
     };
   }
 
@@ -244,8 +284,8 @@ export class CardWorld {
     return { ...IDLE_POSE, pos: [at[0], lift, at[2]], scale: 1.15 };
   }
 
-  /** zone 의 자리. ordinal/count 는 그 존 안에서의 순번과 장수 */
-  anchorFor(zone: Zone | null, ordinal = 0, count = 1): Pose {
+  /** zone 의 자리. ordinal/count 는 그 존 안에서의 순번과 장수. card 는 장착 칸을 고를 때 쓴다 */
+  anchorFor(zone: Zone | null, ordinal = 0, count = 1, card?: CardId): Pose {
     if (!zone) return this.centerPose();
     switch (zone.z) {
       case 'deck':
@@ -258,7 +298,7 @@ export class CardWorld {
       }
       case 'equipment': {
         const i = this.seatIndexOf(zone.pid);
-        return i < 0 ? this.centerPose() : this.equipmentPose(i, ordinal, count);
+        return i < 0 ? this.centerPose() : this.equipmentPose(i, ordinal, count, card);
       }
       case 'limbo':
         return zone.kind === 'store' ? this.storePose(ordinal, count) : this.centerPose(0.05);
@@ -274,9 +314,14 @@ export class CardWorld {
 
   tick(dt: number, now: number): boolean {
     let moving = this.table.tick(dt, now);
+    if (this.seatCards.tick(dt)) moving = true;
     for (const h of this.handles.values()) if (h.tick(dt)) moving = true;
     return moving;
   }
+}
+
+function isWeapon(card: CardId): boolean {
+  return CARD_DEFS[kindOf(card)].equip === 'weapon';
 }
 
 /** 지금 가운데 펼쳐져 있는 공개 카드 */

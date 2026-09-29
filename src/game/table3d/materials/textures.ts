@@ -11,7 +11,7 @@ import type { ImageSourcePropType } from 'react-native';
 import * as THREE from 'three';
 
 import { CARD_DEFS } from '../../data/cards.base';
-import type { CardKind, Suit } from '../../data/types';
+import type { CardKind, Role, Suit } from '../../data/types';
 import { Colors } from '@/constants/theme';
 import { insideStar, insideSuit } from './suit-sdf';
 
@@ -297,6 +297,238 @@ export function feltNoiseTexture(): THREE.DataTexture {
   feltTex.repeat.set(6, 6);
   feltTex.colorSpace = THREE.NoColorSpace;
   return feltTex;
+}
+
+// ---------------------------------------------------------------------------
+// 플레이어 보드·역할·캐릭터 (그림이 없을 때)
+// ---------------------------------------------------------------------------
+
+export const BOARD_TEX_W = 256;
+export const BOARD_TEX_H = 182;
+
+/** 캡슐(둥근 막대) 안인가. (ax,ay)→(bx,by) 선분에서 r 이내 */
+function nearSegment(x: number, y: number, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(x - (ax + dx * t), y - (ay + dy * t));
+}
+
+let boardTex: THREE.DataTexture | null = null;
+
+/**
+ * 플레이어 보드. 원본 그림과 같은 자리에 총알 윤곽 5개와 슬롯 3칸을 찍는다.
+ * 좌표는 core/layout.ts 의 BOARD_SLOTS 와 맞춘다.
+ */
+export function playerBoardTexture(): THREE.DataTexture {
+  if (boardTex) return boardTex;
+  const W = BOARD_TEX_W;
+  const H = BOARD_TEX_H;
+  const sky = hex('#B98F4E');
+  const ground = hex('#6E4A2B');
+  const line: RGBA = [246, 238, 220, 235];
+  const p = new Painter(W, H);
+  p.each((x, y) => {
+    const t = y / H;
+    const c = (i: number) => Math.round(sky[i] * (1 - t) + ground[i] * t);
+    if (!insideRoundRect(x, y, W, H, 10, 0)) return null;
+    return [c(0), c(1), c(2), 255];
+  });
+
+  // 총알 윤곽 5개: 왼쪽 위에서 오른쪽 아래로 기운 캡슐
+  const bulletU = [-0.373, -0.192, -0.005, 0.183, 0.37];
+  for (const u of bulletU) {
+    const cx = (0.5 + u) * W;
+    const cy = 0.15 * H;
+    const len = 17;
+    const ax = cx - len * 0.82;
+    const ay = cy - len * 0.57;
+    const bx = cx + len * 0.82;
+    const by = cy + len * 0.57;
+    p.each((x, y) => {
+      const d = nearSegment(x, y, ax, ay, bx, by);
+      return d > 5 && d < 7 ? line : null;
+    });
+  }
+
+  // 슬롯 3칸: 흰 선 둥근 사각형
+  const slotU = [-0.317, 0, 0.32];
+  const sw = 0.288 * W;
+  const sh = 0.65 * H;
+  const sy = (0.5 + 0.116) * H - sh / 2;
+  slotU.forEach((u, i) => {
+    const sx = (0.5 + u) * W - sw / 2;
+    p.each((x, y) => {
+      const lx = x - sx;
+      const ly = y - sy;
+      const inOuter = insideRoundRect(lx, ly, sw, sh, 8, 0);
+      const inInner = insideRoundRect(lx, ly, sw, sh, 8, 2);
+      return inOuter && !inInner ? line : null;
+    });
+    // 오른쪽 칸에는 기본 무기(콜트 .45) 자리를 파란 테두리 카드로
+    if (i === 2) {
+      const cw = sw * 0.62;
+      const ch = sh * 0.62;
+      const cx = (0.5 + u) * W - cw / 2 + 4;
+      const cy = sy + sh / 2 - ch / 2;
+      const blue = hex(Colors.cardBlue);
+      const paper = hex(Colors.paper);
+      p.each((x, y) => {
+        const lx = x - cx;
+        const ly = y - cy;
+        if (!insideRoundRect(lx, ly, cw, ch, 5, 0)) return null;
+        if (!insideRoundRect(lx, ly, cw, ch, 5, 3)) return blue;
+        // 가운데 권총 실루엣 대신 가로 막대
+        if (Math.abs(ly - ch * 0.45) < 3 && lx > cw * 0.2 && lx < cw * 0.8) return blue;
+        return paper;
+      });
+    }
+  });
+
+  boardTex = p.toTexture();
+  return boardTex;
+}
+
+let bulletTex: THREE.DataTexture | null = null;
+
+/** 목숨 총알 한 발. 가로로 누운 모양: 왼쪽 놋쇠 탄피, 오른쪽 구리 탄두 */
+export function bulletTexture(): THREE.DataTexture {
+  if (bulletTex) return bulletTex;
+  const W = 96;
+  const H = 32;
+  const brass = hex('#E0B04A');
+  const brassDark = hex('#9C7424');
+  const copper = hex('#C8703A');
+  const shine: RGBA = [255, 244, 200, 170];
+  const p = new Painter(W, H);
+  const cy = H / 2;
+  p.each((x, y) => {
+    const dy = Math.abs(y - cy);
+    // 탄피 테두리 (뒷면 림)
+    if (x >= 4 && x < 10 && dy < 13) return brassDark;
+    // 탄피 몸통
+    if (x >= 10 && x < 58 && dy < 11) return y < cy - 5 && y > cy - 9 ? shine : brass;
+    // 탄두: 둥근 끝
+    if (x >= 58 && x < 92) {
+      const t = (x - 58) / 34;
+      const r = 11 * Math.sqrt(Math.max(0, 1 - t * t));
+      if (dy < r) return y < cy - r * 0.45 && y > cy - r * 0.8 ? shine : copper;
+    }
+    return null;
+  });
+  bulletTex = p.toTexture();
+  return bulletTex;
+}
+
+/** 역할 카드 뒷면의 보안관 배지. 여섯 꼭짓점 별 + 끝의 구슬 */
+function insideBadge(x: number, y: number): boolean {
+  const a = Math.atan2(y, x) + Math.PI / 2;
+  const r = Math.hypot(x, y);
+  const k = Math.abs(Math.cos(a * 3));
+  if (r < 0.34 + 0.46 * Math.pow(k, 3)) return true;
+  for (let i = 0; i < 6; i++) {
+    const t = (i * Math.PI) / 3 - Math.PI / 2;
+    if (Math.hypot(x - 0.84 * Math.cos(t), y - 0.84 * Math.sin(t)) < 0.1) return true;
+  }
+  return false;
+}
+
+let roleBackTex: THREE.DataTexture | null = null;
+
+/** 역할 카드 뒷면. 일반 카드 뒷면과 구분되게 짙은 바탕에 금색 배지 */
+export function roleBackTexture(): THREE.DataTexture {
+  if (roleBackTex) return roleBackTex;
+  const base = hex('#2E1F12');
+  const gold = hex(Colors.sheriff);
+  const goldSoft: RGBA = [gold[0], gold[1], gold[2], 150];
+  const p = new Painter(FACE_W, FACE_H);
+  const radius = 12;
+  p.each((x, y) => {
+    if (!insideRoundRect(x, y, FACE_W, FACE_H, radius, 0)) return null;
+    if (!insideRoundRect(x, y, FACE_W, FACE_H, radius, 5)) return gold;
+    if (!insideRoundRect(x, y, FACE_W, FACE_H, radius, 11) && insideRoundRect(x, y, FACE_W, FACE_H, radius, 9))
+      return goldSoft;
+    return base;
+  });
+  p.each((x, y) => {
+    const nx = (x - FACE_W / 2) / 44;
+    const ny = (y - FACE_H / 2) / 44;
+    if (!insideBadge(nx, ny)) return null;
+    return Math.hypot(nx, ny) < 0.22 ? base : gold;
+  });
+  roleBackTex = p.toTexture();
+  return roleBackTex;
+}
+
+const ROLE_TINT: Record<Role, string> = {
+  sheriff: Colors.sheriff,
+  deputy: Colors.deputy,
+  outlaw: Colors.outlaw,
+  renegade: Colors.renegade,
+};
+
+const roleFaceTex = new Map<Role, THREE.DataTexture>();
+
+/** 역할 카드 앞면. 역할색 테두리와 배지. 글자는 라벨이 맡는다 */
+export function roleFaceTexture(role: Role): THREE.DataTexture {
+  const hit = roleFaceTex.get(role);
+  if (hit) return hit;
+  const tint = hex(ROLE_TINT[role]);
+  const paper = hex(Colors.paper);
+  const p = new Painter(FACE_W, FACE_H);
+  const radius = 12;
+  p.each((x, y) => {
+    if (!insideRoundRect(x, y, FACE_W, FACE_H, radius, 0)) return null;
+    if (!insideRoundRect(x, y, FACE_W, FACE_H, radius, 8)) return tint;
+    return paper;
+  });
+  p.each((x, y) => {
+    const nx = (x - FACE_W / 2) / 40;
+    const ny = (y - FACE_H / 2) / 40;
+    return insideBadge(nx, ny) ? tint : null;
+  });
+  const tex = p.toTexture();
+  roleFaceTex.set(role, tex);
+  return tex;
+}
+
+/** 캐릭터 카드 초상 창. 카드 비율 좌표 (가운데 원점, 위가 +) */
+export const PORTRAIT_WINDOW = { w: 0.84, h: 0.62, y: 0.13 } as const;
+
+let characterTex: THREE.DataTexture | null = null;
+
+/** 캐릭터 카드 틀. 초상은 위에 평면을 하나 더 얹는다 */
+export function characterFrameTexture(): THREE.DataTexture {
+  if (characterTex) return characterTex;
+  const brown = hex(Colors.cardBrown);
+  const paper = hex(Colors.paper);
+  const window = hex('#CDB689');
+  const p = new Painter(FACE_W, FACE_H);
+  const radius = 12;
+  const ww = PORTRAIT_WINDOW.w * FACE_W;
+  const wh = PORTRAIT_WINDOW.h * FACE_H;
+  const wx = (FACE_W - ww) / 2;
+  const wy = FACE_H * (0.5 - PORTRAIT_WINDOW.y) - wh / 2;
+  p.each((x, y) => {
+    if (!insideRoundRect(x, y, FACE_W, FACE_H, radius, 0)) return null;
+    if (!insideRoundRect(x, y, FACE_W, FACE_H, radius, 6)) return brown;
+    if (x >= wx && x < wx + ww && y >= wy && y < wy + wh) return window;
+    return paper;
+  });
+  // 창 안의 사람 실루엣 (그림이 없을 때만 보인다)
+  const sil = hex(Colors.cardBrown, 90);
+  p.each((x, y) => {
+    const nx = (x - FACE_W / 2) / (ww / 2);
+    const ny = (y - (wy + wh / 2)) / (wh / 2);
+    const head = Math.hypot(nx, (ny + 0.25) * 1.1) < 0.28;
+    const hat = Math.abs(ny + 0.5) < 0.07 && Math.abs(nx) < 0.5;
+    const body = ny > 0.1 && ny < 1 && Math.abs(nx) < 0.3 + (ny - 0.1) * 0.5;
+    return head || hat || body ? sil : null;
+  });
+  // 아래쪽 목숨 자리 띠
+  p.each((x, y) => (y > FACE_H - 30 && y < FACE_H - 26 && x > 20 && x < FACE_W - 20 ? brown : null));
+  characterTex = p.toTexture();
+  return characterTex;
 }
 
 // ---------------------------------------------------------------------------
