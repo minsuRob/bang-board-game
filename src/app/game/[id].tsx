@@ -12,6 +12,7 @@ import { useChat } from '@/game/store/use-chat';
 import { useOnlineGameSession, useRoomConnection } from '@/game/store/use-online-game';
 import { preloadArt, useArtProgress, useArtReady } from '@/game/ui/art-preload';
 import { GameClock, useStopwatch } from '@/game/ui/GameClock';
+import { FullscreenButton } from '@/game/ui/FullscreenButton';
 import { PauseButton } from '@/game/ui/PauseButton';
 import { SoundButton } from '@/game/ui/SoundButton';
 import { SpeedControl } from '@/game/ui/SpeedControl';
@@ -187,6 +188,7 @@ export default function GameScreen() {
           {!setup.auto && !state.result && <SpeedControl speed={speed} onChange={onSpeedChange} />}
           {canPause && <PauseButton paused={paused} onToggle={() => setPaused((v) => !v)} />}
           <SoundButton />
+          <FullscreenButton />
         </View>
       )}
 

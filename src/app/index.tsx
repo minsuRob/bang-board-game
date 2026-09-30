@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { isFirebaseConfigured } from '@/firebase/config';
+import { FullscreenButton } from '@/game/ui/FullscreenButton';
 import { QualityPicker } from '@/game/ui/QualityPicker';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
@@ -76,11 +77,15 @@ export default function HomeScreen() {
         <Text style={styles.note}>카드를 누르면 낸다. 지목이 필요한 카드는 한 번 더 눌러 상대를 고른다.</Text>
         <Text style={styles.note}>Q 차례 마치기 · W 반응하지 않음 · 1~0 손패 고르기 · Esc 취소</Text>
       </View>
+
+      {/* 흐름 밖에 띄운다. 스크롤과 함께 올라가지만 첫 화면에서는 늘 오른쪽 위다. */}
+      <FullscreenButton style={styles.fullscreen} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  fullscreen: { position: 'absolute', top: Spacing.two, right: Spacing.two },
   container: {
     flexGrow: 1,
     alignItems: 'center',
