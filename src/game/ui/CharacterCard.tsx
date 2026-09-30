@@ -17,22 +17,26 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 export const CHARACTER_CARD = { width: 150, height: 214 } as const;
 const BORDER = 2;
 
-export function CharacterCard({ id, compact }: { id: CharacterId; compact?: boolean }) {
+/** `width` 를 주면 그 폭에 원래 비율로 맞춘다 */
+export function CharacterCard({ id, compact, width }: { id: CharacterId; compact?: boolean; width?: number }) {
   const def = CHARACTERS[id];
   const art = characterArt(id);
-  const w = compact ? 112 : CHARACTER_CARD.width;
-  const h = compact ? 160 : CHARACTER_CARD.height;
+  const w = width ?? (compact ? 112 : CHARACTER_CARD.width);
+  const h = width ? Math.round((width * CHARACTER_CARD.height) / CHARACTER_CARD.width) : compact ? 160 : CHARACTER_CARD.height;
+  // 작게 줄였으면 이름이 잘리지 않게 목숨 점은 뺀다
+  const showHp = !width || width >= 130;
+  const tiny = !!width && width < 100;
 
   return (
     <View style={[styles.card, { width: w, height: h }]}>
       {art ? (
         <>
           <CharacterPortraitImage id={id} width={w - BORDER * 2} height={h - BORDER * 2} />
-          <View style={styles.strip}>
-            <Text style={styles.stripName} numberOfLines={1}>
+          <View style={[styles.strip, tiny && styles.stripTiny]}>
+            <Text style={[styles.stripName, tiny && styles.stripNameTiny]} numberOfLines={1}>
               {def.nameKo}
             </Text>
-            <Text style={styles.stripHp}>{'●'.repeat(def.maxHp)}</Text>
+            {showHp && <Text style={styles.stripHp}>{'●'.repeat(def.maxHp)}</Text>}
           </View>
         </>
       ) : (
@@ -81,5 +85,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stripName: { color: Colors.text, fontWeight: '800', fontSize: 12, flexShrink: 1 },
+  stripTiny: { paddingHorizontal: 3 },
+  stripNameTiny: { fontSize: 10 },
   stripHp: { color: Colors.hp, fontSize: 10, letterSpacing: 1 },
 });

@@ -6,20 +6,24 @@
  * 2. 내 손패를 살펴보는 동안(웹 hover, 폰 첫 탭) 그 카드가 떠 있다. 이쪽이 우선이다.
  *
  * 카드 아래에는 드래프트와 같은 종이 명판으로 상황과 카드 효과를 적는다.
+ * 누구를 겨눈 카드면 낸 사람과 대상의 캐릭터 카드를, 빗나감!이면 피한 사람의 캐릭터 카드를 양옆에 세운다.
+ * 드러난 부관이면 캐릭터 카드 위에 부관 별을 단다.
  * 연출이 붙은 카드(fx/card-fx.ts)는 카드가 올라선 직후 소리와 화면 효과가 같은 틱에 터진다.
  * 첫 메뉴에서 고화질을 골랐고 Skia 가 준비됐으면 Skia 연출(fx/skia), 아니면 일반 연출(RN Animated).
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Easing, Image, Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { cancelAnimation, Easing as ReEasing, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useStore } from 'zustand';
 
 import { BASE_DECK } from '../data/cards.base';
-import type { CardId } from '../data/types';
-import { defOf, isHidden, type GameEvent, type GameState, type PlayerId } from '../engine';
+import type { CardId, CharacterId } from '../data/types';
+import { defOf, isHidden, roleVisibleTo, type GameEvent, type GameState, type PlayerId } from '../engine';
 import { fxPacing } from '../store/fx-pacing';
+import { roleArt } from './card-art';
 import { CAN_HOVER, cardPeek, setPeek } from './card-peek';
+import { CharacterCard } from './CharacterCard';
 import { CARD_DIMENSIONS, CardView } from './CardView';
 import { cardFxFor, type CardFx } from './fx/card-fx';
 import { GUNSHOT_MS, GunshotFx, recoilStyle, screenFlashStyle } from './fx/GunshotFx';
@@ -39,12 +43,16 @@ import {
 import { PaperPlaque, plaque } from './PaperPlaque';
 import { playSfx, preloadSfx } from './sfx';
 import type { TableApi } from './use-table';
-import { Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 
 const NATIVE_DRIVER = Platform.OS !== 'web';
 
 /** 손에서 카드를 내는 로그 */
 const PLAY_EVENTS = new Set(['playCard', 'playMissed', 'indiansBang', 'duelBang']);
+
+/** 카드 양옆에 세우는 캐릭터 카드 폭 */
+const FACE_W = 112;
+const FACE_W_COMPACT = 76;
 
 /** 1배속에서 떠 있는 시간 */
 const SHOW_MS = 2200;
@@ -137,6 +145,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
           <PlayedSpot
             key={`${shown.seq}:${shown.card}`}
             event={shown}
+            faces={facesOf(view, viewer, shown)}
             compact={compact}
             stage={stage}
             onDone={() => setShown((cur) => (cur === shown ? null : cur))}
@@ -160,16 +169,41 @@ function peekHint(api: PlayedCardSpotlightProps['api'], card: CardId): string {
   return '지금은 낼 수 없다';
 }
 
+/** 양옆에 세울 사람. 부관은 역할이 보일 때만 표시한다 */
+type Face = { character: CharacterId; deputy: boolean };
+/** 카드 왼쪽에 낸 사람, 오른쪽에 겨눈 사람 */
+type Faces = { actor: Face | null; target: Face | null };
+
+function facesOf(view: GameState, viewer: PlayerId, event: GameEvent): Faces | null {
+  const characterOf = (pid?: PlayerId): Face | null => {
+    const p = view.players.find((q) => q.id === pid);
+    if (!p) return null;
+    return { character: p.character, deputy: p.role === 'deputy' && roleVisibleTo(viewer, p) };
+  };
+  // 뱅!·캣 발루·강탈·결투·감옥처럼 남을 겨눈 카드
+  if (event.t === 'playCard') {
+    if (!event.target || event.target === event.pid) return null;
+    return { actor: characterOf(event.pid), target: characterOf(event.target) };
+  }
+  // 빗나감!으로 피했거나 결투에서 뱅!으로 맞섰다
+  if (event.t === 'playMissed' || event.t === 'duelBang') {
+    const actor = characterOf(event.pid);
+    return actor ? { actor, target: null } : null;
+  }
+  return null;
+}
+
 /** 누가 낸 카드. 튀어 올랐다가 잠시 뒤 사라진다. 연출이 붙은 카드면 올라선 직후 터진다 */
 type PlayedSpotProps = {
   event: GameEvent;
+  faces: Faces | null;
   compact?: boolean;
   /** 고화질 무대. 없으면 일반 연출 */
   stage: HqStage | null;
   onDone: () => void;
 };
 
-function PlayedSpot({ event, compact, stage, onDone }: PlayedSpotProps) {
+function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
   const found = cardFxFor(event);
   // 화질은 카드가 뜰 때 한 번 정한다. 도중에 설정이 바뀌어도 연출이 섞이지 않게
   const [hq] = useState(() => (found ? stage : null));
@@ -271,6 +305,7 @@ function PlayedSpot({ event, compact, stage, onDone }: PlayedSpotProps) {
         <CardSpotlight
           card={event.card!}
           meta={event.text}
+          faces={faces}
           compact={compact}
           anchorRef={anchor}
           cardWrap={(card) => (
@@ -290,6 +325,7 @@ function PlayedSpot({ event, compact, stage, onDone }: PlayedSpotProps) {
         <CardSpotlight
           card={event.card!}
           meta={event.text}
+          faces={faces}
           compact={compact}
           cardStyle={fx ? recoilStyle(shot) : undefined}
           overlay={fx ? <CardFxOverlay fx={fx} shot={shot} width={dim.width} height={dim.height} compact={compact} /> : null}
@@ -345,6 +381,8 @@ function PeekSpot({ card, meta, compact }: { card: CardId; meta: string; compact
 type CardSpotlightProps = {
   card: CardId;
   meta: string;
+  /** 양옆에 세울 캐릭터 카드 */
+  faces?: Faces | null;
   hint?: boolean;
   compact?: boolean;
   /** 카드에 걸 움직임 (반동 등) */
@@ -357,19 +395,38 @@ type CardSpotlightProps = {
   overlay?: React.ReactNode;
 };
 
-function CardSpotlight({ card, meta, hint, compact, cardStyle, anchorRef, cardWrap, overlay }: CardSpotlightProps) {
+function CardSpotlight({ card, meta, faces, hint, compact, cardStyle, anchorRef, cardWrap, overlay }: CardSpotlightProps) {
   const def = defOf(card);
   const cardNode = (
     <Animated.View style={[styles.cardShadow, cardStyle]}>
       <CardView card={card} size={compact ? 'lg' : 'xl'} />
     </Animated.View>
   );
+  const played = (
+    <View ref={anchorRef}>
+      {cardWrap ? cardWrap(cardNode) : cardNode}
+      {overlay}
+    </View>
+  );
+  const faceW = compact ? FACE_W_COMPACT : FACE_W;
+  // 한쪽만 있어도 빈 칸을 둬서 낸 카드가 가운데에 머문다
+  const face = (f: Face | null, side: 'actor' | 'target') => (
+    <View style={[{ width: faceW }, f && styles.cardShadow, f && (side === 'actor' ? styles.faceActor : styles.faceTarget)]}>
+      {f && <CharacterCard id={f.character} width={faceW} />}
+      {f?.deputy && <DeputyStar size={compact ? 26 : 34} />}
+    </View>
+  );
   return (
     <>
-      <View ref={anchorRef}>
-        {cardWrap ? cardWrap(cardNode) : cardNode}
-        {overlay}
-      </View>
+      {faces ? (
+        <View style={styles.faceRow}>
+          {face(faces.actor, 'actor')}
+          {played}
+          {face(faces.target, 'target')}
+        </View>
+      ) : (
+        played
+      )}
       <PaperPlaque compact={compact} style={compact ? styles.plaqueCompact : styles.plaque}>
         <Text style={[plaque.meta, hint && plaque.hint]} numberOfLines={1}>
           {meta}
@@ -381,6 +438,30 @@ function CardSpotlight({ card, meta, hint, compact, cardStyle, anchorRef, cardWr
         </Text>
       </PaperPlaque>
     </>
+  );
+}
+
+/** 부관 역할 카드의 별 자리 (원본 250×389 기준) */
+const STAR = { cx: 126, cy: 167, span: 176 };
+
+/** 캐릭터 카드 위쪽 가운데에 다는 부관 별. 역할 카드 그림이 없으면 글자 별로 대신한다 */
+function DeputyStar({ size }: { size: number }) {
+  const art = roleArt('deputy');
+  const k = size / STAR.span;
+  return (
+    <View
+      accessibilityLabel="부관"
+      style={[styles.star, { width: size, height: size, borderRadius: size / 2, top: -size / 2, marginLeft: -size / 2 }]}>
+      {art ? (
+        <Image
+          source={art}
+          style={{ position: 'absolute', width: 250 * k, height: 389 * k, left: size / 2 - STAR.cx * k, top: size / 2 - STAR.cy * k }}
+          resizeMode="stretch"
+        />
+      ) : (
+        <Text style={[styles.starGlyph, { fontSize: size * 0.62 }]}>★</Text>
+      )}
+    </View>
   );
 }
 
@@ -421,6 +502,21 @@ const styles = StyleSheet.create({
   screenFlash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#FFF6DA' },
   spot: { alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three },
   cardShadow: { borderRadius: 8, boxShadow: '0 12px 28px rgba(0,0,0,0.6)' },
+  faceRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  faceActor: { transform: [{ rotate: '-5deg' }] },
+  faceTarget: { transform: [{ rotate: '5deg' }] },
+  star: {
+    position: 'absolute',
+    left: '50%',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.paper,
+    borderWidth: 2,
+    borderColor: Colors.deputy,
+    boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+  },
+  starGlyph: { color: Colors.deputy, fontWeight: '900' },
   plaque: { width: 340, gap: 2 },
   plaqueCompact: { width: 260, gap: 1 },
 });
