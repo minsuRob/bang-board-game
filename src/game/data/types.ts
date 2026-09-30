@@ -124,7 +124,9 @@ export type CharacterId =
   | 'bartCassidy' | 'blackJack' | 'calamityJanet' | 'elGringo' | 'jesseJones'
   | 'jourdonnais' | 'kitCarlson' | 'luckyDuke' | 'paulRegret' | 'pedroRamirez'
   | 'roseDoolan' | 'sidKetchum' | 'slabTheKiller' | 'suzyLafayette'
-  | 'vultureSam' | 'willyTheKid';
+  | 'vultureSam' | 'willyTheKid'
+  // 하이 눈 프로모
+  | 'uncleWill' | 'johnnyKisch';
 
 export type CharacterDef = {
   id: CharacterId;
@@ -133,6 +135,8 @@ export type CharacterDef = {
   /** 캐릭터 카드에 그려진 총알 수. 보안관은 여기에 +1 */
   maxHp: number;
   ability: string;
+  /** 확장판 캐릭터면 그 확장판. 없으면 기본판 */
+  expansion?: Expansion;
 };
 
 // ---------------------------------------------------------------------------

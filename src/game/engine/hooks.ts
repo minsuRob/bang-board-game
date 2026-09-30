@@ -8,7 +8,7 @@
 import { CHARACTER_MODIFIERS, equipmentModifier, EVENT_MODIFIERS } from '../modifiers';
 import type { CardId, CardKind } from '../data/types';
 import { kindOf, playerOf } from './cards';
-import type { AnytimeAbility, ModCtx, Modifier } from './modifier';
+import type { AnytimeAbility, ModCtx, Modifier, PlayAsAbility } from './modifier';
 import type { Frame, GameState, PlayerId } from './types';
 
 const DEFAULT_ORDER = 50;
@@ -130,6 +130,14 @@ export function canUseCardAs(
   return getModifiers(state, pid).some((m) => m.canUseAs?.(from, as) ?? false);
 }
 
+/** 이번 차례에 아직 쓸 수 있는 '아무 카드나 ~로' 능력 (엉클 윌) */
+export function playAnyAsAbilitiesOf(state: GameState, pid: PlayerId): PlayAsAbility[] {
+  const used = playerOf(state, pid).usedThisTurn;
+  return getModifiers(state, pid)
+    .flatMap((m) => (m.playAnyAs ? [m.playAnyAs] : []))
+    .filter((ab) => !used.includes(ab.key));
+}
+
 /** 언제든 쓸 수 있는 능력 목록 */
 export function anytimeAbilitiesOf(state: GameState, pid: PlayerId): AnytimeAbility[] {
   return getModifiers(state, pid).flatMap((m) => m.anytime ?? []);
@@ -179,6 +187,17 @@ export function onEliminatedFrames(state: GameState, victim: PlayerId): Frame[] 
 export function onTurnStartFrames(state: GameState, pid: PlayerId): Frame[] {
   const ctx = ctxOf(state, pid);
   return getModifiers(state, pid).flatMap((m) => m.onTurnStart?.(ctx) ?? []);
+}
+
+/** 파랑 카드를 앞에 내려놓은 직후. pid 는 카드를 낸 사람이다 (조니 키시) */
+export function onPutInPlayFrames(
+  state: GameState,
+  pid: PlayerId,
+  card: CardId,
+  holder: PlayerId,
+): Frame[] {
+  const ctx = ctxOf(state, pid);
+  return getModifiers(state, pid).flatMap((m) => m.onPutInPlay?.(ctx, card, holder) ?? []);
 }
 
 export function onEventEnterFrames(state: GameState): Frame[] {

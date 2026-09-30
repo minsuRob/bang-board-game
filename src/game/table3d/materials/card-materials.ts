@@ -4,12 +4,13 @@
 
 import * as THREE from 'three';
 
-import type { CardKind, CharacterId, Role, Suit } from '../../data/types';
+import type { CardKind, CharacterId, EventCardId, Role, Suit } from '../../data/types';
 import { cardOf } from '../../engine';
 import {
   type ArtCrop,
   cardBackArt,
   characterPortrait,
+  eventArt,
   playerBoardArt,
   playingCardArt,
   roleArt,
@@ -201,6 +202,18 @@ export function eventMaterialShared(): THREE.MeshBasicMaterial {
   if (eventMaterial) return eventMaterial;
   eventMaterial = new THREE.MeshBasicMaterial({ map: eventCardTexture(), transparent: true });
   return eventMaterial;
+}
+
+const eventMaterials = new Map<EventCardId, THREE.MeshBasicMaterial>();
+
+/** 공개된 이벤트 카드 한 장. 그림이 없으면 자리표시 카드 그대로다 */
+export function eventMaterialFor(id: EventCardId): THREE.MeshBasicMaterial {
+  const hit = eventMaterials.get(id);
+  if (hit) return hit;
+  const mat = new THREE.MeshBasicMaterial({ map: eventCardTexture(), transparent: true });
+  swapInArt(mat, eventArt(id));
+  eventMaterials.set(id, mat);
+  return mat;
 }
 
 /** 그림이 늦게 도착했을 때 화면을 한 번 더 그리게 하는 훅. Scene 이 invalidate 를 꽂는다 */

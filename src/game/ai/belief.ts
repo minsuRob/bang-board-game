@@ -207,7 +207,7 @@ function readLog(
     switch (ev.t) {
       case 'playCard': {
         if (!ev.card || ev.card === '?') break;
-        const kind = kindOf(ev.card);
+        const kind = ev.as ?? kindOf(ev.card);
         if (kind === 'gatling' || kind === 'indians') {
           evidence[actor].anti += AREA_ANTI;
           break;

@@ -27,7 +27,13 @@ export {
   effectiveSuit,
   weaponOf,
 } from './cards';
-export { bangLimitOf, getModifiers, anytimeAbilitiesOf, playableAs } from './hooks';
+export {
+  bangLimitOf,
+  getModifiers,
+  anytimeAbilitiesOf,
+  playAnyAsAbilitiesOf,
+  playableAs,
+} from './hooks';
 export { viewFor, isHidden, roleVisibleTo, HIDDEN_CARD } from './view';
 export { createRng } from './rng';
 export type { RngState } from './rng';
@@ -48,3 +54,4 @@ export type {
   TurnState,
 } from './types';
 export type { Seat } from './setup';
+export type { PlayAsAbility } from './modifier';

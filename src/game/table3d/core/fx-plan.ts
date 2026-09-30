@@ -88,7 +88,8 @@ export function planFx(t: Transition, moves: CardMove[], viewer: PlayerId | null
 
       case 'playCard': {
         const m = moveOf(e.card);
-        const kind = e.card ? kindOf(e.card) : null;
+        // 다른 종류로 냈으면(칼라미티 자넷·엉클 윌) 그 종류로 연출한다
+        const kind = e.card ? (e.as ?? kindOf(e.card)) : null;
         if (m && e.pid) {
           // 지목 카드는 대상 위에서 한 번 머물렀다가 떨어진다 (감옥은 대상 앞에 장착되므로 diff 가 처리)
           const hover = e.target && m.to?.z === 'discard' && e.target !== e.pid;

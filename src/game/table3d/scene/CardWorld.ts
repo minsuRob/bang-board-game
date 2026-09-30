@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 
 import { CARD_DEFS } from '../../data/cards.base';
-import type { CardId } from '../../data/types';
+import type { CardId, EventCardId } from '../../data/types';
 import { kindOf, type GameState, type PlayerId } from '../../engine';
 import {
   equipmentOffset,
@@ -21,8 +21,13 @@ import {
   SLOT_CARD_SCALE,
   storeSlot,
 } from '../core/layout';
-import { CARD_SIZE, type FxBudget, type TableLayout, type Vec3, type Zone } from '../core/types';
-import { backMaterialShared, eventMaterialShared, cardPlaneGeometry } from '../materials/card-materials';
+import { CARD_SIZE, EVENT_CARD_SCALE, type FxBudget, type TableLayout, type Vec3, type Zone } from '../core/types';
+import {
+  backMaterialShared,
+  cardPlaneGeometry,
+  eventMaterialFor,
+  eventMaterialShared,
+} from '../materials/card-materials';
 import { BoardBullets } from './BoardBullets';
 import { CardHandle, IDLE_POSE, type Pose } from './CardHandle';
 import { OpponentFans } from './OpponentFans';
@@ -46,6 +51,8 @@ export class CardWorld {
   private readonly deckStack: THREE.Mesh;
   private readonly discardStack: THREE.Mesh;
   private readonly eventCard: THREE.Mesh;
+  /** 지금 이벤트 카드 메시에 입혀 둔 이벤트 */
+  private eventShown: EventCardId | null = null;
 
   constructor(readonly budget: FxBudget) {
     const side = new THREE.MeshBasicMaterial({ color: '#2B1F13' });
@@ -55,7 +62,7 @@ export class CardWorld {
     this.discardStack = new THREE.Mesh(box, [paperSide, paperSide, paperSide, paperSide, paperSide, paperSide]);
     this.eventCard = new THREE.Mesh(cardPlaneGeometry(CARD_SIZE.w, CARD_SIZE.h), eventMaterialShared());
     this.eventCard.rotation.x = -Math.PI / 2;
-    this.eventCard.scale.setScalar(1.05);
+    this.eventCard.scale.setScalar(EVENT_CARD_SCALE);
     this.eventCard.visible = false;
     this.root.add(
       this.table.root,
@@ -172,8 +179,13 @@ export class CardWorld {
     const counts = state.players.map((p, i) => (i === viewerIndex ? 0 : p.hand.length));
     this.fans.update(layout, counts);
 
-    // 이벤트 카드
-    this.eventCard.visible = Boolean(state.event?.current);
+    // 이벤트 카드. 새 이벤트가 공개되면 그 카드의 그림으로 갈아입는다
+    const current = state.event?.current ?? null;
+    this.eventCard.visible = current !== null;
+    if (current !== this.eventShown) {
+      this.eventCard.material = current ? eventMaterialFor(current) : eventMaterialShared();
+      this.eventShown = current;
+    }
 
     // 매트 색
     state.players.forEach((p, i) => {

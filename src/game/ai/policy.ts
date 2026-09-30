@@ -197,9 +197,16 @@ function scorePlay(
       return 9;
     case 'wellsFargo':
       return 13;
-    case 'generalStore':
+    case 'generalStore': {
       // 내가 먼저 고르니 이득이지만 모두가 카드를 얻는다
-      return survivors <= 4 ? 7 : 4;
+      const base = survivors <= 4 ? 7 : 4;
+      const own = safeKind(action.card);
+      if (!own || own === 'generalStore') return base;
+      // 다른 카드를 잡화점으로 낸다(엉클 윌). 그 카드의 값어치를 치른다.
+      // 어차피 버릴 카드(손패가 넘칠 때)면 거의 공짜다.
+      const overflow = my.hand.length > my.hp;
+      return base - cardValue(own) * 1.2 + (overflow ? cardValue(own) : 0);
+    }
     case 'gatling':
       return scoreArea(view, me, beliefs, sit, 15) + 2;
     case 'indians':

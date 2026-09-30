@@ -10,7 +10,7 @@
 
 import { BASE_DECK } from '../data/cards.base';
 import { HIGHNOON_FINAL_ID, HIGHNOON_SHUFFLED_IDS } from '../data/cards.highnoon';
-import { CHARACTER_IDS } from '../data/characters';
+import { charactersFor } from '../data/characters';
 import { MAX_PLAYERS, MIN_PLAYERS, ROLE_DISTRIBUTION } from '../data/roles';
 import type { CharacterId, EventCardId } from '../data/types';
 import { createRng, shuffle } from './rng';
@@ -44,10 +44,11 @@ export function createGame(seed: number, config: GameConfig, seats: Seat[]): Gam
   // 캐릭터 후보. 하이 눈 '새로운 신분'의 예비 캐릭터는 드래프트에서 안 고른 후보로 준다.
   const per = draftOfferCount(count);
   const needed = count * per;
-  if (needed > CHARACTER_IDS.length) {
-    throw new Error(`캐릭터가 모자란다: ${needed}장 필요, ${CHARACTER_IDS.length}종 보유`);
+  const pool = charactersFor(config.expansions);
+  if (needed > pool.length) {
+    throw new Error(`캐릭터가 모자란다: ${needed}장 필요, ${pool.length}종 보유`);
   }
-  const charsRolled = shuffle(rng, CHARACTER_IDS);
+  const charsRolled = shuffle(rng, pool);
   rng = charsRolled.rng;
   const chars = charsRolled.value;
 

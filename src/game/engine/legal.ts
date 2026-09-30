@@ -23,6 +23,7 @@ import {
   bangLimitOf,
   canPlayCard,
   canUseCardAs,
+  playAnyAsAbilitiesOf,
   playableAs,
 } from './hooks';
 import { hasSameBlueCard } from './play';
@@ -214,14 +215,17 @@ function respondActions(state: GameState, pid: PlayerId): Action[] {
 // 카드 사용 단계
 // ---------------------------------------------------------------------------
 
-/** 손에 든 카드를 어떤 종류로 쓸 수 있는지 (칼라미티 자넷 치환 포함) */
+/**
+ * 손에 든 카드를 어떤 종류로 쓸 수 있는지.
+ * 칼라미티 자넷의 뱅!↔빗나감! 치환과, 엉클 윌의 '아무 카드나 잡화점'을 포함한다.
+ */
 function usableKinds(state: GameState, pid: PlayerId, card: CardId): CardKind[] {
   const own = kindOf(card);
   const kinds = new Set<CardKind>([own]);
-  // 지금은 뱅!↔빗나감! 치환만 존재한다.
   for (const as of ['bang', 'missed'] as CardKind[]) {
     if (canUseCardAs(state, pid, own, as)) kinds.add(as);
   }
+  for (const ab of playAnyAsAbilitiesOf(state, pid)) kinds.add(ab.as);
   return [...kinds];
 }
 

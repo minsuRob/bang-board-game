@@ -8,11 +8,12 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { CARD_DEFS } from '../data/cards.base';
-import type { CardId, CharacterId, Suit } from '../data/types';
+import type { CardId, CardKind, CharacterId, Suit } from '../data/types';
 import {
   actionKey,
   kindOf,
   legalActions,
+  playAnyAsAbilitiesOf,
   type Action,
   type Choice,
   type GameState,
@@ -51,6 +52,11 @@ export type TableApi = {
   respond: (choice: Choice) => void;
   abilities: { key: string; label: string; cards: CardId[] }[];
   useAbility: (key: string, cards: CardId[]) => void;
+  /** 손의 아무 카드나 다른 종류로 내는 능력 (엉클 윌). 이번 차례에 쓸 수 있는 것만 */
+  playAsAbilities: { key: string; label: string; as: CardKind }[];
+  /** 켜 둔 playAs 능력. 켜져 있으면 손패는 그 능력으로만 낸다 */
+  armed: string | null;
+  arm: (key: string | null) => void;
   /** 캐릭터 드래프트 중이면 내 후보와 진행 상황. 아니면 null */
   draft: DraftInfo | null;
   pickCharacter: (id: CharacterId) => void;
@@ -67,10 +73,50 @@ export type DraftInfo = {
 export function useTable(view: GameState | null, viewer: PlayerId | null): TableApi {
   const submit = useGameStore((s) => s.submit);
   const [selected, setSelected] = useState<CardId | null>(null);
+  // 켠 차례를 같이 적어 두어, 차례가 넘어가면 저절로 꺼지게 한다
+  const [armedFor, setArmedFor] = useState<{ key: string; turn: string } | null>(null);
+  const turnId = view ? `${view.turn.round}:${view.turn.active}` : '';
 
-  const legal = useMemo<Action[]>(
+  const allLegal = useMemo<Action[]>(
     () => (view && viewer ? legalActions(view, viewer) : []),
     [view, viewer],
+  );
+
+  // '아무 카드나 ~로' 능력(엉클 윌)은 켰을 때만 손패에 드러낸다.
+  // 늘 섞어 두면 빗나감! 한 장이 소리 없이 잡화점으로 나가 버린다.
+  const playAs = useMemo(
+    () => (view && viewer ? playAnyAsAbilitiesOf(view, viewer) : []),
+    [view, viewer],
+  );
+  const isAbilityPlay = useCallback(
+    (a: Action) =>
+      a.type === 'playCard' &&
+      a.as !== undefined &&
+      a.as !== kindOf(a.card) &&
+      playAs.some((ab) => ab.as === a.as),
+    [playAs],
+  );
+  const playAsAbilities = useMemo(
+    () =>
+      playAs
+        .filter((ab) => allLegal.some((a) => isAbilityPlay(a) && a.type === 'playCard' && a.as === ab.as))
+        .map((ab) => ({ key: ab.key, label: ab.label, as: ab.as })),
+    [playAs, allLegal, isAbilityPlay],
+  );
+  const armedAbility =
+    armedFor && armedFor.turn === turnId
+      ? playAs.find((ab) => ab.key === armedFor.key && playAsAbilities.some((x) => x.key === ab.key))
+      : undefined;
+  const armed = armedAbility?.key ?? null;
+
+  const legal = useMemo<Action[]>(
+    () =>
+      allLegal.filter((a) => {
+        if (a.type !== 'playCard') return true;
+        if (!armedAbility) return !isAbilityPlay(a);
+        return isAbilityPlay(a) && a.as === armedAbility.as;
+      }),
+    [allLegal, armedAbility, isAbilityPlay],
   );
 
   const actor = selectActor(view);
@@ -108,8 +154,17 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
       if (!match) return;
       submit(match);
       setSelected(null);
+      setArmedFor(null);
     },
     [legal, submit],
+  );
+
+  const arm = useCallback(
+    (key: string | null) => {
+      setArmedFor(key ? { key, turn: turnId } : null);
+      setSelected(null);
+    },
+    [turnId],
   );
 
   const canEndTurn = legal.some((a) => a.type === 'endTurn');
@@ -197,6 +252,9 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     respond,
     abilities,
     useAbility,
+    playAsAbilities,
+    armed,
+    arm,
     draft,
     pickCharacter,
   };

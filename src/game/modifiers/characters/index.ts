@@ -12,6 +12,7 @@ import { blackJack } from './black-jack';
 import { calamityJanet } from './calamity-janet';
 import { elGringo } from './el-gringo';
 import { jesseJones } from './jesse-jones';
+import { johnnyKisch } from './johnny-kisch';
 import { jourdonnais } from './jourdonnais';
 import { kitCarlson } from './kit-carlson';
 import { luckyDuke } from './lucky-duke';
@@ -21,6 +22,7 @@ import { roseDoolan } from './rose-doolan';
 import { sidKetchum } from './sid-ketchum';
 import { slabTheKiller } from './slab-the-killer';
 import { suzyLafayette } from './suzy-lafayette';
+import { uncleWill } from './uncle-will';
 import { vultureSam } from './vulture-sam';
 import { willyTheKid } from './willy-the-kid';
 
@@ -41,7 +43,10 @@ export const CHARACTER_MODIFIERS: Record<CharacterId, Modifier> = {
   suzyLafayette,
   vultureSam,
   willyTheKid,
+  uncleWill,
+  johnnyKisch,
 };
 
 export { SID_KETCHUM_ABILITY } from './sid-ketchum';
 export { SUZY_REASON } from './suzy-lafayette';
+export { UNCLE_WILL_ABILITY } from './uncle-will';

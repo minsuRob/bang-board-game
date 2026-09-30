@@ -4,10 +4,11 @@
  * 2D 와 3D 테이블이 같이 쓴다. 규칙 판단은 전부 TableApi(=legalActions) 에 맡긴다.
  */
 
+import { CARD_DEFS } from '../data/cards.base';
 import type { CardId } from '../data/types';
 import { ROLE_LABEL } from '../data/roles';
 import type { GameState, PlayerId } from '../engine';
-import { ga } from '../engine/josa';
+import { ga, ro } from '../engine/josa';
 import { CAN_HOVER, cardPeek, setPeek } from './card-peek';
 import type { TableApi } from './use-table';
 
@@ -69,5 +70,10 @@ export function bottomStatus(view: GameState, viewer: PlayerId, api: TableApi): 
     return `손패를 목숨 수(${me.hp}장)까지 줄여야 한다`;
   }
   if (api.selected) return '지목할 상대를 고른다 (Esc 취소)';
+  if (api.armed) {
+    const as = api.playAsAbilities.find((ab) => ab.key === api.armed)?.as;
+    const name = as ? CARD_DEFS[as].nameKo : '능력';
+    return `${ro(name)} 낼 카드를 고른다 (Esc 취소)`;
+  }
   return '낼 카드를 고른다';
 }

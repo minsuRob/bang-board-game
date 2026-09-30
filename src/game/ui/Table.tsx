@@ -173,6 +173,9 @@ export function Table({ view, viewer, api, clock }: TableProps) {
               playerNameOf={(pid) => view.players.find((p) => p.id === pid)?.name ?? pid}
               abilities={api.abilities}
               onUseAbility={api.useAbility}
+              playAs={api.playAsAbilities}
+              armed={api.armed}
+              onArm={api.arm}
             />
 
             <View style={styles.myRow}>

@@ -17,8 +17,8 @@ import { createStore } from 'zustand/vanilla';
 import { loadArtTexture } from '../table3d/materials/textures';
 import { allArt, setResolvedArt } from './card-art';
 
-/** 3D 테이블이 텍스처로 쓰는 그림. 나머지(이벤트·나무·가죽)는 2D 에서만 쓴다 */
-const TEXTURE_KEY = /^(card\/|character\/|role\/|back\.png$|board\/player-board\.)/;
+/** 3D 테이블이 텍스처로 쓰는 그림. 나머지(나무·가죽)는 2D 에서만 쓴다 */
+const TEXTURE_KEY = /^(card\/|character\/|role\/|event\/|back\.png$|board\/player-board\.)/;
 
 /** 이보다 오래 걸리면 기다리지 않고 판을 연다. 받기는 뒤에서 계속된다 */
 const MAX_WAIT_MS = 10_000;

@@ -26,7 +26,7 @@ export function attacksBy(log: readonly GameEvent[], from: PlayerId, to: PlayerI
   if (from === to) return out;
   for (const ev of log) {
     if (ev.t !== 'playCard' || ev.pid !== from || ev.target !== to || !ev.card || isHidden(ev.card)) continue;
-    const kind = asAttack(kindOf(ev.card));
+    const kind = asAttack(ev.as ?? kindOf(ev.card));
     if (kind) out[kind] = (out[kind] ?? 0) + 1;
   }
   return out;

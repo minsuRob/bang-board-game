@@ -11,6 +11,8 @@ export type Vec3 = readonly [number, number, number];
 
 /** 카드 한 장의 3D 크기. 2D CardView 의 78×112 비율(0.696)을 따른다. */
 export const CARD_SIZE = { w: 0.7, h: 1.0, thickness: 0.012 } as const;
+/** 테이블 가운데 이벤트 카드는 조금 크게 놓는다 */
+export const EVENT_CARD_SCALE = 1.05;
 
 /** 좌석 보드 크기. 플레이어 보드 그림(747×531)의 비율을 따른다 */
 export const BOARD_SIZE = { w: 2.2, h: 1.56 } as const;

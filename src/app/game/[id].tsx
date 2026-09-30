@@ -150,7 +150,10 @@ export default function GameScreen() {
     onPass: () => {
       if (api.prompt?.canPass) api.respond({ c: 'pass' });
     },
-    onCancel: () => api.select(null),
+    onCancel: () => {
+      api.select(null);
+      api.arm(null);
+    },
     onPickIndex,
   });
 

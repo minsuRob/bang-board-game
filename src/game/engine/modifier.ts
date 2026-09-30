@@ -23,6 +23,13 @@ export type AnytimeAbility = {
   label: string;
 };
 
+/** 손패의 아무 카드나 정해진 종류로 쓰는 능력. 차례당 한 번 (엉클 윌) */
+export type PlayAsAbility = {
+  key: string;
+  label: string;
+  as: CardKind;
+};
+
 export type Modifier = {
   id: string;
   from: 'character' | 'equipment' | 'event';
@@ -84,6 +91,16 @@ export type Modifier = {
    * 설교·수갑은 버림을 막지 않는다. (docs/edge-cases.md 쟁점 B)
    */
   canPlay?: (ctx: ModCtx, kind: CardKind, card: CardId, reactive: boolean) => boolean;
+  /**
+   * 자기 카드 사용 단계에, 손의 아무 카드나 as 종류로 쓴다 (엉클 윌).
+   * 한 번 쓰면 key 가 usedThisTurn 에 들어가 그 차례에는 닫힌다.
+   */
+  playAnyAs?: PlayAsAbility;
+  /**
+   * 파랑 카드를 앞에 내려놓은 직후 (조니 키시).
+   * holder 는 카드가 놓인 사람이다. 감옥이면 대상, 나머지는 자기 자신.
+   */
+  onPutInPlay?: (ctx: ModCtx, card: CardId, holder: PlayerId) => Frame[];
 
   // --- 기타 -------------------------------------------------------------
   /** 언제든 발동할 수 있는 능력 (시드 케첨) */

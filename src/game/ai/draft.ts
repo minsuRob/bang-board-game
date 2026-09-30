@@ -27,6 +27,8 @@ const CHARACTER_VALUE: Record<CharacterId, number> = {
   paulRegret: 5,
   roseDoolan: 5,
   elGringo: 5,
+  uncleWill: 6,
+  johnnyKisch: 5,
 };
 
 /** 역할이 좋아하는 성향 */

@@ -30,6 +30,7 @@ import {
   respondKitCarlson,
   respondPedroRamirez,
   respondSteal,
+  resolveDiscardSameName,
 } from './cards';
 import {
   resolveBountyOrPenalty,
@@ -112,6 +113,8 @@ export function resolveFrame(state: GameState, frame: Frame): GameState {
       return resolveGeneralStore(state, frame);
     case 'steal':
       return resolveSteal(state, frame);
+    case 'discardSameName':
+      return resolveDiscardSameName(state, frame);
     case 'kitCarlson':
       return resolveKitCarlson(state, frame);
     case 'daltonsDiscard':

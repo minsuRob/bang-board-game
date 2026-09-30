@@ -166,6 +166,8 @@ export type Frame =
   | { k: 'saloon'; queue: PlayerId[] }
   | { k: 'generalStore'; source: PlayerId; queue: PlayerId[]; revealed: CardId[] }
   | { k: 'steal'; source: PlayerId; target: PlayerId; mode: 'panic' | 'catBalou' }
+  /** 조니 키시: 방금 내려놓은 card 와 이름이 같은 다른 카드를 모두 버린다 */
+  | { k: 'discardSameName'; pid: PlayerId; card: CardId }
   // 캐릭터·이벤트가 만드는 선택
   | { k: 'kitCarlson'; pid: PlayerId; candidates: CardId[]; taken: number }
   | { k: 'jesseJonesChoice'; pid: PlayerId; rest: number }
@@ -232,6 +234,8 @@ export type GameEvent = {
   pid?: PlayerId;
   target?: PlayerId;
   card?: CardId;
+  /** 카드를 다른 종류로 취급해 냈을 때의 종류 (칼라미티 자넷·엉클 윌) */
+  as?: CardKind;
   cards?: CardId[];
   amount?: number;
   /** UI 에 그대로 보여줄 한국어 문장 */

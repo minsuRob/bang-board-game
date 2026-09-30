@@ -3,6 +3,7 @@
  * 카메라가 움직일 때만 리렌더된다.
  */
 
+import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useStore } from 'zustand';
 
@@ -14,6 +15,7 @@ import type { TableApi } from '../../ui/use-table';
 import { ANCHOR_DECK, ANCHOR_DISCARD, ANCHOR_EVENT, anchorsStore, seatKey } from '../core/anchors-store';
 import { Caption } from './Caption';
 import { CharacterHover, type PreviewSlot } from './CharacterHover';
+import { EventHover } from './EventHover';
 import { FloatingNumbers } from './FloatingNumbers';
 import { LABEL_W, LABEL_W_COMPACT, LABEL_W_SELF, LABEL_W_SELF_COMPACT, SeatLabel } from './SeatLabel';
 import { Colors, Spacing } from '@/constants/theme';
@@ -27,8 +29,19 @@ export type Overlay3DProps = {
   wide: boolean;
 };
 
+/** 왼쪽 미리보기 자리를 차지한 것. 캐릭터 카드와 이벤트 카드가 나눠 쓴다 */
+type HoverTarget = { k: 'player'; pid: PlayerId } | { k: 'event' } | null;
+
 export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Overlay3DProps) {
   const anchors = useStore(anchorsStore);
+  const [hover, setHover] = useState<HoverTarget>(null);
+  // 떠날 때는 지금 가리키는 것이 자기일 때만 비운다 (옆 카드로 바로 옮겨 가면 새 것이 이긴다)
+  const onPlayerHover = useCallback((pid: PlayerId, on: boolean) => {
+    setHover((h) => (on ? { k: 'player', pid } : h?.k === 'player' && h.pid === pid ? null : h));
+  }, []);
+  const onEventHover = useCallback((on: boolean) => {
+    setHover((h) => (on ? { k: 'event' } : h?.k === 'event' ? null : h));
+  }, []);
   const steal = api.prompt?.steal ?? null;
   const event = view.event?.current ? HIGHNOON_EVENTS[view.event.current] : null;
   const deck = anchors.points[ANCHOR_DECK];
@@ -99,7 +112,15 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
       {discard?.visible && <Pill x={discard.x} y={discard.y} text={`버린 더미 ${view.discard.length}`} />}
       {event && ev?.visible && <Pill x={ev.x} y={ev.y} text={event.nameKo} tone={Colors.renegade} />}
 
-      <CharacterHover view={view} viewer={viewer} onSeatPress={onSeatPress} slot={slot} />
+      <CharacterHover
+        view={view}
+        viewer={viewer}
+        onSeatPress={onSeatPress}
+        slot={slot}
+        hovered={hover?.k === 'player' ? hover.pid : null}
+        onHoverChange={onPlayerHover}
+      />
+      <EventHover view={view} hovered={hover?.k === 'event'} onHoverChange={onEventHover} slot={slot} />
       <FloatingNumbers view={view} />
       <PlayedCardSpotlight view={view} viewer={viewer} api={api} compact={!wide} />
       <Caption />

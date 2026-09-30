@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { reduce, type Action, type GameState } from '../../engine';
 import { scenario } from '../../engine/__tests__/helpers';
+import { cardFxFor } from '../../ui/fx/card-fx';
 import { planFx } from '../core/fx-plan';
 import { diffZones } from '../core/move-diff';
 import type { FxCommand } from '../core/types';
@@ -44,6 +45,15 @@ describe('planFx', () => {
     const numbers = of(all, 'number');
     expect(numbers.some((n) => n.pid === foe.id && n.text === '-1' && n.tone === 'damage')).toBe(true);
     expect(of(all, 'shockwave').some((s) => s.pid === foe.id)).toBe(true);
+  });
+
+  it('엉클 윌이 기관총을 잡화점으로 내면 부채꼴 연출이 없다', () => {
+    const prev = scenario({ players: [{ character: 'uncleWill', hand: ['gatling'] }, {}, {}, {}] });
+    const me = prev.players[0];
+    const { next, cmds } = step(prev, { type: 'playCard', pid: me.id, card: me.hand[0], as: 'generalStore' });
+    expect(next.awaiting?.k).toBe('generalStore');
+    expect(of(cmds, 'fanOut')).toEqual([]);
+    expect(cardFxFor(next.log.find((e) => e.t === 'playCard')!)).toBeNull();
   });
 
   it('상대가 받는 카드는 뒷면으로 난다', () => {

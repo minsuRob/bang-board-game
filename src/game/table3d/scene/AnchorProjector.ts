@@ -15,7 +15,7 @@ import {
   type AnchorPoint,
 } from '../core/anchors-store';
 import { BOARD_SLOTS, seatFootprint } from '../core/layout';
-import { BOARD_SIZE, type TableLayout, type Vec3 } from '../core/types';
+import { BOARD_SIZE, CARD_SIZE, EVENT_CARD_SCALE, type TableLayout, type Vec3 } from '../core/types';
 
 const v = new THREE.Vector3();
 
@@ -80,6 +80,25 @@ export class AnchorProjector {
     put(ANCHOR_DECK, layout.deck, 0.05);
     put(ANCHOR_DISCARD, layout.discard, 0.05);
     put(ANCHOR_EVENT, layout.event, 0.05);
+    // 이벤트 카드의 화면 사각형 (hover 로 이벤트 설명을 띄우는 자리). 테이블에 눕혀 놓였다
+    {
+      const ep = points[ANCHOR_EVENT];
+      const hw = (CARD_SIZE.w * EVENT_CARD_SCALE) / 2;
+      const hh = (CARD_SIZE.h * EVENT_CARD_SCALE) / 2;
+      ep.top = Infinity;
+      ep.bottom = -Infinity;
+      ep.left = Infinity;
+      ep.right = -Infinity;
+      for (const [dx, dz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        v.set(layout.event[0] + dx * hw, 0.02, layout.event[2] + dz * hh).project(camera);
+        const x = ((v.x + 1) / 2) * width;
+        const y = ((1 - v.y) / 2) * height;
+        ep.top = Math.min(ep.top, y);
+        ep.bottom = Math.max(ep.bottom, y);
+        ep.left = Math.min(ep.left, x);
+        ep.right = Math.max(ep.right, x);
+      }
+    }
     put(ANCHOR_CENTER, layout.center);
 
     const prev = anchorsStore.getState();

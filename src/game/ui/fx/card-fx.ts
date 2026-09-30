@@ -40,5 +40,5 @@ export function cardFxFor(event: GameEvent): CardFx | null {
   // 뱅!을 빗나감!으로 받았다 (캘러미티 자넷이 뱅!으로 받아도 빗나감이다)
   if (event.t === 'playMissed') return CARD_FX.missed ?? null;
   if (event.t !== 'playCard') return null;
-  return CARD_FX[kindOf(event.card)] ?? null;
+  return CARD_FX[event.as ?? kindOf(event.card)] ?? null;
 }

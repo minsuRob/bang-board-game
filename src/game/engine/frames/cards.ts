@@ -2,12 +2,15 @@
  * 카드가 오가는 프레임: 가져오기 · 뺏기 · 잡화점 · 캐릭터별 드로우 변형.
  */
 
+import type { CardId } from '../../data/types';
 import { RED_SUITS, SUIT_GLYPH } from '../../data/types';
 import {
+  defOf,
   drawFromDeck,
   effectiveSuit,
   giveCards,
   inPlay,
+  kindOf,
   log,
   nameOf,
   playerOf,
@@ -22,7 +25,7 @@ import {
 import { afterDrawFrames } from '../hooks';
 import { nextInt } from '../rng';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
-import { ga } from '../josa';
+import { eul, ga } from '../josa';
 
 export function resolveDrawCards(
   state: GameState,
@@ -157,6 +160,44 @@ export function respondGeneralStore(
     ...frame,
     revealed: frame.revealed.filter((c) => c !== card),
     queue: frame.queue.slice(1),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 조니 키시 — 같은 이름의 다른 카드를 모두 버린다
+//
+// 누구 앞에 있든 버린다. 방금 내려놓은 카드 자신만 남는다.
+// ---------------------------------------------------------------------------
+
+export function resolveDiscardSameName(
+  state: GameState,
+  frame: Frame & { k: 'discardSameName' },
+): GameState {
+  let cur = popFrame(state);
+  const kind = kindOf(frame.card);
+  const owners: PlayerId[] = [];
+  const discarded: CardId[] = [];
+
+  for (const p of cur.players) {
+    const same = p.equipment.filter((c) => c !== frame.card && kindOf(c) === kind);
+    if (same.length === 0) continue;
+    owners.push(p.id);
+    discarded.push(...same);
+    cur = updatePlayer(cur, p.id, (x) => ({
+      ...x,
+      equipment: x.equipment.filter((c) => !same.includes(c)),
+    }));
+  }
+  if (discarded.length === 0) return cur;
+
+  cur = toDiscard(cur, discarded);
+  const where = owners.map((id) => nameOf(cur, id)).join('·');
+  return log(cur, {
+    t: 'discardSameName',
+    pid: frame.pid,
+    card: frame.card,
+    cards: discarded,
+    text: `${ga(nameOf(cur, frame.pid))} ${eul(defOf(frame.card).nameKo)} 내려놓아 ${where} 앞의 같은 카드가 버려졌다.`,
   });
 }
 

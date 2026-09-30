@@ -1,14 +1,18 @@
 /**
- * 기본판 캐릭터 16종.
+ * 기본판 캐릭터 16종 + 하이 눈 프로모 캐릭터 2종.
  *
  * 능력 텍스트와 총알 수는 도감 이미지
  * reference/sc2-arcade/images/howtoplay_5a3151765feb.jpg 를 직접 읽어 옮겼다.
  * (El Gringo·Paul Regret만 총알 3개, 나머지 4개)
  *
  * 한글 이름은 원본 맵 패치노트의 표기를 따른다.
+ *
+ * 엉클 윌·조니 키시는 하이 눈과 함께 배포된 프로모 카드다 (훗날 불릿 판에 수록).
+ * 능력은 dV Giochi 카드 원문을 옮겼고, 한글 표기는 원본 맵에 없어 음차했다.
+ * 기본판 시드가 바뀌지 않도록 반드시 목록 맨 끝에 둔다.
  */
 
-import type { CharacterDef, CharacterId } from './types';
+import type { CharacterDef, CharacterId, Expansion } from './types';
 
 export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   bartCassidy: {
@@ -128,6 +132,30 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     maxHp: 4,
     ability: '<뱅!>을 원하는 만큼 사용할 수 있습니다.',
   },
+  uncleWill: {
+    id: 'uncleWill',
+    name: 'Uncle Will',
+    nameKo: '엉클 윌',
+    maxHp: 4,
+    ability: '자기 차례에 한 번, 손의 카드 아무거나 한 장을 <잡화점>으로 사용할 수 있습니다.',
+    expansion: 'highnoon',
+  },
+  johnnyKisch: {
+    id: 'johnnyKisch',
+    name: 'Johnny Kisch',
+    nameKo: '조니 키시',
+    maxHp: 4,
+    ability: '카드를 앞에 내려놓을 때마다, 누구 앞에 있든 같은 이름의 다른 카드를 모두 버립니다.',
+    expansion: 'highnoon',
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
+
+/** 이 확장판 조합에서 드래프트에 나오는 캐릭터 (선언 순서 유지) */
+export function charactersFor(expansions: readonly Expansion[]): CharacterId[] {
+  return CHARACTER_IDS.filter((id) => {
+    const ex = CHARACTERS[id].expansion;
+    return !ex || expansions.includes(ex);
+  });
+}

@@ -9,7 +9,6 @@
  * 탭을 가로채면 안 되므로 웹에서만 그린다.
  */
 
-import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useStore } from 'zustand';
 
@@ -32,14 +31,18 @@ export function CharacterHover({
   viewer,
   onSeatPress,
   slot,
+  hovered,
+  onHoverChange,
 }: {
   view: GameState;
   viewer: PlayerId;
   onSeatPress: (pid: PlayerId) => void;
   slot: PreviewSlot | null;
+  /** 이벤트 카드 hover 와 같은 자리를 나눠 쓰므로 hover 상태는 부모가 쥔다 */
+  hovered: PlayerId | null;
+  onHoverChange: (pid: PlayerId, on: boolean) => void;
 }) {
   const anchors = useStore(anchorsStore);
-  const [hovered, setHovered] = useState<PlayerId | null>(null);
 
   // 드래프트 중에는 캐릭터가 아직 정해지지 않았다
   if (Platform.OS !== 'web' || view.draft) return null;
@@ -60,12 +63,12 @@ export function CharacterHover({
         return (
           <Pressable
             key={player.id}
-            onHoverIn={() => setHovered(player.id)}
-            onHoverOut={() => setHovered((h) => (h === player.id ? null : h))}
+            onHoverIn={() => onHoverChange(player.id, true)}
+            onHoverOut={() => onHoverChange(player.id, false)}
             // 보드를 눌러 대상을 고르던 동작을 막지 않는다
             onPress={() => onSeatPress(player.id)}
             accessibilityLabel={`${CHARACTERS[player.character].nameKo} 능력 보기`}
-            style={[styles.hit, { left: r.left, top, width: r.right - r.left, height: bottom - top }]}
+            style={[previewStyles.hit, { left: r.left, top, width: r.right - r.left, height: bottom - top }]}
           />
         );
       })}
@@ -105,44 +108,44 @@ function PreviewPanel({
   const hp = Math.max(0, player.hp);
   const dist = !isSelf && !dead ? safeDistance(view, viewer, player.id) : null;
   return (
-    <View style={[styles.tip, styles.panel, { left: slot.left, bottom: slot.bottom, width: slot.width }]}>
-      <View style={styles.panelTop}>
+    <View style={[previewStyles.tip, previewStyles.panel, { left: slot.left, bottom: slot.bottom, width: slot.width }]}>
+      <View style={previewStyles.panelTop}>
         <CharacterCard id={player.character} compact />
-        <View style={styles.panelInfo}>
-          <View style={styles.tipHead}>
-            <Text style={styles.panelName} numberOfLines={1}>
+        <View style={previewStyles.panelInfo}>
+          <View style={previewStyles.tipHead}>
+            <Text style={previewStyles.panelName} numberOfLines={1}>
               {isSelf ? '나' : player.name}
             </Text>
             {(player.roleRevealed || isSelf) && (
-              <Text style={[styles.panelRole, { color: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
+              <Text style={[previewStyles.panelRole, { color: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
             )}
           </View>
-          <Text style={styles.panelCharacter}>
+          <Text style={previewStyles.panelCharacter}>
             {character.nameKo}
             {player.ghost ? ' · 유령' : dead ? ' · 제거됨' : ''}
           </Text>
-          <Text style={styles.panelHp}>
+          <Text style={previewStyles.panelHp}>
             {'●'.repeat(hp)}
-            <Text style={styles.hpEmpty}>{'○'.repeat(Math.max(0, player.maxHp - hp))}</Text>
-            <Text style={styles.panelHpNumber}>
+            <Text style={previewStyles.hpEmpty}>{'○'.repeat(Math.max(0, player.maxHp - hp))}</Text>
+            <Text style={previewStyles.panelHpNumber}>
               {'  '}
               {hp}/{player.maxHp}
             </Text>
           </Text>
           {!isSelf && (
-            <Text style={styles.panelMeta}>
+            <Text style={previewStyles.panelMeta}>
               손패 {player.hand.length}
               {dist !== null ? ` · 거리 ${dist}` : ''}
             </Text>
           )}
           {player.equipment.length > 0 && (
-            <Text style={styles.panelEquipment}>
+            <Text style={previewStyles.panelEquipment}>
               {player.equipment.map((c) => CARD_DEFS[kindOf(c)].nameKo).join(' · ')}
             </Text>
           )}
         </View>
       </View>
-      <Text style={styles.panelAbility}>{character.ability}</Text>
+      <Text style={previewStyles.panelAbility}>{character.ability}</Text>
     </View>
   );
 }
@@ -170,17 +173,18 @@ function Tooltip({
   // 화면 위쪽 카드는 아래로, 아래쪽 카드는 위로 띄운다
   const place = (top + bottom) / 2 < height * 0.5 ? { top: bottom + 6 } : { bottom: height - top + 6 };
   return (
-    <View style={[styles.tip, { left, width: TIP_W }, place]}>
-      <View style={styles.tipHead}>
-        <Text style={styles.tipName}>{name}</Text>
-        <Text style={styles.tipHp}>{'●'.repeat(hp)}</Text>
+    <View style={[previewStyles.tip, { left, width: TIP_W }, place]}>
+      <View style={previewStyles.tipHead}>
+        <Text style={previewStyles.tipName}>{name}</Text>
+        <Text style={previewStyles.tipHp}>{'●'.repeat(hp)}</Text>
       </View>
-      <Text style={styles.tipAbility}>{ability}</Text>
+      <Text style={previewStyles.tipAbility}>{ability}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+/** 이벤트 hover 패널도 같은 모양을 쓴다 */
+export const previewStyles = StyleSheet.create({
   hit: { position: 'absolute' },
   tip: {
     position: 'absolute',

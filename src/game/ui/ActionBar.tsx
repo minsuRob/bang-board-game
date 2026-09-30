@@ -26,6 +26,10 @@ export type ActionBarProps = {
   playerNameOf: (pid: string) => string;
   abilities: { key: string; label: string; cards: string[] }[];
   onUseAbility: (key: string, cards: string[]) => void;
+  /** 손의 카드를 다른 종류로 내는 능력 (엉클 윌). 누르면 켜지고, 켠 뒤 카드를 낸다 */
+  playAs?: { key: string; label: string }[];
+  armed?: string | null;
+  onArm?: (key: string | null) => void;
   /** 넓은 3D 화면: 바 왼쪽 절반에 얹을 내 정보. 있으면 기존 내용은 오른쪽 절반으로 간다 */
   aside?: ReactNode;
 };
@@ -39,6 +43,9 @@ export function ActionBar({
   playerNameOf,
   abilities,
   onUseAbility,
+  playAs = [],
+  armed = null,
+  onArm,
   aside,
 }: ActionBarProps) {
   const content = !prompt ? (
@@ -54,6 +61,14 @@ export function ActionBar({
             onPress={() => onUseAbility(abilities[0].key, abilities[0].cards)}
           />
         )}
+        {onArm &&
+          (armed ? (
+            <Button label="취소 (Esc)" onPress={() => onArm(null)} />
+          ) : (
+            playAs.map((ab) => (
+              <Button key={ab.key} label={`능력 · ${ab.label}`} onPress={() => onArm(ab.key)} />
+            ))
+          ))}
         {canEndTurn && <Button label="차례 마치기 (Q)" onPress={onEndTurn} primary />}
       </View>
     </>

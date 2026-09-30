@@ -38,7 +38,7 @@ export const HIGHNOON_EVENTS: Record<EventCardId, EventCardDef> = {
     expansion: 'highnoon',
     name: 'Gold Rush',
     nameKo: '골드러시',
-    text: '차례가 반시계 방향으로 진행된다.',
+    text: '차례가 반시계 방향으로 진행된다. 카드 효과는 그대로 시계 방향이다.',
   },
   hangover: {
     id: 'hangover',
@@ -66,7 +66,7 @@ export const HIGHNOON_EVENTS: Record<EventCardId, EventCardDef> = {
     expansion: 'highnoon',
     name: 'The Doctor',
     nameKo: '의사',
-    text: '이 카드가 공개되는 순간, 목숨이 가장 적은 플레이어가 목숨을 1 회복한다.',
+    text: '이 카드가 공개되는 순간, 목숨이 가장 적은 플레이어가 목숨을 1 회복한다. 여럿이면 모두 회복한다.',
   },
   theReverend: {
     id: 'theReverend',

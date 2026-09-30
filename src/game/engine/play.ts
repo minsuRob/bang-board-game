@@ -21,9 +21,14 @@ import {
   weaponOf,
 } from './cards';
 import { generalStoreQueue } from './frames/cards';
-import { outgoingBangMissesOf } from './hooks';
+import {
+  canUseCardAs,
+  onPutInPlayFrames,
+  outgoingBangMissesOf,
+  playAnyAsAbilitiesOf,
+} from './hooks';
 import type { Frame, GameState, PlayerId } from './types';
-import { eul, ga } from './josa';
+import { eul, ga, ro } from './josa';
 
 /** 자신을 제외한 생존자를, 자기 왼쪽(다음 좌석)부터 시계 방향으로 */
 export function othersInOrder(state: GameState, source: PlayerId): PlayerId[] {
@@ -45,24 +50,44 @@ export function applyPlayCard(
   target?: PlayerId,
 ): GameState {
   const def = CARD_DEFS[as];
+  const own = kindOf(card);
   let cur = state;
+
+  // 칼라미티 자넷식 치환이 아닌데 종류가 다르면, 차례당 한 번 능력(엉클 윌)을 쓴 것이다.
+  if (as !== own && !canUseCardAs(cur, pid, own, as)) {
+    const ability = playAnyAsAbilitiesOf(cur, pid).find((ab) => ab.as === as);
+    if (ability) {
+      cur = updatePlayer(cur, pid, (p) => ({
+        ...p,
+        usedThisTurn: [...p.usedThisTurn, ability.key],
+      }));
+    }
+  }
 
   // 카드를 손에서 뗀다.
   cur = updatePlayer(cur, pid, (p) => ({ ...p, hand: p.hand.filter((c) => c !== card) }));
 
+  const frames: Frame[] = [];
   if (def.category === 'blue') {
     cur = equipBlueCard(cur, pid, card, as, target);
+    const holder = def.equip === 'other' && target ? target : pid;
+    frames.push(...onPutInPlayFrames(cur, pid, card, holder));
   } else {
     cur = toDiscard(cur, [card]);
   }
 
+  const played =
+    as === own
+      ? eul(def.nameKo)
+      : `${eul(CARD_DEFS[own].nameKo)} ${ro(def.nameKo)}`;
   cur = log(cur, {
     t: 'playCard',
     pid,
     card,
+    as: as === own ? undefined : as,
     target,
     text:
-      `${ga(nameOf(cur, pid))} ${eul(def.nameKo)} 냈다` +
+      `${ga(nameOf(cur, pid))} ${played} 냈다` +
       (target ? ` → ${nameOf(cur, target)}.` : '.'),
   });
 
@@ -70,7 +95,8 @@ export function applyPlayCard(
     cur = { ...cur, turn: { ...cur.turn, bangsPlayed: cur.turn.bangsPlayed + 1 } };
   }
 
-  return pushSeq(cur, effectFrames(cur, pid, as, target));
+  frames.push(...effectFrames(cur, pid, as, target));
+  return pushSeq(cur, frames);
 }
 
 function equipBlueCard(

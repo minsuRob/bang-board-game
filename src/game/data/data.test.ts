@@ -96,8 +96,13 @@ describe('기본 덱', () => {
 });
 
 describe('캐릭터', () => {
-  it('16종이다', () => {
-    expect(CHARACTER_IDS).toHaveLength(16);
+  it('기본판 16종 + 하이 눈 프로모 2종이다', () => {
+    expect(CHARACTER_IDS).toHaveLength(18);
+    expect(CHARACTER_IDS.filter((id) => !CHARACTERS[id].expansion)).toHaveLength(16);
+    expect(CHARACTER_IDS.filter((id) => CHARACTERS[id].expansion === 'highnoon').sort()).toEqual([
+      'johnnyKisch',
+      'uncleWill',
+    ]);
   });
 
   it('총알 수는 3 또는 4이고, 3인 캐릭터는 El Gringo와 Paul Regret뿐이다', () => {
