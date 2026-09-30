@@ -212,6 +212,73 @@ describe('슬랩 더 킬러', () => {
     s = reduce(s, play('p1', p(s, 'p1').hand[0]));
     expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp);
   });
+
+  it('빗나감이 한 장뿐이면 고를 수 없고, 그 한 장은 손에 남는다 (EC-121)', () => {
+    const s0 = scenario({
+      players: [
+        { character: 'slabTheKiller', hand: ['bang'] },
+        { hand: ['missed', 'beer'] },
+        {},
+        {},
+      ],
+    });
+    const s = reduce(s0, shoot(s0));
+    expect(s.awaiting).toBeNull();
+    expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp - 1);
+    expect(p(s, 'p1').hand).toEqual(p(s0, 'p1').hand);
+    expect(totalCards(s)).toBe(80);
+  });
+
+  it('술통 판정이 실패하면 빗나감 한 장으로는 고를 수 없다 (EC-27, EC-121)', () => {
+    const s0 = scenario({
+      players: [
+        { character: 'slabTheKiller', hand: ['bang'] },
+        { equipment: ['barrel'], hand: ['missed'] },
+        {},
+        {},
+      ],
+      deckTop: [{ kind: 'missed', suit: 'spades' }],
+    });
+    const s = reduce(s0, shoot(s0));
+    expect(s.awaiting).toBeNull();
+    expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp - 1);
+    expect(p(s, 'p1').hand).toHaveLength(1);
+  });
+
+  it('수지 라파예트는 마지막 한 장을 내고 뽑은 빗나감으로 마저 막는다 (EC-121)', () => {
+    const s0 = scenario({
+      players: [
+        { character: 'slabTheKiller', hand: ['bang'] },
+        { character: 'suzyLafayette', hand: ['missed'] },
+        {},
+        {},
+      ],
+      deckTop: [{ kind: 'missed', suit: 'spades' }],
+    });
+    let s = reduce(s0, shoot(s0));
+    expect(s.awaiting).toMatchObject({ k: 'missed', remaining: 2 });
+
+    s = reduce(s, play('p1', p(s, 'p1').hand[0]));
+    expect(s.awaiting).toMatchObject({ k: 'missed', remaining: 1 });
+
+    s = reduce(s, play('p1', p(s, 'p1').hand[0]));
+    expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp);
+  });
+
+  it('수지 라파예트라도 손에 다른 카드가 남으면 한 장으로는 고를 수 없다 (EC-121)', () => {
+    const s0 = scenario({
+      players: [
+        { character: 'slabTheKiller', hand: ['bang'] },
+        { character: 'suzyLafayette', hand: ['missed', 'beer'] },
+        {},
+        {},
+      ],
+    });
+    const s = reduce(s0, shoot(s0));
+    expect(s.awaiting).toBeNull();
+    expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp - 1);
+    expect(p(s, 'p1').hand).toHaveLength(2);
+  });
 });
 
 describe('칼라미티 자넷', () => {

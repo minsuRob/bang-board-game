@@ -20,7 +20,8 @@ import {
   toDiscard,
   updatePlayer,
 } from '../cards';
-import { onTargetedByBangFrames, playableAs } from '../hooks';
+import type { CardId } from '../../data/types';
+import { onHandEmptyFrames, onTargetedByBangFrames, playableAs } from '../hooks';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 import { ga, neun } from '../josa';
 
@@ -67,7 +68,7 @@ export function resolveBang(state: GameState, frame: Frame & { k: 'bang' }): Gam
     });
   }
 
-  const options = playableAs(state, frame.target, 'missed', true);
+  const options = missedOptions(state, frame.target, frame.missesRequired);
   if (options.length === 0) {
     return pushSeq(popFrame(state), [
       {
@@ -91,6 +92,24 @@ export function resolveBang(state: GameState, frame: Frame & { k: 'bang' }): Gam
       options,
     },
   };
+}
+
+/**
+ * 빗나감!으로 낼 수 있는 카드. 요구 장수를 끝까지 채울 수 없으면 한 장도 내놓지 않는다.
+ *
+ * 슬랩 더 킬러의 뱅!에 빗나감!이 한 장뿐이면 그 한 장을 내도 결국 맞는다. 카드만
+ * 버리고 끝나므로 아예 고를 수 없게 한다 (EC-121).
+ *
+ * 예외는 손을 다 털면 카드를 뽑는 사람(수지 라파예트)이다. 뽑은 카드가 빗나감!이면
+ * 마저 막을 수 있으므로, 가진 카드를 전부 내는 경우에는 고를 수 있게 둔다.
+ */
+function missedOptions(state: GameState, pid: PlayerId, required: number): CardId[] {
+  const options = playableAs(state, pid, 'missed', true);
+  if (options.length >= required) return options;
+
+  const emptiesHand = options.length === playerOf(state, pid).hand.length;
+  if (emptiesHand && onHandEmptyFrames(state, pid).length > 0) return options;
+  return [];
 }
 
 export function respondBang(
