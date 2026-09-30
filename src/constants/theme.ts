@@ -44,6 +44,8 @@ export const Colors = {
   hp: '#D9A441',
   danger: '#C0392B',
   success: '#4C9A5A',
+  /** 지금 차례인 플레이어 */
+  activeTurn: '#4FB35E',
   highlight: '#F2C14E',
   border: '#5C452C',
   overlay: 'rgba(12, 8, 4, 0.78)',

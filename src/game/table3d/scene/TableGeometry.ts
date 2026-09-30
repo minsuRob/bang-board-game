@@ -33,7 +33,7 @@ export type MatTone = 'idle' | 'active' | 'target' | 'dead';
 /** 보드 테두리 색 */
 const RIM_COLOR: Record<MatTone, string> = {
   idle: '#241810',
-  active: Colors.sheriff,
+  active: Colors.activeTurn,
   target: Colors.highlight,
   dead: '#140E08',
 };

@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
   },
   // 내 자리는 한 줄을 다 쓰되 세로로 늘어나지는 않는다 (손패 자리를 먹는다)
   compactWide: { flexBasis: 'auto', flexGrow: 0, width: '100%' },
-  compactActive: { borderColor: Colors.sheriff, backgroundColor: Colors.surfaceRaised },
+  compactActive: { borderColor: Colors.activeTurn, backgroundColor: Colors.surfaceRaised },
   compactTargetable: { borderColor: Colors.highlight, borderWidth: 2 },
   compactDead: { opacity: 0.45 },
   compactGhost: { borderColor: Colors.renegade, borderStyle: 'dashed' },

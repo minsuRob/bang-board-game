@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     maxWidth: 190,
   },
   seatCompact: { minWidth: 128, maxWidth: 150, padding: Spacing.one },
-  active: { borderColor: Colors.sheriff, backgroundColor: 'rgba(64, 46, 27, 0.96)' },
+  active: { borderColor: Colors.activeTurn, backgroundColor: 'rgba(28, 48, 26, 0.96)' },
   targetable: {
     borderColor: Colors.highlight,
     boxShadow: `0 0 8px ${Colors.highlight}`,

@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
     gap: 1,
   },
-  active: { borderColor: Colors.sheriff, backgroundColor: 'rgba(58, 40, 20, 0.94)' },
+  active: { borderColor: Colors.activeTurn, backgroundColor: 'rgba(26, 44, 24, 0.94)' },
   targetable: { borderColor: Colors.highlight, borderWidth: 2, boxShadow: `0 0 10px ${Colors.highlight}` },
   dead: { opacity: 0.45 },
   ghost: { borderColor: Colors.renegade, borderStyle: 'dashed' },
