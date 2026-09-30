@@ -94,33 +94,59 @@ export function useOnlineGameSession(code: string | null, conn: OnlineGame) {
 
   const ready = Boolean(code && room && identity && room.status !== 'lobby');
 
-  useEffect(() => {
-    if (!ready || !code || !room || !identity) return;
+  // 판을 가르는 값만 모은 열쇠. 방 문서는 액션마다 actionCount 가 바뀌어 새 객체로 오므로,
+  // room 을 통째로 의존하면 액션 하나마다 스토어를 부수고 다시 띄운다
+  // (화면이 통째로 다시 그려져 열어 둔 채팅·입력 중인 글이 날아간다).
+  const sessionKey =
+    ready && room
+      ? JSON.stringify({
+          seed: room.seed,
+          playerCount: room.playerCount,
+          highnoon: room.highnoon,
+          tier: room.tier,
+          seats: room.seats.map((s) => ({ uid: s.uid, nick: s.nick, ai: s.ai })),
+        })
+      : null;
 
-    const seats: SeatSetup[] = room.seats.map((s, i) => ({
+  // 판을 여는 액션을 넣을지는 띄우는 그 순간의 값만 본다
+  const actionCount = room?.actionCount ?? 0;
+  const actionCountRef = useRef(actionCount);
+  useEffect(() => {
+    actionCountRef.current = actionCount;
+  });
+
+  const uid = identity?.uid ?? null;
+  useEffect(() => {
+    if (!sessionKey || !code || !uid) return;
+    const session = JSON.parse(sessionKey) as Pick<
+      RoomDoc,
+      'seed' | 'playerCount' | 'highnoon' | 'tier' | 'seats'
+    >;
+
+    const seats: SeatSetup[] = session.seats.map((s, i) => ({
       id: `p${i}`,
       name: s.uid ? s.nick || `P${i}` : s.nick || `AI ${i + 1}`,
       human: Boolean(s.uid),
-      tier: room.tier,
+      tier: session.tier,
     }));
 
     start({
-      seed: room.seed,
+      seed: session.seed,
       config: {
-        playerCount: room.playerCount,
-        expansions: room.highnoon ? ['highnoon'] : [],
+        playerCount: session.playerCount,
+        expansions: session.highnoon ? ['highnoon'] : [],
       },
       seats,
       controlled: mySeat === null ? [] : [`p${mySeat}`],
-      transport: createFirebaseTransport(code, identity.uid),
+      transport: createFirebaseTransport(code, uid),
       // 판을 여는 액션은 호스트 하나만 넣는다.
-      submitStart: isHost && room.actionCount === 0,
-      drives: false,
+      submitStart: isHost && actionCountRef.current === 0,
+      // 드라이버 선출(useDriverElection)이 이미 정해 둔 값을 지킨다
+      drives: useGameStore.getState().drives,
     });
 
     return () => reset();
-    // room.seed / playerCount 가 바뀌면 다른 판이므로 다시 띄운다.
-  }, [ready, code, room?.seed, room?.playerCount, room?.highnoon, identity?.uid, mySeat, isHost, start, reset, room, identity]);
+  }, [sessionKey, code, uid, mySeat, isHost, start, reset]);
 
   useDraftHoverSync(code, conn);
   return ready;
