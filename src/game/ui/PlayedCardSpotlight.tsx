@@ -3,6 +3,7 @@
  *
  * 1. 누가 카드를 내면 잠깐 떴다 사라진다. 로그를 읽으므로 3D·2D·모바일 어디서나 같고,
  *    온라인에서도 남이 낸 카드가 똑같이 뜬다.
+ *    하이 눈 이벤트 카드가 새로 공개될 때도 같은 자리에 뜬다. 판 전체에 걸리는 효과라 더 오래 떠 있다.
  * 2. 내 손패를 살펴보는 동안(웹 hover, 폰 첫 탭) 그 카드가 떠 있다. 이쪽이 우선이다.
  *
  * 카드 아래에는 드래프트와 같은 종이 명판으로 상황과 카드 효과를 적는다.
@@ -18,10 +19,11 @@ import { cancelAnimation, Easing as ReEasing, useSharedValue, withTiming, type S
 import { useStore } from 'zustand';
 
 import { BASE_DECK } from '../data/cards.base';
-import type { CardId, CharacterId } from '../data/types';
-import { defOf, isHidden, roleVisibleTo, type GameEvent, type GameState, type PlayerId } from '../engine';
+import { HIGHNOON_EVENT_IDS } from '../data/cards.highnoon';
+import type { CardId, CharacterId, EventCardDef } from '../data/types';
+import { defOf, roleVisibleTo, type GameEvent, type GameState, type PlayerId } from '../engine';
 import { fxPacing } from '../store/fx-pacing';
-import { roleArt } from './card-art';
+import { eventArt, roleArt } from './card-art';
 import { CAN_HOVER, cardPeek, setPeek } from './card-peek';
 import { CharacterCard } from './CharacterCard';
 import { CARD_DIMENSIONS, CardView } from './CardView';
@@ -42,13 +44,11 @@ import {
 } from './fx/skia/timeline';
 import { PaperPlaque, plaque } from './PaperPlaque';
 import { playSfx, preloadSfx } from './sfx';
+import { pickSpotlight, revealedEventOf } from './spotlight-pick';
 import type { TableApi } from './use-table';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing } from '@/constants/theme';
 
 const NATIVE_DRIVER = Platform.OS !== 'web';
-
-/** 손에서 카드를 내는 로그 */
-const PLAY_EVENTS = new Set(['playCard', 'playMissed', 'indiansBang', 'duelBang']);
 
 /** 카드 양옆에 세우는 캐릭터 카드 폭 */
 const FACE_W = 112;
@@ -56,6 +56,12 @@ const FACE_W_COMPACT = 76;
 
 /** 1배속에서 떠 있는 시간 */
 const SHOW_MS = 2200;
+
+/** 이벤트 카드는 효과 글이 길고 판 전체에 걸린다. 1배속에서 떠 있는 시간과, 빨리 둘 때도 지키는 최소 */
+const EVENT_SHOW_MS = 4200;
+const EVENT_MIN_MS = 1800;
+/** 이벤트 스캔 비율 (260×389) */
+const EVENT_RATIO = 260 / 389;
 
 /** 카드가 튀어 오른 뒤 총이 터지기까지 (1배속) */
 const FIRE_DELAY_MS = 180;
@@ -94,6 +100,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
   const stage: HqStage | null = hqLayer ? { progress, geom, layer } : null;
 
   // 개발용 (웹): 주소에 ?fxloop=1 이면 뱅!, ?fxloop=missed 면 빗나감! 연출을 3초마다 되풀이한다.
+  // ?fxloop=event 면 하이 눈 이벤트 카드를 한 장씩 돌려 가며 띄운다.
   // ?fxloop=hold 면 되풀이하지 않고 globalThis.__shot 으로 진행도를 손으로 멈춰 한 장면씩 본다
   // (__shot.progress.value = 0.2 로 멈추기, __shot.start() 로 한 번 돌리기)
   useEffect(() => {
@@ -107,6 +114,17 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
         progress.value = withTiming(1, { duration: ms, easing: ReEasing.linear });
       },
     };
+    if (mode === 'event') {
+      let i = 0;
+      let seq = 1_000_000;
+      const make = (): GameEvent => {
+        const id = HIGHNOON_EVENT_IDS[i++ % HIGHNOON_EVENT_IDS.length];
+        return { t: 'event', card: id, text: '연출 시험 — 이벤트', seq: seq++ };
+      };
+      setShown(make());
+      const timer = setInterval(() => setShown(make()), EVENT_SHOW_MS + 800);
+      return () => clearInterval(timer);
+    }
     if (mode !== '1' && mode !== 'missed') return;
     const isMissed = mode === 'missed';
     const card = BASE_DECK.find((c) => c.kind === (isMissed ? 'missed' : 'bang'));
@@ -125,10 +143,12 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
     const since = seen.current;
     seen.current = lastSeq;
     if (since === null || lastSeq <= since) return;
-    const fresh = view.log.filter((e) => e.seq > since && PLAY_EVENTS.has(e.t) && e.card && !isHidden(e.card));
-    const latest = fresh[fresh.length - 1];
+    const latest = pickSpotlight(view.log, since);
     if (latest) setShown(latest);
   }, [view.log]);
+
+  const shownEvent = shown ? revealedEventOf(shown) : null;
+  const clear = (cur: GameEvent) => setShown((s) => (s === cur ? null : s));
 
 
   // 살펴보던 카드가 손을 떠났다 (냈거나 뺏겼다)
@@ -142,14 +162,18 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
     <View ref={layer} style={styles.root}>
       {shown && (
         <View style={[styles.layer, styles.passThrough, peeking && styles.hidden]}>
-          <PlayedSpot
-            key={`${shown.seq}:${shown.card}`}
-            event={shown}
-            faces={facesOf(view, viewer, shown)}
-            compact={compact}
-            stage={stage}
-            onDone={() => setShown((cur) => (cur === shown ? null : cur))}
-          />
+          {shownEvent ? (
+            <EventSpot key={`${shown.seq}:${shown.card}`} def={shownEvent} compact={compact} onDone={() => clear(shown)} />
+          ) : (
+            <PlayedSpot
+              key={`${shown.seq}:${shown.card}`}
+              event={shown}
+              faces={facesOf(view, viewer, shown)}
+              compact={compact}
+              stage={stage}
+              onDone={() => clear(shown)}
+            />
+          )}
         </View>
       )}
       {peeking && (
@@ -348,6 +372,68 @@ function CardFxOverlay({
   }
 }
 
+/** 새로 공개된 이벤트 카드. 낸 카드처럼 튀어 올랐다가, 효과를 읽을 만큼 머문 뒤 사라진다 */
+function EventSpot({ def, compact, onDone }: { def: EventCardDef; compact?: boolean; onDone: () => void }) {
+  const [t] = useState(() => new Animated.Value(0));
+  const done = useRef(onDone);
+  useEffect(() => {
+    done.current = onDone;
+  });
+
+  useEffect(() => {
+    const scale = Math.max(1, fxPacing.getState().timeScale);
+    const hold = Math.max(EVENT_MIN_MS, EVENT_SHOW_MS / scale);
+    const anim = Animated.sequence([
+      Animated.spring(t, { toValue: 1, friction: 6, tension: 140, useNativeDriver: NATIVE_DRIVER }),
+      Animated.delay(hold),
+      Animated.timing(t, { toValue: 0, duration: 260, useNativeDriver: NATIVE_DRIVER }),
+    ]);
+    anim.start(({ finished }) => {
+      if (finished) done.current();
+    });
+    return () => anim.stop();
+  }, [t]);
+
+  const width = CARD_DIMENSIONS[compact ? 'lg' : 'xl'].width;
+  return (
+    <Animated.View style={[styles.spot, popStyle(t)]}>
+      <View style={styles.cardShadow}>
+        <EventCardFace def={def} width={width} />
+      </View>
+      <PaperPlaque compact={compact} style={compact ? styles.plaqueCompact : styles.plaque}>
+        <Text style={plaque.meta} numberOfLines={1}>
+          {def.isFinal ? '마지막 이벤트 공개' : '새 이벤트 공개'}
+        </Text>
+        <Text style={[plaque.text, compact && plaque.textCompact]} numberOfLines={4}>
+          <Text style={plaque.name}>{def.nameKo}</Text>
+          {'  '}
+          {def.text}
+        </Text>
+      </PaperPlaque>
+    </Animated.View>
+  );
+}
+
+/** 이벤트 카드 앞면. 그림이 없으면 종이 카드에 이름과 효과를 적는다 */
+function EventCardFace({ def, width }: { def: EventCardDef; width: number }) {
+  const art = eventArt(def.id);
+  const size = { width, height: Math.round(width / EVENT_RATIO) };
+  if (art) {
+    return <Image source={art} style={[styles.eventArt, size]} resizeMode="cover" accessibilityLabel={def.nameKo} />;
+  }
+  return (
+    <View style={[styles.eventFallback, size]}>
+      <Text style={styles.eventFallbackKicker}>이벤트</Text>
+      <Text style={styles.eventFallbackName} numberOfLines={2}>
+        {def.nameKo}
+      </Text>
+      <Text style={styles.eventFallbackEn} numberOfLines={1}>
+        {def.name}
+      </Text>
+    </View>
+  );
+}
+
 /** 손패에서 살펴보는 카드. 손을 떼거나 다시 누를 때까지 떠 있다. 폰은 창을 누르면 닫힌다 */
 function PeekSpot({ card, meta, compact }: { card: CardId; meta: string; compact?: boolean }) {
   const [t] = useState(() => new Animated.Value(0));
@@ -513,4 +599,18 @@ const styles = StyleSheet.create({
   starGlyph: { color: Colors.deputy, fontWeight: '900' },
   plaque: { width: 340, gap: 2 },
   plaqueCompact: { width: 260, gap: 1 },
+  eventArt: { borderRadius: Radius.md },
+  eventFallback: {
+    borderRadius: Radius.md,
+    borderWidth: 2,
+    borderColor: Colors.renegade,
+    backgroundColor: Colors.paper,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    padding: Spacing.two,
+  },
+  eventFallbackKicker: { color: Colors.renegade, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  eventFallbackName: { color: Colors.textOnPaper, fontSize: 18, fontWeight: '900', textAlign: 'center' },
+  eventFallbackEn: { color: Colors.cardBrown, fontSize: 11, fontStyle: 'italic' },
 });
