@@ -10,11 +10,12 @@ import {
   ANCHOR_DISCARD,
   ANCHOR_EVENT,
   anchorsStore,
+  characterKey,
   seatKey,
   type AnchorPoint,
 } from '../core/anchors-store';
-import { seatFootprint } from '../core/layout';
-import type { TableLayout, Vec3 } from '../core/types';
+import { BOARD_SLOTS, seatFootprint } from '../core/layout';
+import { BOARD_SIZE, type TableLayout, type Vec3 } from '../core/types';
 
 const v = new THREE.Vector3();
 
@@ -51,6 +52,30 @@ export class AnchorProjector {
       pt.bottom = bottom;
       pt.left = left;
       pt.right = right;
+
+      // 캐릭터 카드 칸의 화면 사각형 (hover 로 능력 설명을 띄우는 자리)
+      const c = s.slots.character;
+      put(characterKey(s.index), c, 0);
+      const hu = (BOARD_SLOTS.size.u * BOARD_SIZE.w * s.scale) / 2;
+      const hv = (BOARD_SLOTS.size.v * BOARD_SIZE.h * s.scale) / 2;
+      const cp = points[characterKey(s.index)];
+      cp.top = Infinity;
+      cp.bottom = -Infinity;
+      cp.left = Infinity;
+      cp.right = -Infinity;
+      for (const [du, dv] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        v.set(
+          c[0] + s.right[0] * du * hu + s.inward[0] * dv * hv,
+          0.02,
+          c[2] + s.right[2] * du * hu + s.inward[2] * dv * hv,
+        ).project(camera);
+        const x = ((v.x + 1) / 2) * width;
+        const y = ((1 - v.y) / 2) * height;
+        cp.top = Math.min(cp.top, y);
+        cp.bottom = Math.max(cp.bottom, y);
+        cp.left = Math.min(cp.left, x);
+        cp.right = Math.max(cp.right, x);
+      }
     }
     put(ANCHOR_DECK, layout.deck, 0.05);
     put(ANCHOR_DISCARD, layout.discard, 0.05);

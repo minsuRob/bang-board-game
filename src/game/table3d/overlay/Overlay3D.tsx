@@ -13,6 +13,7 @@ import { PlayedCardSpotlight } from '../../ui/PlayedCardSpotlight';
 import type { TableApi } from '../../ui/use-table';
 import { ANCHOR_DECK, ANCHOR_DISCARD, ANCHOR_EVENT, anchorsStore, seatKey } from '../core/anchors-store';
 import { Caption } from './Caption';
+import { CharacterHover } from './CharacterHover';
 import { FloatingNumbers } from './FloatingNumbers';
 import { LABEL_W, LABEL_W_COMPACT, LABEL_W_SELF, LABEL_W_SELF_COMPACT, SeatLabel } from './SeatLabel';
 import { Colors, Spacing } from '@/constants/theme';
@@ -87,6 +88,7 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, headline, w
       {discard?.visible && <Pill x={discard.x} y={discard.y} text={`버린 더미 ${view.discard.length}`} />}
       {event && ev?.visible && <Pill x={ev.x} y={ev.y} text={event.nameKo} tone={Colors.renegade} />}
 
+      <CharacterHover view={view} viewer={viewer} onSeatPress={onSeatPress} />
       <FloatingNumbers view={view} />
       <PlayedCardSpotlight view={view} viewer={viewer} api={api} compact={!wide} />
       <Caption />
