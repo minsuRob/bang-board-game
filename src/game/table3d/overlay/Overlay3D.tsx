@@ -10,6 +10,7 @@ import { useStore } from 'zustand';
 import { HIGHNOON_EVENTS } from '../../data/cards.highnoon';
 import type { CardId } from '../../data/types';
 import type { GameState, PlayerId } from '../../engine';
+import { CharacterDetailModal } from '../../ui/CharacterDetail';
 import { PlayedCardSpotlight } from '../../ui/PlayedCardSpotlight';
 import type { TableApi } from '../../ui/use-table';
 import { ANCHOR_DECK, ANCHOR_DISCARD, ANCHOR_EVENT, anchorsStore, seatKey } from '../core/anchors-store';
@@ -35,6 +36,8 @@ type HoverTarget = { k: 'player'; pid: PlayerId } | { k: 'event' } | null;
 export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Overlay3DProps) {
   const anchors = useStore(anchorsStore);
   const [hover, setHover] = useState<HoverTarget>(null);
+  // 폰에는 hover 가 없다. 탭해서 가운데에 띄운 캐릭터 상세
+  const [detail, setDetail] = useState<PlayerId | null>(null);
   // 떠날 때는 지금 가리키는 것이 자기일 때만 비운다 (옆 카드로 바로 옮겨 가면 새 것이 이긴다)
   const onPlayerHover = useCallback((pid: PlayerId, on: boolean) => {
     setHover((h) => (on ? { k: 'player', pid } : h?.k === 'player' && h.pid === pid ? null : h));
@@ -43,6 +46,7 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
     setHover((h) => (on ? { k: 'event' } : h?.k === 'event' ? null : h));
   }, []);
   const steal = api.prompt?.steal ?? null;
+  const detailPlayer = (!view.draft && view.players.find((p) => p.id === detail)) || null;
   const event = view.event?.current ? HIGHNOON_EVENTS[view.event.current] : null;
   const deck = anchors.points[ANCHOR_DECK];
   const discard = anchors.points[ANCHOR_DISCARD];
@@ -101,7 +105,7 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
             canvasHeight={anchors.height}
             active={view.turn.active === player.id}
             targetable={targets.includes(player.id)}
-            onPress={() => onSeatPress(player.id)}
+            onPress={() => (targets.includes(player.id) ? onSeatPress(player.id) : setDetail(player.id))}
             picking={steal && steal.target === player.id ? steal : null}
             onPickHand={(index) => api.respond({ c: 'pick', pick: { zone: 'hand', index } })}
             onPickEquipment={(card: CardId) => api.respond({ c: 'pick', pick: { zone: 'equipment', card } })}
@@ -117,7 +121,9 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
       <CharacterHover
         view={view}
         viewer={viewer}
+        targets={targets}
         onSeatPress={onSeatPress}
+        onDetail={setDetail}
         slot={slot}
         hovered={hover?.k === 'player' ? hover.pid : null}
         onHoverChange={onPlayerHover}
@@ -126,6 +132,9 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
       <FloatingNumbers view={view} />
       <PlayedCardSpotlight view={view} viewer={viewer} api={api} compact={!wide} />
       <Caption />
+      {detailPlayer && (
+        <CharacterDetailModal view={view} viewer={viewer} player={detailPlayer} onClose={() => setDetail(null)} />
+      )}
     </View>
   );
 }
