@@ -11,10 +11,11 @@ import {
   joinRoom,
   leaveRoom,
   markStarted,
-  PRESENCE_TIMEOUT_MS,
+  presenceOf,
   updateRoomSettings,
 } from '@/firebase/rooms';
 import { useRoomConnection } from '@/game/store/use-online-game';
+import { PRESENCE_COLOR, PRESENCE_LABEL, PresenceDot } from '@/game/ui/PresenceDot';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 const COUNTS = [4, 5, 6, 7];
@@ -54,9 +55,9 @@ export default function RoomScreen() {
     joinRoom(code, identity).catch((err) => setLocalError(err.message));
   }, [code, identity, room, mySeat]);
 
-  // 접속 표시등을 5초마다 다시 그린다.
+  // 접속 표시등을 2초마다 다시 그린다. 소식이 끊겨 빨강으로 바뀌는 것은 시간만 알려 준다.
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 5_000);
+    const timer = setInterval(() => setNow(Date.now()), 2_000);
     return () => clearInterval(timer);
   }, []);
 
@@ -106,18 +107,21 @@ export default function RoomScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>자리 ({seated}/{room.playerCount})</Text>
         {room.seats.map((seat, i) => {
-          const member = seat.uid ? members[seat.uid] : null;
-          const online = member ? now - member.lastSeen < PRESENCE_TIMEOUT_MS : false;
+          const member = seat.uid ? members[seat.uid] : undefined;
+          const presence = seat.uid ? presenceOf(member, now) : null;
           return (
             <View key={i} style={styles.seatRow}>
               <Text style={styles.seatIndex}>{i + 1}</Text>
+              <PresenceDot presence={presence} size={10} />
               <Text style={[styles.seatName, !seat.uid && styles.seatEmpty]}>
                 {seat.uid ? member?.nick || seat.nick : '비어 있음 → AI가 앉는다'}
               </Text>
               {seat.uid === identity.uid && <Text style={styles.seatBadge}>나</Text>}
               {seat.uid === room.hostUid && <Text style={styles.seatBadge}>호스트</Text>}
-              {seat.uid && (
-                <View style={[styles.dot, online ? styles.dotOnline : styles.dotOffline]} />
+              {presence && (
+                <Text style={[styles.presenceText, { color: PRESENCE_COLOR[presence] }]}>
+                  {PRESENCE_LABEL[presence]}
+                </Text>
               )}
             </View>
           );
@@ -312,9 +316,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     paddingHorizontal: 4,
   },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  dotOnline: { backgroundColor: Colors.success },
-  dotOffline: { backgroundColor: Colors.border },
+  presenceText: { fontSize: 11, fontWeight: '800', minWidth: 52, textAlign: 'right' },
   chip: {
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,

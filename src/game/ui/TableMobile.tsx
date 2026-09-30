@@ -26,9 +26,11 @@ import type { DimensionValue } from 'react-native';
 
 import type { CardId, Role } from '../data/types';
 import { distance, kindOf, type GameState, type Player, type PlayerId } from '../engine';
+import { usePresence } from '../store/presence';
 import { ActionBar } from './ActionBar';
 import { DraftPanel } from './DraftPanel';
 import { PlayedCardSpotlight } from './PlayedCardSpotlight';
+import { PRESENCE_LABEL, PresenceDot } from './PresenceDot';
 import { DraftSeatStatus } from './DraftSeatStatus';
 import { cardBackArt, characterArt, eventArt, woodArt } from './card-art';
 import { AttackBadges } from './AttackBadges';
@@ -268,13 +270,14 @@ function CompactSeat({
   const dead = !player.alive && !player.ghost;
   const dist = !isSelf && !dead ? safeDistance(view, viewer, player.id) : null;
   const portrait = characterArt(player.character);
+  const presence = usePresence(player.id);
 
   return (
     <Pressable
       onPress={onPress}
       disabled={!targetable}
       accessibilityRole={targetable ? 'button' : undefined}
-      accessibilityLabel={`${player.name} · ${CHARACTERS[player.character].nameKo}`}
+      accessibilityLabel={`${player.name}${presence ? ` · ${PRESENCE_LABEL[presence]}` : ''} · ${CHARACTERS[player.character].nameKo}`}
       style={[
         styles.compact,
         basis ? { flexBasis: basis } : null,
@@ -285,6 +288,7 @@ function CompactSeat({
         player.ghost && styles.compactGhost,
       ]}>
       <View style={styles.compactRow}>
+        <PresenceDot presence={presence} />
         <Text style={styles.compactName} numberOfLines={1}>
           {player.name}
         </Text>

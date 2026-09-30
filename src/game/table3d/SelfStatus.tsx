@@ -12,6 +12,8 @@ import { CARD_DEFS } from '../data/cards.base';
 import { CHARACTERS } from '../data/characters';
 import { ROLE_GOAL, ROLE_LABEL } from '../data/roles';
 import { kindOf, type Player } from '../engine';
+import { usePresence } from '../store/presence';
+import { PRESENCE_LABEL, PresenceDot } from '../ui/PresenceDot';
 import { ROLE_COLOR } from './overlay/SeatLabel';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
@@ -33,6 +35,7 @@ export function SelfStatus({
   const character = CHARACTERS[player.character];
   const hp = Math.max(0, player.hp);
   const equipment = player.equipment.map((c) => CARD_DEFS[kindOf(c)].nameKo).join(' · ');
+  const presence = usePresence(player.id);
 
   if (compact) {
     return (
@@ -40,9 +43,10 @@ export function SelfStatus({
         onPress={onPress}
         disabled={!targetable}
         accessibilityRole={targetable ? 'button' : undefined}
-        accessibilityLabel={`나 · ${character.nameKo} · 목숨 ${hp}/${player.maxHp}`}
+        accessibilityLabel={`나${presence ? ` · ${PRESENCE_LABEL[presence]}` : ''} · ${character.nameKo} · 목숨 ${hp}/${player.maxHp}`}
         style={[styles.wrap, styles.wrapCompact, active && styles.active, targetable && styles.targetable, dead && styles.dead]}>
         <View style={styles.row}>
+          <PresenceDot presence={presence} size={8} />
           <Text style={[styles.name, styles.nameCompact]}>나</Text>
           <Text style={[styles.character, styles.characterCompact]} numberOfLines={1}>
             {character.nameKo}
@@ -73,9 +77,10 @@ export function SelfStatus({
       onPress={onPress}
       disabled={!targetable}
       accessibilityRole={targetable ? 'button' : undefined}
-      accessibilityLabel={`나 · ${character.nameKo} · 목숨 ${hp}/${player.maxHp}`}
+      accessibilityLabel={`나${presence ? ` · ${PRESENCE_LABEL[presence]}` : ''} · ${character.nameKo} · 목숨 ${hp}/${player.maxHp}`}
       style={[styles.wrap, active && styles.active, targetable && styles.targetable, dead && styles.dead]}>
       <View style={styles.row}>
+        <PresenceDot presence={presence} size={10} />
         <Text style={styles.name}>나</Text>
         <Text style={styles.character} numberOfLines={1}>
           {character.nameKo}

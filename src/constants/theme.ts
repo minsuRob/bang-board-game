@@ -46,6 +46,10 @@ export const Colors = {
   success: '#4C9A5A',
   /** 지금 차례인 플레이어 */
   activeTurn: '#4FB35E',
+  /** 온라인 접속 상태: 보는 중 / 자리 비움 / 나감 */
+  presenceActive: '#43C059',
+  presenceAway: '#F2C94C',
+  presenceLeft: '#E0453A',
   highlight: '#F2C14E',
   border: '#5C452C',
   overlay: 'rgba(12, 8, 4, 0.78)',

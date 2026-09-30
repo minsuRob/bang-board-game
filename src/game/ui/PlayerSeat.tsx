@@ -13,11 +13,13 @@ import { ROLE_LABEL } from '../data/roles';
 import type { CardId, Role } from '../data/types';
 import type { GameState, Player, PlayerId } from '../engine';
 import { distance } from '../engine';
+import { usePresence } from '../store/presence';
 import { characterArt } from './card-art';
 import { CharacterPortraitImage } from './CharacterPortraitImage';
 import { DraftSeatStatus } from './DraftSeatStatus';
 import { AttackBadges } from './AttackBadges';
 import { CardView } from './CardView';
+import { PRESENCE_LABEL, PresenceDot } from './PresenceDot';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 const ROLE_COLOR: Record<Role, string> = {
@@ -59,13 +61,14 @@ export function PlayerSeat({
   const dist = !isSelf && !dead ? safeDistance(view, viewer, player.id) : null;
   // 캐릭터 카드 그림이 설치돼 있으면 초상으로 쓴다. 없으면 이름만 나온다.
   const portrait = characterArt(player.character);
+  const presence = usePresence(player.id);
 
   return (
     <Pressable
       onPress={onPress}
       disabled={!targetable}
       accessibilityRole={targetable ? 'button' : undefined}
-      accessibilityLabel={`${player.name} · ${character.nameKo}`}
+      accessibilityLabel={`${player.name}${presence ? ` · ${PRESENCE_LABEL[presence]}` : ''} · ${character.nameKo}`}
       style={[
         styles.seat,
         compact && styles.seatCompact,
@@ -75,6 +78,7 @@ export function PlayerSeat({
         player.ghost && styles.ghost,
       ]}>
       <View style={styles.header}>
+        <PresenceDot presence={presence} />
         <Text style={styles.name} numberOfLines={1}>
           {player.name}
         </Text>
