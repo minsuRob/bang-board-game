@@ -5,11 +5,13 @@
  * 요구 사항은 언제나 화면 안쪽에 한 줄로 붙인다.
  */
 
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../data/cards.base';
 import { SUIT_GLYPH, type Suit } from '../data/types';
 import { kindOf, type Choice } from '../engine';
+import { waitClock } from '../store/wait-clock';
 import { CardView } from './CardView';
 import type { Prompt } from './use-table';
 import { Colors, Radius, Spacing } from '@/constants/theme';
@@ -39,7 +41,10 @@ export function ActionBar({
   if (!prompt) {
     return (
       <View style={styles.bar}>
-        <Text style={styles.status}>{status}</Text>
+        <View style={styles.statusRow}>
+          <Text style={styles.status}>{status}</Text>
+          {!!status && <WaitSeconds />}
+        </View>
         <View style={styles.buttons}>
           {abilities.length > 0 && (
             <Button
@@ -56,7 +61,10 @@ export function ActionBar({
   return (
     <View style={[styles.bar, styles.barActive]}>
       <View style={styles.textBlock}>
-        <Text style={styles.title}>{prompt.title}</Text>
+        <View style={styles.statusRow}>
+          <Text style={styles.title}>{prompt.title}</Text>
+          <WaitSeconds />
+        </View>
         {!!prompt.hint && <Text style={styles.hint}>{prompt.hint}</Text>}
       </View>
 
@@ -101,6 +109,25 @@ export function ActionBar({
   );
 }
 
+/** 지금 기다리는 차례의 남은 초. 기다리는 게 없으면 아무것도 그리지 않는다 */
+function WaitSeconds() {
+  const deadline = useSyncExternalStore(
+    waitClock.subscribe,
+    () => waitClock.getState().deadline,
+    () => null,
+  );
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (deadline === null) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, [deadline]);
+  if (deadline === null) return null;
+  const left = Math.max(0, Math.ceil((deadline - now) / 1000));
+  return <Text style={[styles.seconds, left <= 5 && styles.secondsUrgent]}>{left}초</Text>;
+}
+
 function Button({
   label,
   onPress,
@@ -140,6 +167,9 @@ const styles = StyleSheet.create({
   title: { color: Colors.text, fontWeight: '800', fontSize: 14 },
   hint: { color: Colors.textMuted, fontSize: 11 },
   status: { color: Colors.textMuted, fontSize: 13, flexShrink: 1 },
+  statusRow: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.two, flexShrink: 1 },
+  seconds: { color: Colors.highlight, fontSize: 14, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  secondsUrgent: { color: Colors.danger },
   buttons: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   cardOption: { alignItems: 'center', gap: 2 },
   cardLabel: { color: Colors.textMuted, fontSize: 9 },

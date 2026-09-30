@@ -15,7 +15,8 @@ import type { Identity } from '../../firebase/auth';
 import { touchMember } from '../../firebase/rooms';
 import { pickDriver, type RoomDoc, type RoomMember } from '../../firebase/room-model';
 import { syncDraftClock } from './draft-ui';
-import { selectActor, selectActors, useGameStore } from './game-store';
+import { seatOf, selectActor, selectActors, useGameStore } from './game-store';
+import { setWaitDeadline } from './wait-clock';
 
 /** 생존 신호 주기 */
 const HEARTBEAT_MS = 12_000;
@@ -71,6 +72,7 @@ export function useDriverElection(
 export function useTimeoutDriver(controlled: string[], enabled = true) {
   const state = useGameStore((s) => s.state);
   const drives = useGameStore((s) => s.drives);
+  const seats = useGameStore((s) => s.seats);
   const submit = useGameStore((s) => s.submit);
   const startedAt = useRef<{ seq: number; at: number }>({ seq: -1, at: 0 });
 
@@ -93,7 +95,7 @@ export function useTimeoutDriver(controlled: string[], enabled = true) {
       startedAt.current = { seq: -1, at: 0 };
       return;
     }
-    if (!drives || !state || state.result || state.draft) return;
+    if (!state || state.result || state.draft) return;
 
     const actor = selectActor(state);
     if (!actor) return;
@@ -101,6 +103,8 @@ export function useTimeoutDriver(controlled: string[], enabled = true) {
     // 사람이 앉은 자리만 제한시간을 잰다. AI 자리는 AI 구동기가 바로 둔다.
     if (!controlled.includes(actor) && !isHumanSeat(state, actor)) return;
 
+    // 모든 클라이언트가 같은 전이를 받으므로, 전이가 도착한 순간부터 각자 잰다.
+    // 네트워크 지연만큼 드라이버와 어긋날 수 있지만 표시용으로는 충분하다.
     if (startedAt.current.seq !== state.seq) {
       startedAt.current = { seq: state.seq, at: Date.now() };
     }
@@ -110,13 +114,23 @@ export function useTimeoutDriver(controlled: string[], enabled = true) {
         ? TIME_LIMIT_MS.discard
         : TIME_LIMIT_MS.play;
 
+    const human = controlled.includes(actor) || seatOf(seats, actor)?.human !== false;
+    if (human) setWaitDeadline(startedAt.current.at + limit);
+    const clear = () => {
+      if (human) setWaitDeadline(null);
+    };
+    if (!drives) return clear;
+
     const elapsed = Date.now() - startedAt.current.at;
     const timer = setTimeout(
       () => submit({ type: 'timeout', pid: actor }),
       Math.max(0, limit - elapsed),
     );
-    return () => clearTimeout(timer);
-  }, [state, drives, submit, controlled, enabled]);
+    return () => {
+      clearTimeout(timer);
+      clear();
+    };
+  }, [state, drives, submit, controlled, enabled, seats]);
 }
 
 function isHumanSeat(state: { players: { id: string }[] }, pid: string): boolean {

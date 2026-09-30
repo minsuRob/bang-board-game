@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react';
 import { decide } from '../ai';
 import { fxPacing } from './fx-pacing';
 import { selectActor, selectActors, seatOf, useGameStore } from './game-store';
+import { setWaitDeadline } from './wait-clock';
 
 /** 1배속에서 AI 가 한 과정(액션 하나)마다 들이는 뜸. 사람이 흐름을 따라올 수 있는 정도 */
 export const AI_STEP_MS = 3000;
@@ -53,7 +54,7 @@ export function useAiDriver(enabled = true, speed = 1) {
   }, [enabled, drives, state, seats, controlled, submit, seed]);
 
   useEffect(() => {
-    if (!enabled || !drives || !state || state.result || state.draft) return;
+    if (!enabled || !state || state.result || state.draft) return;
 
     const actor = selectActor(state);
     if (!actor || controlled.includes(actor)) return;
@@ -63,12 +64,23 @@ export function useAiDriver(enabled = true, speed = 1) {
     // 연출이 끝나기 전에는 두지 않는다. 2D 모드에서는 busyUntil 이 0 이다.
     const hold = Math.max(0, fxPacing.getState().busyUntil - Date.now());
     const delay = aiDelayMs(speed, hold);
+    // AI 자리의 남은 초는 드라이버가 아니어도 모두 같은 식으로 셀 수 있다 (AI 속도는 방 전체가 같다).
+    // 사람 자리의 시계는 useTimeoutDriver 가 맡는다.
+    const aiSeat = !seat?.human;
+    if (aiSeat) setWaitDeadline(Date.now() + delay);
+    const clear = () => {
+      if (aiSeat) setWaitDeadline(null);
+    };
+    if (!drives) return clear;
 
     const timer = setTimeout(() => {
       const action = decide(state, actor, tier, seed * 7919 + state.seq);
       if (action) submit(action);
     }, delay);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      clear();
+    };
   }, [enabled, drives, state, seats, controlled, submit, seed, speed]);
 }
