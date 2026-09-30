@@ -51,11 +51,11 @@
     "vitest": "^4.1.11"
   },
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --port 8085",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
+    "android": "expo start --android --port 8085",
+    "ios": "expo start --ios --port 8085",
+    "web": "expo start --web --port 8085",
     "lint": "expo lint",
     "test": "vitest run",
     "test:watch": "vitest",
