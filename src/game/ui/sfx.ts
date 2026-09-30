@@ -22,6 +22,15 @@ export type SfxId = keyof typeof SOURCES;
 const VOICES = 3;
 
 const MUTE_KEY = 'bang.sfx.muted';
+const VOLUME_KEY = 'bang.sfx.volume';
+
+/** 볼륨은 0~100 정수로 다룬다 (UI 슬라이더와 눈금이 같다). 재생 때 0~1로 바꿔 건다. */
+const DEFAULT_VOLUME = 100;
+
+function clampVolume(v: number): number {
+  if (!Number.isFinite(v)) return DEFAULT_VOLUME;
+  return Math.max(0, Math.min(100, Math.round(v)));
+}
 
 function loadMuted(): boolean {
   try {
@@ -31,12 +40,36 @@ function loadMuted(): boolean {
   }
 }
 
-export const sfxSettings = createStore<{ muted: boolean }>(() => ({ muted: loadMuted() }));
+function loadVolume(): number {
+  try {
+    const raw = globalThis.localStorage?.getItem(VOLUME_KEY);
+    if (raw == null) return DEFAULT_VOLUME;
+    return clampVolume(Number(raw));
+  } catch {
+    return DEFAULT_VOLUME;
+  }
+}
+
+export const sfxSettings = createStore<{ muted: boolean; volume: number }>(() => ({
+  muted: loadMuted(),
+  volume: loadVolume(),
+}));
 
 export function setMuted(muted: boolean) {
   sfxSettings.setState({ muted });
   try {
     globalThis.localStorage?.setItem(MUTE_KEY, muted ? '1' : '0');
+  } catch {
+    // 저장이 막혀 있어도 이번 실행 동안은 따른다
+  }
+}
+
+/** 0~100. 100이면 원래 크기, 0이면 무음. 저장은 이 값 그대로 둔다. */
+export function setVolume(volume: number) {
+  const v = clampVolume(volume);
+  sfxSettings.setState({ volume: v });
+  try {
+    globalThis.localStorage?.setItem(VOLUME_KEY, String(v));
   } catch {
     // 저장이 막혀 있어도 이번 실행 동안은 따른다
   }
@@ -66,11 +99,17 @@ export function preloadSfx() {
 }
 
 export function playSfx(id: SfxId) {
-  if (sfxSettings.getState().muted) return;
+  const { muted, volume } = sfxSettings.getState();
+  if (muted || volume <= 0) return;
   try {
     const pool = poolOf(id);
     const p = pool.players[pool.next];
     pool.next = (pool.next + 1) % pool.players.length;
+    try {
+      p.volume = volume / 100;
+    } catch {
+      // 볼륨 설정이 막혀 있어도 재생은 계속한다
+    }
     // 보통은 끝날 때 감아 두었으므로 바로 튼다. 아직 울리는 중이면 감고 튼다
     if (p.currentTime > 0.01) void p.seekTo(0).then(() => p.play());
     else p.play();
