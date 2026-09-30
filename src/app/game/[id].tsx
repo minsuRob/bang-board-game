@@ -10,6 +10,8 @@ import { useAiDriver } from '@/game/store/ai-driver';
 import { useTimeoutDriver } from '@/game/store/online-driver';
 import { useChat } from '@/game/store/use-chat';
 import { useOnlineGameSession, useRoomConnection } from '@/game/store/use-online-game';
+import { preloadArt, useArtProgress, useArtReady } from '@/game/ui/art-preload';
+import { GameClock, useStopwatch } from '@/game/ui/GameClock';
 import { PauseButton } from '@/game/ui/PauseButton';
 import { SoundButton } from '@/game/ui/SoundButton';
 import { SpeedControl } from '@/game/ui/SpeedControl';
@@ -61,8 +63,16 @@ export default function GameScreen() {
   useOnlineGameSession(code, conn);
   useChat(code, conn);
 
+  // 주소로 곧장 들어온 경우에도 그림부터 받는다. 혼자 하는 판은 다 받은 뒤에 시작해
+  // 드래프트 시계가 빈 카드를 띄운 채 흐르지 않게 한다
+  const artReady = useArtReady();
+  const artProgress = useArtProgress();
   useEffect(() => {
-    if (online) return;
+    void preloadArt();
+  }, []);
+
+  useEffect(() => {
+    if (online || !artReady) return;
     start({
       seed: setup.seed,
       config: {
@@ -74,7 +84,7 @@ export default function GameScreen() {
       controlled: setup.auto ? [] : ['p0'],
     });
     return () => reset();
-  }, [online, setup, start, reset]);
+  }, [online, artReady, setup, start, reset]);
 
   // AI 빠르기. 온라인은 방 문서의 값을 모두가 따르고 방장만 바꾼다. 혼자 하는 판은 내가 방장이다.
   const [localSpeed, setLocalSpeed] = useState<AiSpeed>(1);
@@ -93,6 +103,8 @@ export default function GameScreen() {
   const [resultHidden, setResultHidden] = useState(false);
   const canPause = !online && Boolean(state) && !state?.result && !state?.draft;
   const halted = canPause && paused;
+  // 흐른 시간. 판이 떠 있는 동안만 가고, 멈추거나 끝나면 선다
+  const stopwatch = useStopwatch(Boolean(state) && !state?.result && !halted);
 
   // 관전 모드는 예전처럼 빠르게 흘려 본다
   useAiDriver(!halted, setup.auto ? 6 : speed);
@@ -142,12 +154,17 @@ export default function GameScreen() {
     onPickIndex,
   });
 
-  if (!state || !view || !viewer) {
+  if (!artReady || !state || !view || !viewer) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={Colors.highlight} />
         <Text style={styles.loadingText}>
-          {conn.error ?? (online ? '판을 받아오는 중' : '판을 짜는 중')}
+          {conn.error ??
+            (!artReady
+              ? `그림을 불러오는 중${artProgress.total ? ` ${artProgress.loaded}/${artProgress.total}` : ''}`
+              : online
+                ? '판을 받아오는 중'
+                : '판을 짜는 중')}
         </Text>
       </View>
     );
@@ -155,7 +172,12 @@ export default function GameScreen() {
 
   return (
     <View style={styles.root}>
-      <Table view={view} viewer={viewer} api={api} />
+      <Table
+        view={view}
+        viewer={viewer}
+        api={api}
+        clock={<GameClock stopwatch={stopwatch} />}
+      />
 
       {!state.result && (
         <View style={styles.topLeft}>

@@ -13,7 +13,7 @@ import { PlayedCardSpotlight } from '../../ui/PlayedCardSpotlight';
 import type { TableApi } from '../../ui/use-table';
 import { ANCHOR_DECK, ANCHOR_DISCARD, ANCHOR_EVENT, anchorsStore, seatKey } from '../core/anchors-store';
 import { Caption } from './Caption';
-import { CharacterHover } from './CharacterHover';
+import { CharacterHover, type PreviewSlot } from './CharacterHover';
 import { FloatingNumbers } from './FloatingNumbers';
 import { LABEL_W, LABEL_W_COMPACT, LABEL_W_SELF, LABEL_W_SELF_COMPACT, SeatLabel } from './SeatLabel';
 import { Colors, Spacing } from '@/constants/theme';
@@ -24,11 +24,10 @@ export type Overlay3DProps = {
   api: TableApi;
   targets: PlayerId[];
   onSeatPress: (pid: PlayerId) => void;
-  headline: string;
   wide: boolean;
 };
 
-export function Overlay3D({ view, viewer, api, targets, onSeatPress, headline, wide }: Overlay3DProps) {
+export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Overlay3DProps) {
   const anchors = useStore(anchorsStore);
   const steal = api.prompt?.steal ?? null;
   const event = view.event?.current ? HIGHNOON_EVENTS[view.event.current] : null;
@@ -38,6 +37,16 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, headline, w
 
   const compact = anchors.width < 520;
   const selfBox = selfLabelBox(anchors, view, viewer, compact);
+  // 넓은 화면에선 내 정보가 하단 바로 가고, 보드 옆 자리는 캐릭터 카드 미리보기가 쓴다
+  const selfInBar = wide && !view.draft;
+  const slot: PreviewSlot | null =
+    selfInBar && selfBox?.mode === 'side'
+      ? {
+          left: Math.max(4, selfBox.x1 - Math.min(PREVIEW_W, selfBox.room)),
+          bottom: Math.max(4, anchors.height - selfBox.y1),
+          width: Math.min(PREVIEW_W, selfBox.room),
+        }
+      : null;
 
   return (
     <View style={styles.layer}>
@@ -45,6 +54,8 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, headline, w
         const p = anchors.points[seatKey(i)];
         if (!p || !p.visible) return null;
         const self = player.id === viewer;
+        // 강탈 대상이 나일 때는 좌석 칸이 필요하니 그대로 둔다
+        if (self && selfInBar && !(steal && steal.target === player.id)) return null;
         const w = self ? (compact ? LABEL_W_SELF_COMPACT : LABEL_W_SELF) : compact ? LABEL_W_COMPACT : LABEL_W;
         const half = w / 2 + 4;
         let x = Math.max(half, Math.min(anchors.width - half, p.x));
@@ -88,18 +99,10 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, headline, w
       {discard?.visible && <Pill x={discard.x} y={discard.y} text={`버린 더미 ${view.discard.length}`} />}
       {event && ev?.visible && <Pill x={ev.x} y={ev.y} text={event.nameKo} tone={Colors.renegade} />}
 
-      <CharacterHover view={view} viewer={viewer} onSeatPress={onSeatPress} />
+      <CharacterHover view={view} viewer={viewer} onSeatPress={onSeatPress} slot={slot} />
       <FloatingNumbers view={view} />
       <PlayedCardSpotlight view={view} viewer={viewer} api={api} compact={!wide} />
       <Caption />
-
-      {wide && (
-        <View style={styles.headlineWrap}>
-          <Text style={styles.headline} numberOfLines={2}>
-            {headline}
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -110,8 +113,19 @@ const OTHER_LABEL_H = 72;
 const SELF_LABEL_H = 150;
 /** 좁은 화면 내 정보창 대략 높이 (능력 한 줄) */
 const SELF_LABEL_H_COMPACT = 96;
+/** 캐릭터 카드 미리보기 패널 폭. 보드 옆 자리가 좁으면 줄인다 */
+const PREVIEW_W = 300;
 
-type SelfBox = { mode: 'side' | 'below' | 'inside'; x: number; x0: number; x1: number; y0: number; y1: number };
+type SelfBox = {
+  mode: 'side' | 'below' | 'inside';
+  x: number;
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+  /** side 일 때 화면 왼쪽 끝부터 보드 앞까지 쓸 수 있는 폭 */
+  room: number;
+};
 
 /** 내 정보창이 놓일 자리와 대략의 사각형 */
 function selfLabelBox(
@@ -128,14 +142,15 @@ function selfLabelBox(
   const bottom = Math.min(anchors.height, p.bottom ?? p.y);
   const sideX = (p.left ?? p.x) - gap - w / 2;
   if (sideX - w / 2 >= 4) {
-    return { mode: 'side', x: sideX, x0: sideX - w / 2, x1: sideX + w / 2, y0: bottom - SELF_LABEL_H, y1: bottom };
+    const x1 = sideX + w / 2;
+    return { mode: 'side', x: sideX, x0: sideX - w / 2, x1, y0: bottom - SELF_LABEL_H, y1: bottom, room: x1 - 4 };
   }
   // 옆에 자리가 없으면 보드 아래 (세로 화면은 layout 이 그 자리를 비워 둔다). 그래도 모자라면 보드 아랫변 안쪽
   const x = Math.max(w / 2 + 4, Math.min(anchors.width - w / 2 - 4, p.x));
   if (anchors.height - bottom >= SELF_LABEL_H_COMPACT) {
-    return { mode: 'below', x, x0: x - w / 2, x1: x + w / 2, y0: bottom, y1: bottom + SELF_LABEL_H_COMPACT };
+    return { mode: 'below', x, x0: x - w / 2, x1: x + w / 2, y0: bottom, y1: bottom + SELF_LABEL_H_COMPACT, room: w };
   }
-  return { mode: 'inside', x, x0: x - w / 2, x1: x + w / 2, y0: bottom - SELF_LABEL_H, y1: bottom };
+  return { mode: 'inside', x, x0: x - w / 2, x1: x + w / 2, y0: bottom - SELF_LABEL_H, y1: bottom, room: w };
 }
 
 function Pill({ x, y, text, tone }: { x: number; y: number; text: string; tone?: string }) {
@@ -159,18 +174,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 1,
     overflow: 'hidden',
-  },
-  headlineWrap: { position: 'absolute', top: Spacing.two, left: 0, right: 0, alignItems: 'center', pointerEvents: 'none' },
-  headline: {
-    color: Colors.text,
-    backgroundColor: 'rgba(24, 16, 9, 0.82)',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    overflow: 'hidden',
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
-    maxWidth: 420,
   },
 });

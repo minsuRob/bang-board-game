@@ -5,29 +5,29 @@
  * 없으면 이름·목숨·능력 문구만으로 그린다.
  */
 
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { CHARACTERS } from '../data/characters';
 import type { CharacterId } from '../data/types';
 import { characterArt } from './card-art';
+import { CharacterPortraitImage } from './CharacterPortraitImage';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
-// 원본 캐릭터 카드 스캔은 250×389 (종횡비 ≈ 0.643). 카드 박스를 이 비율에
-// 맞춰야 resizeMode="cover" 가 좌우를 잘라 이름을 짤리게 하지 않는다.
-const ART_ASPECT = 250 / 389;
-export const CHARACTER_CARD = { width: 150, height: Math.round(150 / ART_ASPECT) } as const;
+// 그림은 카드 통째가 아니라 초상 칸만 잘라 쓴다. 이름은 아래 띠가 한국어로 대신한다
+export const CHARACTER_CARD = { width: 150, height: 214 } as const;
+const BORDER = 2;
 
 export function CharacterCard({ id, compact }: { id: CharacterId; compact?: boolean }) {
   const def = CHARACTERS[id];
   const art = characterArt(id);
   const w = compact ? 112 : CHARACTER_CARD.width;
-  const h = Math.round(w / ART_ASPECT);
+  const h = compact ? 160 : CHARACTER_CARD.height;
 
   return (
     <View style={[styles.card, { width: w, height: h }]}>
       {art ? (
         <>
-          <Image source={art} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <CharacterPortraitImage id={id} width={w - BORDER * 2} height={h - BORDER * 2} />
           <View style={styles.strip}>
             <Text style={styles.stripName} numberOfLines={1}>
               {def.nameKo}
@@ -57,7 +57,7 @@ export function CharacterCard({ id, compact }: { id: CharacterId; compact?: bool
 const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.md,
-    borderWidth: 2,
+    borderWidth: BORDER,
     borderColor: Colors.paperEdge,
     backgroundColor: Colors.paper,
     overflow: 'hidden',

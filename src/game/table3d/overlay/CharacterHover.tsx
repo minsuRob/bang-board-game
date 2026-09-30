@@ -1,5 +1,8 @@
 /**
- * 상대 보드의 캐릭터 카드 위에 마우스를 올리면 그 캐릭터의 능력 설명을 띄운다.
+ * 보드의 캐릭터 카드 위에 마우스를 올리면 그 캐릭터의 능력 설명을 띄운다.
+ *
+ * 넓은 화면이면 내 보드 왼쪽 옆 자리(slot)에 카드 그림과 설명을 크게 띄우고,
+ * 그 자리가 없으면 카드 옆에 작은 말풍선으로 띄운다.
  *
  * 3D 카드 자체는 포인터를 받지 않으므로, 앵커가 준 카드의 화면 사각형에
  * 투명한 RN 칸을 얹어 hover 를 받는다. 폰에는 hover 가 없고 투명 칸이
@@ -10,21 +13,30 @@ import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useStore } from 'zustand';
 
+import { CARD_DEFS } from '../../data/cards.base';
 import { CHARACTERS } from '../../data/characters';
-import type { GameState, PlayerId } from '../../engine';
+import { ROLE_LABEL } from '../../data/roles';
+import { kindOf, type GameState, type Player, type PlayerId } from '../../engine';
+import { CharacterCard } from '../../ui/CharacterCard';
 import { anchorsStore, characterKey } from '../core/anchors-store';
+import { ROLE_COLOR, safeDistance } from './SeatLabel';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 const TIP_W = 240;
+
+/** 미리보기 패널이 놓일 자리. 왼쪽·아랫변 기준 */
+export type PreviewSlot = { left: number; bottom: number; width: number };
 
 export function CharacterHover({
   view,
   viewer,
   onSeatPress,
+  slot,
 }: {
   view: GameState;
   viewer: PlayerId;
   onSeatPress: (pid: PlayerId) => void;
+  slot: PreviewSlot | null;
 }) {
   const anchors = useStore(anchorsStore);
   const [hovered, setHovered] = useState<PlayerId | null>(null);
@@ -39,7 +51,8 @@ export function CharacterHover({
   return (
     <>
       {view.players.map((player, i) => {
-        if (player.id === viewer) return null;
+        // 내 카드는 옆 자리가 있을 때만 (내 정보창이 하단 바로 가서 능력을 볼 곳이 여기뿐이다)
+        if (player.id === viewer && !slot) return null;
         const r = anchors.points[characterKey(i)];
         if (!r || !r.visible || r.left === undefined || r.right === undefined) return null;
         const top = r.top ?? r.y;
@@ -57,7 +70,9 @@ export function CharacterHover({
         );
       })}
 
-      {tipFor && tipRect && tipRect.left !== undefined && tipRect.right !== undefined && (
+      {tipFor && slot && <PreviewPanel view={view} viewer={viewer} player={tipFor} slot={slot} />}
+
+      {tipFor && !slot && tipRect && tipRect.left !== undefined && tipRect.right !== undefined && (
         <Tooltip
           name={CHARACTERS[tipFor.character].nameKo}
           ability={CHARACTERS[tipFor.character].ability}
@@ -70,6 +85,65 @@ export function CharacterHover({
         />
       )}
     </>
+  );
+}
+
+function PreviewPanel({
+  view,
+  viewer,
+  player,
+  slot,
+}: {
+  view: GameState;
+  viewer: PlayerId;
+  player: Player;
+  slot: PreviewSlot;
+}) {
+  const isSelf = player.id === viewer;
+  const dead = !player.alive && !player.ghost;
+  const character = CHARACTERS[player.character];
+  const hp = Math.max(0, player.hp);
+  const dist = !isSelf && !dead ? safeDistance(view, viewer, player.id) : null;
+  return (
+    <View style={[styles.tip, styles.panel, { left: slot.left, bottom: slot.bottom, width: slot.width }]}>
+      <View style={styles.panelTop}>
+        <CharacterCard id={player.character} compact />
+        <View style={styles.panelInfo}>
+          <View style={styles.tipHead}>
+            <Text style={styles.panelName} numberOfLines={1}>
+              {isSelf ? '나' : player.name}
+            </Text>
+            {(player.roleRevealed || isSelf) && (
+              <Text style={[styles.panelRole, { color: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
+            )}
+          </View>
+          <Text style={styles.panelCharacter}>
+            {character.nameKo}
+            {player.ghost ? ' · 유령' : dead ? ' · 제거됨' : ''}
+          </Text>
+          <Text style={styles.panelHp}>
+            {'●'.repeat(hp)}
+            <Text style={styles.hpEmpty}>{'○'.repeat(Math.max(0, player.maxHp - hp))}</Text>
+            <Text style={styles.panelHpNumber}>
+              {'  '}
+              {hp}/{player.maxHp}
+            </Text>
+          </Text>
+          {!isSelf && (
+            <Text style={styles.panelMeta}>
+              손패 {player.hand.length}
+              {dist !== null ? ` · 거리 ${dist}` : ''}
+            </Text>
+          )}
+          {player.equipment.length > 0 && (
+            <Text style={styles.panelEquipment}>
+              {player.equipment.map((c) => CARD_DEFS[kindOf(c)].nameKo).join(' · ')}
+            </Text>
+          )}
+        </View>
+      </View>
+      <Text style={styles.panelAbility}>{character.ability}</Text>
+    </View>
   );
 }
 
@@ -124,4 +198,16 @@ const styles = StyleSheet.create({
   tipName: { color: Colors.text, fontSize: 13, fontWeight: '800' },
   tipHp: { color: Colors.hp, fontSize: 10, letterSpacing: 1 },
   tipAbility: { color: Colors.text, fontSize: 11, lineHeight: 15 },
+  panel: { padding: Spacing.two, gap: Spacing.two, borderRadius: Radius.lg, borderWidth: 2 },
+  panelTop: { flexDirection: 'row', gap: Spacing.two },
+  panelInfo: { flex: 1, minWidth: 0, gap: 3 },
+  panelName: { color: Colors.text, fontSize: 16, fontWeight: '900', flexShrink: 1 },
+  panelRole: { fontSize: 11, fontWeight: '800' },
+  panelCharacter: { color: Colors.text, fontSize: 13, fontWeight: '700' },
+  panelHp: { color: Colors.hp, fontSize: 13, letterSpacing: 1 },
+  hpEmpty: { color: Colors.border },
+  panelHpNumber: { color: Colors.text, fontSize: 12, fontWeight: '800', letterSpacing: 0 },
+  panelMeta: { color: Colors.textMuted, fontSize: 11 },
+  panelEquipment: { color: Colors.deputy, fontSize: 11 },
+  panelAbility: { color: Colors.text, fontSize: 12, lineHeight: 17 },
 });

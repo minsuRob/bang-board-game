@@ -537,15 +537,21 @@ export function characterFrameTexture(): THREE.DataTexture {
 
 const artCache = new Map<ImageSourcePropType, Promise<THREE.Texture | null>>();
 
+/** 미리 받아 둔 { uri } 소스면 그대로, 번들 모듈이면 기기에 받아서 주소를 낸다 */
+async function artUri(source: ImageSourcePropType): Promise<string | null> {
+  if (typeof source === 'object' && source !== null && 'uri' in source && source.uri) return source.uri;
+  const asset = Asset.fromModule(source as number);
+  await asset.downloadAsync();
+  return asset.localUri ?? asset.uri;
+}
+
 /** 카드 그림을 텍스처로. 실패하면 null — 호출자는 픽셀 텍스처를 그대로 쓴다 */
 export function loadArtTexture(source: ImageSourcePropType): Promise<THREE.Texture | null> {
   const hit = artCache.get(source);
   if (hit) return hit;
   const p = (async () => {
     try {
-      const asset = Asset.fromModule(source as number);
-      await asset.downloadAsync();
-      const uri = asset.localUri ?? asset.uri;
+      const uri = await artUri(source);
       if (!uri) return null;
       const tex = await new THREE.TextureLoader().loadAsync(uri);
       tex.colorSpace = THREE.SRGBColorSpace;

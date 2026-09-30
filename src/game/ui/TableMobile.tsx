@@ -6,7 +6,7 @@
  * 착석 순서는 그대로 유지해서 거리 감각은 잃지 않게 한다.
  */
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Image,
   ImageBackground,
@@ -33,6 +33,7 @@ import { DraftSeatStatus } from './DraftSeatStatus';
 import { cardBackArt, characterArt, eventArt, woodArt } from './card-art';
 import { AttackBadges } from './AttackBadges';
 import { CardView } from './CardView';
+import { CharacterPortraitImage } from './CharacterPortraitImage';
 import { Hand } from './Hand';
 import { useChatUnread } from './ChatPanel';
 import { SidePanel } from './SidePanel';
@@ -55,6 +56,8 @@ export type TableMobileProps = {
   onSeatPress: (pid: PlayerId) => void;
   targets: PlayerId[];
   onCardPress: (card: CardId) => void;
+  /** 진행 기록 버튼 왼쪽에 붙는 시계 */
+  clock?: ReactNode;
 };
 
 export function TableMobile({
@@ -66,6 +69,7 @@ export function TableMobile({
   onSeatPress,
   targets,
   onCardPress,
+  clock,
 }: TableMobileProps) {
   const [logOpen, setLogOpen] = useState(false);
   const unread = useChatUnread(logOpen);
@@ -98,14 +102,17 @@ export function TableMobile({
         <Text style={styles.headline} numberOfLines={1}>
           {headline}
         </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={unread ? '진행 기록과 채팅, 새 글 있음' : '진행 기록과 채팅'}
-          onPress={() => setLogOpen((v) => !v)}
-          style={styles.logButton}>
-          <Text style={styles.logButtonText}>{logOpen ? '닫기' : '기록·채팅'}</Text>
-          {unread && <View style={styles.unreadDot} />}
-        </Pressable>
+        <View style={styles.topRight}>
+          {clock}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={unread ? '진행 기록과 채팅, 새 글 있음' : '진행 기록과 채팅'}
+            onPress={() => setLogOpen((v) => !v)}
+            style={styles.logButton}>
+            <Text style={styles.logButtonText}>{logOpen ? '닫기' : '기록·채팅'}</Text>
+            {unread && <View style={styles.unreadDot} />}
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.scrollArea}>
@@ -291,7 +298,11 @@ function CompactSeat({
       ) : (
         <>
           <View style={styles.compactCharRow}>
-            {portrait && <Image source={portrait} style={styles.compactPortrait} resizeMode="cover" />}
+            {portrait && (
+              <View style={styles.compactPortrait}>
+                <CharacterPortraitImage id={player.character} width={20} height={28} />
+              </View>
+            )}
             <Text style={styles.compactCharacter} numberOfLines={2}>
               {CHARACTERS[player.character].nameKo}
               {player.ghost ? ' · 유령' : ''}
@@ -388,6 +399,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   headline: { color: Colors.text, fontSize: 13, fontWeight: '700', flexShrink: 1 },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   logButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -463,7 +475,7 @@ const styles = StyleSheet.create({
   compactName: { color: Colors.text, fontSize: 12, fontWeight: '800', flexShrink: 1 },
   compactRole: { fontSize: 9, fontWeight: '800' },
   compactCharRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  compactPortrait: { width: 20, height: 28, borderRadius: 2 },
+  compactPortrait: { width: 20, height: 28, borderRadius: 2, overflow: 'hidden' },
   compactCharacter: { color: Colors.textMuted, fontSize: 10, flexShrink: 1 },
   compactHp: { color: Colors.hp, fontSize: 10, letterSpacing: 1 },
   compactHpEmpty: { color: Colors.border },

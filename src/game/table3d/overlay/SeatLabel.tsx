@@ -13,7 +13,7 @@ import { AttackBadges } from '../../ui/AttackBadges';
 import { PlayerSeat } from '../../ui/PlayerSeat';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
-const ROLE_COLOR: Record<Role, string> = {
+export const ROLE_COLOR: Record<Role, string> = {
   sheriff: Colors.sheriff,
   deputy: Colors.deputy,
   outlaw: Colors.outlaw,
@@ -203,7 +203,7 @@ export function SeatLabel({
   );
 }
 
-function safeDistance(view: GameState, from: PlayerId, to: PlayerId): number | null {
+export function safeDistance(view: GameState, from: PlayerId, to: PlayerId): number | null {
   try {
     return distance(view, from, to);
   } catch {

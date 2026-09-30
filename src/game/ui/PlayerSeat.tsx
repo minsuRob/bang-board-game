@@ -6,7 +6,7 @@
  * (원본 맵 v0.4 "선택 가능한 것들을 강조표시합니다").
  */
 
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CHARACTERS } from '../data/characters';
 import { ROLE_LABEL } from '../data/roles';
@@ -14,6 +14,7 @@ import type { CardId, Role } from '../data/types';
 import type { GameState, Player, PlayerId } from '../engine';
 import { distance } from '../engine';
 import { characterArt } from './card-art';
+import { CharacterPortraitImage } from './CharacterPortraitImage';
 import { DraftSeatStatus } from './DraftSeatStatus';
 import { AttackBadges } from './AttackBadges';
 import { CardView } from './CardView';
@@ -91,7 +92,9 @@ export function PlayerSeat({
         <>
           <View style={styles.characterRow}>
             {portrait && (
-              <Image source={portrait} style={styles.portrait} resizeMode="cover" />
+              <View style={styles.portrait}>
+                <CharacterPortraitImage id={player.character} width={24} height={34} />
+              </View>
             )}
             <Text style={styles.character} numberOfLines={2}>
               {character.nameKo}
@@ -208,6 +211,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     borderWidth: 1,
     borderColor: Colors.border,
+    overflow: 'hidden',
   },
   character: { color: Colors.textMuted, fontSize: 11, flexShrink: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flexWrap: 'wrap' },

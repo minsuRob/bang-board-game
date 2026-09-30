@@ -29,6 +29,7 @@ import { DragHand } from './drag/DragHand';
 import { markGlFailed } from './mode';
 import { Overlay3D } from './overlay/Overlay3D';
 import { Scene } from './Scene';
+import { SelfStatus } from './SelfStatus';
 import { Colors, MobileBreakpoint, Radius, Spacing } from '@/constants/theme';
 
 const LOG_WIDTH = 268;
@@ -44,9 +45,10 @@ export type Table3DProps = {
   view: GameState;
   viewer: PlayerId;
   api: TableApi;
+  clock?: ReactNode;
 };
 
-export function Table3D({ view, viewer, api }: Table3DProps) {
+export function Table3D({ view, viewer, api, clock }: Table3DProps) {
   const { width } = useWindowDimensions();
   const wide = width >= MobileBreakpoint;
   // 폰의 노치·홈 바를 피한다
@@ -142,7 +144,6 @@ export function Table3D({ view, viewer, api }: Table3DProps) {
             api={api}
             targets={targets}
             onSeatPress={onSeatPress}
-            headline={headline}
             wide={wide}
           />
 
@@ -153,14 +154,26 @@ export function Table3D({ view, viewer, api }: Table3DProps) {
               <Text style={styles.headline} numberOfLines={1}>
                 {headline}
               </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={unread ? '진행 기록과 채팅, 새 글 있음' : '진행 기록과 채팅'}
-                onPress={() => setLogOpen((v) => !v)}
-                style={styles.logButton}>
-                <Text style={styles.logButtonText}>{logOpen ? '닫기' : '기록·채팅'}</Text>
-                {unread && <View style={styles.unreadDot} />}
-              </Pressable>
+              <View style={styles.topRight}>
+                {clock}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={unread ? '진행 기록과 채팅, 새 글 있음' : '진행 기록과 채팅'}
+                  onPress={() => setLogOpen((v) => !v)}
+                  style={styles.logButton}>
+                  <Text style={styles.logButtonText}>{logOpen ? '닫기' : '기록·채팅'}</Text>
+                  {unread && <View style={styles.unreadDot} />}
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          {wide && (
+            <View style={styles.clockSlot}>
+              <Text style={styles.headline} numberOfLines={1}>
+                {headline}
+              </Text>
+              {clock}
             </View>
           )}
         </View>
@@ -182,6 +195,16 @@ export function Table3D({ view, viewer, api }: Table3DProps) {
               playerNameOf={(pid) => view.players.find((p) => p.id === pid)?.name ?? pid}
               abilities={api.abilities}
               onUseAbility={api.useAbility}
+              aside={
+                wide ? (
+                  <SelfStatus
+                    player={me}
+                    active={view.turn.active === viewer}
+                    targetable={targets.includes(viewer)}
+                    onPress={() => onSeatPress(viewer)}
+                  />
+                ) : undefined
+              }
             />
             <View style={styles.handArea}>
               <DragHand
@@ -276,6 +299,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: 'rgba(24, 16, 9, 0.75)',
+  },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  // 넓은 화면: 테이블 오른쪽 위 = 옆 칸(진행 기록) 바로 왼쪽. 차례 안내는 시계 왼쪽에 붙는다
+  clockSlot: {
+    position: 'absolute',
+    top: Spacing.two,
+    right: Spacing.two,
+    left: Spacing.two,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: Spacing.one,
+    pointerEvents: 'none',
   },
   logButtonText: { color: Colors.textMuted, fontSize: 11, fontWeight: '700' },
   unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.highlight },

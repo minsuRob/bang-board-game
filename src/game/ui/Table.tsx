@@ -6,7 +6,7 @@
  * 나머지를 타원 위에 좌석 순서대로 앉힌다.
  */
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ImageBackground, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { CHARACTERS } from '../data/characters';
@@ -36,9 +36,11 @@ export type TableProps = {
   view: GameState;
   viewer: PlayerId;
   api: TableApi;
+  /** 오른쪽 위, 진행 기록 왼쪽에 붙는 시계 */
+  clock?: ReactNode;
 };
 
-export function Table({ view, viewer, api }: TableProps) {
+export function Table({ view, viewer, api, clock }: TableProps) {
   const mode = useTableMode();
   const { width, height } = useWindowDimensions();
   // 폭도 높이도 넉넉해야 원형 배치를 쓴다. 하나라도 모자라면 좌석이 겹친다.
@@ -86,7 +88,7 @@ export function Table({ view, viewer, api }: TableProps) {
   };
 
   // 3D 테이블. `?flat=1` 이거나 GL 이 없으면 아래 2D 로 간다.
-  if (mode === '3d') return <Table3D view={view} viewer={viewer} api={api} />;
+  if (mode === '3d') return <Table3D view={view} viewer={viewer} api={api} clock={clock} />;
 
   if (!wide) {
     return (
@@ -99,6 +101,7 @@ export function Table({ view, viewer, api }: TableProps) {
         onSeatPress={onSeatPress}
         targets={targets}
         onCardPress={(card) => handleHandTap(api, card)}
+        clock={clock}
       />
     );
   }
@@ -135,6 +138,8 @@ export function Table({ view, viewer, api }: TableProps) {
       </View>
 
       <PlayedCardSpotlight view={view} viewer={viewer} api={api} />
+
+      {clock && <View style={styles.clockSlot}>{clock}</View>}
     </View>
   );
 
@@ -250,6 +255,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // 테이블 오른쪽 위 = 옆 칸(진행 기록) 바로 왼쪽
+  clockSlot: { position: 'absolute', top: Spacing.two, right: 0, pointerEvents: 'none' },
   side: { width: LOG_WIDTH, marginVertical: Spacing.two },
   sidePanel: { backgroundColor: 'rgba(28, 19, 11, 0.92)' },
   bottom: { backgroundColor: Colors.surface },

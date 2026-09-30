@@ -6,7 +6,15 @@ import * as THREE from 'three';
 
 import type { CardKind, CharacterId, Role, Suit } from '../../data/types';
 import { cardOf } from '../../engine';
-import { playingCardArt, cardBackArt, characterArt, playerBoardArt, roleArt } from '../../ui/card-art';
+import {
+  type ArtCrop,
+  cardBackArt,
+  characterPortrait,
+  playerBoardArt,
+  playingCardArt,
+  roleArt,
+} from '../../ui/card-art';
+import { CARD_SIZE } from '../core/types';
 import {
   bulletTexture,
   cardBackTexture,
@@ -15,6 +23,7 @@ import {
   eventCardTexture,
   loadArtTexture,
   playerBoardTexture,
+  PORTRAIT_WINDOW,
   roleBackTexture,
   roleFaceTexture,
 } from './textures';
@@ -82,13 +91,12 @@ export function backMaterialDouble(): THREE.MeshBasicMaterial {
 }
 
 /** 그림이 있으면 뒤늦게 map 을 바꿔 끼운다 */
-function swapInArt(mat: THREE.MeshBasicMaterial, art: Parameters<typeof loadArtTexture>[0] | null, onLoad?: () => void) {
+function swapInArt(mat: THREE.MeshBasicMaterial, art: Parameters<typeof loadArtTexture>[0] | null) {
   if (!art) return;
   void loadArtTexture(art).then((tex) => {
     if (!tex) return;
     mat.map = tex;
     mat.needsUpdate = true;
-    onLoad?.();
     onMaterialSwapped?.();
   });
 }
@@ -147,10 +155,44 @@ export function portraitMaterial(id: CharacterId): THREE.MeshBasicMaterial {
   if (hit) return hit;
   const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
   portraitMats.set(id, mat);
-  swapInArt(mat, characterArt(id), () => {
+  const portrait = characterPortrait(id);
+  if (!portrait) return mat;
+  void loadArtTexture(portrait.source).then((loaded) => {
+    if (!loaded) return;
+    // 카드 통째 스캔이면 초상 칸만 창에 맞춰 잘라 붙인다. 캐시된 원본은 건드리지 않게 복제한다
+    const tex = portrait.crop ? loaded.clone() : loaded;
+    if (portrait.crop) fitCrop(tex, portrait.crop, PORTRAIT_WINDOW_ASPECT);
+    mat.map = tex;
     mat.opacity = 1;
+    mat.needsUpdate = true;
+    onMaterialSwapped?.();
   });
   return mat;
+}
+
+/** 초상 창 (가로/세로). 카드 크기에 창 비율을 곱한 것 */
+const PORTRAIT_WINDOW_ASPECT = (CARD_SIZE.w * PORTRAIT_WINDOW.w) / (CARD_SIZE.h * PORTRAIT_WINDOW.h);
+
+/** 텍스처의 crop 칸이 aspect 비율 평면을 덮도록 (cover) UV 를 옮긴다 */
+function fitCrop(tex: THREE.Texture, crop: ArtCrop, aspect: number) {
+  const img = tex.image as { width?: number; height?: number } | undefined;
+  const iw = img?.width || 250;
+  const ih = img?.height || 389;
+  let { x, y, w, h } = crop;
+  const cropAspect = (w * iw) / (h * ih);
+  if (cropAspect > aspect) {
+    const nw = (w * aspect) / cropAspect;
+    x += (w - nw) / 2;
+    w = nw;
+  } else {
+    const nh = (h * cropAspect) / aspect;
+    y += (h - nh) / 2;
+    h = nh;
+  }
+  // 텍스처 v 는 아래가 0 이다
+  tex.repeat.set(w, h);
+  tex.offset.set(x, 1 - y - h);
+  tex.needsUpdate = true;
 }
 
 let eventMaterial: THREE.MeshBasicMaterial | null = null;

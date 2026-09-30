@@ -5,7 +5,7 @@
  * 요구 사항은 언제나 화면 안쪽에 한 줄로 붙인다.
  */
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../data/cards.base';
@@ -26,6 +26,8 @@ export type ActionBarProps = {
   playerNameOf: (pid: string) => string;
   abilities: { key: string; label: string; cards: string[] }[];
   onUseAbility: (key: string, cards: string[]) => void;
+  /** 넓은 3D 화면: 바 왼쪽 절반에 얹을 내 정보. 있으면 기존 내용은 오른쪽 절반으로 간다 */
+  aside?: ReactNode;
 };
 
 export function ActionBar({
@@ -37,29 +39,26 @@ export function ActionBar({
   playerNameOf,
   abilities,
   onUseAbility,
+  aside,
 }: ActionBarProps) {
-  if (!prompt) {
-    return (
-      <View style={styles.bar}>
-        <View style={styles.statusRow}>
-          <Text style={styles.status}>{status}</Text>
-          {!!status && <WaitSeconds />}
-        </View>
-        <View style={styles.buttons}>
-          {abilities.length > 0 && (
-            <Button
-              label={`능력 · ${abilities[0].label}`}
-              onPress={() => onUseAbility(abilities[0].key, abilities[0].cards)}
-            />
-          )}
-          {canEndTurn && <Button label="차례 마치기 (Q)" onPress={onEndTurn} primary />}
-        </View>
+  const content = !prompt ? (
+    <>
+      <View style={styles.statusRow}>
+        <Text style={styles.status}>{status}</Text>
+        {!!status && <WaitSeconds />}
       </View>
-    );
-  }
-
-  return (
-    <View style={[styles.bar, styles.barActive]}>
+      <View style={styles.buttons}>
+        {abilities.length > 0 && (
+          <Button
+            label={`능력 · ${abilities[0].label}`}
+            onPress={() => onUseAbility(abilities[0].key, abilities[0].cards)}
+          />
+        )}
+        {canEndTurn && <Button label="차례 마치기 (Q)" onPress={onEndTurn} primary />}
+      </View>
+    </>
+  ) : (
+    <>
       <View style={styles.textBlock}>
         <View style={styles.statusRow}>
           <Text style={styles.title}>{prompt.title}</Text>
@@ -105,6 +104,16 @@ export function ActionBar({
           )}
         </View>
       </ScrollView>
+    </>
+  );
+
+  const barStyle = [styles.bar, !!prompt && styles.barActive];
+  if (!aside) return <View style={barStyle}>{content}</View>;
+  return (
+    <View style={[barStyle, styles.split]}>
+      <View style={styles.aside}>{aside}</View>
+      <View style={styles.divider} />
+      <View style={styles.half}>{content}</View>
     </View>
   );
 }
@@ -163,6 +172,18 @@ const styles = StyleSheet.create({
     minHeight: 62,
   },
   barActive: { backgroundColor: Colors.surfaceRaised, borderColor: Colors.highlight },
+  // 왼쪽 절반 내 정보 | 오른쪽 절반 안내·프롬프트
+  split: { justifyContent: 'flex-start', alignItems: 'stretch' },
+  aside: { flex: 1, minWidth: 0, justifyContent: 'center' },
+  divider: { width: 1, backgroundColor: Colors.border },
+  half: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+  },
   textBlock: { gap: 2, flexShrink: 1 },
   title: { color: Colors.text, fontWeight: '800', fontSize: 14 },
   hint: { color: Colors.textMuted, fontSize: 11 },
