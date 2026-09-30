@@ -31,6 +31,7 @@ import { DraftPanel } from './DraftPanel';
 import { PlayedCardSpotlight } from './PlayedCardSpotlight';
 import { DraftSeatStatus } from './DraftSeatStatus';
 import { cardBackArt, characterArt, eventArt, woodArt } from './card-art';
+import { AttackBadges } from './AttackBadges';
 import { CardView } from './CardView';
 import { Hand } from './Hand';
 import { useChatUnread } from './ChatPanel';
@@ -277,6 +278,7 @@ function CompactSeat({
         <Text style={styles.compactName} numberOfLines={1}>
           {player.name}
         </Text>
+        {!isSelf && !view.draft && <AttackBadges view={view} from={player.id} viewer={viewer} />}
         {(player.roleRevealed || isSelf) && (
           <Text style={[styles.compactRole, { color: ROLE_COLOR[player.role] }]}>
             {ROLE_LABEL[player.role]}

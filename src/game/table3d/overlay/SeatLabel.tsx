@@ -9,6 +9,7 @@ import { CHARACTERS } from '../../data/characters';
 import { ROLE_GOAL, ROLE_LABEL } from '../../data/roles';
 import type { CardId, Role } from '../../data/types';
 import { distance, kindOf, type GameState, type Player, type PlayerId } from '../../engine';
+import { AttackBadges } from '../../ui/AttackBadges';
 import { PlayerSeat } from '../../ui/PlayerSeat';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
@@ -159,6 +160,7 @@ export function SeatLabel({
           <Text style={[styles.name, big && styles.selfName]} numberOfLines={1}>
             {player.name}
           </Text>
+          {!isSelf && <AttackBadges view={view} from={player.id} viewer={viewer} />}
           {(player.roleRevealed || isSelf) &&
             (big ? (
               <Text style={[styles.roleChip, { backgroundColor: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>

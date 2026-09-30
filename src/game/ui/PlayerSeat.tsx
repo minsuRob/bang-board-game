@@ -15,6 +15,7 @@ import type { GameState, Player, PlayerId } from '../engine';
 import { distance } from '../engine';
 import { characterArt } from './card-art';
 import { DraftSeatStatus } from './DraftSeatStatus';
+import { AttackBadges } from './AttackBadges';
 import { CardView } from './CardView';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
@@ -76,6 +77,7 @@ export function PlayerSeat({
         <Text style={styles.name} numberOfLines={1}>
           {player.name}
         </Text>
+        {!isSelf && !view.draft && <AttackBadges view={view} from={player.id} viewer={viewer} size="sm" />}
         {player.roleRevealed || isSelf ? (
           <Text style={[styles.role, { color: ROLE_COLOR[player.role] }]}>
             {ROLE_LABEL[player.role]}
