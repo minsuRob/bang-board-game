@@ -6,7 +6,7 @@
  * 2. 내 손패를 살펴보는 동안(웹 hover, 폰 첫 탭) 그 카드가 떠 있다. 이쪽이 우선이다.
  *
  * 카드 아래에는 드래프트와 같은 종이 명판으로 상황과 카드 효과를 적는다.
- * 누구를 겨눈 카드면 낸 사람과 대상의 캐릭터 카드를, 빗나감!이면 피한 사람의 캐릭터 카드를 양옆에 세운다.
+ * 왼쪽에 낸 사람의 캐릭터 카드를 세운다. 누구를 겨눈 카드면 오른쪽에 대상의 캐릭터 카드도 세운다.
  * 드러난 부관이면 캐릭터 카드 위에 부관 별을 단다.
  * 연출이 붙은 카드(fx/card-fx.ts)는 카드가 올라선 직후 소리와 화면 효과가 같은 틱에 터진다.
  * 첫 메뉴에서 고화질을 골랐고 Skia 가 준비됐으면 Skia 연출(fx/skia), 아니면 일반 연출(RN Animated).
@@ -180,17 +180,11 @@ function facesOf(view: GameState, viewer: PlayerId, event: GameEvent): Faces | n
     if (!p) return null;
     return { character: p.character, deputy: p.role === 'deputy' && roleVisibleTo(viewer, p) };
   };
-  // 뱅!·캣 발루·강탈·결투·감옥처럼 남을 겨눈 카드
-  if (event.t === 'playCard') {
-    if (!event.target || event.target === event.pid) return null;
-    return { actor: characterOf(event.pid), target: characterOf(event.target) };
-  }
-  // 빗나감!으로 피했거나 결투에서 뱅!으로 맞섰다
-  if (event.t === 'playMissed' || event.t === 'duelBang') {
-    const actor = characterOf(event.pid);
-    return actor ? { actor, target: null } : null;
-  }
-  return null;
+  const actor = characterOf(event.pid);
+  // 뱅!·캣 발루·강탈·결투·감옥처럼 남을 겨눈 카드는 대상도 세운다
+  const target = event.t === 'playCard' && event.target && event.target !== event.pid ? characterOf(event.target) : null;
+  // 역마차·맥주·장비처럼 혼자 쓰는 카드, 빗나감!, 인디언·결투에 맞선 뱅!은 낸 사람만
+  return actor || target ? { actor, target } : null;
 }
 
 /** 누가 낸 카드. 튀어 올랐다가 잠시 뒤 사라진다. 연출이 붙은 카드면 올라선 직후 터진다 */
