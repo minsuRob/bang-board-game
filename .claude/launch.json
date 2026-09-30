@@ -48,6 +48,18 @@
         "8087"
       ],
       "port": 8087
+    },
+    {
+      "name": "bang-web-4",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "expo",
+        "start",
+        "--web",
+        "--port",
+        "8088"
+      ],
+      "port": 8088
     }
   ]
 }

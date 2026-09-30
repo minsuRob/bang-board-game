@@ -8,6 +8,7 @@ import { ROLE_LABEL } from '@/game/data/roles';
 import { makeView, useGameStore, type SeatSetup } from '@/game/store/game-store';
 import { useAiDriver } from '@/game/store/ai-driver';
 import { useTimeoutDriver } from '@/game/store/online-driver';
+import { useChat } from '@/game/store/use-chat';
 import { useOnlineGameSession, useRoomConnection } from '@/game/store/use-online-game';
 import { PauseButton } from '@/game/ui/PauseButton';
 import { SoundButton } from '@/game/ui/SoundButton';
@@ -58,6 +59,7 @@ export default function GameScreen() {
 
   const conn = useRoomConnection(code);
   useOnlineGameSession(code, conn);
+  useChat(code, conn);
 
   useEffect(() => {
     if (online) return;
@@ -87,6 +89,8 @@ export default function GameScreen() {
 
   // 혼자 하는 판(상대가 전부 AI)은 멈출 수 있다. 온라인은 남을 붙잡으므로 안 된다.
   const [paused, setPaused] = useState(false);
+  // 결과 카드를 잠깐 치우고 판과 채팅을 본다
+  const [resultHidden, setResultHidden] = useState(false);
   const canPause = !online && Boolean(state) && !state?.result && !state?.draft;
   const halted = canPause && paused;
 
@@ -175,7 +179,17 @@ export default function GameScreen() {
         </View>
       )}
 
-      {state.result && (
+      {state.result && resultHidden && (
+        <Pressable
+          style={styles.resultPill}
+          accessibilityRole="button"
+          accessibilityLabel="결과 다시 보기"
+          onPress={() => setResultHidden(false)}>
+          <Text style={styles.resultPillText}>결과 다시 보기</Text>
+        </Pressable>
+      )}
+
+      {state.result && !resultHidden && (
         <View style={styles.overlay}>
           <View style={styles.resultCard}>
             <Text style={styles.resultTitle}>
@@ -186,6 +200,13 @@ export default function GameScreen() {
               {state.players.map((p) => `${p.name} — ${ROLE_LABEL[p.role]}`).join('   ')}
             </Text>
             <View style={styles.resultButtons}>
+              <Pressable
+                style={styles.resultButton}
+                accessibilityRole="button"
+                accessibilityLabel="판 보기"
+                onPress={() => setResultHidden(true)}>
+                <Text style={styles.resultButtonText}>판 보기</Text>
+              </Pressable>
               <Pressable
                 style={styles.resultButton}
                 accessibilityRole="button"
@@ -291,4 +312,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardBrown,
   },
   resultButtonText: { color: Colors.paper, fontWeight: '800', fontSize: 13 },
+  resultPill: {
+    position: 'absolute',
+    top: Spacing.two,
+    alignSelf: 'center',
+    backgroundColor: Colors.cardBrown,
+    borderRadius: Radius.pill,
+    borderWidth: 1.5,
+    borderColor: Colors.highlight,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one,
+  },
+  resultPillText: { color: Colors.paper, fontSize: 12, fontWeight: '800' },
 });

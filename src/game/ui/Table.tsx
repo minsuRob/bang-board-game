@@ -18,9 +18,9 @@ import { ActionBar } from './ActionBar';
 import { DraftPanel } from './DraftPanel';
 import { feltArt, woodArt } from './card-art';
 import { Hand } from './Hand';
-import { LogPanel } from './LogPanel';
 import { PlayerSeat } from './PlayerSeat';
 import { PlayedCardSpotlight } from './PlayedCardSpotlight';
+import { SidePanel } from './SidePanel';
 import { TableCenter } from './TableCenter';
 import { TableMobile } from './TableMobile';
 import { bottomStatus, handleHandTap, statusMessage } from './table-text';
@@ -151,7 +151,7 @@ export function Table({ view, viewer, api }: TableProps) {
 
       <View style={styles.main}>
         {table}
-        {wide && <LogPanel log={view.log} style={styles.log} />}
+        {wide && <SidePanel log={view.log} style={styles.side} panelStyle={styles.sidePanel} />}
       </View>
 
       <View style={styles.bottom}>
@@ -250,11 +250,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  log: {
-    width: LOG_WIDTH,
-    marginVertical: Spacing.two,
-    backgroundColor: 'rgba(28, 19, 11, 0.92)',
-  },
+  side: { width: LOG_WIDTH, marginVertical: Spacing.two },
+  sidePanel: { backgroundColor: 'rgba(28, 19, 11, 0.92)' },
   bottom: { backgroundColor: Colors.surface },
   myRow: {
     flexDirection: 'row',

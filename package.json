@@ -39,6 +39,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@types/node": "^22.20.2",
     "@types/react": "~19.2.2",
     "@types/three": "^0.186.0",
@@ -58,6 +59,7 @@
     "lint": "expo lint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-bang \"vitest run --config vitest.rules.config.mts\"",
     "typecheck": "tsc --noEmit",
     "simulate": "tsx scripts/simulate.ts",
     "gen:sfx": "node scripts/gen-sfx.mjs",

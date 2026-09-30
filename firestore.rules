@@ -3,10 +3,13 @@ rules_version = '2';
 // 뱅! 온라인 대전 보안 규칙
 //
 // 서버에는 게임 상태가 없다. 액션 로그만 있고, 그 로그는 한 번 쓰이면 바뀌지 않는다.
-// 규칙이 지키는 것은 세 가지다.
+// 규칙이 지키는 것은 네 가지다.
 //   1. 로그인한 사람만 읽고 쓴다
 //   2. 액션은 자리에 앉은 사람이, 자기 이름으로, 빈틈없는 순번으로만 덧붙인다
 //   3. 방 설정은 호스트만 바꾼다
+//   4. 채팅은 자기 자리의 이름으로만 덧붙인다
+//
+// 검증: npm run test:rules (에뮬레이터에서 tests/rules 를 돌린다)
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -55,6 +58,32 @@ service cloud.firestore {
           && request.resource.data.uid == request.auth.uid
           && request.resource.data.seq == int(seq)
           && joined();
+        allow update, delete: if false;
+      }
+
+      // 판 안 채팅. 덧붙이기만 되고, 자기 자리의 이름으로만 말한다.
+      // 캐릭터·직업은 저장하지 않는다 (읽는 쪽이 자기 시점으로 붙인다).
+      // '탈락자는 읽기만' 설정은 서버가 판 상태를 모르므로 클라이언트가 지킨다.
+      match /chat/{id} {
+        function room() {
+          return get(/databases/$(database)/documents/rooms/$(code)).data;
+        }
+        function validMessage(m) {
+          return m.keys().hasOnly(['uid', 'seat', 'text', 'ts'])
+            && m.keys().hasAll(['uid', 'seat', 'text', 'ts'])
+            && m.uid == request.auth.uid
+            && m.text is string
+            && m.text.size() >= 1
+            && m.text.size() <= 200
+            && m.ts == request.time
+            && m.seat is int
+            && m.seat >= 0
+            && m.seat < room().seats.size()
+            && room().seats[m.seat].uid == request.auth.uid;
+        }
+
+        allow read: if signedIn();
+        allow create: if joined() && validMessage(request.resource.data);
         allow update, delete: if false;
       }
     }

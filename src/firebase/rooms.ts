@@ -72,6 +72,7 @@ export async function createRoom(host: Identity, options: CreateRoomOptions): Pr
       seats: emptySeats(count, host),
       seed: Math.floor(Math.random() * 1_000_000),
       actionCount: 0,
+      deadChat: true,
     };
     await setDoc(ref, { ...room, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     await touchMember(code, host);
@@ -131,7 +132,7 @@ export async function leaveRoom(code: string, uid: string): Promise<void> {
 /** 호스트만 설정을 바꾼다. */
 export async function updateRoomSettings(
   code: string,
-  patch: Partial<Pick<RoomDoc, 'playerCount' | 'highnoon' | 'tier' | 'seed'>>,
+  patch: Partial<Pick<RoomDoc, 'playerCount' | 'highnoon' | 'tier' | 'seed' | 'deadChat'>>,
 ): Promise<void> {
   const db = getDb();
   const ref = doc(db, 'rooms', code.toUpperCase());

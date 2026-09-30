@@ -161,6 +161,19 @@ export default function RoomScreen() {
             />
           </Setting>
 
+          <Setting title="탈락자 채팅">
+            <Chip
+              label="허용"
+              active={room.deadChat !== false}
+              onPress={() => updateRoomSettings(room.code, { deadChat: true })}
+            />
+            <Chip
+              label="읽기만"
+              active={room.deadChat === false}
+              onPress={() => updateRoomSettings(room.code, { deadChat: false })}
+            />
+          </Setting>
+
           <Pressable
             style={styles.start}
             accessibilityRole="button"

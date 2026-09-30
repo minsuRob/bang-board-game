@@ -25,6 +25,9 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+# Firebase 에뮬레이터 (npm run test:rules)
+firestore-debug.log
+firebase-debug.log
 
 # macOS
 .DS_Store

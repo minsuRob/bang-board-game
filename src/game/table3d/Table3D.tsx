@@ -15,7 +15,8 @@ import { useGameStore } from '../store/game-store';
 import type { CardId } from '../data/types';
 import { ActionBar } from '../ui/ActionBar';
 import { DraftPanel } from '../ui/DraftPanel';
-import { LogPanel } from '../ui/LogPanel';
+import { useChatUnread } from '../ui/ChatPanel';
+import { SidePanel } from '../ui/SidePanel';
 import { bottomStatus, handleHandTap, statusMessage } from '../ui/table-text';
 import type { TableApi } from '../ui/use-table';
 import { Canvas } from './canvas/Canvas';
@@ -54,6 +55,7 @@ export function Table3D({ view, viewer, api }: Table3DProps) {
   const state = useGameStore((s) => s.state);
   const [budget] = useState(() => budgetFor(getDeviceTier()));
   const [logOpen, setLogOpen] = useState(false);
+  const unread = useChatUnread(logOpen);
   const params = useLocalSearchParams<{ fx?: string }>();
   const demo = __DEV__ && params.fx === 'demo';
 
@@ -153,16 +155,17 @@ export function Table3D({ view, viewer, api }: Table3DProps) {
               </Text>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="진행 기록"
+                accessibilityLabel={unread ? '진행 기록과 채팅, 새 글 있음' : '진행 기록과 채팅'}
                 onPress={() => setLogOpen((v) => !v)}
                 style={styles.logButton}>
-                <Text style={styles.logButtonText}>{logOpen ? '닫기' : '기록'}</Text>
+                <Text style={styles.logButtonText}>{logOpen ? '닫기' : '기록·채팅'}</Text>
+                {unread && <View style={styles.unreadDot} />}
               </Pressable>
             </View>
           )}
         </View>
 
-        {wide && <LogPanel log={view.log} style={styles.log} />}
+        {wide && <SidePanel log={view.log} style={styles.side} panelStyle={styles.sidePanel} />}
       </View>
 
       <View style={[styles.bottom, { paddingBottom: insets.bottom }]}>
@@ -198,7 +201,7 @@ export function Table3D({ view, viewer, api }: Table3DProps) {
 
       {!wide && logOpen && (
         <View style={[styles.logOverlay, { top: insets.top + 44 }]}>
-          <LogPanel log={view.log} style={styles.logPanel} />
+          <SidePanel log={view.log} style={styles.logPanel} panelStyle={styles.logPanelInner} />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="기록 닫기"
@@ -235,7 +238,8 @@ const styles = StyleSheet.create({
   tableArea: { flex: 1, position: 'relative', overflow: 'hidden', borderRadius: Radius.lg },
   // 터치는 전부 위의 RN 층이 받는다. 씬은 보기만
   canvasLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' },
-  log: { width: LOG_WIDTH, backgroundColor: 'rgba(28, 19, 11, 0.92)' },
+  side: { width: LOG_WIDTH },
+  sidePanel: { backgroundColor: 'rgba(28, 19, 11, 0.92)' },
   bottom: { backgroundColor: Colors.surface },
   handArea: { height: 132, justifyContent: 'center' },
   topBar: {
@@ -263,6 +267,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   logButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.one,
     borderRadius: Radius.pill,
@@ -271,6 +278,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(24, 16, 9, 0.75)',
   },
   logButtonText: { color: Colors.textMuted, fontSize: 11, fontWeight: '700' },
+  unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.highlight },
   logOverlay: {
     position: 'absolute',
     top: 44,
@@ -279,7 +287,8 @@ const styles = StyleSheet.create({
     bottom: 200,
     gap: Spacing.two,
   },
-  logPanel: { flex: 1, backgroundColor: Colors.background, borderColor: Colors.highlight },
+  logPanel: { flex: 1 },
+  logPanelInner: { backgroundColor: Colors.background, borderColor: Colors.highlight },
   logClose: {
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,

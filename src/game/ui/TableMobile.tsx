@@ -33,7 +33,8 @@ import { DraftSeatStatus } from './DraftSeatStatus';
 import { cardBackArt, characterArt, eventArt, woodArt } from './card-art';
 import { CardView } from './CardView';
 import { Hand } from './Hand';
-import { LogPanel } from './LogPanel';
+import { useChatUnread } from './ChatPanel';
+import { SidePanel } from './SidePanel';
 import type { TableApi } from './use-table';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
@@ -66,6 +67,7 @@ export function TableMobile({
   onCardPress,
 }: TableMobileProps) {
   const [logOpen, setLogOpen] = useState(false);
+  const unread = useChatUnread(logOpen);
   const { width, height } = useWindowDimensions();
   // 폭이 넓으면 좌석을 여러 열로 늘어놓는다. 폰을 눕혔을 때가 이 경우다.
   const columns = width >= 900 ? 4 : width >= 520 ? 3 : 2;
@@ -97,10 +99,11 @@ export function TableMobile({
         </Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="진행 기록"
+          accessibilityLabel={unread ? '진행 기록과 채팅, 새 글 있음' : '진행 기록과 채팅'}
           onPress={() => setLogOpen((v) => !v)}
           style={styles.logButton}>
-          <Text style={styles.logButtonText}>{logOpen ? '닫기' : '기록'}</Text>
+          <Text style={styles.logButtonText}>{logOpen ? '닫기' : '기록·채팅'}</Text>
+          {unread && <View style={styles.unreadDot} />}
         </Pressable>
       </View>
 
@@ -199,7 +202,7 @@ export function TableMobile({
 
       {logOpen && (
         <View style={styles.logOverlay}>
-          <LogPanel log={view.log} style={styles.logPanel} />
+          <SidePanel log={view.log} style={styles.logPanel} panelStyle={styles.logPanelInner} />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="기록 닫기"
@@ -384,12 +387,16 @@ const styles = StyleSheet.create({
   },
   headline: { color: Colors.text, fontSize: 13, fontWeight: '700', flexShrink: 1 },
   logButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.one,
     borderRadius: Radius.pill,
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.highlight },
   logButtonText: { color: Colors.textMuted, fontSize: 11, fontWeight: '700' },
 
   body: { padding: Spacing.two, gap: Spacing.two },
@@ -499,7 +506,8 @@ const styles = StyleSheet.create({
     bottom: 120,
     gap: Spacing.two,
   },
-  logPanel: { flex: 1, backgroundColor: Colors.background, borderColor: Colors.highlight },
+  logPanel: { flex: 1 },
+  logPanelInner: { backgroundColor: Colors.background, borderColor: Colors.highlight },
   logClose: {
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,

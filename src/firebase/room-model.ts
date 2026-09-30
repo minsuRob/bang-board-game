@@ -30,6 +30,8 @@ export type RoomDoc = {
   actionCount: number;
   /** 판 도중 방장이 고른 AI 빠르기. 예전 방에는 없다 (1배) */
   aiSpeed?: AiSpeed;
+  /** 탈락한 사람도 채팅할 수 있는가. 예전 방에는 없다 (허용) */
+  deadChat?: boolean;
 };
 
 export type RoomMember = {

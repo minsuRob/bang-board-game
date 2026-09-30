@@ -2,7 +2,7 @@
  * 진행 기록.
  *
  * 뱅!은 반응 체인이 길어서 "방금 무슨 일이 있었나"를 놓치기 쉽다.
- * PC 에서는 오른쪽에 계속 띄워 두고, 좁은 화면에서는 접는다.
+ * PC 에서는 오른쪽에 계속 띄워 두고, 좁은 화면에서는 접는다. 아래 칸은 채팅이다 (SidePanel).
  */
 
 import { useEffect, useRef } from 'react';
@@ -36,7 +36,7 @@ export function LogPanel({ log, style }: { log: GameEvent[]; style?: object }) {
   return (
     <View style={[styles.panel, style]}>
       <Text style={styles.heading}>진행 기록</Text>
-      <ScrollView ref={ref} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={ref} style={styles.list} showsVerticalScrollIndicator={false}>
         {recent.map((e, i) => (
           <Text key={`${e.seq}-${i}`} style={[styles.line, { color: TONE[e.t] ?? Colors.text }]}>
             {e.text}
@@ -57,5 +57,7 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   heading: { color: Colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  // 채팅과 칸을 나눠 쓰므로 주어진 높이 안에서만 스크롤한다
+  list: { flex: 1 },
   line: { fontSize: 11, lineHeight: 17, marginBottom: 2 },
 });
