@@ -19,6 +19,8 @@ const GROUPS = [
   { from: join(SRC, 'cards', 'characters'), to: join(DEST, 'cards', 'character') },
   { from: join(SRC, 'cards', 'roles'), to: join(DEST, 'cards', 'role') },
   { from: join(SRC, 'cards', 'highnoon'), to: join(DEST, 'cards', 'event') },
+  // 와일드 웨스트 쇼 이벤트. id 가 하이 눈과 겹치지 않아 같은 폴더를 쓴다
+  { from: join(SRC, 'cards', 'wildwestshow'), to: join(DEST, 'cards', 'event') },
 ];
 
 function copyDir(from, to) {
