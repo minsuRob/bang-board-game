@@ -38,7 +38,7 @@ export function resolveDrawCards(
     t: 'draw',
     pid: frame.pid,
     amount: drawn.cards.length,
-    text: `${ga(p.name)} 카드 ${drawn.cards.length}장을 가져왔다.`,
+    text: `${ga(nameOf(cur, frame.pid))} 카드 ${drawn.cards.length}장을 가져왔다.`,
   });
 
   // 블랙 잭처럼 뽑은 카드를 보고 반응하는 훅은 정규 드로우 단계에서만 울린다.
@@ -77,7 +77,7 @@ export function resolveDrawFromPlayer(
     pid: frame.pid,
     target: frame.from,
     amount: taken.length,
-    text: `${ga(taker.name)} ${nameOf(cur, frame.from)}의 손에서 ${taken.length}장을 가져갔다.`,
+    text: `${ga(nameOf(cur, frame.pid))} ${nameOf(cur, frame.from)}의 손에서 ${taken.length}장을 가져갔다.`,
   });
 }
 
@@ -98,7 +98,7 @@ export function resolveTakeAllCards(
     pid: frame.pid,
     target: frame.from,
     amount: cards.length,
-    text: `${ga(nameOf(cur, frame.pid))} ${victim.name}의 카드 ${cards.length}장을 챙겼다.`,
+    text: `${ga(nameOf(cur, frame.pid))} ${nameOf(cur, frame.from)}의 카드 ${cards.length}장을 챙겼다.`,
   });
 }
 
@@ -221,7 +221,7 @@ export function respondSteal(
       target: frame.target,
       // 장비는 원래 앞면이라 공개해도 된다. 손패에서 뽑은 카드는 남긴다면 정보가 샌다.
       ...(fromEquipment ? { card: picked } : {}),
-      text: `${ga(nameOf(cur, frame.source))} ${t.name}의 카드를 강탈했다.`,
+      text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 카드를 강탈했다.`,
     });
   }
   cur = toDiscard(cur, [picked]);
@@ -230,7 +230,7 @@ export function respondSteal(
     pid: frame.source,
     target: frame.target,
     ...(fromEquipment ? { card: picked } : {}),
-    text: `${ga(nameOf(cur, frame.source))} ${t.name}의 카드를 버리게 했다.`,
+    text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 카드를 버리게 했다.`,
   });
 }
 

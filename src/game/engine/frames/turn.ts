@@ -68,7 +68,7 @@ export function resolveTurnStart(state: GameState, frame: Frame & { k: 'turnStar
     },
   };
   cur = updatePlayer(cur, pid, (x) => ({ ...x, usedThisTurn: [] }));
-  cur = log(cur, { t: 'turnStart', pid, text: `${p.name}의 차례.` });
+  cur = log(cur, { t: 'turnStart', pid, text: `${nameOf(cur, pid)}의 차례.` });
 
   // 이벤트는 보안관의 두 번째 차례부터 공개된다.
   const shouldReveal = Boolean(cur.event) && isSheriff && round >= 2;
@@ -168,7 +168,7 @@ export function resolveTurnEnd(state: GameState, frame: Frame & { k: 'turnEnd' }
     const cards = [...p.hand, ...p.equipment];
     cur = updatePlayer(cur, pid, (x) => ({ ...x, ghost: false, hand: [], equipment: [] }));
     cur = toDiscard(cur, cards);
-    cur = log(cur, { t: 'ghostLeave', pid, text: `${p.name}의 유령이 사라졌다.` });
+    cur = log(cur, { t: 'ghostLeave', pid, text: `${nameOf(cur, pid)}의 유령이 사라졌다.` });
   }
 
   return pushSeq(cur, [{ k: 'checkWin' }, { k: 'advanceTurn', from: pid }]);
@@ -195,7 +195,7 @@ export function resolveAdvanceTurn(
       cur = log(cur, {
         t: 'ghostRise',
         pid: cand.id,
-        text: `${ga(cand.name)} 유령으로 되살아났다.`,
+        text: `${ga(nameOf(cur, cand.id))} 유령으로 되살아났다.`,
       });
       return pushSeq(cur, [{ k: 'turnStart', pid: cand.id }]);
     }
@@ -231,10 +231,11 @@ export function respondNewIdentity(
     return log(cur, {
       t: 'newIdentity',
       pid: frame.pid,
-      text: `${neun(p.name)} 신분을 그대로 유지했다.`,
+      text: `${neun(nameOf(cur, frame.pid))} 신분을 그대로 유지했다.`,
     });
   }
   const next = p.spareCharacter;
+  const prevNameKo = CHARACTERS[p.character].nameKo;
   const bonus = p.role === 'sheriff' ? 1 : 0;
   cur = updatePlayer(cur, frame.pid, (x) => ({
     ...x,
@@ -246,7 +247,7 @@ export function respondNewIdentity(
   return log(cur, {
     t: 'newIdentity',
     pid: frame.pid,
-    text: `${ga(p.name)} ${CHARACTERS[next].nameKo}(으)로 신분을 바꿨다 (목숨 2).`,
+    text: `${ga(prevNameKo)} ${CHARACTERS[next].nameKo}(으)로 신분을 바꿨다 (목숨 2).`,
   });
 }
 
@@ -320,7 +321,7 @@ export function respondDaltonsDiscard(
     t: 'daltons',
     pid,
     card,
-    text: `달톤 형제: ${ga(p.name)} 장착 카드 1장을 버렸다.`,
+    text: `달톤 형제: ${ga(nameOf(cur, pid))} 장착 카드 1장을 버렸다.`,
   });
 
   return {

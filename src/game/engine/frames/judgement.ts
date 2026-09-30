@@ -144,7 +144,7 @@ function resolveDynamiteResult(
 
   if (explodes) {
     cur = toDiscard(cur, [dyn]);
-    cur = log(cur, { t: 'dynamite', pid, text: `다이너마이트가 터졌다! ${ga(p.name)} 목숨 3을 잃는다.` });
+    cur = log(cur, { t: 'dynamite', pid, text: `다이너마이트가 터졌다! ${ga(nameOf(cur, pid))} 목숨 3을 잃는다.` });
     return pushSeq(cur, [
       { k: 'damage', target: pid, amount: 3, source: null, cause: 'dynamite' },
     ]);
@@ -162,7 +162,7 @@ function resolveDynamiteResult(
       t: 'dynamitePass',
       pid,
       target: cand.id,
-      text: `다이너마이트가 ${cand.name}에게 넘어갔다.`,
+      text: `다이너마이트가 ${nameOf(cur, cand.id)}에게 넘어갔다.`,
     });
   }
   return toDiscard(cur, [dyn]);
@@ -180,8 +180,8 @@ function resolveJailResult(state: GameState, pid: PlayerId, suit: Suit): GameSta
   cur = toDiscard(cur, [jailCard]);
 
   if (suit === 'hearts') {
-    return log(cur, { t: 'jailEscape', pid, text: `${ga(p.name)} 감옥에서 탈출했다.` });
+    return log(cur, { t: 'jailEscape', pid, text: `${ga(nameOf(cur, pid))} 감옥에서 탈출했다.` });
   }
-  cur = log(cur, { t: 'jailSkip', pid, text: `${neun(p.name)} 감옥에 갇혀 차례를 건너뛴다.` });
+  cur = log(cur, { t: 'jailSkip', pid, text: `${neun(nameOf(cur, pid))} 감옥에 갇혀 차례를 건너뛴다.` });
   return skipRestOfTurn(cur, pid);
 }
