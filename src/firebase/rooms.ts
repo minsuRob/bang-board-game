@@ -21,10 +21,10 @@ import type { AiSpeed, AiTier } from '../game/ai/types';
 import { MAX_PLAYERS, MIN_PLAYERS } from '../game/data/roles';
 import { getDb } from './config';
 import type { Identity } from './auth';
-import type { RoomDoc, RoomMember, RoomSeat } from './room-model';
+import type { Presence, RoomDoc, RoomMember, RoomSeat } from './room-model';
 
-export { PRESENCE_TIMEOUT_MS, pickDriver } from './room-model';
-export type { RoomDoc, RoomMember, RoomSeat } from './room-model';
+export { AWAY_TIMEOUT_MS, PRESENCE_TIMEOUT_MS, pickDriver, presenceOf } from './room-model';
+export type { Presence, RoomDoc, RoomMember, RoomSeat } from './room-model';
 
 /** 헷갈리는 글자(0/O, 1/I)는 뺐다 */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -208,13 +208,26 @@ export function watchMembers(
   });
 }
 
-/** 살아 있다고 알린다. 15초마다 부르면 된다. */
-export async function touchMember(code: string, me: Identity): Promise<void> {
+/** 살아 있다고 알린다. 12초마다, 그리고 접속 상태가 바뀔 때마다 부른다. */
+export async function touchMember(
+  code: string,
+  me: Identity,
+  presence: Presence = 'active',
+): Promise<void> {
   await setDoc(
     doc(getDb(), 'rooms', code.toUpperCase(), 'members', me.uid),
-    { nick: me.nickname, lastSeen: Date.now() },
+    { nick: me.nickname, lastSeen: Date.now(), presence },
     { merge: true },
   );
+}
+
+/**
+ * 나갔다고 알린다. 문서가 없으면 (대기실에서 자리를 비우고 나간 경우) 새로 만들지 않는다.
+ * 탭을 닫는 중에는 이 쓰기가 닿지 못할 수 있다. 그때는 시간 초과가 대신 빨간 점을 띄운다.
+ */
+export async function markLeft(code: string, uid: string): Promise<void> {
+  const presence: Presence = 'left';
+  await updateDoc(doc(getDb(), 'rooms', code.toUpperCase(), 'members', uid), { presence });
 }
 
 /** 드래프트 중 내가 올려 둔 후보. 남의 화면에 3D 로 들썩이게 하는 연출용이다. */

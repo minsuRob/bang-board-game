@@ -1,9 +1,8 @@
 /**
  * 온라인 구동기.
  *
- * 두 가지를 맡는다.
- *   1. 살아 있다고 주기적으로 알린다
- *   2. 드라이버로 뽑혔으면 AI 자리와 제한시간 만료를 대신 굴린다
+ * 드라이버로 뽑혔으면 AI 자리와 제한시간 만료를 대신 굴린다.
+ * 생존 신호(접속 상태 알리기)는 presence.ts 가 맡는다.
  *
  * 여럿이 굴리면 같은 액션이 두 번 들어가므로, 좌석 번호가 가장 작은 생존자
  * 한 명만 굴린다. 그 사람이 끊기면 다음 사람이 자동으로 이어받는다.
@@ -11,15 +10,10 @@
 
 import { useEffect, useRef } from 'react';
 
-import type { Identity } from '../../firebase/auth';
-import { touchMember } from '../../firebase/rooms';
 import { pickDriver, type RoomDoc, type RoomMember } from '../../firebase/room-model';
 import { syncDraftClock } from './draft-ui';
 import { seatOf, selectActor, selectActors, useGameStore } from './game-store';
 import { setWaitDeadline } from './wait-clock';
-
-/** 생존 신호 주기 */
-const HEARTBEAT_MS = 12_000;
 
 /**
  * 단계별 제한시간. 원본 맵 v0.128 의 '보통' 속도 값을 그대로 가져왔다.
@@ -32,17 +26,6 @@ export const TIME_LIMIT_MS = {
   /** 캐릭터 드래프트. 모두가 동시에 고르므로 드래프트가 열린 순간부터 한 번만 잰다 */
   draft: 30_000,
 } as const;
-
-export function useHeartbeat(code: string | null, me: Identity | null) {
-  useEffect(() => {
-    if (!code || !me) return;
-    touchMember(code, me).catch(() => {});
-    const timer = setInterval(() => {
-      touchMember(code, me).catch(() => {});
-    }, HEARTBEAT_MS);
-    return () => clearInterval(timer);
-  }, [code, me]);
-}
 
 /** 내가 드라이버인지 판단해 스토어에 반영한다. */
 export function useDriverElection(

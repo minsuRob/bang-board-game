@@ -1,6 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { pickDriver, type RoomDoc, type RoomMember } from '../../firebase/room-model';
+import {
+  AWAY_TIMEOUT_MS,
+  pickDriver,
+  PRESENCE_TIMEOUT_MS,
+  presenceOf,
+  seatPresence,
+  type Presence,
+  type RoomDoc,
+  type RoomMember,
+} from '../../firebase/room-model';
 import type { Action } from '../engine';
 import { aiDelayMs } from './ai-driver';
 import { createLocalTransport } from './local-transport';
@@ -156,6 +165,54 @@ describe('드라이버 선출', () => {
     const now = 1_000_000;
     const stale = { u0: { nick: 'u0', lastSeen: now - 60_000 } };
     expect(pickDriver(room(['u0', null]), stale, now)).toBeNull();
+  });
+
+  it('나간다고 알린 사람은 시간이 남아도 넘긴다', () => {
+    const now = 1_000_000;
+    const members: Record<string, RoomMember> = {
+      u0: { nick: 'u0', lastSeen: now, presence: 'left' },
+      u1: { nick: 'u1', lastSeen: now, presence: 'away' },
+    };
+    expect(pickDriver(room(['u0', 'u1']), members, now)).toBe('u1');
+  });
+});
+
+describe('접속 상태', () => {
+  const now = 1_000_000;
+  const m = (presence: Presence | undefined, age: number): RoomMember => ({
+    nick: 'x',
+    lastSeen: now - age,
+    presence,
+  });
+
+  it('스스로 알린 값을 그대로 보인다', () => {
+    expect(presenceOf(m('active', 0), now)).toBe('active');
+    expect(presenceOf(m('away', 0), now)).toBe('away');
+    expect(presenceOf(m('left', 0), now)).toBe('left');
+  });
+
+  it('예전 문서(상태 없음)는 보는 중으로 본다', () => {
+    expect(presenceOf(m(undefined, 5_000), now)).toBe('active');
+  });
+
+  it('문서가 없으면 나간 것이다', () => {
+    expect(presenceOf(undefined, now)).toBe('left');
+  });
+
+  it('소식이 끊기면 나간 것이다. 자리 비움은 더 기다린다', () => {
+    expect(presenceOf(m('active', PRESENCE_TIMEOUT_MS - 1), now)).toBe('active');
+    expect(presenceOf(m('active', PRESENCE_TIMEOUT_MS), now)).toBe('left');
+    expect(presenceOf(m('away', PRESENCE_TIMEOUT_MS + 10_000), now)).toBe('away');
+    expect(presenceOf(m('away', AWAY_TIMEOUT_MS), now)).toBe('left');
+  });
+
+  it('좌석 id 별로 사람 자리만 담는다', () => {
+    const members = { a: m('active', 0), b: m('away', 0) };
+    expect(seatPresence(['a', null, 'b', 'gone'], members, now)).toEqual({
+      p0: 'active',
+      p2: 'away',
+      p3: 'left',
+    });
   });
 });
 

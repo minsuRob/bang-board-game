@@ -19,7 +19,8 @@ import {
 import { draftUi, setDraftHover } from './draft-ui';
 import { createFirebaseTransport } from './firebase-transport';
 import { useGameStore, type SeatSetup } from './game-store';
-import { useDriverElection, useHeartbeat } from './online-driver';
+import { useDriverElection } from './online-driver';
+import { usePresenceReporter, usePresenceSync } from './presence';
 
 export type OnlineGame = {
   identity: Identity | null;
@@ -67,7 +68,7 @@ export function useRoomConnection(
     };
   }, [code, uid]);
 
-  useHeartbeat(code, identity);
+  usePresenceReporter(code, identity);
   useDriverElection(room, members, identity?.uid ?? null);
 
   const mySeat = useMemo(() => {
@@ -149,6 +150,7 @@ export function useOnlineGameSession(code: string | null, conn: OnlineGame) {
   }, [sessionKey, code, uid, mySeat, isHost, start, reset]);
 
   useDraftHoverSync(code, conn);
+  usePresenceSync(ready && room ? room.seats : null, conn.members);
   return ready;
 }
 

@@ -9,8 +9,10 @@ import { CHARACTERS } from '../../data/characters';
 import { ROLE_GOAL, ROLE_LABEL } from '../../data/roles';
 import type { CardId, Role } from '../../data/types';
 import { distance, kindOf, type GameState, type Player, type PlayerId } from '../../engine';
+import { usePresence } from '../../store/presence';
 import { AttackBadges } from '../../ui/AttackBadges';
 import { PlayerSeat } from '../../ui/PlayerSeat';
+import { PRESENCE_LABEL, PresenceDot } from '../../ui/PresenceDot';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 export const ROLE_COLOR: Record<Role, string> = {
@@ -73,6 +75,8 @@ export function SeatLabel({
   canvasHeight,
 }: SeatLabelProps) {
   const isSelf = player.id === viewer;
+  const presence = usePresence(player.id);
+  const presenceText = presence ? ` · ${PRESENCE_LABEL[presence]}` : '';
   const dead = !player.alive && !player.ghost;
   const character = CHARACTERS[player.character];
   const dist = !isSelf && !dead ? safeDistance(view, viewer, player.id) : null;
@@ -114,9 +118,10 @@ export function SeatLabel({
     return (
       <View style={[styles.slot, { left: x - w / 2, width: w }, place]}>
         <View
-          accessibilityLabel={`${player.name} · ${done ? '선택 완료' : '고르는 중'}`}
+          accessibilityLabel={`${player.name}${presenceText} · ${done ? '선택 완료' : '고르는 중'}`}
           style={[styles.label, done && styles.drafted]}>
           <View style={styles.row}>
+            <PresenceDot presence={presence} />
             <Text style={styles.name} numberOfLines={1}>
               {player.name}
             </Text>
@@ -147,7 +152,7 @@ export function SeatLabel({
         onPress={onPress}
         disabled={!targetable}
         accessibilityRole={targetable ? 'button' : undefined}
-        accessibilityLabel={`${player.name} · ${character.nameKo}`}
+        accessibilityLabel={`${player.name}${presenceText} · ${character.nameKo}`}
         style={[
           styles.label,
           big && styles.selfLabel,
@@ -157,6 +162,7 @@ export function SeatLabel({
           player.ghost && styles.ghost,
         ]}>
         <View style={styles.row}>
+          <PresenceDot presence={presence} size={big ? 10 : 8} />
           <Text style={[styles.name, big && styles.selfName]} numberOfLines={1}>
             {player.name}
           </Text>
