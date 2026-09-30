@@ -12,13 +12,16 @@ import type { CharacterId } from '../data/types';
 import { characterArt } from './card-art';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
-export const CHARACTER_CARD = { width: 150, height: 214 } as const;
+// 원본 캐릭터 카드 스캔은 250×389 (종횡비 ≈ 0.643). 카드 박스를 이 비율에
+// 맞춰야 resizeMode="cover" 가 좌우를 잘라 이름을 짤리게 하지 않는다.
+const ART_ASPECT = 250 / 389;
+export const CHARACTER_CARD = { width: 150, height: Math.round(150 / ART_ASPECT) } as const;
 
 export function CharacterCard({ id, compact }: { id: CharacterId; compact?: boolean }) {
   const def = CHARACTERS[id];
   const art = characterArt(id);
   const w = compact ? 112 : CHARACTER_CARD.width;
-  const h = compact ? 160 : CHARACTER_CARD.height;
+  const h = Math.round(w / ART_ASPECT);
 
   return (
     <View style={[styles.card, { width: w, height: h }]}>
