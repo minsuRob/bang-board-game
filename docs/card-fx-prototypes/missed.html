@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>빗나감! 연출 시안</title>
+<!--
+  빗나감! 카드 연출 시안 네 가지. 브라우저로 바로 연다 (빌드 없음).
+  원본 그림(총알이 머리 옆을 스쳐 구멍 난 모자가 날아간 장면)의 인물·모자를
+  조각내 움직이는 것을 단순한 모양으로 흉내 낸다. 저작권 그림은 넣지 않는다.
+  채택: B(슬로모션 스침) → src/game/ui/fx/skia/MissedSkia.tsx
+  자세한 흐름은 docs/card-fx.md
+-->
+<style>
+  body { margin: 0; padding: 24px; background: #1b120b; color: #f3e7ce; font-family: system-ui, sans-serif; }
+  h1 { font-size: 18px; font-weight: 500; margin: 0 0 4px; }
+  p.lead { color: #b39b74; font-size: 13px; margin: 0 0 16px; }
+  .bar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+  button { background: #3a2a1a; color: #f3e7ce; border: 1px solid #5c452c; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  .box { border: 1px solid #5c452c; border-radius: 12px; padding: 10px; background: #2a1d12; }
+  canvas { width: 100%; aspect-ratio: 300/220; border-radius: 8px; cursor: pointer; display: block; }
+  .name { font-size: 14px; font-weight: 500; margin-top: 8px; }
+  .desc { font-size: 13px; color: #b39b74; line-height: 1.5; }
+</style>
+</head>
+<body>
+<h1>빗나감! 연출 시안</h1>
+<p class="lead">칸을 누르면 다시 본다. 채택: B (고화질만, 일반 화질 연출은 아직 없음)</p>
+<div class="bar"><button id="all">모두 다시 보기</button></div>
+<div id="grid"></div>
+<script>
+const W=300,H=220;
+const C=[
+{id:'A',name:'A. 모자 날리기',desc:'총알이 머리 위를 스치며 구멍 난 모자를 채 간다. 모자가 돌며 날아가고 구멍에서 연기, 인물은 움찔'},
+{id:'B',name:'B. 슬로모션 스침',desc:'총알이 얼굴 옆을 천천히 지나며 공기 고리가 인다. 인물이 뒤로 젖혀 피하고, 시간이 풀리면 모자가 떨어진다'},
+{id:'C',name:'C. 피하기 잔상',desc:'인물이 옆으로 비켜서며 세피아 잔상 3개를 남기고, 총알이 빈자리를 뚫고 지나간다'},
+{id:'D',name:'D. 모자 챙에 튕기기',desc:'총알이 모자 챙에 맞고 불꽃과 함께 튕겨 나간다. 챙이 흔들리고 작은 홈이 남는다'}];
+const card={x:40,y:30,w:110,h:160};
+function rr(g,x,y,w,h,r){g.beginPath();g.roundRect(x,y,w,h,r);}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function seg(t,a,b){return clamp((t-a)/(b-a),0,1)}
+function eo(t){return 1-Math.pow(1-t,3)}
+function eio(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+function cardBase(g){g.fillStyle='#efe2c6';g.strokeStyle='#c9a05a';g.lineWidth=4;rr(g,card.x,card.y,card.w,card.h,8);g.fill();g.stroke();
+g.fillStyle='#1e140b';g.fillRect(card.x+2,card.y+2,card.w-4,20);g.fillStyle='#efe2c6';g.font='500 12px sans-serif';g.textAlign='center';g.fillText('빗나감!',card.x+card.w/2,card.y+16);
+g.fillStyle='#f3d9c9';g.fillRect(card.x+8,card.y+28,card.w-16,96);}
+const head={x:card.x+62,y:card.y+80};
+function man(g,o={}){const lean=o.lean||0,dx=o.dx||0,alpha=o.alpha??1,tint=o.tint;
+g.save();g.globalAlpha=alpha;g.beginPath();g.rect(card.x+8,card.y+28,card.w-16,96);g.clip();
+g.translate(head.x+dx,card.y+124);g.rotate(lean);g.translate(-head.x,-(card.y+124));
+g.fillStyle=tint||'#8a6a4a';g.beginPath();g.moveTo(head.x-30,card.y+124);g.quadraticCurveTo(head.x,head.y+10,head.x+30,card.y+124);g.fill();
+g.fillStyle=tint||'#e9c7a3';g.beginPath();g.ellipse(head.x,head.y,11,14,0,0,7);g.fill();
+g.fillStyle=tint||'#6b4a2f';g.beginPath();g.ellipse(head.x,head.y+9,9,5,0,0,Math.PI);g.fill();
+if(!tint){g.fillStyle='#2a1c10';g.beginPath();g.arc(head.x-4,head.y-2,1.6,0,7);g.arc(head.x+4,head.y-2,1.6,0,7);g.fill();
+g.strokeStyle='#2a1c10';g.lineWidth=1;g.beginPath();g.arc(head.x,head.y+5,o.shock?3:2,0,Math.PI*(o.shock?2:1));g.stroke();}
+g.restore();}
+function hat(g,x,y,rot,s=1,hole=false,a=1){g.save();g.globalAlpha=a;g.translate(x,y);g.rotate(rot);g.scale(s,s);
+g.fillStyle='#caa46a';g.beginPath();g.ellipse(0,4,19,5,0,0,7);g.fill();g.beginPath();g.moveTo(-10,4);g.quadraticCurveTo(-10,-12,0,-13);g.quadraticCurveTo(10,-12,10,4);g.fill();
+g.strokeStyle='#7a5a30';g.lineWidth=1.2;g.beginPath();g.ellipse(0,4,19,5,0,0,7);g.stroke();
+if(hole){g.fillStyle='#1e140b';g.beginPath();g.arc(3,-5,2.4,0,7);g.fill();}
+g.restore();}
+const HX=head.x,HY=head.y-15;
+function tracer(g,x0,y0,x1,y1,a){if(a<=0)return;const gr=g.createLinearGradient(x0,y0,x1,y1);gr.addColorStop(0,'rgba(255,236,190,0)');gr.addColorStop(1,`rgba(255,244,210,${a})`);g.strokeStyle=gr;g.lineWidth=3;g.lineCap='round';g.beginPath();g.moveTo(x0,y0);g.lineTo(x1,y1);g.stroke();}
+function bullet(g,x,y,ang=0){g.save();g.translate(x,y);g.rotate(ang);g.fillStyle='#b8862f';rr(g,-7,-2.4,9,4.8,2);g.fill();g.fillStyle='#e2be6a';g.beginPath();g.ellipse(2,0,3,2.4,0,0,7);g.fill();g.restore();}
+function smoke(g,x,y,r,a){const gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,`rgba(170,160,145,${a})`);gr.addColorStop(1,'rgba(170,160,145,0)');g.fillStyle=gr;g.beginPath();g.arc(x,y,r,0,7);g.fill();}
+function sparks(g,x,y,k,n,seed,spread=1){for(let i=0;i<n;i++){const a=(-1.2+((i*97+seed)%100)/100*2.4)*spread;const s=40+((i*53+seed)%60);const px=x+Math.cos(a)*s*k,py=y+Math.sin(a)*s*k+30*k*k;const qx=x+Math.cos(a)*s*(k-0.06),qy=y+Math.sin(a)*s*(k-0.06)+30*(k-0.06)**2;g.strokeStyle=`rgba(255,${200-(i%3)*40},90,${1-k})`;g.lineWidth=1.8;g.beginPath();g.moveTo(qx,qy);g.lineTo(px,py);g.stroke();}}
+function stage(g){g.fillStyle='#2e2013';g.fillRect(0,0,W,H);}
+function A(g,t){stage(g);const k=seg(t,0.1,0.28);const bx=-20+k*(W+40);cardBase(g);
+const flinch=Math.sin(seg(t,0.2,0.5)*Math.PI)*0.12;man(g,{lean:-flinch,shock:t>0.2});
+const h=seg(t,0.2,1);if(t<0.2)hat(g,HX,HY,0);else{const e=eo(h);const x=HX+e*120,y=HY-Math.sin(e*Math.PI)*70+e*e*40;hat(g,x,y,e*6.5,1+e*0.15,true,1-seg(t,0.85,1));
+for(let i=0;i<5;i++){const q=seg(t,0.22+i*0.04,1);if(q>0&&q<1)smoke(g,x-8*i*q,y-6-18*q,6+10*q,(1-q)*0.4);}}
+tracer(g,Math.max(-20,bx-120),HY-2,bx,HY-2,k>0&&k<1?1:(t<0.4?1-seg(t,0.28,0.4):0));if(k>0&&k<1)bullet(g,bx,HY-2);
+if(t>0.2&&t<0.5)sparks(g,HX,HY-4,seg(t,0.2,0.5),8,7,0.6);}
+function B(g,t){const slow=t>0.12&&t<0.6;const z=1+0.5*eio(seg(t,0.1,0.22))*(1-eio(seg(t,0.6,0.72)));
+stage(g);g.save();g.translate(HX,HY);g.scale(z,z);g.translate(-HX,-HY);cardBase(g);
+const lean=eio(seg(t,0.12,0.45))*0.28*(1-seg(t,0.75,1));man(g,{lean:-lean,shock:t>0.15});
+const bp=t<0.12?seg(t,0,0.12)*0.3:t<0.6?0.3+seg(t,0.12,0.6)*0.25:0.55+eo(seg(t,0.6,0.72))*0.9;const bx=card.x-20+bp*260,by=head.y-4;
+for(let i=0;i<3;i++){const q=seg(t,0.12+i*0.1,0.9);if(q>0&&q<1){g.strokeStyle=`rgba(230,225,215,${(1-q)*0.7})`;g.lineWidth=2;g.beginPath();g.ellipse(bx-20-q*40,by,4+q*6,6+q*18,0,0,7);g.stroke();}}
+tracer(g,bx-80,by,bx,by,t>0.6?1-seg(t,0.72,0.85):0.6);if(bp<1.3)bullet(g,bx,by);
+if(t<0.62)hat(g,HX-2,HY-lean*20,-lean*0.6);else{const e=seg(t,0.62,1);hat(g,HX+10+e*30,HY+e*e*110,e*2,1,true,1-seg(t,0.9,1));}
+g.restore();
+if(slow){const v=g.createRadialGradient(W/2,H/2,H*0.3,W/2,H/2,W*0.7);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,0.55)');g.fillStyle=v;g.fillRect(0,0,W,H);g.fillStyle='rgba(242,193,78,0.9)';g.font='500 12px sans-serif';g.textAlign='right';g.fillText('slow',W-10,18);}}
+function C2(g,t){stage(g);cardBase(g);const move=eo(seg(t,0.05,0.3));const back=eio(seg(t,0.7,1));const dx=-26*move*(1-back);
+for(let i=3;i>=1;i--){const lag=Math.max(0,move-i*0.18);const a=(0.35-i*0.08)*(1-seg(t,0.35,0.7));if(a>0)man(g,{dx:-26*lag*(1-back),alpha:a,tint:`rgba(${150+i*20},${110+i*15},${70+i*10},1)`});}
+man(g,{dx,shock:t>0.1});hat(g,HX+dx,HY,dx*0.004);
+const k=seg(t,0.22,0.42);const bx=-20+k*(W+40);tracer(g,Math.max(-20,bx-140),head.y,bx,head.y,k>0&&k<1?1:1-seg(t,0.42,0.55));if(k>0&&k<1)bullet(g,bx,head.y);
+if(t>0.3&&t<0.8){g.save();g.globalAlpha=1-seg(t,0.6,0.8);g.font='500 22px sans-serif';g.fillStyle='#f2c14e';g.strokeStyle='#1e140b';g.lineWidth=4;g.textAlign='left';g.strokeText('MISSED!',165,62);g.fillText('MISSED!',165,62);g.restore();}}
+function D(g,t){stage(g);cardBase(g);const hitT=0.3;const k=seg(t,0.1,hitT);const hitX=HX-16,hitY=HY+4;
+const bx=-20+k*(hitX+20);const wob=t>hitT?Math.sin((t-hitT)*60)*0.25*(1-seg(t,hitT,0.7)):0;man(g,{shock:t>hitT});hat(g,HX,HY,wob,1,t>hitT);
+if(t<hitT){tracer(g,Math.max(-20,bx-120),hitY,bx,hitY,1);bullet(g,bx,hitY);}
+else{const r=seg(t,hitT,0.55);const ang=-0.9;const rx=hitX+Math.cos(ang)*r*260,ry=hitY+Math.sin(ang)*r*260;if(r<1){tracer(g,hitX,hitY,rx,ry,1-r);bullet(g,rx,ry,ang);}
+sparks(g,hitX,hitY,seg(t,hitT,hitT+0.3),14,3,1.3);
+const f=seg(t,hitT,hitT+0.08);if(f<1){g.save();g.globalCompositeOperation='lighter';const gr=g.createRadialGradient(hitX,hitY,0,hitX,hitY,26);gr.addColorStop(0,`rgba(255,255,255,${1-f})`);gr.addColorStop(0.4,`rgba(255,210,100,${(1-f)*0.8})`);gr.addColorStop(1,'rgba(255,120,40,0)');g.fillStyle=gr;g.beginPath();g.arc(hitX,hitY,26,0,7);g.fill();g.restore();}
+const q=seg(t,hitT,1);smoke(g,hitX-4,hitY-10-q*20,6+q*14,(1-q)*0.35);}}
+const FN={A,B,C:C2,D};const DUR={A:1800,B:2400,C:1800,D:1800};
+const views=C.map(c=>{const box=document.createElement('div');box.className='box';
+const cv=document.createElement('canvas');cv.width=W*2;cv.height=H*2;cv.setAttribute('aria-label',c.name+' 다시 보기');
+const h=document.createElement('div');h.className='name';h.textContent=c.name;
+const p=document.createElement('div');p.className='desc';p.textContent=c.desc;
+box.append(cv,h,p);document.getElementById('grid').append(box);const v={c,g:cv.getContext('2d'),start:performance.now()+400};cv.onclick=()=>{v.start=performance.now()};return v;});
+document.getElementById('all').onclick=()=>{const n=performance.now();views.forEach(v=>v.start=n)};
+function loop(n){views.forEach(v=>{const d=DUR[v.c.id];let t=(n-v.start)/d;if(t>1.3){v.start=n+300;t=0}const g=v.g;g.setTransform(2,0,0,2,0,0);g.clearRect(0,0,W,H);FN[v.c.id](g,clamp(t,0,1));});requestAnimationFrame(loop);}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
