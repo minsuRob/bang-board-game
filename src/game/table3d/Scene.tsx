@@ -63,13 +63,15 @@ export function Scene({ state, viewerIndex, budget, targets, selected }: ScenePr
   const [drag] = useState(() => new DragTracker(world));
 
   const n = state.players.length;
+  // 내 정보창은 드래프트 동안만 캔버스에 뜬다. 끝나면 하단 바로 가니 보드 아래 자리를 거둔다
+  const drafting = Boolean(state.draft);
 
-  // 배치와 카메라: 인원·내 자리·화면 크기가 바뀔 때만
+  // 배치와 카메라: 인원·내 자리·화면 크기·드래프트 여부가 바뀔 때만
   useEffect(() => {
     // 첫 측정 전에는 0×0 이 온다. 그걸로 카메라를 맞추면 NaN 이 되어 영영 안 돌아온다
     if (size.width < 2 || size.height < 2) return;
     const aspect = size.width / size.height;
-    const layout = layoutTable(n, viewerIndex, aspect);
+    const layout = layoutTable(n, viewerIndex, aspect, { selfLabel: drafting });
     world.setLayout(layout);
     draftCards.setLayout(layout);
     rig.setBase(frameCamera(aspect, layout), !booted.current);
@@ -77,7 +79,7 @@ export function Scene({ state, viewerIndex, budget, targets, selected }: ScenePr
     projector.project(camera, size.width, size.height, layout);
     booted.current = true;
     invalidate();
-  }, [n, viewerIndex, size.width, size.height, world, draftCards, rig, projector, camera, invalidate]);
+  }, [n, viewerIndex, drafting, size.width, size.height, world, draftCards, rig, projector, camera, invalidate]);
 
   // 상태가 바뀌면 정답 자리로. 큐에 든 연출이 옮길 카드는 건너뛴다
   useEffect(() => {

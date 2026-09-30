@@ -48,8 +48,17 @@ export const FAN_CARD_SCALE = 0.62;
 const STORE_SLOTS = 8;
 const STORE_GAP = 0.8;
 
-export function layoutTable(n: number, viewerIndex: number, aspect: number): TableLayout {
+export type LayoutOptions = {
+  /**
+   * 내 정보창이 캔버스 안에 뜨는가. 드래프트 동안만 그렇고, 그 뒤로는 하단 바로 간다.
+   * 아니면 세로 화면에서도 보드 아래 자리를 비워 두지 않는다. 기본 true
+   */
+  selfLabel?: boolean;
+};
+
+export function layoutTable(n: number, viewerIndex: number, aspect: number, opts: LayoutOptions = {}): TableLayout {
   const portrait = aspect < 1;
+  const labelRoom = portrait && (opts.selfLabel ?? true);
   const base = portrait ? PORTRAIT : LANDSCAPE;
   // 7명을 넘으면 보드가 부딪히지 않게 테이블을 넓힌다
   const grow = n > 7 ? 1 + (n - 7) * 0.12 : 1;
@@ -84,8 +93,8 @@ export function layoutTable(n: number, viewerIndex: number, aspect: number): Tab
       bullets: BOARD_SLOTS.bullets.map(at),
       equipment: vadd(pos, vscale(inward, H / 2 + 0.34 * scale)),
       hand: vadd(pos, vscale(inward, -(H / 2 + 0.2))),
-      // 세로 화면의 내 자리는 옆에 정보창을 붙일 폭이 없다. 보드 아래로 자리를 비워 두게 카메라에 알린다
-      label: vadd(pos, vscale(inward, self && portrait ? -(H / 2 + SELF_LABEL_ROOM) : -1.0)),
+      // 세로 화면의 내 자리는 옆에 정보창을 붙일 폭이 없다. 정보창이 뜰 때는 보드 아래로 자리를 비워 두게 카메라에 알린다
+      label: vadd(pos, vscale(inward, self && labelRoom ? -(H / 2 + SELF_LABEL_ROOM) : -1.0)),
     });
   }
 

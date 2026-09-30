@@ -94,6 +94,20 @@ describe('layoutTable', () => {
     for (const s of l.seats) expect(s.scale).toBe(s.index === 3 ? SELF_BOARD_SCALE : 1);
   });
 
+  it('세로 화면은 내 정보창이 캔버스에 뜰 때만 보드 아래 자리를 비워 둔다', () => {
+    const withLabel = layoutTable(5, 0, 0.5);
+    const inBar = layoutTable(5, 0, 0.5, { selfLabel: false });
+    const hh = (BOARD_SIZE.h * SELF_BOARD_SCALE) / 2;
+    // 기본(드래프트)은 보드 아랫변 밖으로 한참 더 비운다
+    expect(local(withLabel.seats[0], withLabel.seats[0].label).w).toBeLessThan(-hh - 1);
+    // 하단 바로 가면 비워 둔 자리가 보드 아랫변을 크게 넘지 않는다
+    expect(local(inBar.seats[0], inBar.seats[0].label).w).toBeGreaterThan(-hh - 0.5);
+    // 좌석 자리 자체는 그대로다
+    expect(inBar.seats.map((s) => s.pos)).toEqual(withLabel.seats.map((s) => s.pos));
+    // 가로 화면은 원래 비워 두지 않는다
+    expect(layoutTable(5, 0, 1.78, { selfLabel: false }).seats[0].label).toEqual(layoutTable(5, 0, 1.78).seats[0].label);
+  });
+
   it('장비 줄은 보드 중심 쪽 바깥, 상대 손패는 보드 반대쪽 바깥에 놓인다', () => {
     const l = layoutTable(6, 0, 1.78);
     for (const s of l.seats) {

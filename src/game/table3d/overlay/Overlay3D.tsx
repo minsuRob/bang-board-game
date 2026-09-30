@@ -50,8 +50,8 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
 
   const compact = anchors.width < 520;
   const selfBox = selfLabelBox(anchors, view, viewer, compact);
-  // 넓은 화면에선 내 정보가 하단 바로 가고, 보드 옆 자리는 캐릭터 카드 미리보기가 쓴다
-  const selfInBar = wide && !view.draft;
+  // 드래프트가 끝나면 내 정보는 하단 바로 간다 (좁은 화면도). 넓은 화면의 보드 옆 자리는 캐릭터 카드 미리보기가 쓴다
+  const selfInBar = !view.draft;
   const slot: PreviewSlot | null =
     selfInBar && selfBox?.mode === 'side'
       ? {
@@ -60,6 +60,8 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
           width: Math.min(PREVIEW_W, selfBox.room),
         }
       : null;
+  // 내 정보창이나 미리보기가 그 자리를 쓸 때만 남의 라벨이 비켜 간다
+  const selfBoxUsed = !selfInBar || slot !== null;
 
   return (
     <View style={styles.layer}>
@@ -78,7 +80,7 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
         if (self && selfBox) {
           mode = selfBox.mode;
           x = selfBox.x;
-        } else if (mode === 'below' && selfBox) {
+        } else if (mode === 'below' && selfBox && selfBoxUsed) {
           // 내 정보창과 겹치면 보드 위로 올린다
           const top = (p.bottom ?? p.y) + 2;
           const hit = x + w / 2 > selfBox.x0 && x - w / 2 < selfBox.x1 && top < selfBox.y1 && top + OTHER_LABEL_H > selfBox.y0;

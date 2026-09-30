@@ -199,15 +199,15 @@ export function Table3D({ view, viewer, api, clock }: Table3DProps) {
               armed={api.armed}
               onArm={api.arm}
               aside={
-                wide ? (
-                  <SelfStatus
-                    player={me}
-                    active={view.turn.active === viewer}
-                    targetable={targets.includes(viewer)}
-                    onPress={() => onSeatPress(viewer)}
-                  />
-                ) : undefined
+                <SelfStatus
+                  player={me}
+                  active={view.turn.active === viewer}
+                  targetable={targets.includes(viewer)}
+                  onPress={() => onSeatPress(viewer)}
+                  compact={!wide}
+                />
               }
+              stacked={!wide}
             />
             <View style={styles.handArea}>
               <DragHand

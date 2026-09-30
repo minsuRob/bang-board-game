@@ -32,6 +32,8 @@ export type ActionBarProps = {
   onArm?: (key: string | null) => void;
   /** 넓은 3D 화면: 바 왼쪽 절반에 얹을 내 정보. 있으면 기존 내용은 오른쪽 절반으로 간다 */
   aside?: ReactNode;
+  /** 좁은 화면: aside 를 옆이 아니라 바 위쪽에 얹고, 안내·프롬프트는 그 아래 전체 폭을 쓴다 */
+  stacked?: boolean;
 };
 
 export function ActionBar({
@@ -47,6 +49,7 @@ export function ActionBar({
   armed = null,
   onArm,
   aside,
+  stacked,
 }: ActionBarProps) {
   const content = !prompt ? (
     <>
@@ -124,6 +127,15 @@ export function ActionBar({
 
   const barStyle = [styles.bar, !!prompt && styles.barActive];
   if (!aside) return <View style={barStyle}>{content}</View>;
+  if (stacked) {
+    return (
+      <View style={[barStyle, styles.stacked]}>
+        {aside}
+        <View style={styles.hDivider} />
+        <View style={styles.full}>{content}</View>
+      </View>
+    );
+  }
   return (
     <View style={[barStyle, styles.split]}>
       <View style={styles.aside}>{aside}</View>
@@ -198,6 +210,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.three,
+  },
+  // 위 내 정보 / 아래 안내·프롬프트 (좁은 화면)
+  stacked: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    justifyContent: 'flex-start',
+    gap: Spacing.one,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+  },
+  hDivider: { height: 1, backgroundColor: Colors.border },
+  full: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    minHeight: 36,
+    paddingHorizontal: Spacing.one,
   },
   textBlock: { gap: 2, flexShrink: 1 },
   title: { color: Colors.text, fontWeight: '800', fontSize: 14 },
