@@ -49,7 +49,7 @@ export function resolveBang(state: GameState, frame: Frame & { k: 'bang' }): Gam
     return log(popFrame(state), {
       t: 'ghostImmune',
       target: t.id,
-      text: `${neun(t.name)} 유령이라 총알이 통하지 않는다.`,
+      text: `${neun(nameOf(state, t.id))} 유령이라 총알이 통하지 않는다.`,
     });
   }
 
@@ -63,7 +63,7 @@ export function resolveBang(state: GameState, frame: Frame & { k: 'bang' }): Gam
     return log(popFrame(state), {
       t: 'missed',
       target: t.id,
-      text: `${ga(t.name)} 총알을 피했다.`,
+      text: `${ga(nameOf(state, t.id))} 총알을 피했다.`,
     });
   }
 

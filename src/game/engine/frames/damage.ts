@@ -14,6 +14,7 @@ import {
   alivePlayers,
   kindOf,
   log,
+  nameOf,
   playerOf,
   popFrame,
   pushSeq,
@@ -34,7 +35,7 @@ export function resolveDamage(state: GameState, frame: Frame & { k: 'damage' }):
     return log(cur, {
       t: 'ghostImmune',
       target: p.id,
-      text: `${neun(p.name)} 유령이라 피해를 받지 않는다.`,
+      text: `${neun(nameOf(cur, p.id))} 유령이라 피해를 받지 않는다.`,
     });
   }
 
@@ -47,7 +48,7 @@ export function resolveDamage(state: GameState, frame: Frame & { k: 'damage' }):
     pid: frame.source ?? undefined,
     target: p.id,
     amount: frame.amount,
-    text: `${ga(p.name)} 목숨 ${frame.amount}을 잃었다 (남은 목숨 ${Math.max(0, hp)}).`,
+    text: `${ga(nameOf(cur, p.id))} 목숨 ${frame.amount}을 잃었다 (남은 목숨 ${Math.max(0, hp)}).`,
   });
 
   // 능력이 먼저 울린다. 바트 캐시디가 뽑은 카드에 맥주가 있을 수 있기 때문이다.
@@ -70,7 +71,7 @@ export function resolveHeal(state: GameState, frame: Frame & { k: 'heal' }): Gam
     t: 'heal',
     target: p.id,
     amount: hp - p.hp,
-    text: `${ga(p.name)} 목숨을 회복했다 (${hp}).`,
+    text: `${ga(nameOf(cur, p.id))} 목숨을 회복했다 (${hp}).`,
   });
 }
 
@@ -152,7 +153,7 @@ export function respondCheckDeath(
     t: 'beerSurvive',
     pid: p.id,
     card,
-    text: `${ga(p.name)} 맥주를 마시고 버텼다.`,
+    text: `${ga(nameOf(cur, p.id))} 맥주를 마시고 버텼다.`,
   });
   // 프레임은 그대로 둔다. 아직 목숨이 0 이하면 다시 물어본다.
   return cur;
@@ -177,7 +178,7 @@ export function resolveEliminate(
     t: 'eliminate',
     target: p.id,
     pid: frame.killer ?? undefined,
-    text: `${ga(p.name)} 게임에서 제거되었다. 역할은 ${p.role}.`,
+    text: `${ga(nameOf(cur, p.id))} 게임에서 제거되었다. 역할은 ${p.role}.`,
   });
 
   return pushSeq(cur, [
@@ -222,7 +223,7 @@ export function resolveBountyOrPenalty(
     cur = log(cur, {
       t: 'bounty',
       pid: killer.id,
-      text: `${ga(killer.name)} 무법자를 처치해 현상금 ${BOUNTY_CARDS}장을 받는다.`,
+      text: `${ga(nameOf(cur, killer.id))} 무법자를 처치해 현상금 ${BOUNTY_CARDS}장을 받는다.`,
     });
     return pushSeq(cur, [
       { k: 'drawCards', pid: killer.id, count: BOUNTY_CARDS, reason: 'bounty' },
@@ -236,7 +237,7 @@ export function resolveBountyOrPenalty(
     return log(cur, {
       t: 'penalty',
       pid: killer.id,
-      text: `보안관이 부관을 쏘았다. ${neun(killer.name)} 손패와 장비를 전부 잃는다.`,
+      text: `보안관이 부관을 쏘았다. ${neun(nameOf(cur, killer.id))} 손패와 장비를 전부 잃는다.`,
     });
   }
   return cur;

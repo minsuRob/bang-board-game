@@ -5,6 +5,7 @@
  */
 
 import { BASE_CARDS_BY_ID, CARD_DEFS } from '../data/cards.base';
+import { CHARACTERS } from '../data/characters';
 import type { CardDef, CardId, CardInstance, CardKind, Suit } from '../data/types';
 import { shuffle } from './rng';
 import type { Frame, GameEvent, GameState, Player, PlayerId } from './types';
@@ -82,9 +83,10 @@ export function log(state: GameState, ev: Omit<GameEvent, 'seq'>): GameState {
   return { ...state, log: [...state.log, { ...ev, seq: state.seq }] };
 }
 
-/** 로그에 이름을 쓰기 위한 표시용 이름 */
+/** 로그에 이름을 쓰기 위한 표시용 이름 (닉네임 대신 캐릭터명) */
 export function nameOf(state: GameState, pid: PlayerId): string {
-  return playerOf(state, pid).name;
+  const p = playerOf(state, pid);
+  return CHARACTERS[p.character]?.nameKo ?? p.name;
 }
 
 // ---------------------------------------------------------------------------
