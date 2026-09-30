@@ -64,6 +64,7 @@
     "simulate": "tsx scripts/simulate.ts",
     "gen:sfx": "node scripts/gen-sfx.mjs",
     "postinstall": "setup-skia-web public"
+    "deploy": "expo export --platform web && firebase deploy --only hosting",
   },
   "private": true
 }
