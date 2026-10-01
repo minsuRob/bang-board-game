@@ -10,6 +10,10 @@
  * 엉클 윌·조니 키시는 하이 눈과 함께 배포된 프로모 카드다 (훗날 불릿 판에 수록).
  * 능력은 dV Giochi 카드 원문을 옮겼고, 한글 표기는 원본 맵에 없어 음차했다.
  * 기본판 시드가 바뀌지 않도록 반드시 목록 맨 끝에 둔다.
+ *
+ * 와일드 웨스트 쇼 캐릭터 8종은 dV Giochi 카드(content/6/cards/06_*.png) 원문을 옮겼다.
+ * 한글 표기는 원본 맵 패치노트(빅 스펜서·그레고리 덱·율 그리너)를 따르고 나머지는 음차했다.
+ * 그레고리 덱의 목숨은 원본 맵 v0.184 밸런스 패치를 따라 4 → 3 으로 둔다.
  */
 
 import type { CharacterDef, CharacterId, Expansion } from './types';
@@ -147,6 +151,70 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     maxHp: 4,
     ability: '카드를 앞에 내려놓을 때마다, 누구 앞에 있든 같은 이름의 다른 카드를 모두 버립니다.',
     expansion: 'highnoon',
+  },
+  bigSpencer: {
+    id: 'bigSpencer',
+    name: 'Big Spencer',
+    nameKo: '빅 스펜서',
+    maxHp: 9,
+    ability: '카드 5장을 들고 시작합니다. <빗나감!>을 낼 수 없습니다.',
+    expansion: 'wildwestshow',
+  },
+  flintWestwood: {
+    id: 'flintWestwood',
+    name: 'Flint Westwood',
+    nameKo: '플린트 웨스트우드',
+    maxHp: 4,
+    ability: '자기 차례에 한 번, 손의 카드 1장을 다른 사람의 손에서 무작위로 뽑은 카드 2장과 맞바꿀 수 있습니다.',
+    expansion: 'wildwestshow',
+  },
+  garyLooter: {
+    id: 'garyLooter',
+    name: 'Gary Looter',
+    nameKo: '게리 루터',
+    maxHp: 5,
+    ability: '다른 사람이 차례를 마치며 손패 초과로 버리는 카드를 모두 가져갑니다.',
+    expansion: 'wildwestshow',
+  },
+  greygoryDeck: {
+    id: 'greygoryDeck',
+    name: 'Greygory Deck',
+    nameKo: '그레고리 덱',
+    maxHp: 3,
+    ability: '차례 시작에 캐릭터 2장을 무작위로 뽑을 수 있습니다. 뽑은 캐릭터들의 능력을 모두 가집니다.',
+    expansion: 'wildwestshow',
+  },
+  johnPain: {
+    id: 'johnPain',
+    name: 'John Pain',
+    nameKo: '존 페인',
+    maxHp: 4,
+    ability: "손패가 6장 미만이면, 누가 '카드 펼치기'를 하든 펼친 카드를 손으로 가져옵니다.",
+    expansion: 'wildwestshow',
+  },
+  leeVanKliff: {
+    id: 'leeVanKliff',
+    name: 'Lee Van Kliff',
+    nameKo: '리 반 클리프',
+    maxHp: 4,
+    ability: '자기 차례에 <뱅!> 1장을 버려, 방금 낸 갈색 카드의 효과를 한 번 더 냅니다.',
+    expansion: 'wildwestshow',
+  },
+  terenKill: {
+    id: 'terenKill',
+    name: 'Teren Kill',
+    nameKo: '테렌 킬',
+    maxHp: 3,
+    ability: "제거될 때마다 '카드 펼치기'를 합니다. 스페이드가 아니면 목숨 1로 남고 카드 1장을 가져옵니다.",
+    expansion: 'wildwestshow',
+  },
+  youlGrinner: {
+    id: 'youlGrinner',
+    name: 'Youl Grinner',
+    nameKo: '율 그리너',
+    maxHp: 4,
+    ability: "'카드 가져오기' 전에, 손패가 자기보다 많은 사람은 각자 고른 카드 1장을 율에게 줍니다.",
+    expansion: 'wildwestshow',
   },
 };
 

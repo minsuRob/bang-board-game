@@ -9,7 +9,7 @@
  * 엔진은 해결을 멈추고 플레이어의 액션을 기다린다.
  */
 
-import { HIGHNOON_EVENTS } from '../../data/cards.highnoon';
+import { EVENTS } from '../../data/events';
 import { CHARACTERS } from '../../data/characters';
 import { SUIT_GLYPH, type Suit } from '../../data/types';
 import {
@@ -102,7 +102,7 @@ export function resolveRevealEvent(state: GameState): GameState {
       past: ev.current ? [...ev.past, ev.current] : ev.past,
     },
   };
-  cur = log(cur, { t: 'event', card: next, text: `이벤트 공개 — ${HIGHNOON_EVENTS[next].nameKo}` });
+  cur = log(cur, { t: 'event', card: next, text: `이벤트 공개 — ${EVENTS[next].nameKo}` });
 
   return pushSeq(cur, onEventEnterFrames(cur));
 }

@@ -5,4 +5,4 @@ export {
   UNCLE_WILL_ABILITY,
 } from './characters';
 export { equipmentModifier } from './equipment';
-export { EVENT_MODIFIERS } from './events/highnoon';
+export { EVENT_MODIFIERS } from './events';

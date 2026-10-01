@@ -12,7 +12,7 @@
 import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useStore } from 'zustand';
 
-import { HIGHNOON_EVENTS } from '../../data/cards.highnoon';
+import { EVENTS } from '../../data/events';
 import type { EventCardId } from '../../data/types';
 import type { GameState } from '../../engine';
 import { eventArt } from '../../ui/card-art';
@@ -45,7 +45,7 @@ export function EventHover({
   if (!r || !r.visible || r.left === undefined || r.right === undefined) return null;
   const top = r.top ?? r.y;
   const bottom = r.bottom ?? r.y;
-  const def = HIGHNOON_EVENTS[current];
+  const def = EVENTS[current];
 
   return (
     <>
@@ -76,9 +76,9 @@ export function EventHover({
 }
 
 function EventPanel({ view, id, slot }: { view: GameState; id: EventCardId; slot: PreviewSlot }) {
-  const def = HIGHNOON_EVENTS[id];
+  const def = EVENTS[id];
   const art = eventArt(id);
-  const { past, remaining } = eventProgress(view.event!);
+  const { past, remaining } = eventProgress(view.event!, view.config.expansions);
   return (
     <View
       style={[previewStyles.tip, previewStyles.panel, { left: slot.left, bottom: slot.bottom, width: slot.width }]}
@@ -111,7 +111,7 @@ function EventPanel({ view, id, slot }: { view: GameState; id: EventCardId; slot
           <View style={styles.chips}>
             {past.map((p) => (
               <Text key={p} style={styles.chip}>
-                {HIGHNOON_EVENTS[p].nameKo}
+                {EVENTS[p].nameKo}
               </Text>
             ))}
           </View>

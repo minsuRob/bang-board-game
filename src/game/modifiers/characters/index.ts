@@ -8,13 +8,19 @@ import type { CharacterId } from '../../data/types';
 import type { Modifier } from '../../engine/modifier';
 
 import { bartCassidy } from './bart-cassidy';
+import { bigSpencer } from './big-spencer';
 import { blackJack } from './black-jack';
 import { calamityJanet } from './calamity-janet';
 import { elGringo } from './el-gringo';
+import { flintWestwood } from './flint-westwood';
+import { garyLooter } from './gary-looter';
+import { greygoryDeck } from './greygory-deck';
 import { jesseJones } from './jesse-jones';
+import { johnPain } from './john-pain';
 import { johnnyKisch } from './johnny-kisch';
 import { jourdonnais } from './jourdonnais';
 import { kitCarlson } from './kit-carlson';
+import { leeVanKliff } from './lee-van-kliff';
 import { luckyDuke } from './lucky-duke';
 import { paulRegret } from './paul-regret';
 import { pedroRamirez } from './pedro-ramirez';
@@ -22,9 +28,11 @@ import { roseDoolan } from './rose-doolan';
 import { sidKetchum } from './sid-ketchum';
 import { slabTheKiller } from './slab-the-killer';
 import { suzyLafayette } from './suzy-lafayette';
+import { terenKill } from './teren-kill';
 import { uncleWill } from './uncle-will';
 import { vultureSam } from './vulture-sam';
 import { willyTheKid } from './willy-the-kid';
+import { youlGrinner } from './youl-grinner';
 
 export const CHARACTER_MODIFIERS: Record<CharacterId, Modifier> = {
   bartCassidy,
@@ -45,6 +53,14 @@ export const CHARACTER_MODIFIERS: Record<CharacterId, Modifier> = {
   willyTheKid,
   uncleWill,
   johnnyKisch,
+  bigSpencer,
+  flintWestwood,
+  garyLooter,
+  greygoryDeck,
+  johnPain,
+  leeVanKliff,
+  terenKill,
+  youlGrinner,
 };
 
 export { SID_KETCHUM_ABILITY } from './sid-ketchum';

@@ -126,7 +126,10 @@ export type CharacterId =
   | 'roseDoolan' | 'sidKetchum' | 'slabTheKiller' | 'suzyLafayette'
   | 'vultureSam' | 'willyTheKid'
   // 하이 눈 프로모
-  | 'uncleWill' | 'johnnyKisch';
+  | 'uncleWill' | 'johnnyKisch'
+  // 와일드 웨스트 쇼
+  | 'bigSpencer' | 'flintWestwood' | 'garyLooter' | 'greygoryDeck'
+  | 'johnPain' | 'leeVanKliff' | 'terenKill' | 'youlGrinner';
 
 export type CharacterDef = {
   id: CharacterId;
@@ -149,12 +152,18 @@ export type Role = 'sheriff' | 'deputy' | 'outlaw' | 'renegade';
 // 이벤트 카드 (하이 눈 등 확장판)
 // ---------------------------------------------------------------------------
 
-export type Expansion = 'highnoon';
+export type Expansion = 'highnoon' | 'wildwestshow';
 
-export type EventCardId =
+export type HighNoonEventId =
   | 'blessing' | 'curse' | 'ghostTown' | 'goldRush' | 'hangover'
   | 'shootout' | 'theDaltons' | 'theDoctor' | 'theReverend' | 'theSermon'
   | 'trainArrival' | 'thirst' | 'newIdentity' | 'handcuffs' | 'highNoon';
+
+export type WildWestShowEventId =
+  | 'gag' | 'boneOrchard' | 'darlingValentine' | 'dorothyRage' | 'helenaZontero'
+  | 'ladyRoseOfTexas' | 'missSusanna' | 'showdown' | 'sacagaway' | 'wildWestShow';
+
+export type EventCardId = HighNoonEventId | WildWestShowEventId;
 
 export type EventCardDef = {
   id: EventCardId;
@@ -162,6 +171,6 @@ export type EventCardDef = {
   name: string;
   nameKo: string;
   text: string;
-  /** 이벤트 덱 맨 밑에 고정되는 마지막 카드인가 (하이 눈) */
+  /** 이벤트 덱 맨 밑에 고정되는 마지막 카드인가 (하이 눈 · 와일드 웨스트 쇼) */
   isFinal?: boolean;
 };
