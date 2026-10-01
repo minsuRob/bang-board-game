@@ -96,18 +96,19 @@ describe('기본 덱', () => {
 });
 
 describe('캐릭터', () => {
-  it('기본판 16종 + 하이 눈 프로모 2종이다', () => {
-    expect(CHARACTER_IDS).toHaveLength(18);
+  it('기본판 16종 + 하이 눈 프로모 2종 + 골드 러시 8종이다', () => {
+    expect(CHARACTER_IDS).toHaveLength(26);
     expect(CHARACTER_IDS.filter((id) => !CHARACTERS[id].expansion)).toHaveLength(16);
     expect(CHARACTER_IDS.filter((id) => CHARACTERS[id].expansion === 'highnoon').sort()).toEqual([
       'johnnyKisch',
       'uncleWill',
     ]);
+    expect(CHARACTER_IDS.filter((id) => CHARACTERS[id].expansion === 'goldrush')).toHaveLength(8);
   });
 
-  it('총알 수는 3 또는 4이고, 3인 캐릭터는 El Gringo와 Paul Regret뿐이다', () => {
+  it('총알 수는 3 또는 4이고, 3인 캐릭터는 El Gringo·Paul Regret·Simeon Picos뿐이다', () => {
     const three = CHARACTER_IDS.filter((id) => CHARACTERS[id].maxHp === 3);
-    expect(three.sort()).toEqual(['elGringo', 'paulRegret']);
+    expect(three.sort()).toEqual(['elGringo', 'paulRegret', 'simeonPicos']);
     for (const id of CHARACTER_IDS) expect([3, 4]).toContain(CHARACTERS[id].maxHp);
   });
 
@@ -154,5 +155,15 @@ describe('하이 눈 이벤트', () => {
   it('섞이는 이벤트는 14장이다', () => {
     expect(HIGHNOON_SHUFFLED_IDS).toHaveLength(14);
     expect(HIGHNOON_SHUFFLED_IDS).not.toContain(HIGHNOON_FINAL_ID);
+  });
+});
+
+describe('골드 러시 장비 카드', () => {
+  it('24장이고 갈색 16 · 검정 8, id 가 겹치지 않는다', async () => {
+    const { GOLD_DECK, goldDefOf } = await import('./cards.goldrush');
+    expect(GOLD_DECK).toHaveLength(24);
+    expect(new Set(GOLD_DECK.map((c) => c.id)).size).toBe(24);
+    expect(GOLD_DECK.filter((c) => goldDefOf(c.id).category === 'brown')).toHaveLength(16);
+    expect(GOLD_DECK.filter((c) => goldDefOf(c.id).category === 'black')).toHaveLength(8);
   });
 });
