@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AI_TIERS, AI_TIER_LABEL } from '@/game/ai';
 import type { AiTier } from '@/game/ai/types';
+import { SavedGames } from '@/game/ui/SavedGames';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 const COUNTS = [4, 5, 6, 7];
@@ -18,6 +19,8 @@ export default function LocalSetupScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.heading}>판 설정</Text>
+
+      <SavedGames />
 
       <Section title="인원">
         <Row>

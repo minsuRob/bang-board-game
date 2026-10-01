@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { AiSpeed, AiTier } from '@/game/ai/types';
@@ -7,6 +7,16 @@ import { setAiSpeed } from '@/firebase/rooms';
 import { ROLE_LABEL } from '@/game/data/roles';
 import { makeView, useGameStore, type SeatSetup } from '@/game/store/game-store';
 import { useAiDriver } from '@/game/store/ai-driver';
+import {
+  canSaveGame,
+  getSaveBackend,
+  makeSaveRecord,
+  newSaveId,
+  readSaveRecord,
+  SaveError,
+  type SavedGame,
+  type SaveRecord,
+} from '@/game/save';
 import { useTimeoutDriver } from '@/game/store/online-driver';
 import { useChat } from '@/game/store/use-chat';
 import { useOnlineGameSession, useRoomConnection } from '@/game/store/use-online-game';
@@ -14,6 +24,7 @@ import { preloadArt, useArtProgress, useArtReady } from '@/game/ui/art-preload';
 import { GameClock, useStopwatch } from '@/game/ui/GameClock';
 import { FullscreenButton } from '@/game/ui/FullscreenButton';
 import { PauseButton } from '@/game/ui/PauseButton';
+import { SaveButton, SaveNotice, type SaveStatus } from '@/game/ui/SaveButton';
 import { SoundButton } from '@/game/ui/SoundButton';
 import { SpeedControl } from '@/game/ui/SpeedControl';
 import { Table } from '@/game/ui/Table';
@@ -32,12 +43,40 @@ export default function GameScreen() {
     seed?: string;
     /** 1이면 내 자리까지 AI가 두는 관전 모드 */
     auto?: string;
+    /** 저장한 판 id. 있으면 그 판을 이어 본다 (다른 설정 값은 무시) */
+    save?: string;
   }>();
   const router = useRouter();
 
   // id 가 'local' 이면 혼자 하는 판, 아니면 그 값이 곧 방 코드다.
   const online = Boolean(params.id && params.id !== 'local');
   const code = online ? (params.id as string) : null;
+
+  // 이어 볼 저장본. 불러온 결과를 id 와 함께 두고, 지금 id 와 맞을 때만 쓴다
+  const saveParam = !online && params.save ? params.save : null;
+  const [loaded, setLoaded] = useState<{ id: string; game?: SavedGame; error?: string } | null>(
+    null,
+  );
+  const current = saveParam && loaded?.id === saveParam ? loaded : null;
+  const resumed = current?.game ?? null;
+  const resumeError = current?.error ?? null;
+  useEffect(() => {
+    if (!saveParam) return;
+    let alive = true;
+    getSaveBackend()
+      .load(saveParam)
+      .then((record) => {
+        if (!record) throw new SaveError('저장한 판을 찾지 못했다.');
+        if (alive) setLoaded({ id: saveParam, game: readSaveRecord(record) });
+      })
+      .catch((err) => {
+        const error = err instanceof SaveError ? err.message : '저장한 판을 불러오지 못했다.';
+        if (alive) setLoaded({ id: saveParam, error });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [saveParam]);
 
   const state = useGameStore((s) => s.state);
   const viewer = useGameStore((s) => s.viewer);
@@ -47,6 +86,18 @@ export default function GameScreen() {
   const reset = useGameStore((s) => s.reset);
 
   const setup = useMemo(() => {
+    if (resumed) {
+      const { state: saved } = resumed;
+      return {
+        seed: resumed.seed,
+        players: saved.config.playerCount,
+        highnoon: saved.config.expansions.includes('highnoon'),
+        seats: resumed.seats as SeatSetup[],
+        controlled: resumed.controlled,
+        auto: resumed.controlled.length === 0,
+        resume: saved,
+      };
+    }
     const players = clamp(Number(params.players ?? 5), 4, 7);
     const tier = (params.tier ?? 'medium') as AiTier;
     const seed = Number(params.seed ?? 1) || 1;
@@ -57,8 +108,10 @@ export default function GameScreen() {
       human: i === 0,
       tier,
     }));
-    return { seed, players, highnoon, seats, auto: params.auto === '1' };
-  }, [params.players, params.tier, params.seed, params.highnoon, params.auto]);
+    const auto = params.auto === '1';
+    // 관전 모드에서는 아무 자리도 조작하지 않는다. 구동기가 전부 대신 둔다.
+    return { seed, players, highnoon, seats, controlled: auto ? [] : ['p0'], auto, resume: undefined };
+  }, [resumed, params.players, params.tier, params.seed, params.highnoon, params.auto]);
 
   const conn = useRoomConnection(code);
   useOnlineGameSession(code, conn);
@@ -74,18 +127,20 @@ export default function GameScreen() {
 
   useEffect(() => {
     if (online || !artReady) return;
+    // 저장본을 이어 볼 때는 다 불러온 뒤에 연다
+    if (saveParam && !resumed) return;
     start({
       seed: setup.seed,
-      config: {
+      config: setup.resume?.config ?? {
         playerCount: setup.players,
         expansions: setup.highnoon ? ['highnoon'] : [],
       },
       seats: setup.seats,
-      // 관전 모드에서는 아무 자리도 조작하지 않는다. 구동기가 전부 대신 둔다.
-      controlled: setup.auto ? [] : ['p0'],
+      controlled: setup.controlled,
+      resume: setup.resume,
     });
     return () => reset();
-  }, [online, artReady, setup, start, reset]);
+  }, [online, artReady, saveParam, resumed, setup, start, reset]);
 
   // AI 빠르기. 온라인은 방 문서의 값을 모두가 따르고 방장만 바꾼다. 혼자 하는 판은 내가 방장이다.
   const [localSpeed, setLocalSpeed] = useState<AiSpeed>(1);
@@ -105,7 +160,49 @@ export default function GameScreen() {
   const canPause = !online && Boolean(state) && !state?.result && !state?.draft;
   const halted = canPause && paused;
   // 흐른 시간. 판이 떠 있는 동안만 가고, 멈추거나 끝나면 선다
-  const stopwatch = useStopwatch(Boolean(state) && !state?.result && !halted);
+  const stopwatch = useStopwatch(
+    Boolean(state) && !state?.result && !halted,
+    resumed?.meta.elapsedMs ?? 0,
+  );
+
+  // 판 저장. AI 끼리 남은 혼자 하는 판에서만 연다. 온라인 판은 방이 계속 흘러가므로
+  // 여기서 떼어 저장하면 두 갈래가 된다.
+  const canSave = !online && canSaveGame(state, controlled);
+  // 한 판은 한 칸에 덮어쓴다. 이어 보던 판이면 그 칸이다
+  const saveId = useRef<string | null>(saveParam);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>({ k: 'idle' });
+  const onSave = useCallback(() => {
+    const snap = useGameStore.getState();
+    if (!snap.state || !canSaveGame(snap.state, snap.controlled)) return;
+    let record: SaveRecord;
+    try {
+      saveId.current ??= newSaveId(Date.now(), Math.random);
+      record = makeSaveRecord({
+        id: saveId.current,
+        savedAt: Date.now(),
+        seed: snap.seed,
+        seats: snap.seats,
+        controlled: snap.controlled,
+        state: snap.state,
+        elapsedMs: stopwatch.elapsed(),
+      });
+    } catch (err) {
+      setSaveStatus({ k: 'error', message: err instanceof SaveError ? err.message : '저장하지 못했다.' });
+      return;
+    }
+    setSaveStatus({ k: 'saving' });
+    getSaveBackend()
+      .put(record)
+      .then(() => setSaveStatus({ k: 'saved' }))
+      .catch((err) =>
+        setSaveStatus({ k: 'error', message: err instanceof SaveError ? err.message : '저장하지 못했다.' }),
+      );
+  }, [stopwatch]);
+  useEffect(() => {
+    if (saveStatus.k !== 'saved' && saveStatus.k !== 'error') return;
+    const timer = setTimeout(() => setSaveStatus({ k: 'idle' }), 6000);
+    return () => clearTimeout(timer);
+  }, [saveStatus]);
 
   // 관전 모드는 예전처럼 빠르게 흘려 본다
   useAiDriver(!halted, setup.auto ? 6 : speed);
@@ -158,6 +255,21 @@ export default function GameScreen() {
     onPickIndex,
   });
 
+  if (resumeError) {
+    return (
+      <View style={styles.loading}>
+        <Text style={styles.loadingText}>{resumeError}</Text>
+        <Pressable
+          style={styles.resultButton}
+          accessibilityRole="button"
+          accessibilityLabel="돌아가기"
+          onPress={() => router.replace('/local')}>
+          <Text style={styles.resultButtonText}>돌아가기</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   if (!artReady || !state || !view || !viewer) {
     return (
       <View style={styles.loading}>
@@ -168,7 +280,9 @@ export default function GameScreen() {
               ? `그림을 불러오는 중${artProgress.total ? ` ${artProgress.loaded}/${artProgress.total}` : ''}`
               : online
                 ? '판을 받아오는 중'
-                : '판을 짜는 중')}
+                : saveParam
+                  ? '저장한 판을 불러오는 중'
+                  : '판을 짜는 중')}
         </Text>
       </View>
     );
@@ -187,8 +301,15 @@ export default function GameScreen() {
         <View style={styles.topLeft}>
           {!setup.auto && !state.result && <SpeedControl speed={speed} onChange={onSpeedChange} />}
           {canPause && <PauseButton paused={paused} onToggle={() => setPaused((v) => !v)} />}
+          {canSave && <SaveButton status={saveStatus} onSave={onSave} />}
           <SoundButton />
           <FullscreenButton />
+        </View>
+      )}
+
+      {!state.result && (
+        <View style={styles.saveNotice}>
+          <SaveNotice status={saveStatus} onLeave={() => router.replace('/local')} />
         </View>
       )}
 
@@ -277,6 +398,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
+  },
+  saveNotice: {
+    position: 'absolute',
+    top: Spacing.two + 34,
+    left: Spacing.two,
+    maxWidth: 360,
   },
   pausedBanner: {
     position: 'absolute',

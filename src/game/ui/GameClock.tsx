@@ -17,14 +17,22 @@ export type Stopwatch = {
   running: () => boolean;
 };
 
-/** 다시 그려도 같은 스톱워치를 준다. 켜고 끄는 것만으로는 화면을 다시 그리지 않는다 */
-export function useStopwatch(running: boolean): Stopwatch {
-  const acc = useRef(0);
+/**
+ * 다시 그려도 같은 스톱워치를 준다. 켜고 끄는 것만으로는 화면을 다시 그리지 않는다
+ * baseMs 는 저장본에서 이어 볼 때 이미 흐른 시간이다. 바뀌면 그 값부터 다시 센다.
+ */
+export function useStopwatch(running: boolean, baseMs = 0): Stopwatch {
+  const acc = useRef(baseMs);
   const since = useRef<number | null>(null);
   const [watch] = useState<Stopwatch>(() => ({
     elapsed: () => acc.current + (since.current === null ? 0 : Date.now() - since.current),
     running: () => since.current !== null,
   }));
+
+  useEffect(() => {
+    acc.current = baseMs;
+    if (since.current !== null) since.current = Date.now();
+  }, [baseMs]);
 
   useEffect(() => {
     if (!running) return;

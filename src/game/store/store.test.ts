@@ -10,7 +10,7 @@ import {
   type RoomDoc,
   type RoomMember,
 } from '../../firebase/room-model';
-import type { Action } from '../engine';
+import type { Action, GameState } from '../engine';
 import { aiDelayMs } from './ai-driver';
 import { createLocalTransport } from './local-transport';
 import { selectActor, useGameStore } from './game-store';
@@ -127,6 +127,41 @@ describe('락스텝 되감기', () => {
     });
     for (const action of recorded) replay.submit(action);
 
+    expect(JSON.stringify(useGameStore.getState().state)).toBe(live);
+  });
+});
+
+describe('저장본에서 이어 보기', () => {
+  it('startGame 없이 그 상태에서 시작하고, 이후 액션은 그 위에 접힌다', () => {
+    startLocal();
+    const saved = JSON.parse(JSON.stringify(useGameStore.getState().state)) as GameState;
+    const actor = selectActor(saved)!;
+    useGameStore.getState().submit({ type: 'timeout', pid: actor });
+    const live = JSON.stringify(useGameStore.getState().state);
+
+    useGameStore.getState().reset();
+    const submitted: Action[] = [];
+    const transport = createLocalTransport();
+    const spy: Transport = {
+      ...transport,
+      submit(action) {
+        submitted.push(action);
+        transport.submit(action);
+      },
+    };
+    useGameStore.getState().start({
+      seed: 42,
+      config: saved.config,
+      seats,
+      controlled: [],
+      transport: spy,
+      resume: saved,
+    });
+    expect(submitted).toEqual([]);
+    expect(useGameStore.getState().state).toEqual(saved);
+    expect(useGameStore.getState().viewer).toBe('p0');
+
+    useGameStore.getState().submit({ type: 'timeout', pid: actor });
     expect(JSON.stringify(useGameStore.getState().state)).toBe(live);
   });
 });
