@@ -7,7 +7,7 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useStore } from 'zustand';
 
-import { HIGHNOON_EVENTS } from '../../data/cards.highnoon';
+import { EVENTS } from '../../data/cards.events';
 import type { CardId } from '../../data/types';
 import type { GameState, PlayerId } from '../../engine';
 import { PlayedCardSpotlight } from '../../ui/PlayedCardSpotlight';
@@ -43,7 +43,7 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
     setHover((h) => (on ? { k: 'event' } : h?.k === 'event' ? null : h));
   }, []);
   const steal = api.prompt?.steal ?? null;
-  const event = view.event?.current ? HIGHNOON_EVENTS[view.event.current] : null;
+  const event = view.event?.current ? EVENTS[view.event.current] : null;
   const deck = anchors.points[ANCHOR_DECK];
   const discard = anchors.points[ANCHOR_DISCARD];
   const ev = anchors.points[ANCHOR_EVENT];

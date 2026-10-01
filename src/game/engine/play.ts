@@ -27,7 +27,7 @@ import {
   outgoingBangMissesOf,
   playAnyAsAbilitiesOf,
 } from './hooks';
-import type { Frame, GameState, PlayerId } from './types';
+import type { Frame, GameState, PlayerId, StealPick } from './types';
 import { eul, ga, ro } from './josa';
 
 /** 자신을 제외한 생존자를, 자기 왼쪽(다음 좌석)부터 시계 방향으로 */
@@ -48,8 +48,12 @@ export function applyPlayCard(
   card: CardId,
   as: CardKind,
   target?: PlayerId,
+  extra: { pick?: StealPick; also?: CardId } = {},
 ): GameState {
   const def = CARD_DEFS[as];
+  // 리코체(한줌의 카드): 뱅!에 앞의 카드가 붙으면 사람이 아니라 그 카드를 노린다.
+  const ricochet =
+    as === 'bang' && target && extra.pick?.zone === 'equipment' ? extra.pick.card : null;
   const own = kindOf(card);
   let cur = state;
 
@@ -64,8 +68,13 @@ export function applyPlayCard(
     }
   }
 
-  // 카드를 손에서 뗀다.
-  cur = updatePlayer(cur, pid, (p) => ({ ...p, hand: p.hand.filter((c) => c !== card) }));
+  // 카드를 손에서 뗀다. 저격수의 두 번째 뱅!도 함께 버린다.
+  const also = extra.also;
+  cur = updatePlayer(cur, pid, (p) => ({
+    ...p,
+    hand: p.hand.filter((c) => c !== card && c !== also),
+  }));
+  if (also) cur = toDiscard(cur, [also]);
 
   const frames: Frame[] = [];
   if (def.category === 'blue') {
@@ -80,22 +89,35 @@ export function applyPlayCard(
     as === own
       ? eul(def.nameKo)
       : `${eul(CARD_DEFS[own].nameKo)} ${ro(def.nameKo)}`;
+  const how = ricochet ? ' 리코체로' : also ? ' 저격수로 2장' : '';
   cur = log(cur, {
     t: 'playCard',
     pid,
     card,
     as: as === own ? undefined : as,
     target,
+    cards: also ? [card, also] : undefined,
     text:
-      `${ga(nameOf(cur, pid))} ${played} 냈다` +
+      `${ga(nameOf(cur, pid))}${how} ${played} 냈다` +
       (target ? ` → ${nameOf(cur, target)}.` : '.'),
   });
+
+  if (ricochet && target) {
+    // 버림이지 사용이 아니다. 뱅! 횟수를 쓰지 않는다.
+    frames.push({ k: 'ricochet', source: pid, target, card: ricochet });
+    return pushSeq(cur, frames);
+  }
 
   if (as === 'bang') {
     cur = { ...cur, turn: { ...cur.turn, bangsPlayed: cur.turn.bangsPlayed + 1 } };
   }
 
-  frames.push(...effectFrames(cur, pid, as, target));
+  const effects = effectFrames(cur, pid, as, target);
+  if (also) {
+    // 저격수: 빗나감! 2장으로만 막는다 (슬랩 더 킬러면 그대로 2장 이상).
+    for (const f of effects) if (f.k === 'bang') f.missesRequired = Math.max(2, f.missesRequired);
+  }
+  frames.push(...effects);
   return pushSeq(cur, frames);
 }
 
@@ -105,8 +127,12 @@ function equipBlueCard(
   card: CardId,
   as: CardKind,
   target?: PlayerId,
+  extra: { pick?: StealPick; also?: CardId } = {},
 ): GameState {
   const def = CARD_DEFS[as];
+  // 리코체(한줌의 카드): 뱅!에 앞의 카드가 붙으면 사람이 아니라 그 카드를 노린다.
+  const ricochet =
+    as === 'bang' && target && extra.pick?.zone === 'equipment' ? extra.pick.card : null;
 
   // 감옥은 상대 앞에 놓는다.
   if (def.equip === 'other') {

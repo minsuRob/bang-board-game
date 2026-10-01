@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import type { AiSpeed, AiTier } from '@/game/ai/types';
 import { setAiSpeed } from '@/firebase/rooms';
 import { ROLE_LABEL } from '@/game/data/roles';
+import { expansionsOf } from '@/game/data/types';
 import { makeView, useGameStore, type SeatSetup } from '@/game/store/game-store';
 import { useAiDriver } from '@/game/store/ai-driver';
 import { useTimeoutDriver } from '@/game/store/online-driver';
@@ -29,6 +30,8 @@ export default function GameScreen() {
     players?: string;
     tier?: string;
     highnoon?: string;
+    /** 1이면 한줌의 카드 이벤트 덱을 켠다 */
+    fistful?: string;
     seed?: string;
     /** 1이면 내 자리까지 AI가 두는 관전 모드 */
     auto?: string;
@@ -51,14 +54,15 @@ export default function GameScreen() {
     const tier = (params.tier ?? 'medium') as AiTier;
     const seed = Number(params.seed ?? 1) || 1;
     const highnoon = params.highnoon === '1';
+    const fistful = params.fistful === '1';
     const seats: SeatSetup[] = Array.from({ length: players }, (_, i) => ({
       id: `p${i}`,
       name: i === 0 ? '나' : AI_NAMES[(i - 1) % AI_NAMES.length],
       human: i === 0,
       tier,
     }));
-    return { seed, players, highnoon, seats, auto: params.auto === '1' };
-  }, [params.players, params.tier, params.seed, params.highnoon, params.auto]);
+    return { seed, players, highnoon, fistful, seats, auto: params.auto === '1' };
+  }, [params.players, params.tier, params.seed, params.highnoon, params.fistful, params.auto]);
 
   const conn = useRoomConnection(code);
   useOnlineGameSession(code, conn);
@@ -78,7 +82,7 @@ export default function GameScreen() {
       seed: setup.seed,
       config: {
         playerCount: setup.players,
-        expansions: setup.highnoon ? ['highnoon'] : [],
+        expansions: expansionsOf(setup),
       },
       seats: setup.seats,
       // 관전 모드에서는 아무 자리도 조작하지 않는다. 구동기가 전부 대신 둔다.

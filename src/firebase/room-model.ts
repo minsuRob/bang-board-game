@@ -38,6 +38,8 @@ export type RoomDoc = {
   status: 'lobby' | 'playing' | 'ended';
   playerCount: number;
   highnoon: boolean;
+  /** 한줌의 카드 이벤트 덱. 예전 방에는 없다 (끔) */
+  fistful?: boolean;
   tier: AiTier;
   seats: RoomSeat[];
   seed: number;

@@ -24,6 +24,47 @@ export function characterAbilitiesDisabled(state: GameState): boolean {
   return eventModifier(state)?.disablesCharacterAbilities === true;
 }
 
+/** 올가미처럼 앞에 놓인 카드의 효과를 통째로 죽이는 효과가 걸려 있는가 */
+export function equipmentDisabled(state: GameState): boolean {
+  return eventModifier(state)?.disablesEquipment === true;
+}
+
+/** 자리 거리 대신 쓰는 고정 거리 (매복). 없으면 null */
+export function fixedDistanceOf(state: GameState): number | null {
+  return eventModifier(state)?.fixedDistance ?? null;
+}
+
+/** 카드 가져오기 단계가 버린 더미에서 가져오는가 (폐광) */
+export function drawsFromDiscard(state: GameState): boolean {
+  return eventModifier(state)?.drawsFromDiscard === true;
+}
+
+/** 버리기 단계의 카드가 덱 위로 가는가 (폐광) */
+export function discardsToDeck(state: GameState): boolean {
+  return eventModifier(state)?.discardsToDeck === true;
+}
+
+/** 뱅! 2장을 한 번에 쓰는 저격이 열려 있는가 */
+export function allowsDoubleBang(state: GameState): boolean {
+  return eventModifier(state)?.allowsDoubleBang === true;
+}
+
+/** 뱅!으로 앞에 놓인 카드를 노리는 리코체가 열려 있는가 */
+export function allowsRicochet(state: GameState): boolean {
+  return eventModifier(state)?.allowsRicochet === true;
+}
+
+/** 망자: 가장 먼저 제거된 사람이 돌아올 때의 목숨·카드. 없으면 null */
+export function firstOutRevival(state: GameState): { hp: number; cards: number } | null {
+  return eventModifier(state)?.revivesFirstOut ?? null;
+}
+
+/** 차례가 끝날 때 쌓을 프레임 (복수) */
+export function onTurnEndFrames(state: GameState, pid: PlayerId): Frame[] {
+  const ctx = ctxOf(state, pid);
+  return getModifiers(state, pid).flatMap((m) => m.onTurnEnd?.(ctx) ?? []);
+}
+
 /**
  * 이 플레이어에게 걸린 모든 훅. 발동 순서(order)대로 정렬해서 돌려준다.
  * 캐릭터 → 장비 → 이벤트 순이 기본이다.
@@ -35,9 +76,11 @@ export function getModifiers(state: GameState, pid: PlayerId): Modifier[] {
   if (!characterAbilitiesDisabled(state)) {
     mods.push(CHARACTER_MODIFIERS[p.character]);
   }
-  for (const card of p.equipment) {
-    const m = equipmentModifier(kindOf(card), card);
-    if (m) mods.push(m);
+  if (!equipmentDisabled(state)) {
+    for (const card of p.equipment) {
+      const m = equipmentModifier(kindOf(card), card);
+      if (m) mods.push(m);
+    }
   }
   const ev = eventModifier(state);
   if (ev) mods.push(ev);
@@ -150,7 +193,7 @@ export function anytimeAbilitiesOf(state: GameState, pid: PlayerId): AnytimeAbil
 export function onTargetedByBangFrames(
   state: GameState,
   target: PlayerId,
-  source: PlayerId,
+  source: PlayerId | null,
 ): Frame[] {
   const ctx = ctxOf(state, target);
   return getModifiers(state, target).flatMap((m) => m.onTargetedByBang?.(ctx, source) ?? []);
@@ -209,14 +252,19 @@ export function onDrawPhaseEndFrames(state: GameState, pid: PlayerId): Frame[] {
   return getModifiers(state, pid).flatMap((m) => m.onDrawPhaseEnd?.(ctx) ?? []);
 }
 
-/** 카드 가져오기 단계를 대신하는 훅. 없으면 null */
+/**
+ * 카드 가져오기 단계를 대신하는 훅. 없으면 null.
+ * skipEvent 는 이벤트의 대체(독한 술)를 거절한 뒤 평소 방식으로 가져올 때 쓴다.
+ */
 export function drawPhaseOverride(
   state: GameState,
   pid: PlayerId,
   count: number,
+  skipEvent = false,
 ): Frame[] | null {
   const ctx = ctxOf(state, pid);
   for (const m of getModifiers(state, pid)) {
+    if (skipEvent && m.from === 'event') continue;
     const frames = m.drawPhase?.(ctx, count);
     if (frames) return frames;
   }

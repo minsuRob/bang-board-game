@@ -26,7 +26,7 @@ export type ActionBarProps = {
   playerNameOf: (pid: string) => string;
   abilities: { key: string; label: string; cards: string[] }[];
   onUseAbility: (key: string, cards: string[]) => void;
-  /** 손의 카드를 다른 종류로 내는 능력 (엉클 윌). 누르면 켜지고, 켠 뒤 카드를 낸다 */
+  /** 켜고 끄는 사용법 (엉클 윌 능력, 저격수·리코체). 누르면 켜지고, 켠 뒤 카드를 낸다 */
   playAs?: { key: string; label: string }[];
   armed?: string | null;
   onArm?: (key: string | null) => void;
@@ -69,7 +69,7 @@ export function ActionBar({
             <Button label="취소 (Esc)" onPress={() => onArm(null)} />
           ) : (
             playAs.map((ab) => (
-              <Button key={ab.key} label={`능력 · ${ab.label}`} onPress={() => onArm(ab.key)} />
+              <Button key={ab.key} label={ab.label} onPress={() => onArm(ab.key)} />
             ))
           ))}
         {canEndTurn && <Button label="차례 마치기 (Q)" onPress={onEndTurn} primary />}
@@ -117,8 +117,15 @@ export function ActionBar({
 
           {prompt.yesNo && <Button label="그렇게 한다" onPress={() => onRespond({ c: 'yes' })} primary />}
 
+          {prompt.colors && (
+            <>
+              <Button label="♥♦ 빨강" onPress={() => onRespond({ c: 'color', color: 'red' })} />
+              <Button label="♣♠ 검정" onPress={() => onRespond({ c: 'color', color: 'black' })} />
+            </>
+          )}
+
           {prompt.canPass && (
-            <Button label="반응하지 않음 (W)" onPress={() => onRespond({ c: 'pass' })} />
+            <Button label={prompt.passLabel ?? '반응하지 않음 (W)'} onPress={() => onRespond({ c: 'pass' })} />
           )}
         </View>
       </ScrollView>

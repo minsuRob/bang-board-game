@@ -31,6 +31,7 @@ const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
   jourdonnais: '주르도네',
   dynamite: '다이너마이트',
   jail: '감옥',
+  vendetta: '복수',
 };
 
 /** 스택에서 가장 위에 있는 뱅! 프레임의 요구 빗나감 장수를 1 줄인다. */
@@ -121,7 +122,30 @@ function applyJudgement(
       return resolveDynamiteResult(cur, pid, suit, inst.rank);
     case 'jail':
       return resolveJailResult(cur, pid, suit);
+    case 'vendetta':
+      return resolveVendettaResult(cur, pid, suit);
   }
+}
+
+/**
+ * 복수: ♥ 면 다음 사람에게 넘어가는 대신 같은 사람이 차례를 한 번 더 한다.
+ * 차례 넘김 프레임을 추가 차례의 시작으로 바꿔 끼운다. 방향 계산을 건너뛰므로
+ * 골드러시 같은 방향 효과와 얽히지 않는다.
+ */
+function resolveVendettaResult(state: GameState, pid: PlayerId, suit: Suit): GameState {
+  if (suit !== 'hearts') return state;
+  let i = state.stack.length - 1;
+  while (i >= 0 && !(state.stack[i].k === 'advanceTurn' && (state.stack[i] as { from: PlayerId }).from === pid)) i--;
+  if (i < 0) return state;
+  const cur: GameState = {
+    ...state,
+    stack: [
+      ...state.stack.slice(0, i),
+      { k: 'turnStart', pid, extra: true },
+      ...state.stack.slice(i + 1),
+    ],
+  };
+  return log(cur, { t: 'vendetta', pid, text: `${ga(nameOf(cur, pid))} 복수로 차례를 한 번 더 한다.` });
 }
 
 function resolveDynamiteResult(

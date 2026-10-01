@@ -8,9 +8,9 @@
  * 보안관의 두 번째 차례부터, 보안관의 차례 시작 시 1장을 공개해 이전 이벤트를 대체한다.
  */
 
-import type { EventCardDef, EventCardId } from './types';
+import type { EventCardDef, HighNoonEventId } from './types';
 
-export const HIGHNOON_EVENTS: Record<EventCardId, EventCardDef> = {
+export const HIGHNOON_EVENTS: Record<HighNoonEventId, EventCardDef> = {
   blessing: {
     id: 'blessing',
     expansion: 'highnoon',
@@ -120,11 +120,11 @@ export const HIGHNOON_EVENTS: Record<EventCardId, EventCardDef> = {
   },
 };
 
-export const HIGHNOON_EVENT_IDS = Object.keys(HIGHNOON_EVENTS) as EventCardId[];
+export const HIGHNOON_EVENT_IDS = Object.keys(HIGHNOON_EVENTS) as HighNoonEventId[];
 
 /** 덱 맨 밑에 고정되는 카드를 제외한, 섞어야 하는 이벤트들 */
 export const HIGHNOON_SHUFFLED_IDS = HIGHNOON_EVENT_IDS.filter(
   (id) => !HIGHNOON_EVENTS[id].isFinal,
 );
 
-export const HIGHNOON_FINAL_ID: EventCardId = 'highNoon';
+export const HIGHNOON_FINAL_ID: HighNoonEventId = 'highNoon';

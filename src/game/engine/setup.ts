@@ -9,7 +9,7 @@
  */
 
 import { BASE_DECK } from '../data/cards.base';
-import { HIGHNOON_FINAL_ID, HIGHNOON_SHUFFLED_IDS } from '../data/cards.highnoon';
+import { EVENT_DECK_SIZE, EVENT_DECKS, eventExpansionsOf } from '../data/cards.events';
 import { charactersFor } from '../data/characters';
 import { MAX_PLAYERS, MIN_PLAYERS, ROLE_DISTRIBUTION } from '../data/roles';
 import type { CharacterId, EventCardId } from '../data/types';
@@ -85,12 +85,27 @@ export function createGame(seed: number, config: GameConfig, seats: Seat[]): Gam
   rng = deckRolled.rng;
   const deck = deckRolled.value;
 
-  // 이벤트 덱: 하이 눈 카드를 맨 밑에 두고 나머지 14장을 섞어 그 위에 쌓는다
+  // 이벤트 덱: 맨 밑 고정 카드 위에 나머지 14장을 섞어 쌓는다.
+  // 하이 눈만 켰을 때의 난수 소비는 예전과 똑같이 유지한다 (기존 시드 결과 보존).
   let event: GameState['event'] = null;
-  if (config.expansions.includes('highnoon')) {
-    const evRolled = shuffle(rng, HIGHNOON_SHUFFLED_IDS);
+  const evExpansions = eventExpansionsOf(config.expansions);
+  if (evExpansions.length === 1) {
+    const { shuffled, final } = EVENT_DECKS[evExpansions[0]];
+    const evRolled = shuffle(rng, shuffled);
     rng = evRolled.rng;
-    const evDeck: EventCardId[] = [...evRolled.value, HIGHNOON_FINAL_ID];
+    const evDeck: EventCardId[] = [...evRolled.value, final];
+    event = { deck: evDeck, current: null, past: [] };
+  } else if (evExpansions.length > 1) {
+    // 둘 다 켜면 섞는 카드 전부에서 14장을 뽑고, 고정 카드도 무작위로 하나 고른다 (원본 맵 v0.141)
+    const pool = evExpansions.flatMap((x) => EVENT_DECKS[x].shuffled);
+    const evRolled = shuffle(rng, pool);
+    rng = evRolled.rng;
+    const finals = shuffle(rng, evExpansions.map((x) => EVENT_DECKS[x].final));
+    rng = finals.rng;
+    const evDeck: EventCardId[] = [
+      ...evRolled.value.slice(0, EVENT_DECK_SIZE - 1),
+      finals.value[0],
+    ];
     event = { deck: evDeck, current: null, past: [] };
   }
 

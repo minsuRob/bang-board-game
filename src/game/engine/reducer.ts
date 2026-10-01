@@ -15,17 +15,19 @@ import {
   kindOf,
   log,
   nameOf,
+  putOnDeck,
   toDiscard,
   topFrame,
   updatePlayer,
 } from './cards';
 import { applyPick } from './draft';
 import { respondToFrame } from './frames';
+import { discardsToDeck } from './hooks';
 import { actionKey, legalActions } from './legal';
 import { applyPlayCard } from './play';
 import { createGame } from './setup';
 import { resolveStack } from './stack';
-import type { Action, Choice, GameState, PlayerId } from './types';
+import type { Action, Choice, GameState, JudgementPurpose, PlayerId } from './types';
 import { ga } from './josa';
 
 export function reduce(state: GameState | null, action: Action): GameState {
@@ -73,7 +75,10 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
     }
     case 'playCard': {
       const as = action.as ?? kindOf(action.card);
-      cur = applyPlayCard(cur, action.pid, action.card, as, action.target);
+      cur = applyPlayCard(cur, action.pid, action.card, as, action.target, {
+        pick: action.pick,
+        also: action.also,
+      });
       break;
     }
     case 'respond': {
@@ -95,12 +100,16 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
         ...p,
         hand: p.hand.filter((c) => c !== action.card),
       }));
-      cur = toDiscard(cur, [action.card]);
+      // 폐광: 버리기 단계의 카드는 뒷면으로 덱 위에 올린다. 로그에도 카드를 남기지 않는다.
+      const toDeck = discardsToDeck(cur);
+      cur = toDeck ? putOnDeck(cur, [action.card]) : toDiscard(cur, [action.card]);
       cur = log(cur, {
         t: 'discard',
         pid: action.pid,
-        card: action.card,
-        text: `${ga(nameOf(cur, action.pid))} 카드를 버렸다.`,
+        card: toDeck ? undefined : action.card,
+        text: toDeck
+          ? `${ga(nameOf(cur, action.pid))} 카드를 덱 위에 뒷면으로 올렸다.`
+          : `${ga(nameOf(cur, action.pid))} 카드를 버렸다.`,
       });
       break;
     }
@@ -172,6 +181,12 @@ export function defaultAction(state: GameState, pid: PlayerId): Action | null {
   // 카드 사용 단계 → 차례 마치기, 버리기 단계 → 첫 카드 버리기
   const endTurn = legal.find((x) => x.type === 'endTurn');
   if (endTurn) return endTurn;
+  // 서부의 법으로 차례를 못 마치면 그 카드를 낸다.
+  const must = state.turn.mustPlay;
+  const owed = must ? legal.filter((x) => x.type === 'playCard' && x.card === must) : [];
+  // 저격수·리코체 같은 특별한 사용법보다 평범한 사용을 먼저 고른다
+  const forced = owed.find((x) => x.type === 'playCard' && !x.also && !x.pick) ?? owed[0];
+  if (forced) return forced;
   return legal[0];
 }
 
@@ -179,7 +194,7 @@ export function defaultAction(state: GameState, pid: PlayerId): Action | null {
 function favourableJudgementCard(
   state: GameState,
   options: string[],
-  purpose: 'barrel' | 'jourdonnais' | 'dynamite' | 'jail',
+  purpose: JudgementPurpose,
 ): string {
   const score = (card: string): number => {
     const suit = effectiveSuit(state, card);

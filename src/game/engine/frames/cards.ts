@@ -22,7 +22,7 @@ import {
   toDiscard,
   updatePlayer,
 } from '../cards';
-import { afterDrawFrames } from '../hooks';
+import { afterDrawFrames, drawsFromDiscard } from '../hooks';
 import { nextInt } from '../rng';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 import { eul, ga } from '../josa';
@@ -35,18 +35,31 @@ export function resolveDrawCards(
   const p = playerOf(cur, frame.pid);
   if (!inPlay(p) || frame.count <= 0) return cur;
 
-  const drawn = drawFromDeck(cur, frame.count);
-  cur = giveCards(drawn.state, frame.pid, drawn.cards);
+  // 폐광: 정규 드로우는 버린 더미 맨 위부터 가져오고, 모자란 만큼만 덱에서 가져온다.
+  const fromDiscard =
+    frame.reason === 'drawPhase' && drawsFromDiscard(cur)
+      ? cur.discard.slice(-frame.count).reverse()
+      : [];
+  if (fromDiscard.length > 0) {
+    cur = { ...cur, discard: cur.discard.slice(0, cur.discard.length - fromDiscard.length) };
+  }
+  const drawn = drawFromDeck(cur, frame.count - fromDiscard.length);
+  const cards = [...fromDiscard, ...drawn.cards];
+  cur = giveCards(drawn.state, frame.pid, cards);
   cur = log(cur, {
     t: 'draw',
     pid: frame.pid,
-    amount: drawn.cards.length,
-    text: `${ga(nameOf(cur, frame.pid))} 카드 ${drawn.cards.length}장을 가져왔다.`,
+    amount: cards.length,
+    text:
+      fromDiscard.length > 0
+        ? `${ga(nameOf(cur, frame.pid))} 버린 더미에서 ${fromDiscard.length}장` +
+          (drawn.cards.length ? `, 덱에서 ${drawn.cards.length}장을 가져왔다.` : '을 가져왔다.')
+        : `${ga(nameOf(cur, frame.pid))} 카드 ${cards.length}장을 가져왔다.`,
   });
 
   // 블랙 잭처럼 뽑은 카드를 보고 반응하는 훅은 정규 드로우 단계에서만 울린다.
   if (frame.reason === 'drawPhase') {
-    return pushSeq(cur, afterDrawFrames(cur, frame.pid, drawn.cards));
+    return pushSeq(cur, afterDrawFrames(cur, frame.pid, cards));
   }
   return cur;
 }

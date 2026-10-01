@@ -149,12 +149,31 @@ export type Role = 'sheriff' | 'deputy' | 'outlaw' | 'renegade';
 // 이벤트 카드 (하이 눈 등 확장판)
 // ---------------------------------------------------------------------------
 
-export type Expansion = 'highnoon';
+export type Expansion = 'highnoon' | 'fistful';
 
-export type EventCardId =
+/** 이벤트 덱을 들여오는 확장판 */
+export type EventExpansion = Extract<Expansion, 'highnoon' | 'fistful'>;
+
+/** 로비·방 설정의 켜고 끄는 값을 엔진 설정의 확장판 목록으로 바꾼다 */
+export function expansionsOf(opts: { highnoon?: boolean; fistful?: boolean }): Expansion[] {
+  const out: Expansion[] = [];
+  if (opts.highnoon) out.push('highnoon');
+  if (opts.fistful) out.push('fistful');
+  return out;
+}
+
+export type HighNoonEventId =
   | 'blessing' | 'curse' | 'ghostTown' | 'goldRush' | 'hangover'
   | 'shootout' | 'theDaltons' | 'theDoctor' | 'theReverend' | 'theSermon'
   | 'trainArrival' | 'thirst' | 'newIdentity' | 'handcuffs' | 'highNoon';
+
+/** 한줌의 카드 (A Fistful of Cards) */
+export type FistfulEventId =
+  | 'abandonedMine' | 'ambush' | 'bloodBrothers' | 'deadMan' | 'hardLiquor'
+  | 'lasso' | 'lawOfTheWest' | 'peyote' | 'ranch' | 'ricochet'
+  | 'russianRoulette' | 'sniper' | 'theJudge' | 'vendetta' | 'fistfulOfCards';
+
+export type EventCardId = HighNoonEventId | FistfulEventId;
 
 export type EventCardDef = {
   id: EventCardId;

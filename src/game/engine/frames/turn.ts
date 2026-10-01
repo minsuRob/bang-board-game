@@ -9,7 +9,7 @@
  * 엔진은 해결을 멈추고 플레이어의 액션을 기다린다.
  */
 
-import { HIGHNOON_EVENTS } from '../../data/cards.highnoon';
+import { EVENTS } from '../../data/cards.events';
 import { CHARACTERS } from '../../data/characters';
 import { SUIT_GLYPH, type Suit } from '../../data/types';
 import {
@@ -25,8 +25,10 @@ import {
 import {
   drawCountOf,
   drawPhaseOverride,
+  firstOutRevival,
   onDrawPhaseEndFrames,
   onEventEnterFrames,
+  onTurnEndFrames,
   onTurnStartFrames,
   resurrectsEliminated,
   turnDirectionOf,
@@ -54,7 +56,9 @@ export function resolveTurnStart(state: GameState, frame: Frame & { k: 'turnStar
   let cur = popFrame(state);
 
   const isSheriff = p.role === 'sheriff';
-  const round = isSheriff ? cur.turn.round + 1 : cur.turn.round;
+  // 복수로 얻은 추가 차례는 새 라운드가 아니다. 이벤트도 새로 공개하지 않는다.
+  const extra = frame.extra === true;
+  const round = isSheriff && !extra ? cur.turn.round + 1 : cur.turn.round;
 
   cur = {
     ...cur,
@@ -65,13 +69,14 @@ export function resolveTurnStart(state: GameState, frame: Frame & { k: 'turnStar
       round,
       handcuffsSuit: null,
       drawn: false,
+      ...(extra ? { extra: true } : {}),
     },
   };
   cur = updatePlayer(cur, pid, (x) => ({ ...x, usedThisTurn: [] }));
   cur = log(cur, { t: 'turnStart', pid, text: `${nameOf(cur, pid)}의 차례.` });
 
   // 이벤트는 보안관의 두 번째 차례부터 공개된다.
-  const shouldReveal = Boolean(cur.event) && isSheriff && round >= 2;
+  const shouldReveal = Boolean(cur.event) && isSheriff && round >= 2 && !extra;
 
   const frames: Frame[] = [];
   if (shouldReveal) frames.push({ k: 'revealEvent' });
@@ -97,12 +102,13 @@ export function resolveRevealEvent(state: GameState): GameState {
   cur = {
     ...cur,
     event: {
+      ...ev,
       deck: rest,
       current: next,
       past: ev.current ? [...ev.past, ev.current] : ev.past,
     },
   };
-  cur = log(cur, { t: 'event', card: next, text: `이벤트 공개 — ${HIGHNOON_EVENTS[next].nameKo}` });
+  cur = log(cur, { t: 'event', card: next, text: `이벤트 공개 — ${EVENTS[next].nameKo}` });
 
   return pushSeq(cur, onEventEnterFrames(cur));
 }
@@ -171,7 +177,12 @@ export function resolveTurnEnd(state: GameState, frame: Frame & { k: 'turnEnd' }
     cur = log(cur, { t: 'ghostLeave', pid, text: `${nameOf(cur, pid)}의 유령이 사라졌다.` });
   }
 
-  return pushSeq(cur, [{ k: 'checkWin' }, { k: 'advanceTurn', from: pid }]);
+  return pushSeq(cur, [
+    // 복수: 차례를 마친 사람이 살아 있을 때만 펼친다 (유령은 이미 사라졌다).
+    ...(playerOf(cur, pid).alive ? onTurnEndFrames(cur, pid) : []),
+    { k: 'checkWin' },
+    { k: 'advanceTurn', from: pid },
+  ]);
 }
 
 export function resolveAdvanceTurn(
@@ -189,6 +200,21 @@ export function resolveAdvanceTurn(
     const cand = cur.players[seat];
     if (cand.alive) {
       return pushSeq(cur, [{ k: 'turnStart', pid: cand.id }]);
+    }
+    const revival = firstOutRevival(cur);
+    if (revival && cur.event?.firstOut === cand.id && !cur.event.deadManUsed) {
+      // 망자: 가장 먼저 제거된 사람이 자기 차례에 돌아온다. 한 사람, 한 번뿐이다.
+      cur = updatePlayer(cur, cand.id, (x) => ({ ...x, alive: true, ghost: false, hp: revival.hp }));
+      cur = { ...cur, event: { ...cur.event!, deadManUsed: true } };
+      cur = log(cur, {
+        t: 'deadMan',
+        pid: cand.id,
+        text: `${ga(nameOf(cur, cand.id))} 망자로 돌아왔다 (목숨 ${revival.hp}).`,
+      });
+      return pushSeq(cur, [
+        { k: 'drawCards', pid: cand.id, count: revival.cards, reason: 'deadMan' },
+        { k: 'turnStart', pid: cand.id },
+      ]);
     }
     if (ghosts && !cand.ghost) {
       cur = updatePlayer(cur, cand.id, (x) => ({ ...x, ghost: true }));

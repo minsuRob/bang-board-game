@@ -13,6 +13,7 @@ export default function LocalSetupScreen() {
   const [players, setPlayers] = useState(5);
   const [tier, setTier] = useState<AiTier>('medium');
   const [highnoon, setHighnoon] = useState(false);
+  const [fistful, setFistful] = useState(false);
   const [seed, setSeed] = useState(() => Math.floor(Date.now() % 100000));
 
   return (
@@ -48,11 +49,19 @@ export default function LocalSetupScreen() {
 
       <Section title="확장판">
         <Row>
-          <Chip label="기본" active={!highnoon} onPress={() => setHighnoon(false)} />
-          <Chip label="하이 눈" active={highnoon} onPress={() => setHighnoon(true)} />
+          <Chip
+            label="기본"
+            active={!highnoon && !fistful}
+            onPress={() => {
+              setHighnoon(false);
+              setFistful(false);
+            }}
+          />
+          <Chip label="하이 눈" active={highnoon} onPress={() => setHighnoon(!highnoon)} />
+          <Chip label="한줌의 카드" active={fistful} onPress={() => setFistful(!fistful)} />
         </Row>
         <Text style={styles.hint}>
-          하이 눈은 보안관의 두 번째 차례부터 매 라운드 상황 카드가 하나씩 열린다.
+          보안관의 두 번째 차례부터 매 라운드 상황 카드가 하나씩 열린다. 둘 다 켜면 두 덱을 섞어 쓴다.
         </Text>
       </Section>
 
@@ -76,6 +85,7 @@ export default function LocalSetupScreen() {
               players: String(players),
               tier,
               highnoon: highnoon ? '1' : '0',
+              fistful: fistful ? '1' : '0',
               seed: String(seed),
             },
           })

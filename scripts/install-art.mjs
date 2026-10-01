@@ -19,6 +19,8 @@ const GROUPS = [
   { from: join(SRC, 'cards', 'characters'), to: join(DEST, 'cards', 'character') },
   { from: join(SRC, 'cards', 'roles'), to: join(DEST, 'cards', 'role') },
   { from: join(SRC, 'cards', 'highnoon'), to: join(DEST, 'cards', 'event') },
+  // 한줌의 카드 이벤트도 하이 눈과 같은 event/ 폴더를 쓴다. id 가 겹치지 않는다
+  { from: join(SRC, 'cards', 'fistful'), to: join(DEST, 'cards', 'event') },
 ];
 
 function copyDir(from, to) {

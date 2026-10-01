@@ -63,6 +63,10 @@ export type TurnState = {
   handcuffsSuit: Suit | null;
   /** 카드 가져오기 단계를 이미 마쳤는가 */
   drawn: boolean;
+  /** 복수(한줌의 카드)로 얻은 추가 차례인가. 추가 차례에는 다시 펼치지 않는다 */
+  extra?: boolean;
+  /** 서부의 법(한줌의 카드): 낼 수 있으면 이번 차례에 반드시 내야 하는 카드 */
+  mustPlay?: CardId;
 };
 
 export type EventState = {
@@ -71,6 +75,10 @@ export type EventState = {
   current: EventCardId | null;
   /** 지금까지 공개된 이벤트 (UI·로그용) */
   past: EventCardId[];
+  /** 가장 먼저 제거된 플레이어 (망자) */
+  firstOut?: PlayerId;
+  /** 망자로 이미 돌아온 적이 있는가 */
+  deadManUsed?: boolean;
 };
 
 export type GameResult = {
@@ -91,7 +99,9 @@ export type JudgementPurpose =
   /** 다이너마이트: ♠2~9 면 폭발 */
   | 'dynamite'
   /** 감옥: ♥ 면 탈출, 아니면 차례를 건너뜀 */
-  | 'jail';
+  | 'jail'
+  /** 복수(한줌의 카드): ♥ 면 차례를 한 번 더 */
+  | 'vendetta';
 
 // ---------------------------------------------------------------------------
 // 효과 스택 프레임
@@ -106,11 +116,15 @@ export type DamageCause =
   | 'indians'
   | 'duel'
   | 'dynamite'
-  | 'highNoon';
+  | 'highNoon'
+  /** 한줌의 카드: 차례 시작에 손패 장수만큼 맞는 뱅! */
+  | 'fistful'
+  | 'russianRoulette'
+  | 'bloodBrothers';
 
 export type Frame =
   // 턴 흐름
-  | { k: 'turnStart'; pid: PlayerId }
+  | { k: 'turnStart'; pid: PlayerId; extra?: boolean }
   | { k: 'revealEvent' }
   | { k: 'eventTurnStart'; pid: PlayerId }
   | { k: 'drawPhase'; pid: PlayerId; done: number }
@@ -125,7 +139,8 @@ export type Frame =
   // 공격 체인
   | {
       k: 'bang';
-      source: PlayerId;
+      /** 쏜 사람. 한줌의 카드처럼 쏜 사람이 없는 뱅!이면 null */
+      source: PlayerId | null;
       target: PlayerId;
       /** 아직 더 내야 하는 빗나감 장수 */
       missesRequired: number;
@@ -176,7 +191,20 @@ export type Frame =
   | { k: 'daltonsDiscard'; queue: PlayerId[] }
   | { k: 'newIdentity'; pid: PlayerId }
   | { k: 'declareSuit'; pid: PlayerId }
-  // 승리 판정
+  // 한줌의 카드 이벤트
+  /** 한줌의 카드: 남은 뱅! 횟수만큼 가해자 없는 뱅!을 하나씩 쌓는다 */
+  | { k: 'fistfulBangs'; pid: PlayerId; remaining: number }
+  /** 러시안 룰렛: queue 맨 앞 사람이 빗나감!을 버릴 차례다. 한 바퀴 돌면 처음부터 */
+  | { k: 'russianRoulette'; queue: PlayerId[]; i: number }
+  | { k: 'bloodBrothers'; pid: PlayerId }
+  | { k: 'hardLiquor'; pid: PlayerId }
+  | { k: 'peyote'; pid: PlayerId }
+  /** 목장: 버릴 카드를 한 장씩 골라 picked 에 담고, pass 로 확정한다 */
+  | { k: 'ranch'; pid: PlayerId; picked: CardId[] }
+  /** 서부의 법: 두 번째로 가져온 카드를 보여 주고 의무를 건다 */
+  | { k: 'lawOfTheWest'; pid: PlayerId; card: CardId }
+  /** 리코체: target 앞의 card 를 노린다. target 이 빗나감!을 내지 않으면 버려진다 */
+  | { k: 'ricochet'; source: PlayerId; target: PlayerId; card: CardId }
   | { k: 'checkWin' };
 
 // ---------------------------------------------------------------------------
@@ -188,7 +216,7 @@ export type Frame =
 
 export type PendingInput =
   /** 빗나감! 을 내거나 포기 */
-  | { k: 'missed'; pid: PlayerId; source: PlayerId; remaining: number; options: CardId[] }
+  | { k: 'missed'; pid: PlayerId; source: PlayerId | null; remaining: number; options: CardId[] }
   /** 인디언! 에 대해 뱅! 을 내거나 포기 */
   | { k: 'indiansBang'; pid: PlayerId; source: PlayerId; options: CardId[] }
   /** 결투에서 뱅! 을 내거나 포기 */
@@ -221,7 +249,19 @@ export type PendingInput =
   /** 새로운 신분: 예비 캐릭터로 바꿀지 */
   | { k: 'newIdentity'; pid: PlayerId; spare: CharacterId }
   /** 수갑: 이번 차례에 쓸 무늬 선언 */
-  | { k: 'declareSuit'; pid: PlayerId };
+  | { k: 'declareSuit'; pid: PlayerId }
+  /** 러시안 룰렛: 빗나감!을 버리거나 목숨 2를 잃는다 */
+  | { k: 'russianRoulette'; pid: PlayerId; options: CardId[] }
+  /** 의형제: 목숨 1을 넘겨줄 사람을 고르거나 넘긴다 */
+  | { k: 'bloodBrothers'; pid: PlayerId; targets: PlayerId[] }
+  /** 독한 술: 카드 가져오기를 건너뛰고 목숨 1 회복할지 */
+  | { k: 'hardLiquor'; pid: PlayerId }
+  /** 피요테: 덱 맨 위 카드 색 맞히기 */
+  | { k: 'peyote'; pid: PlayerId }
+  /** 목장: 더 버릴 카드를 고르거나 pass 로 확정한다 */
+  | { k: 'ranch'; pid: PlayerId; options: CardId[]; picked: CardId[] }
+  /** 리코체: 노려진 카드를 지키려면 빗나감!을 낸다 */
+  | { k: 'ricochet'; pid: PlayerId; source: PlayerId; card: CardId; options: CardId[] };
 
 // ---------------------------------------------------------------------------
 // 로그
@@ -267,10 +307,12 @@ export type Action =
       pid: PlayerId;
       card: CardId;
       target?: PlayerId;
-      /** 강탈·캣 발루가 가져갈 카드 */
+      /** 강탈·캣 발루가 가져갈 카드. 뱅!에 붙으면 리코체(한줌의 카드)로 노릴 앞의 카드 */
       pick?: StealPick;
       /** 칼라미티 자넷처럼 다른 카드로 취급해 사용할 때 */
       as?: CardKind;
+      /** 저격수(한줌의 카드): 함께 버리는 두 번째 뱅! */
+      also?: CardId;
     }
   /** 입력 대기에 대한 응답 */
   | { type: 'respond'; pid: PlayerId; choice: Choice }
@@ -297,7 +339,9 @@ export type Choice =
   /** 예/아니오 */
   | { c: 'yes' }
   /** 제시 존스: 특정 플레이어의 손에서 */
-  | { c: 'player'; pid: PlayerId };
+  | { c: 'player'; pid: PlayerId }
+  /** 피요테: 덱 맨 위 카드 색 */
+  | { c: 'color'; color: 'red' | 'black' };
 
 // ---------------------------------------------------------------------------
 // 상태

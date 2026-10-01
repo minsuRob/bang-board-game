@@ -155,13 +155,18 @@ export default function RoomScreen() {
           <Setting title="확장판">
             <Chip
               label="기본"
-              active={!room.highnoon}
-              onPress={() => updateRoomSettings(room.code, { highnoon: false })}
+              active={!room.highnoon && !room.fistful}
+              onPress={() => updateRoomSettings(room.code, { highnoon: false, fistful: false })}
             />
             <Chip
               label="하이 눈"
               active={room.highnoon}
-              onPress={() => updateRoomSettings(room.code, { highnoon: true })}
+              onPress={() => updateRoomSettings(room.code, { highnoon: !room.highnoon })}
+            />
+            <Chip
+              label="한줌의 카드"
+              active={room.fistful === true}
+              onPress={() => updateRoomSettings(room.code, { fistful: !room.fistful })}
             />
           </Setting>
 

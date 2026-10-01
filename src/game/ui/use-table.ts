@@ -19,6 +19,7 @@ import {
   type GameState,
   type PlayerId,
 } from '../engine';
+import { eul } from '../engine/josa';
 import { selectActor, useGameStore } from '../store/game-store';
 
 export type Prompt = {
@@ -31,6 +32,26 @@ export type Prompt = {
   yesNo: boolean;
   players: PlayerId[];
   steal: { target: PlayerId; handCount: number; equipment: CardId[] } | null;
+  /** 피요테: 빨강·검정 중 하나를 고른다 */
+  colors: boolean;
+  /** 넘기기 버튼 문구. 없으면 '반응하지 않음' */
+  passLabel?: string;
+};
+
+/** 한줌의 카드 이벤트가 여는 뱅! 사용법. 손패에 섞지 않고 켜야만 쓴다 */
+type EventMode = 'sniper' | 'ricochet';
+
+function eventModeOf(a: Action): EventMode | null {
+  if (a.type !== 'playCard') return null;
+  if (a.also !== undefined) return 'sniper';
+  // 플레이 단계의 playCard 에 pick 이 붙는 것은 리코체뿐이다 (강탈·캣 발루는 반응으로 고른다)
+  if (a.pick !== undefined) return 'ricochet';
+  return null;
+}
+
+const EVENT_MODE_INFO: Record<EventMode, { label: string; status: string }> = {
+  sniper: { label: '저격수 · 뱅! 2장', status: '함께 버릴 뱅! 한 장을 고르고 상대를 지목한다 (Esc 취소)' },
+  ricochet: { label: '리코체 · 앞의 카드 맞히기', status: '버릴 뱅!을 고르고, 노릴 카드가 있는 상대를 지목한다 (Esc 취소)' },
 };
 
 export type TableApi = {
@@ -52,8 +73,11 @@ export type TableApi = {
   respond: (choice: Choice) => void;
   abilities: { key: string; label: string; cards: CardId[] }[];
   useAbility: (key: string, cards: CardId[]) => void;
-  /** 손의 아무 카드나 다른 종류로 내는 능력 (엉클 윌). 이번 차례에 쓸 수 있는 것만 */
-  playAsAbilities: { key: string; label: string; as: CardKind }[];
+  /**
+   * 켜고 끄는 사용법. 손의 아무 카드나 다른 종류로 내는 능력(엉클 윌)과
+   * 한줌의 카드 이벤트의 저격수·리코체. 이번 차례에 쓸 수 있는 것만
+   */
+  playAsAbilities: { key: string; label: string; as: CardKind; status?: string }[];
   /** 켜 둔 playAs 능력. 켜져 있으면 손패는 그 능력으로만 낸다 */
   armed: string | null;
   arm: (key: string | null) => void;
@@ -96,28 +120,45 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
       playAs.some((ab) => ab.as === a.as),
     [playAs],
   );
+  const eventModes = useMemo(() => {
+    const out = new Set<EventMode>();
+    for (const a of allLegal) {
+      const m = eventModeOf(a);
+      if (m) out.add(m);
+    }
+    return [...out];
+  }, [allLegal]);
   const playAsAbilities = useMemo(
-    () =>
-      playAs
+    () => [
+      ...playAs
         .filter((ab) => allLegal.some((a) => isAbilityPlay(a) && a.type === 'playCard' && a.as === ab.as))
-        .map((ab) => ({ key: ab.key, label: ab.label, as: ab.as })),
-    [playAs, allLegal, isAbilityPlay],
+        .map((ab) => ({ key: ab.key, label: `능력 · ${ab.label}`, as: ab.as })),
+      ...eventModes.map((m) => ({ key: m, label: EVENT_MODE_INFO[m].label, as: 'bang' as CardKind, status: EVENT_MODE_INFO[m].status })),
+    ],
+    [playAs, allLegal, isAbilityPlay, eventModes],
   );
-  const armedAbility =
-    armedFor && armedFor.turn === turnId
-      ? playAs.find((ab) => ab.key === armedFor.key && playAsAbilities.some((x) => x.key === ab.key))
-      : undefined;
-  const armed = armedAbility?.key ?? null;
+  const armedLive = armedFor && armedFor.turn === turnId ? armedFor.key : null;
+  const armedAbility = armedLive
+    ? playAs.find((ab) => ab.key === armedLive && playAsAbilities.some((x) => x.key === ab.key))
+    : undefined;
+  const armedMode = eventModes.find((m) => m === armedLive) ?? null;
+  const armed = armedAbility?.key ?? armedMode ?? null;
 
   const legal = useMemo<Action[]>(
     () =>
       allLegal.filter((a) => {
         if (a.type !== 'playCard') return true;
+        const mode = eventModeOf(a);
+        if (armedMode) return mode === armedMode;
+        if (mode) return false;
         if (!armedAbility) return !isAbilityPlay(a);
         return isAbilityPlay(a) && a.as === armedAbility.as;
       }),
-    [allLegal, armedAbility, isAbilityPlay],
+    [allLegal, armedAbility, armedMode, isAbilityPlay],
   );
+
+  // 리코체: 상대를 지목한 뒤 그 앞의 카드가 여럿이면 어느 것을 노릴지 한 번 더 고른다
+  const [ricochetAt, setRicochetAt] = useState<{ card: CardId; target: PlayerId; turn: string } | null>(null);
 
   const actor = selectActor(view);
   const myTurn = Boolean(view && viewer && view.turn.active === viewer && !view.awaiting);
@@ -125,7 +166,12 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
 
   const playable = useMemo(() => {
     const set = new Set<CardId>();
-    for (const a of legal) if (a.type === 'playCard') set.add(a.card);
+    for (const a of legal) {
+      if (a.type !== 'playCard') continue;
+      set.add(a.card);
+      // 저격수: 쌍의 어느 쪽을 골라도 된다
+      if (a.also !== undefined) set.add(a.also);
+    }
     return set;
   }, [legal]);
 
@@ -135,34 +181,47 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     return set;
   }, [legal]);
 
+  const plays = useCallback(
+    (card: CardId) =>
+      legal.filter(
+        (a): a is Extract<Action, { type: 'playCard' }> =>
+          a.type === 'playCard' && (a.card === card || a.also === card),
+      ),
+    [legal],
+  );
+
   const targetsFor = useCallback(
     (card: CardId) => {
       const out = new Set<PlayerId>();
-      for (const a of legal) {
-        if (a.type === 'playCard' && a.card === card && a.target) out.add(a.target);
-      }
+      for (const a of plays(card)) if (a.target) out.add(a.target);
       return [...out];
     },
-    [legal],
+    [plays],
   );
 
   const playCard = useCallback(
     (card: CardId, target?: PlayerId) => {
-      const match = legal.find(
-        (a) => a.type === 'playCard' && a.card === card && a.target === target,
-      );
-      if (!match) return;
-      submit(match);
+      const matches = plays(card).filter((a) => a.target === target);
+      if (matches.length === 0) return;
+      // 리코체로 노릴 카드가 여럿이면 고르게 한다
+      if (armedMode === 'ricochet' && target && matches.length > 1) {
+        setRicochetAt({ card, target, turn: turnId });
+        setSelected(null);
+        return;
+      }
+      submit(matches[0]);
       setSelected(null);
       setArmedFor(null);
+      setRicochetAt(null);
     },
-    [legal, submit],
+    [plays, submit, armedMode, turnId],
   );
 
   const arm = useCallback(
     (key: string | null) => {
       setArmedFor(key ? { key, turn: turnId } : null);
       setSelected(null);
+      setRicochetAt(null);
     },
     [turnId],
   );
@@ -182,14 +241,34 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     [legal, submit],
   );
 
+  const ricochet = useMemo(() => {
+    if (!ricochetAt || ricochetAt.turn !== turnId || armedMode !== 'ricochet') return null;
+    const options = plays(ricochetAt.card).filter(
+      (a) => a.target === ricochetAt.target && a.pick?.zone === 'equipment',
+    );
+    return options.length > 0 ? { ...ricochetAt, options } : null;
+  }, [ricochetAt, turnId, armedMode, plays]);
+
   const respond = useCallback(
     (choice: Choice) => {
       if (!viewer) return;
+      // 리코체 대상 고르기는 엔진의 입력 대기가 아니라 이 화면에만 있는 단계다
+      if (ricochet) {
+        if (choice.c === 'card') {
+          const match = ricochet.options.find((a) => a.pick?.zone === 'equipment' && a.pick.card === choice.card);
+          if (match) {
+            submit(match);
+            setArmedFor(null);
+          }
+        }
+        setRicochetAt(null);
+        return;
+      }
       const wanted = actionKey({ type: 'respond', pid: viewer, choice });
       const match = legal.find((a) => actionKey(a) === wanted);
       if (match) submit(match);
     },
-    [legal, submit, viewer],
+    [legal, submit, viewer, ricochet],
   );
 
   const abilities = useMemo(() => {
@@ -231,7 +310,20 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     [legal, submit],
   );
 
-  const prompt = useMemo(() => (view && waitingOnMe ? buildPrompt(view) : null), [view, waitingOnMe]);
+  const prompt = useMemo(() => {
+    if (view && waitingOnMe) return buildPrompt(view);
+    if (view && ricochet) {
+      return {
+        ...empty(),
+        title: `리코체 — ${nameOf(view, ricochet.target)}`,
+        hint: '맞혀서 버리게 할 카드를 고른다',
+        cardOptions: ricochet.options.flatMap((a) => (a.pick?.zone === 'equipment' ? [a.pick.card] : [])),
+        canPass: true,
+        passLabel: '그만둔다 (W)',
+      };
+    }
+    return null;
+  }, [view, waitingOnMe, ricochet]);
 
   return {
     view,
@@ -276,6 +368,7 @@ function empty(): Prompt {
     yesNo: false,
     players: [],
     steal: null,
+    colors: false,
   };
 }
 
@@ -288,10 +381,11 @@ function buildPrompt(view: GameState): Prompt | null {
     case 'missed':
       return {
         ...base,
-        title:
-          a.remaining > 1
-            ? `${nameOf(view, a.source)}의 뱅! — 빗나감 ${a.remaining}장이 필요하다`
-            : `${nameOf(view, a.source)}의 뱅!`,
+        title: (() => {
+          // 쏜 사람이 없는 뱅! (한줌의 카드)
+          const who = a.source ? `${nameOf(view, a.source)}의 뱅!` : '한줌의 카드 — 뱅!';
+          return a.remaining > 1 ? `${who} — 빗나감 ${a.remaining}장이 필요하다` : who;
+        })(),
         hint: '빗나감!을 내거나 그냥 맞는다',
         cardOptions: a.options,
         canPass: true,
@@ -377,5 +471,55 @@ function buildPrompt(view: GameState): Prompt | null {
       };
     case 'declareSuit':
       return { ...base, title: '수갑', hint: '이번 차례에 쓸 무늬를 선언한다', suits: SUIT_ALL };
+    case 'russianRoulette':
+      return {
+        ...base,
+        title: '러시안 룰렛',
+        hint: '빗나감!을 버리지 않으면 목숨 2를 잃고 룰렛이 멈춘다',
+        cardOptions: a.options,
+        canPass: true,
+        passLabel: '목숨 2를 잃는다 (W)',
+      };
+    case 'bloodBrothers':
+      return {
+        ...base,
+        title: '의형제',
+        hint: '목숨 1을 잃고 고른 사람의 목숨을 1 회복시킨다',
+        players: a.targets,
+        canPass: true,
+        passLabel: '넘겨주지 않는다 (W)',
+      };
+    case 'hardLiquor':
+      return {
+        ...base,
+        title: '독한 술',
+        hint: '카드를 가져오지 않고 목숨을 1 회복할까',
+        yesNo: true,
+        canPass: true,
+        passLabel: '카드를 가져온다 (W)',
+      };
+    case 'peyote':
+      return { ...base, title: '피요테', hint: '덱 맨 위 카드의 색을 맞힌다', colors: true };
+    case 'ranch':
+      return {
+        ...base,
+        title: '목장',
+        hint:
+          a.picked.length > 0
+            ? `${a.picked.length}장을 골랐다. 더 고르거나 확정한다`
+            : '버리고 새로 가져올 카드를 고른다',
+        cardOptions: a.options,
+        canPass: true,
+        passLabel: a.picked.length > 0 ? `${a.picked.length}장 바꾼다 (W)` : '바꾸지 않는다 (W)',
+      };
+    case 'ricochet':
+      return {
+        ...base,
+        title: `리코체 — ${nameOf(view, a.source)}`,
+        hint: `${eul(CARD_DEFS[kindOf(a.card)].nameKo)} 지키려면 빗나감!을 낸다`,
+        cardOptions: a.options,
+        canPass: true,
+        passLabel: '카드를 내준다 (W)',
+      };
   }
 }

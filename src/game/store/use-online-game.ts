@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { getIdentity, type Identity } from '../../firebase/auth';
+import { expansionsOf } from '../data/types';
 import {
   markStarted,
   setDraftHoverRemote,
@@ -104,6 +105,7 @@ export function useOnlineGameSession(code: string | null, conn: OnlineGame) {
           seed: room.seed,
           playerCount: room.playerCount,
           highnoon: room.highnoon,
+          fistful: room.fistful === true,
           tier: room.tier,
           seats: room.seats.map((s) => ({ uid: s.uid, nick: s.nick, ai: s.ai })),
         })
@@ -121,7 +123,7 @@ export function useOnlineGameSession(code: string | null, conn: OnlineGame) {
     if (!sessionKey || !code || !uid) return;
     const session = JSON.parse(sessionKey) as Pick<
       RoomDoc,
-      'seed' | 'playerCount' | 'highnoon' | 'tier' | 'seats'
+      'seed' | 'playerCount' | 'highnoon' | 'fistful' | 'tier' | 'seats'
     >;
 
     const seats: SeatSetup[] = session.seats.map((s, i) => ({
@@ -135,7 +137,7 @@ export function useOnlineGameSession(code: string | null, conn: OnlineGame) {
       seed: session.seed,
       config: {
         playerCount: session.playerCount,
-        expansions: session.highnoon ? ['highnoon'] : [],
+        expansions: expansionsOf(session),
       },
       seats,
       controlled: mySeat === null ? [] : [`p${mySeat}`],

@@ -174,6 +174,10 @@ export function resolveEliminate(
     hp: 0,
     roleRevealed: true,
   }));
+  // 망자(한줌의 카드)가 나중에 공개될 수 있으니, 이벤트 덱을 쓰면 첫 희생자를 늘 적어 둔다.
+  if (cur.event && cur.event.firstOut === undefined) {
+    cur = { ...cur, event: { ...cur.event, firstOut: p.id } };
+  }
   cur = log(cur, {
     t: 'eliminate',
     target: p.id,
