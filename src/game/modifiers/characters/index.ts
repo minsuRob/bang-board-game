@@ -25,6 +25,16 @@ import { suzyLafayette } from './suzy-lafayette';
 import { uncleWill } from './uncle-will';
 import { vultureSam } from './vulture-sam';
 import { willyTheKid } from './willy-the-kid';
+import {
+  donBell,
+  dutchWill,
+  jackyMurieta,
+  joshMcCloud,
+  madamYto,
+  prettyLuzena,
+  raddieSnake,
+  simeonPicos,
+} from './gold-rush';
 
 export const CHARACTER_MODIFIERS: Record<CharacterId, Modifier> = {
   bartCassidy,
@@ -45,6 +55,14 @@ export const CHARACTER_MODIFIERS: Record<CharacterId, Modifier> = {
   willyTheKid,
   uncleWill,
   johnnyKisch,
+  donBell,
+  dutchWill,
+  jackyMurieta,
+  joshMcCloud,
+  madamYto,
+  prettyLuzena,
+  raddieSnake,
+  simeonPicos,
 };
 
 export { SID_KETCHUM_ABILITY } from './sid-ketchum';
