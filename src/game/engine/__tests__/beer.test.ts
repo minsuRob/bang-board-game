@@ -17,18 +17,20 @@ describe('맥주 (자기 차례에 회복)', () => {
     expect(p(s, 'p0').hp).toBe(3);
   });
 
-  it('최대 목숨을 넘겨 회복하지 않는다', () => {
+  it('최대 목숨이면 낼 수는 있지만 목숨은 그대로다', () => {
     const s0 = scenario({ players: [{ hand: ['beer'] }, {}, {}, {}] });
-    const legal = legalActions(s0, 'p0').filter((a) => a.type === 'playCard');
-    expect(legal).toHaveLength(0);
+    const s = reduce(s0, drink(s0));
+    expect(p(s, 'p0').hp).toBe(p(s0, 'p0').maxHp);
+    expect(p(s, 'p0').hand).toHaveLength(0);
   });
 
-  it('생존자가 2명뿐이면 맥주를 쓸 수 없다', () => {
+  it('생존자가 2명뿐이면 낼 수는 있지만 효과가 없다 (공식 FAQ)', () => {
     const s0 = scenario({
       players: [{ hand: ['beer'], hp: 1 }, {}, { alive: false }, { alive: false }],
     });
-    const legal = legalActions(s0, 'p0').filter((a) => a.type === 'playCard');
-    expect(legal).toHaveLength(0);
+    const s = reduce(s0, drink(s0));
+    expect(p(s, 'p0').hp).toBe(1);
+    expect(p(s, 'p0').hand).toHaveLength(0);
   });
 
   it('목사가 걸려 있으면 맥주를 쓸 수 없다', () => {

@@ -232,7 +232,6 @@ function usableKinds(state: GameState, pid: PlayerId, card: CardId): CardKind[] 
 function playPhaseActions(state: GameState, pid: PlayerId): Action[] {
   const me = playerOf(state, pid);
   const out: Action[] = [];
-  const survivors = alivePlayers(state).length;
   const bangsLeft = state.turn.bangsPlayed < bangLimitOf(state, pid);
 
   for (const card of unique(me.hand)) {
@@ -255,10 +254,8 @@ function playPhaseActions(state: GameState, pid: PlayerId): Action[] {
           // 빗나감!은 반응으로만 낸다.
           break;
         case 'beer':
-          // 생존자가 2명뿐이면 맥주는 아무 효과가 없다.
-          if (survivors > 2 && me.hp < me.maxHp) {
-            out.push({ type: 'playCard', pid, card, as: explicit });
-          }
+          // 낼 수는 있다. 생존자가 2명뿐이거나 목숨이 가득이면 효과가 없을 뿐이다.
+          out.push({ type: 'playCard', pid, card, as: explicit });
           break;
         case 'saloon':
         case 'stagecoach':

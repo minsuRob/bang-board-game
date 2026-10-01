@@ -179,7 +179,8 @@ function scorePlay(
       return -20;
     case 'beer': {
       const d = danger(view, me);
-      if (my.hp >= my.maxHp) return -20;
+      // 효과 없는 맥주는 내지 않는다 (목숨이 가득이거나 생존자가 2명뿐)
+      if (my.hp >= my.maxHp || alivePlayers(view).length <= 2) return -20;
       return d > 0.7 ? 16 : d > 0.4 ? 5 : -2;
     }
     case 'saloon': {

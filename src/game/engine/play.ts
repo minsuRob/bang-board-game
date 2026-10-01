@@ -151,6 +151,8 @@ function effectFrames(
         },
       ];
     case 'beer':
+      // 생존자가 2명뿐이면 낼 수는 있지만 아무 효과가 없다 (카드만 버려진다).
+      if (alivePlayers(state).length <= 2) return [];
       return [{ k: 'heal', pid, amount: 1 }];
     case 'saloon':
       return [{ k: 'saloon', queue: alivePlayers(state).map((p) => p.id) }];
