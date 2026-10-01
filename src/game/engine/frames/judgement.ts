@@ -31,6 +31,7 @@ const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
   jourdonnais: '주르도네',
   dynamite: '다이너마이트',
   jail: '감옥',
+  donBell: '돈 벨',
 };
 
 /** 스택에서 가장 위에 있는 뱅! 프레임의 요구 빗나감 장수를 1 줄인다. */
@@ -121,6 +122,15 @@ function applyJudgement(
       return resolveDynamiteResult(cur, pid, suit, inst.rank);
     case 'jail':
       return resolveJailResult(cur, pid, suit);
+    case 'donBell': {
+      if (suit !== 'hearts' && suit !== 'diamonds') return cur;
+      cur = { ...cur, turn: { ...cur.turn, extraTurnFor: pid } };
+      return log(cur, {
+        t: 'donBell',
+        pid,
+        text: `${neun(nameOf(cur, pid))} 붉은 무늬가 나와 차례를 한 번 더 얻었다.`,
+      });
+    }
   }
 }
 

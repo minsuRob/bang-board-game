@@ -6,9 +6,19 @@
  */
 
 import { CHARACTER_MODIFIERS, equipmentModifier, EVENT_MODIFIERS } from '../modifiers';
+import { GOLD_MODIFIERS } from '../modifiers/goldrush';
+import { goldKindOf } from '../data/cards.goldrush';
 import type { CardId, CardKind } from '../data/types';
 import { kindOf, playerOf } from './cards';
-import type { AnytimeAbility, ModCtx, Modifier, PlayAsAbility } from './modifier';
+import { goldEquipOf } from './gold';
+import type {
+  AnytimeAbility,
+  GoldAbility,
+  GoldDiscount,
+  ModCtx,
+  Modifier,
+  PlayAsAbility,
+} from './modifier';
 import type { Frame, GameState, PlayerId } from './types';
 
 const DEFAULT_ORDER = 50;
@@ -38,6 +48,10 @@ export function getModifiers(state: GameState, pid: PlayerId): Modifier[] {
   for (const card of p.equipment) {
     const m = equipmentModifier(kindOf(card), card);
     if (m) mods.push(m);
+  }
+  for (const card of goldEquipOf(p)) {
+    const make = GOLD_MODIFIERS[goldKindOf(card)];
+    if (make) mods.push(make(card));
   }
   const ev = eventModifier(state);
   if (ev) mods.push(ev);
@@ -71,13 +85,15 @@ export function outgoingBangMissesOf(state: GameState, pid: PlayerId): number {
   return n;
 }
 
-/** 판정에서 들여다보는 장수 (기본 1, 러키 듀크 2) */
+/** 판정에서 들여다보는 장수 (기본 1, 러키 듀크 2, 편자 +1) */
 export function judgementPeekOf(state: GameState, pid: PlayerId): number {
   let n = 1;
+  let bonus = 0;
   for (const m of getModifiers(state, pid)) {
     if (m.judgementPeek) n = Math.max(n, m.judgementPeek);
+    bonus += m.judgementPeekBonus ?? 0;
   }
-  return n;
+  return n + bonus;
 }
 
 /** 카드 가져오기 단계에서 가져올 장수 (기본 2) */
@@ -250,4 +266,71 @@ export function playableAs(
   return p.hand.filter(
     (c) => canUseCardAs(state, pid, kindOf(c), as) && canPlayCard(state, pid, as, c, reactive),
   );
+}
+
+// ---------------------------------------------------------------------------
+// 골드 러시
+// ---------------------------------------------------------------------------
+
+/** 차례를 마칠 때 들 수 있는 손패 한도 (기본 = 목숨, 탄띠 8) */
+export function handLimitOf(state: GameState, pid: PlayerId): number {
+  const base = Math.max(0, playerOf(state, pid).hp);
+  let limit = base;
+  for (const m of getModifiers(state, pid)) {
+    if (m.handLimit) limit = Math.max(limit, m.handLimit(base));
+  }
+  return limit;
+}
+
+export function onTurnEndFrames(state: GameState, pid: PlayerId): Frame[] {
+  const ctx = ctxOf(state, pid);
+  return getModifiers(state, pid).flatMap((m) => m.onTurnEnd?.(ctx) ?? []);
+}
+
+/** 누군가 맥주를 냈을 때, 자리에 있는 모든 사람의 훅을 좌석 순으로 훑는다 (마담 이토) */
+export function onBeerPlayedFrames(state: GameState, by: PlayerId): Frame[] {
+  const frames: Frame[] = [];
+  for (const p of state.players) {
+    if (!p.alive && !p.ghost) continue;
+    const ctx = ctxOf(state, p.id);
+    for (const m of getModifiers(state, p.id)) {
+      frames.push(...(m.onBeerPlayed?.(ctx, by) ?? []));
+    }
+  }
+  return frames;
+}
+
+/** 이번 차례에 아직 쓸 수 있는 구매 할인 (프리티 루제나) */
+export function goldDiscountOf(state: GameState, pid: PlayerId): GoldDiscount | null {
+  const used = playerOf(state, pid).usedThisTurn;
+  for (const m of getModifiers(state, pid)) {
+    if (m.goldDiscount && !used.includes(m.goldDiscount.key)) return m.goldDiscount;
+  }
+  return null;
+}
+
+/** 금덩이를 내고 쓰는 능력. 같은 key 가 둘이면 하나만 남긴다 */
+export function goldAbilitiesOf(state: GameState, pid: PlayerId): GoldAbility[] {
+  const seen = new Set<string>();
+  const out: GoldAbility[] = [];
+  for (const m of getModifiers(state, pid)) {
+    for (const ab of m.goldAbilities ?? []) {
+      if (seen.has(ab.key)) continue;
+      seen.add(ab.key);
+      out.push(ab);
+    }
+  }
+  return out;
+}
+
+/** 이 카드가 target 에게 효과가 없는가 (칼루멧) */
+export function immuneToCard(
+  state: GameState,
+  target: PlayerId,
+  card: CardId,
+  source: PlayerId,
+): boolean {
+  if (target === source) return false;
+  const ctx = ctxOf(state, target);
+  return getModifiers(state, target).some((m) => m.immuneToCard?.(ctx, card, source) ?? false);
 }

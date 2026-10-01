@@ -23,6 +23,7 @@ import {
 import { generalStoreQueue } from './frames/cards';
 import {
   canUseCardAs,
+  immuneToCard,
   onPutInPlayFrames,
   outgoingBangMissesOf,
   playAnyAsAbilitiesOf,
@@ -95,7 +96,7 @@ export function applyPlayCard(
     cur = { ...cur, turn: { ...cur.turn, bangsPlayed: cur.turn.bangsPlayed + 1 } };
   }
 
-  frames.push(...effectFrames(cur, pid, as, target));
+  frames.push(...effectFrames(cur, pid, as, target, card));
   return pushSeq(cur, frames);
 }
 
@@ -136,7 +137,11 @@ function effectFrames(
   pid: PlayerId,
   as: CardKind,
   target?: PlayerId,
+  card?: CardId,
 ): Frame[] {
+  // 칼루멧: 남이 낸 ♦ 기관총·인디언은 그 사람을 건너뛴다.
+  const hit = (ids: PlayerId[]) =>
+    card ? ids.filter((t) => !immuneToCard(state, t, card, pid)) : ids;
   switch (as) {
     case 'bang':
       if (!target) return [];
@@ -161,9 +166,9 @@ function effectFrames(
     case 'generalStore':
       return [{ k: 'generalStore', source: pid, queue: generalStoreQueue(state, pid), revealed: [] }];
     case 'gatling':
-      return [{ k: 'gatling', source: pid, queue: othersInOrder(state, pid) }];
+      return [{ k: 'gatling', source: pid, queue: hit(othersInOrder(state, pid)) }];
     case 'indians':
-      return [{ k: 'indians', source: pid, queue: othersInOrder(state, pid) }];
+      return [{ k: 'indians', source: pid, queue: hit(othersInOrder(state, pid)) }];
     case 'duel':
       if (!target) return [];
       return [{ k: 'duel', a: pid, b: target, toPlay: target }];

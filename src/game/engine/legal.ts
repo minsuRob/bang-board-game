@@ -23,10 +23,12 @@ import {
   bangLimitOf,
   canPlayCard,
   canUseCardAs,
+  immuneToCard,
   playAnyAsAbilitiesOf,
   playableAs,
 } from './hooks';
 import { hasSameBlueCard } from './play';
+import { goldDyingActions, goldPlayActions } from './gold-actions';
 import type { Action, GameState, PlayerId } from './types';
 
 /** 액션을 문자열 하나로 정규화한다. 검증에서 동등성 비교에 쓴다. */
@@ -54,7 +56,9 @@ export function actionKey(action: Action): string {
                 ? c.pick.zone === 'hand'
                   ? `h${c.pick.index}`
                   : `e${c.pick.card}`
-                : '';
+                : c.c === 'goldUse'
+                  ? `${c.use.as ?? ''}>${c.use.target ?? ''}`
+                  : '';
       return ['respond', action.pid, c.c, detail].join('|');
     }
     case 'useAbility':
@@ -67,6 +71,14 @@ export function actionKey(action: Action): string {
       return ['pickCharacter', action.pid, action.character].join('|');
     case 'timeout':
       return ['timeout', action.pid].join('|');
+    case 'buyGold':
+      return ['buyGold', action.pid, action.card, action.use?.as ?? '', action.use?.target ?? ''].join('|');
+    case 'removeGold':
+      return ['removeGold', action.pid, action.target, action.card].join('|');
+    case 'beerForGold':
+      return ['beerForGold', action.pid, action.card].join('|');
+    case 'goldAbility':
+      return ['goldAbility', action.pid, action.ability, action.target ?? ''].join('|');
     case 'startGame':
       return 'startGame';
   }
@@ -106,6 +118,7 @@ export function legalActions(state: GameState, pid: PlayerId): Action[] {
   }
 
   out.push(...anytimeActions(state, pid));
+  out.push(...goldDyingActions(state, pid));
 
   if (state.awaiting) {
     if (state.awaiting.pid === pid) out.push(...respondActions(state, pid));
@@ -117,6 +130,7 @@ export function legalActions(state: GameState, pid: PlayerId): Action[] {
   const top = topFrame(state);
   if (top?.k === 'playPhase' && state.turn.phase === 'play') {
     out.push(...playPhaseActions(state, pid));
+    out.push(...goldPlayActions(state, pid));
     out.push({ type: 'endTurn', pid });
   } else if (top?.k === 'discardPhase' && state.turn.phase === 'discard') {
     for (const card of unique(me.hand)) out.push({ type: 'discardCard', pid, card });
@@ -178,8 +192,14 @@ function respondActions(state: GameState, pid: PlayerId): Action[] {
     case 'generalStore':
     case 'kitCarlson':
     case 'daltonsDiscard':
+    case 'dutchWill':
       for (const card of unique(a.options)) {
         out.push({ type: 'respond', pid, choice: { c: 'card', card } });
+      }
+      break;
+    case 'goldUse':
+      for (const use of a.options) {
+        out.push({ type: 'respond', pid, choice: { c: 'goldUse', use } });
       }
       break;
     case 'stealCard': {
@@ -245,7 +265,7 @@ function playPhaseActions(state: GameState, pid: PlayerId): Action[] {
           if (!bangsLeft) break;
           for (const t of seatedPlayers(state)) {
             if (t.id === pid || !t.alive) continue;
-            if (canReachWithBang(state, pid, t.id)) {
+            if (canReachWithBang(state, pid, t.id) && !immuneToCard(state, t.id, card, pid)) {
               out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
             }
           }
@@ -284,7 +304,7 @@ function playPhaseActions(state: GameState, pid: PlayerId): Action[] {
               }
               continue;
             }
-            if (canReachAtRange(state, pid, t.id, 1)) {
+            if (canReachAtRange(state, pid, t.id, 1) && !immuneToCard(state, t.id, card, pid)) {
               out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
             }
           }
@@ -297,7 +317,10 @@ function playPhaseActions(state: GameState, pid: PlayerId): Action[] {
               }
               continue;
             }
-            if (t.hand.length > 0 || t.equipment.length > 0) {
+            if (
+              (t.hand.length > 0 || t.equipment.length > 0) &&
+              !immuneToCard(state, t.id, card, pid)
+            ) {
               out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
             }
           }
@@ -307,6 +330,7 @@ function playPhaseActions(state: GameState, pid: PlayerId): Action[] {
             // 감옥은 보안관에게 쓸 수 없고, 자기 자신에게도 쓰지 않는다.
             if (t.id === pid || t.role === 'sheriff') continue;
             if (hasSameBlueCard(state, t.id, 'jail')) continue;
+            if (immuneToCard(state, t.id, card, pid)) continue;
             out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
           }
           break;

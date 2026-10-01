@@ -30,6 +30,24 @@ export type PlayAsAbility = {
   as: CardKind;
 };
 
+/** 차례당 한 번 구매 할인 (프리티 루제나) */
+export type GoldDiscount = { key: string; amount: number };
+
+/**
+ * 금덩이를 내고 쓰는 능력.
+ * - target 'bang': 뱅!처럼 사거리 안의 한 명을 고른다 (재키 무리에타)
+ * - perTurn: 차례당 횟수 제한. usedThisTurn 에 key 가 들어간 개수로 센다
+ * - whenDying: 목숨이 0 이하가 되어 맥주를 물을 때도 쓸 수 있다 (배낭)
+ */
+export type GoldAbility = {
+  key: string;
+  label: string;
+  cost: number;
+  target?: 'bang';
+  perTurn?: number;
+  whenDying?: boolean;
+};
+
 export type Modifier = {
   id: string;
   from: 'character' | 'equipment' | 'event';
@@ -105,6 +123,24 @@ export type Modifier = {
   // --- 기타 -------------------------------------------------------------
   /** 언제든 발동할 수 있는 능력 (시드 케첨) */
   anytime?: AnytimeAbility[];
+
+  // --- 골드 러시 --------------------------------------------------------
+  /** 차례를 마칠 때 들 수 있는 손패 한도 (기본 = 목숨, 탄띠 8) */
+  handLimit?: (base: number) => number;
+  /** 판정에서 한 장 더 펼친다 (편자 +1). 러키 듀크와 더해진다 */
+  judgementPeekBonus?: number;
+  /** 자기 차례가 끝날 때 (돈 벨) */
+  onTurnEnd?: (ctx: ModCtx) => Frame[];
+  /** 누군가 맥주를 낼 때마다 (마담 이토). 목숨 회복·금덩이·살아남기 모두 */
+  onBeerPlayed?: (ctx: ModCtx, by: PlayerId) => Frame[];
+  /** 차례에 한 번, 장비 하나를 싸게 산다 (프리티 루제나) */
+  goldDiscount?: GoldDiscount;
+  /** 금덩이를 내고 쓰는 능력 (재키·조시·래디·사금채취판·배낭) */
+  goldAbilities?: GoldAbility[];
+  /** 이 카드가 나에게 효과가 없는가 (칼루멧: 남이 낸 ♦) */
+  immuneToCard?: (ctx: ModCtx, card: CardId, source: PlayerId) => boolean;
+
+  // --- 이벤트 전용 --------------------------------------------------------
   /** 캐릭터 능력을 통째로 죽인다 (숙취) */
   disablesCharacterAbilities?: boolean;
   /** 차례 진행 방향 (골드러시 -1) */

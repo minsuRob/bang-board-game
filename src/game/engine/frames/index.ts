@@ -6,6 +6,7 @@
  */
 
 import type { Choice, Frame, GameState } from '../types';
+import { resolveDutchWill, resolveGainNuggets, resolveGoldUse, respondDutchWill, respondGoldUse } from '../gold-actions';
 import {
   resolveBang,
   resolveDuel,
@@ -40,6 +41,7 @@ import {
   resolveEliminateCleanup,
   resolveHeal,
   resolveSaloon,
+  resolveWantedReward,
   respondCheckDeath,
 } from './damage';
 import { resolveJudgement, respondJudgement } from './judgement';
@@ -99,6 +101,14 @@ export function resolveFrame(state: GameState, frame: Frame): GameState {
       return resolveEliminateCleanup(state, frame);
     case 'bountyOrPenalty':
       return resolveBountyOrPenalty(state, frame);
+    case 'wantedReward':
+      return resolveWantedReward(state, frame);
+    case 'dutchWill':
+      return resolveDutchWill(state, frame);
+    case 'goldUse':
+      return resolveGoldUse(state, frame);
+    case 'gainNuggets':
+      return resolveGainNuggets(state, frame);
     case 'drawCards':
       return resolveDrawCards(state, frame);
     case 'drawFromPlayer':
@@ -167,6 +177,10 @@ export function respondToFrame(state: GameState, frame: Frame, choice: Choice): 
       return respondJesseJones(state, frame, choice);
     case 'pedroRamirezChoice':
       return respondPedroRamirez(state, frame, choice);
+    case 'dutchWill':
+      return respondDutchWill(state, frame, choice);
+    case 'goldUse':
+      return respondGoldUse(state, frame, choice);
     default:
       throw new Error(`${frame.k} 프레임은 응답을 받지 않는다`);
   }
