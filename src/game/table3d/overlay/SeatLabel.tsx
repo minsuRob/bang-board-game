@@ -2,7 +2,7 @@
  * 3D 좌석 위에 얹는 RN 라벨. 이름·역할·목숨·손패 장수·거리. 글자는 전부 여기서.
  */
 
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../../data/cards.base';
 import { CHARACTERS } from '../../data/characters';
@@ -11,6 +11,7 @@ import type { CardId, Role } from '../../data/types';
 import { distance, kindOf, type GameState, type Player, type PlayerId } from '../../engine';
 import { usePresence } from '../../store/presence';
 import { AttackBadges } from '../../ui/AttackBadges';
+import { cardBackArt } from '../../ui/card-art';
 import { PlayerSeat } from '../../ui/PlayerSeat';
 import { PRESENCE_LABEL, PresenceDot } from '../../ui/PresenceDot';
 import { Colors, Radius, Spacing } from '@/constants/theme';
@@ -161,6 +162,7 @@ export function SeatLabel({
           dead && styles.dead,
           player.ghost && styles.ghost,
         ]}>
+        {!isSelf && <HandCount count={player.hand.length} />}
         <View style={styles.row}>
           <PresenceDot presence={presence} size={big ? 10 : 8} />
           <Text style={[styles.name, big && styles.selfName]} numberOfLines={1}>
@@ -191,7 +193,6 @@ export function SeatLabel({
               </Text>
             )}
           </Text>
-          {!isSelf && <Text style={styles.meta}>손패 {player.hand.length}</Text>}
           {dist !== null && <Text style={styles.meta}>거리 {dist}</Text>}
         </View>
         {player.equipment.length > 0 && (
@@ -205,6 +206,21 @@ export function SeatLabel({
           </Text>
         )}
       </Pressable>
+    </View>
+  );
+}
+
+/** 네모창 윗변에 걸치는 손패 장수. 카드 뒷면 그림 + x8 */
+function HandCount({ count }: { count: number }) {
+  const art = cardBackArt();
+  return (
+    <View style={styles.handCount} accessibilityLabel={`손패 ${count}장`} pointerEvents="none">
+      {art ? (
+        <Image source={art} style={styles.handCountArt} resizeMode="cover" />
+      ) : (
+        <View style={[styles.handCountArt, styles.handCountFallback]} />
+      )}
+      <Text style={styles.handCountText}>x{count}</Text>
     </View>
   );
 }
@@ -242,6 +258,23 @@ const styles = StyleSheet.create({
   meta: { color: Colors.textMuted, fontSize: 9 },
   equipment: { color: Colors.deputy, fontSize: 9 },
   detail: { color: Colors.textMuted, fontSize: 9, lineHeight: 12 },
+  handCount: {
+    position: 'absolute',
+    top: -17,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(30, 20, 11, 0.95)',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  handCountArt: { width: 14, height: 20, borderRadius: 2 },
+  handCountFallback: { backgroundColor: Colors.surfaceRaised },
+  handCountText: { color: Colors.text, fontSize: 11, fontWeight: '800' },
   drafted: { borderColor: Colors.success },
   selfLabel: {
     backgroundColor: 'rgba(22, 14, 7, 0.94)',
