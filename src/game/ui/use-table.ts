@@ -31,6 +31,18 @@ export type Prompt = {
   yesNo: boolean;
   players: PlayerId[];
   steal: { target: PlayerId; handCount: number; equipment: CardId[] } | null;
+  /** 테이블 가운데 창에서 고른다 (잡화점·강탈·캣 발루). 있으면 하단 바는 안내만 한다 */
+  center: CenterPick | null;
+};
+
+/** 가운데 창에 펼칠 카드. 손패는 뒷면으로, 나머지는 앞면으로 */
+export type CenterPick = {
+  /** 앞면 카드 (잡화점 카드, 앞에 놓인 장비) */
+  cards: CardId[];
+  /** 앞면 카드를 눌렀을 때 보낼 응답 */
+  zone: 'option' | 'equipment';
+  /** 뒷면으로 깔 손패 장수 */
+  handCount: number;
 };
 
 export type TableApi = {
@@ -276,6 +288,7 @@ function empty(): Prompt {
     yesNo: false,
     players: [],
     steal: null,
+    center: null,
   };
 }
 
@@ -328,7 +341,14 @@ function buildPrompt(view: GameState): Prompt | null {
         cardOptions: a.options,
       };
     case 'generalStore':
-      return { ...base, title: '잡화점', hint: '가져갈 카드를 고른다', cardOptions: a.options };
+      return {
+        ...base,
+        title: '잡화점',
+        hint: '가져갈 카드를 고른다',
+        // 숫자키로 고를 수 있게 cardOptions 도 둔다. 카드는 가운데 창에만 그린다
+        cardOptions: a.options,
+        center: { cards: a.options, zone: 'option', handCount: 0 },
+      };
     case 'kitCarlson':
       return {
         ...base,
@@ -349,7 +369,8 @@ function buildPrompt(view: GameState): Prompt | null {
         title: `${nameOf(view, a.target)}의 카드`,
         hint:
           a.mode === 'panic' ? '가져올 카드를 고른다' : '버리게 할 카드를 고른다',
-        steal: { target: a.target, handCount: a.handCount, equipment: a.equipment },
+        // 좌석에서 고르던 것을 가운데 창으로 옮겼다. 좌석은 펼치지 않는다
+        center: { cards: a.equipment, zone: 'equipment', handCount: a.handCount },
       };
     case 'jesseJones':
       return {

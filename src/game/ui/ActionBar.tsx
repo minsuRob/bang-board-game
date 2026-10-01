@@ -87,7 +87,7 @@ export function ActionBar({
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.buttons}>
-          {prompt.cardOptions.map((card) => (
+          {!prompt.center && prompt.cardOptions.map((card) => (
             <View key={card} style={styles.cardOption}>
               <CardView
                 card={card}
