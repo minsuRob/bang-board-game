@@ -60,6 +60,18 @@
         "8088"
       ],
       "port": 8088
+    },
+    {
+      "name": "bang-web-8090",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "expo",
+        "start",
+        "--web",
+        "--port",
+        "8090"
+      ],
+      "port": 8090
     }
   ]
 }
