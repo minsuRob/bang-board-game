@@ -172,6 +172,13 @@ function scorePlay(
       if (target.equipment.some((c) => kindOf(c) === 'barrel')) s -= 3;
       // 손에 뱅!이 넘치면 아끼지 않는다
       s += Math.min(3, countKind(view, me, 'bang') - 1);
+      // 조준을 함께 내면 한 방이 두 배다. 대신 조준 한 장을 쓴다
+      if (action.extra) s += target.hp <= 2 ? 14 * enemy : 5 * enemy - 3;
+      // 능력으로 내는 뱅!(블랙 플라워 등)은 낼 카드의 값어치를 치른다
+      if (action.ability) {
+        const own = safeKind(action.card);
+        if (own && own !== 'bang') s -= cardValue(own) * 0.8;
+      }
       return s;
     }
     case 'missed':
@@ -254,6 +261,45 @@ function scorePlay(
       if (my.role === 'sheriff' && maxProb(beliefs, target.id) < 0.6) s += 3;
       return s;
     }
+    // ----- 그림자의 계곡 -----
+    case 'tomahawk':
+    case 'fanning': {
+      if (!target) return -10;
+      if (friend) return -12;
+      let s = 12 * enemy + (target.hp === 1 ? 18 * enemy : 0);
+      if (target.equipment.some((c) => kindOf(c) === 'barrel')) s -= 3;
+      if (kind === 'fanning' && action.target2) {
+        const e2 = hostility(view, me, action.target2, beliefs, sit);
+        s += e2 < FRIEND ? -12 : 10 * e2;
+      }
+      // 토마호크는 뱅! 횟수를 쓰지 않는다
+      return kind === 'tomahawk' ? s + 2 : s;
+    }
+    case 'lastCall': {
+      const d = danger(view, me);
+      if (my.hp >= my.maxHp) return -20;
+      return d > 0.6 ? 14 : d > 0.3 ? 5 : -1;
+    }
+    case 'bandidos':
+      return scoreArea(view, me, beliefs, sit, 10) + 1;
+    case 'poker':
+      return survivors >= 3 ? 7 : 2;
+    case 'tornado':
+      // 손이 빈약할수록 이득이다
+      return my.hand.length <= 2 ? 6 : 1;
+    case 'rattlesnake':
+    case 'bounty':
+      if (!target || friend) return -10;
+      return 6 * enemy;
+    case 'ghost':
+      // 죽은 아군을 되살리면 좋다. 역할이 공개돼 있으니 적대도가 정확하다
+      if (!target) return -10;
+      return enemy < FRIEND ? 8 : -12;
+    case 'lemat':
+    case 'shotgun': {
+      // 사정거리는 1뿐이지만 효과가 있다. 더 긴 무기를 버릴 만큼은 아니다
+      return weaponRangeOf(view, me) > 1 ? 1 : 7;
+    }
     case 'dynamite':
       // 스스로 들 이유가 거의 없다. 아주 가끔만.
       return -6;
@@ -300,7 +346,8 @@ function scoreRespond(
         return my.hp > 2 ? -2 : -30;
       }
       const kind = safeKind(choice.card);
-      // 뱅!을 빗나감으로 쓰는 것(칼라미티 자넷)은 조금 아깝다
+      // 역화는 되쏘기까지 하니 먼저 쓴다. 뱅!을 빗나감으로 쓰는 것(칼라미티 자넷)은 조금 아깝다
+      if (kind === 'backfire') return hostility(view, me, a.source, beliefs, situation(view, me, beliefs)) >= FRIEND ? 28 : 18;
       return kind === 'bang' ? 22 : 25;
     }
 
@@ -319,6 +366,8 @@ function scoreRespond(
         // 터지지 않는 쪽을 고른다
         return explodes(view, choice.card) ? -50 : 50;
       }
+      if (a.purpose === 'rattlesnake') return suit === 'spades' ? -50 : 50;
+      if (a.purpose === 'coloradoBill') return suit === 'spades' ? 50 : -50;
       return suit === 'hearts' ? 50 : -50;
     }
 
@@ -327,6 +376,43 @@ function scoreRespond(
       if (choice.c !== 'card') return 0;
       const kind = safeKind(choice.card);
       return kind ? cardValue(kind) * 4 : 0;
+    }
+
+    // ----- 그림자의 계곡 -----
+    case 'discardChoice': {
+      if (choice.c !== 'card') {
+        // 반디도스: 목숨이 넉넉하면 맞고 카드를 지킨다. 레모네이드 짐: 안 마셔도 그만
+        if (a.reason === 'lemonadeJim') return 0;
+        return my.hp > 2 ? -2 : -40;
+      }
+      const kind = safeKind(choice.card);
+      // 가장 덜 아까운 카드를 버린다
+      const cost = kind ? cardValue(kind) : 0;
+      if (a.reason === 'lemonadeJim') return 6 - cost * 1.5;
+      return 10 - cost;
+    }
+    case 'evade':
+      // 피할 수 있으면 피한다. 목숨이 넉넉하고 카드가 귀하면 덜
+      return choice.c === 'card' ? (my.hp > 2 ? 8 : 30) : 0;
+    case 'saved': {
+      if (choice.c !== 'card') return 0;
+      const sit = situation(view, me, beliefs);
+      const e = hostility(view, me, a.target, beliefs, sit);
+      const t = playerOf(view, a.target);
+      if (e >= FRIEND) return -20;
+      // 아군이 죽기 직전이면 반드시 구한다
+      return t.hp <= 1 ? 40 : 8;
+    }
+    case 'savedReward': {
+      // 적의 손에서 빼앗는 편이 이득이다
+      const e = hostility(view, me, a.target, beliefs, situation(view, me, beliefs));
+      return choice.c === 'yes' ? (e >= FRIEND ? 5 : -5) : 0;
+    }
+    case 'evelyn': {
+      if (choice.c !== 'player') return 0;
+      const e = hostility(view, me, choice.pid, beliefs, situation(view, me, beliefs));
+      // 카드 1장을 포기할 만큼 확실한 적만 쏜다
+      return e >= FRIEND ? 10 * e - 3 : -15;
     }
 
     case 'daltonsDiscard': {

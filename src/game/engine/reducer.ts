@@ -25,7 +25,7 @@ import { actionKey, legalActions } from './legal';
 import { applyPlayCard } from './play';
 import { createGame } from './setup';
 import { resolveStack } from './stack';
-import type { Action, Choice, GameState, PlayerId } from './types';
+import type { Action, Choice, GameState, JudgementPurpose, PlayerId } from './types';
 import { ga } from './josa';
 
 export function reduce(state: GameState | null, action: Action): GameState {
@@ -73,7 +73,11 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
     }
     case 'playCard': {
       const as = action.as ?? kindOf(action.card);
-      cur = applyPlayCard(cur, action.pid, action.card, as, action.target);
+      cur = applyPlayCard(cur, action.pid, action.card, as, action.target, {
+        target2: action.target2,
+        extra: action.extra,
+        ability: action.ability,
+      });
       break;
     }
     case 'respond': {
@@ -179,7 +183,7 @@ export function defaultAction(state: GameState, pid: PlayerId): Action | null {
 function favourableJudgementCard(
   state: GameState,
   options: string[],
-  purpose: 'barrel' | 'jourdonnais' | 'dynamite' | 'jail',
+  purpose: JudgementPurpose,
 ): string {
   const score = (card: string): number => {
     const suit = effectiveSuit(state, card);
@@ -188,6 +192,8 @@ function favourableJudgementCard(
       const explodes = suit === 'spades' && v >= 2 && v <= 9;
       return explodes ? 0 : 1;
     }
+    if (purpose === 'rattlesnake') return suit === 'spades' ? 0 : 1;
+    if (purpose === 'coloradoBill') return suit === 'spades' ? 1 : 0;
     return suit === 'hearts' ? 1 : 0;
   };
   return [...options].sort((x, y) => score(y) - score(x))[0];

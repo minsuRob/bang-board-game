@@ -103,6 +103,7 @@ export function useOnlineGameSession(code: string | null, conn: OnlineGame) {
           seed: room.seed,
           playerCount: room.playerCount,
           highnoon: room.highnoon,
+          valley: room.valley ?? false,
           tier: room.tier,
           seats: room.seats.map((s) => ({ uid: s.uid, nick: s.nick, ai: s.ai })),
         })
@@ -120,7 +121,7 @@ export function useOnlineGameSession(code: string | null, conn: OnlineGame) {
     if (!sessionKey || !code || !uid) return;
     const session = JSON.parse(sessionKey) as Pick<
       RoomDoc,
-      'seed' | 'playerCount' | 'highnoon' | 'tier' | 'seats'
+      'seed' | 'playerCount' | 'highnoon' | 'valley' | 'tier' | 'seats'
     >;
 
     const seats: SeatSetup[] = session.seats.map((s, i) => ({
@@ -134,7 +135,10 @@ export function useOnlineGameSession(code: string | null, conn: OnlineGame) {
       seed: session.seed,
       config: {
         playerCount: session.playerCount,
-        expansions: session.highnoon ? ['highnoon'] : [],
+        expansions: [
+          ...(session.highnoon ? (['highnoon'] as const) : []),
+          ...(session.valley ? (['valley'] as const) : []),
+        ],
       },
       seats,
       controlled: mySeat === null ? [] : [`p${mySeat}`],

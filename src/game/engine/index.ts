@@ -31,6 +31,7 @@ export {
   bangLimitOf,
   getModifiers,
   anytimeAbilitiesOf,
+  isExplicitAbility,
   playAnyAsAbilitiesOf,
   playableAs,
 } from './hooks';

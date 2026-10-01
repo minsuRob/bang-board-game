@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { BASE_CARDS_BY_ID, BASE_DECK, CARD_DEFS } from './cards.base';
+import { ALL_CARDS_BY_ID, BASE_CARDS_BY_ID, BASE_DECK, CARD_DEFS } from './cards.base';
+import { VALLEY_DECK } from './cards.valley';
 import { HIGHNOON_EVENTS, HIGHNOON_FINAL_ID, HIGHNOON_SHUFFLED_IDS } from './cards.highnoon';
 import { CHARACTER_IDS, CHARACTERS } from './characters';
 import { MAX_PLAYERS, MIN_PLAYERS, ROLE_DISTRIBUTION } from './roles';
@@ -96,8 +97,9 @@ describe('기본 덱', () => {
 });
 
 describe('캐릭터', () => {
-  it('기본판 16종 + 하이 눈 프로모 2종이다', () => {
-    expect(CHARACTER_IDS).toHaveLength(18);
+  it('기본판 16종 + 하이 눈 프로모 2종 + 그림자의 계곡 8종이다', () => {
+    expect(CHARACTER_IDS).toHaveLength(26);
+    expect(CHARACTER_IDS.filter((id) => CHARACTERS[id].expansion === 'valley')).toHaveLength(8);
     expect(CHARACTER_IDS.filter((id) => !CHARACTERS[id].expansion)).toHaveLength(16);
     expect(CHARACTER_IDS.filter((id) => CHARACTERS[id].expansion === 'highnoon').sort()).toEqual([
       'johnnyKisch',
@@ -105,10 +107,17 @@ describe('캐릭터', () => {
     ]);
   });
 
-  it('총알 수는 3 또는 4이고, 3인 캐릭터는 El Gringo와 Paul Regret뿐이다', () => {
+  it('총알 수는 3~5이고, 3인 캐릭터는 El Gringo와 Paul Regret, 5인 캐릭터는 Tuco Franziskaner뿐이다', () => {
     const three = CHARACTER_IDS.filter((id) => CHARACTERS[id].maxHp === 3);
     expect(three.sort()).toEqual(['elGringo', 'paulRegret']);
-    for (const id of CHARACTER_IDS) expect([3, 4]).toContain(CHARACTERS[id].maxHp);
+    const five = CHARACTER_IDS.filter((id) => CHARACTERS[id].maxHp === 5);
+    expect(five).toEqual(['tucoFranziskaner']);
+    for (const id of CHARACTER_IDS) expect([3, 4, 5]).toContain(CHARACTERS[id].maxHp);
+  });
+
+  it('새 캐릭터는 목록 맨 끝에 있다 (기본판 시드 결과 보존)', () => {
+    const firstExpansion = CHARACTER_IDS.findIndex((id) => CHARACTERS[id].expansion);
+    expect(CHARACTER_IDS.slice(firstExpansion).every((id) => CHARACTERS[id].expansion)).toBe(true);
   });
 
   it('id가 레코드 키와 일치한다', () => {
@@ -154,5 +163,14 @@ describe('하이 눈 이벤트', () => {
   it('섞이는 이벤트는 14장이다', () => {
     expect(HIGHNOON_SHUFFLED_IDS).toHaveLength(14);
     expect(HIGHNOON_SHUFFLED_IDS).not.toContain(HIGHNOON_FINAL_ID);
+  });
+});
+
+describe('그림자의 계곡 카드', () => {
+  it('15종 16장이고 id 가 겹치지 않는다', () => {
+    expect(VALLEY_DECK).toHaveLength(16);
+    expect(new Set(VALLEY_DECK.map((c) => c.kind)).size).toBe(15);
+    expect(ALL_CARDS_BY_ID.size).toBe(96);
+    for (const c of VALLEY_DECK) expect(CARD_DEFS[c.kind].expansion).toBe('valley');
   });
 });

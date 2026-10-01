@@ -66,6 +66,10 @@ export function viewFor(state: GameState, pid: PlayerId): GameState {
     }),
     deck: hiddenList(state.deck.length),
     event: state.event ? { ...state.event, deck: [] } : null,
+    // 포커: 모두 엎어 낼 때까지 판돈은 아무에게도 보이지 않는다
+    stack: state.stack.map((f) =>
+      f.k === 'poker' && f.left === undefined ? { ...f, pot: hiddenList(f.pot.length) } : f,
+    ),
   };
 }
 

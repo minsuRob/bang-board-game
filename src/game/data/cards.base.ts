@@ -16,8 +16,11 @@ import {
   type Suit,
   SUIT_CODE,
 } from './types';
+import { VALLEY_CARD_DEFS, VALLEY_DECK } from './cards.valley';
+import type { Expansion } from './types';
 
 export const CARD_DEFS: Record<CardKind, CardDef> = {
+  ...VALLEY_CARD_DEFS,
   // ----- 갈색: 즉시 사용 -------------------------------------------------
   bang: {
     kind: 'bang',
@@ -281,3 +284,15 @@ export const BASE_DECK: readonly CardInstance[] = Object.freeze(buildBaseDeck())
 export const BASE_CARDS_BY_ID: ReadonlyMap<CardId, CardInstance> = new Map(
   BASE_DECK.map((c) => [c.id, c]),
 );
+
+/** 모든 확장판 카드까지 합친 전체 (기본판 80 + 그림자의 계곡 16) */
+export const ALL_CARDS: readonly CardInstance[] = Object.freeze([...BASE_DECK, ...VALLEY_DECK]);
+
+export const ALL_CARDS_BY_ID: ReadonlyMap<CardId, CardInstance> = new Map(
+  ALL_CARDS.map((c) => [c.id, c]),
+);
+
+/** 이 확장판 조합으로 섞을 덱. 기본판 순서 뒤에 확장 카드가 붙는다 */
+export function deckFor(expansions: readonly Expansion[]): CardInstance[] {
+  return expansions.includes('valley') ? [...BASE_DECK, ...VALLEY_DECK] : [...BASE_DECK];
+}

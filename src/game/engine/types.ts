@@ -91,7 +91,11 @@ export type JudgementPurpose =
   /** 다이너마이트: ♠2~9 면 폭발 */
   | 'dynamite'
   /** 감옥: ♥ 면 탈출, 아니면 차례를 건너뜀 */
-  | 'jail';
+  | 'jail'
+  /** 방울뱀: ♠ 면 목숨 1을 잃는다 */
+  | 'rattlesnake'
+  /** 콜로라도 빌: ♠ 면 그 뱅!은 피할 수 없다 */
+  | 'coloradoBill';
 
 // ---------------------------------------------------------------------------
 // 효과 스택 프레임
@@ -106,7 +110,15 @@ export type DamageCause =
   | 'indians'
   | 'duel'
   | 'dynamite'
-  | 'highNoon';
+  | 'highNoon'
+  // 그림자의 계곡
+  | 'tomahawk'
+  | 'fanning'
+  | 'backfire'
+  | 'evelyn'
+  | 'henryBlock'
+  | 'rattlesnake'
+  | 'bandidos';
 
 export type Frame =
   // 턴 흐름
@@ -132,9 +144,14 @@ export type Frame =
       cause: DamageCause;
       /** 술통/주르도네 판정을 이미 돌렸는가 */
       dodgeChecked: boolean;
+      /** 맞았을 때 잃는 목숨 (조준 2). 없으면 1 */
+      damage?: number;
+      /** 피할 수 없다 (콜로라도 빌 ♠) */
+      unavoidable?: boolean;
     }
   | { k: 'gatling'; source: PlayerId; queue: PlayerId[] }
-  | { k: 'indians'; source: PlayerId; queue: PlayerId[] }
+  /** asked: queue[0] 에게 탈출 여부를 이미 물었다 */
+  | { k: 'indians'; source: PlayerId; queue: PlayerId[]; asked?: boolean }
   | { k: 'duel'; a: PlayerId; b: PlayerId; toPlay: PlayerId }
   // 피해와 탈락
   /**
@@ -149,6 +166,8 @@ export type Frame =
       source: PlayerId | null;
       credit?: PlayerId | null;
       cause: DamageCause;
+      /** 구조!를 낼 사람에게 이미 물었다 */
+      savedAsked?: boolean;
     }
   | { k: 'checkDeath'; target: PlayerId; source: PlayerId | null }
   | { k: 'eliminate'; target: PlayerId; killer: PlayerId | null }
@@ -176,6 +195,27 @@ export type Frame =
   | { k: 'daltonsDiscard'; queue: PlayerId[] }
   | { k: 'newIdentity'; pid: PlayerId }
   | { k: 'declareSuit'; pid: PlayerId }
+  // 그림자의 계곡
+  /** 반디도스. left 가 있으면 queue[0] 이 버리기를 고른 뒤 남은 장수 */
+  | { k: 'bandidos'; source: PlayerId; queue: PlayerId[]; left?: number; asked?: boolean }
+  /** 포커. pot 은 엎어 낸 카드(어느 영역에도 없다). left 가 있으면 낸 사람이 고르는 중 */
+  | { k: 'poker'; source: PlayerId; queue: PlayerId[]; pot: CardId[]; left?: number }
+  | { k: 'tornado'; queue: PlayerId[] }
+  /**
+   * 탈출·믹 디펜더: 뱅!이 아닌 갈색 카드의 대상이 된 사람이 피할지 고른다.
+   * 피하면 then 을 버리고, 안 피하면 then 으로 바뀐다. 피할 카드가 있을 때만 끼운다.
+   */
+  | { k: 'evade'; pid: PlayerId; source: PlayerId; kind: CardKind; then: Frame }
+  /** 구조!: 목숨을 잃으려는 target 을 구할지 queue 의 사람들에게 차례로 묻는다 */
+  | { k: 'savedOffer'; target: PlayerId; queue: PlayerId[] }
+  /** 구조! 보상: target 이 살아남았으면 saver 가 2장을 가져온다 */
+  | { k: 'savedReward'; saver: PlayerId; target: PlayerId }
+  /** 이블린 쉬뱅: 가져오기를 한 장씩 포기하고 그만큼 서로 다른 사람에게 뱅! */
+  | { k: 'evelyn'; pid: PlayerId; remaining: number; shot: PlayerId[] }
+  /** 레모네이드 짐: 남이 맥주를 냈을 때 1장 버리고 회복할지 */
+  | { k: 'lemonadeJim'; pid: PlayerId }
+  /** 샷건에 맞은 사람이 손패 1장을 골라 버린다 */
+  | { k: 'shotgunDiscard'; pid: PlayerId }
   // 승리 판정
   | { k: 'checkWin' };
 
@@ -221,7 +261,24 @@ export type PendingInput =
   /** 새로운 신분: 예비 캐릭터로 바꿀지 */
   | { k: 'newIdentity'; pid: PlayerId; spare: CharacterId }
   /** 수갑: 이번 차례에 쓸 무늬 선언 */
-  | { k: 'declareSuit'; pid: PlayerId };
+  | { k: 'declareSuit'; pid: PlayerId }
+  /** 이블린 쉬뱅: 카드 1장 대신 쏠 사람을 고르거나(player), 나머지를 가져온다(pass) */
+  | { k: 'evelyn'; pid: PlayerId; targets: PlayerId[]; remaining: number }
+  /** 구조!: target 이 목숨 1을 잃는 것을 막을지 */
+  | { k: 'saved'; pid: PlayerId; target: PlayerId; options: CardId[] }
+  /** 구조! 보상: 예 = target 의 손에서 2장, 아니오 = 덱에서 2장 */
+  | { k: 'savedReward'; pid: PlayerId; target: PlayerId }
+  /** 탈출·믹 디펜더: 이 카드의 효과를 피할지 */
+  | { k: 'evade'; pid: PlayerId; source: PlayerId; kind: CardKind; options: CardId[] }
+  /** 손패에서 골라 버린다 (반디도스·포커·토네이도·샷건). canPass 면 버리지 않을 수 있다 */
+  | {
+      k: 'discardChoice';
+      pid: PlayerId;
+      options: CardId[];
+      remaining: number;
+      canPass: boolean;
+      reason: 'bandidos' | 'poker' | 'tornado' | 'shotgun' | 'lemonadeJim';
+    };
 
 // ---------------------------------------------------------------------------
 // 로그
@@ -271,6 +328,12 @@ export type Action =
       pick?: StealPick;
       /** 칼라미티 자넷처럼 다른 카드로 취급해 사용할 때 */
       as?: CardKind;
+      /** 패닝: 첫 표적에서 거리 1인 두 번째 표적 */
+      target2?: PlayerId;
+      /** 조준: 뱅!과 함께 내는 카드 */
+      extra?: CardId;
+      /** 차례당 한 번 능력으로 낼 때 그 능력 key (블랙 플라워·더 스팟·엉클 윌) */
+      ability?: string;
     }
   /** 입력 대기에 대한 응답 */
   | { type: 'respond'; pid: PlayerId; choice: Choice }

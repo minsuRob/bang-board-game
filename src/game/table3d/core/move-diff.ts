@@ -41,6 +41,7 @@ export function indexZones(state: GameState): Map<CardId, Zone> {
     else if (f.k === 'judgement') for (const c of f.candidates) out.set(c, { z: 'limbo', kind: 'judgement' });
     else if (f.k === 'kitCarlson') for (const c of f.candidates) out.set(c, { z: 'limbo', kind: 'kit' });
     else if (f.k === 'blackJackReveal') out.set(f.card, { z: 'limbo', kind: 'blackJack' });
+    else if (f.k === 'poker') for (const c of f.pot) out.set(c, { z: 'limbo', kind: 'poker' });
   }
   return out;
 }
@@ -85,6 +86,7 @@ function listOf(state: GameState, zone: Zone): readonly CardId[] {
         if (zone.kind === 'judgement' && f.k === 'judgement') return f.candidates;
         if (zone.kind === 'kit' && f.k === 'kitCarlson') return f.candidates;
         if (zone.kind === 'blackJack' && f.k === 'blackJackReveal') return [f.card];
+        if (zone.kind === 'poker' && f.k === 'poker') return f.pot;
       }
       return [];
   }

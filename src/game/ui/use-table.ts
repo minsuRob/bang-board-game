@@ -8,11 +8,13 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { CARD_DEFS } from '../data/cards.base';
+import { ga } from '../engine/josa';
 import type { CardId, CardKind, CharacterId, Suit } from '../data/types';
 import {
   actionKey,
   kindOf,
   legalActions,
+  isExplicitAbility,
   playAnyAsAbilitiesOf,
   type Action,
   type Choice,
@@ -88,20 +90,23 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     () => (view && viewer ? playAnyAsAbilitiesOf(view, viewer) : []),
     [view, viewer],
   );
-  const isAbilityPlay = useCallback(
-    (a: Action) =>
-      a.type === 'playCard' &&
-      a.as !== undefined &&
-      a.as !== kindOf(a.card) &&
-      playAs.some((ab) => ab.as === a.as),
+  // 이 액션이 어느 차례당 한 번 능력으로 내는 것인가. 조건이 붙은 능력(블랙 플라워·더 스팟)은
+  // 액션에 ability 가 적혀 있고, 엉클 윌은 '다른 종류로 냈다'로 알아본다.
+  const abilityOf = useCallback(
+    (a: Action): string | null => {
+      if (a.type !== 'playCard') return null;
+      if (a.ability) return playAs.some((ab) => ab.key === a.ability) ? a.ability : null;
+      if (a.as === undefined || a.as === kindOf(a.card)) return null;
+      return playAs.find((ab) => !isExplicitAbility(ab) && ab.as === a.as)?.key ?? null;
+    },
     [playAs],
   );
   const playAsAbilities = useMemo(
     () =>
       playAs
-        .filter((ab) => allLegal.some((a) => isAbilityPlay(a) && a.type === 'playCard' && a.as === ab.as))
+        .filter((ab) => allLegal.some((a) => abilityOf(a) === ab.key))
         .map((ab) => ({ key: ab.key, label: ab.label, as: ab.as })),
-    [playAs, allLegal, isAbilityPlay],
+    [playAs, allLegal, abilityOf],
   );
   const armedAbility =
     armedFor && armedFor.turn === turnId
@@ -113,10 +118,9 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     () =>
       allLegal.filter((a) => {
         if (a.type !== 'playCard') return true;
-        if (!armedAbility) return !isAbilityPlay(a);
-        return isAbilityPlay(a) && a.as === armedAbility.as;
+        return abilityOf(a) === (armedAbility?.key ?? null);
       }),
-    [allLegal, armedAbility, isAbilityPlay],
+    [allLegal, armedAbility, abilityOf],
   );
 
   const actor = selectActor(view);
@@ -375,6 +379,55 @@ function buildPrompt(view: GameState): Prompt | null {
         yesNo: true,
         canPass: true,
       };
+    case 'evelyn':
+      return {
+        ...base,
+        title: `이블린 쉬뱅 — 가져올 카드 ${a.remaining}장`,
+        hint: '1장 대신 쏠 사람을 고르거나, 남은 카드를 그대로 가져온다',
+        players: a.targets,
+        canPass: true,
+      };
+    case 'saved':
+      return {
+        ...base,
+        title: `${ga(nameOf(view, a.target))} 목숨을 잃으려 한다`,
+        hint: '구조!를 내면 목숨 1을 지켜 준다. 살아남으면 2장을 가져온다',
+        cardOptions: a.options,
+        canPass: true,
+      };
+    case 'savedReward':
+      return {
+        ...base,
+        title: '구조! 보상',
+        hint: `그렇게 한다: ${nameOf(view, a.target)}의 손에서 2장 · 반응하지 않음: 덱에서 2장`,
+        yesNo: true,
+        canPass: true,
+      };
+    case 'evade':
+      return {
+        ...base,
+        title: `${nameOf(view, a.source)}의 ${CARD_DEFS[a.kind].nameKo}`,
+        hint: '탈출(또는 빗나감!)을 내면 이 카드의 효과를 피한다',
+        cardOptions: a.options,
+        canPass: true,
+      };
+    case 'discardChoice': {
+      const TITLE = { bandidos: '반디도스!', poker: '포커', tornado: '토네이도', shotgun: '샷건', lemonadeJim: '레모네이드 짐' } as const;
+      const HINT = {
+        bandidos: `손패 ${a.remaining}장을 버리거나, 버리지 않고 목숨 1을 잃는다`,
+        poker: '손패 1장을 엎어 낸다. 에이스가 없으면 낸 사람이 가져간다',
+        tornado: '손패 1장을 버린다. 그 뒤 2장을 가져온다',
+        shotgun: '샷건에 맞았다. 손패 1장을 골라 버린다',
+        lemonadeJim: '손패 1장을 버리면 나도 목숨 1을 회복한다',
+      } as const;
+      return {
+        ...base,
+        title: a.remaining > 1 && a.reason === 'bandidos' ? `${TITLE[a.reason]} (${a.remaining}장 더)` : TITLE[a.reason],
+        hint: HINT[a.reason],
+        cardOptions: a.options,
+        canPass: a.canPass,
+      };
+    }
     case 'declareSuit':
       return { ...base, title: '수갑', hint: '이번 차례에 쓸 무늬를 선언한다', suits: SUIT_ALL };
   }

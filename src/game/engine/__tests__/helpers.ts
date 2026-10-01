@@ -5,12 +5,13 @@
  * 엣지 케이스는 "이 상황에서 이 카드를 내면" 형태라서 그게 훨씬 읽기 좋다.
  */
 
-import { BASE_DECK } from '../../data/cards.base';
+import { ALL_CARDS, deckFor } from '../../data/cards.base';
 import type {
   CardId,
   CardKind,
   CharacterId,
   EventCardId,
+  Expansion,
   Rank,
   Role,
   Suit,
@@ -46,12 +47,14 @@ export type ScenarioSpec = {
   activeSeat?: number;
   phase?: 'draw' | 'play' | 'discard';
   seed?: number;
+  /** 켤 확장판. 'valley' 면 덱이 96장이 된다. event 가 있으면 highnoon 은 자동 */
+  expansions?: Expansion[];
 };
 
 /** 아직 쓰지 않은 카드 중 조건에 맞는 것을 하나 꺼낸다. */
 function takeCard(used: Set<CardId>, spec: CardSpec): CardId {
   const want = typeof spec === 'string' ? { kind: spec } : spec;
-  const found = BASE_DECK.find(
+  const found = ALL_CARDS.find(
     (c) =>
       !used.has(c.id) &&
       c.kind === want.kind &&
@@ -99,7 +102,15 @@ export function scenario(spec: ScenarioSpec): GameState {
   const discard = (spec.discard ?? []).map((c) => takeCard(used, c));
   const forcedTop = (spec.deckTop ?? []).map((c) => takeCard(used, c));
   // 덱은 맨 뒤가 맨 위이므로, 지정한 순서를 뒤집어 붙인다.
-  const rest = BASE_DECK.filter((c) => !used.has(c.id)).map((c) => c.id);
+  const expansions: Expansion[] = [
+    ...(spec.expansions ?? []),
+    ...(spec.event && !spec.expansions?.includes('highnoon') ? (['highnoon'] as Expansion[]) : []),
+  ];
+  const pool = deckFor(expansions);
+  for (const id of used) {
+    if (!pool.some((c) => c.id === id)) throw new Error(`이 확장판 조합에 없는 카드: ${id}`);
+  }
+  const rest = pool.filter((c) => !used.has(c.id)).map((c) => c.id);
   const deck = [...rest, ...[...forcedTop].reverse()];
 
   const activeSeat = spec.activeSeat ?? 0;
@@ -107,7 +118,7 @@ export function scenario(spec: ScenarioSpec): GameState {
   const phase = spec.phase ?? 'play';
 
   return {
-    config: { playerCount: players.length, expansions: spec.event ? ['highnoon'] : [] },
+    config: { playerCount: players.length, expansions },
     rng: createRng(spec.seed ?? 1),
     players,
     turn: {
@@ -148,7 +159,7 @@ export function p(state: GameState, pid: PlayerId): Player {
 
 /** 손패에서 특정 종류의 카드 id 하나 */
 export function handCard(state: GameState, pid: PlayerId, kind: CardKind): CardId {
-  const card = p(state, pid).hand.find((c) => BASE_DECK.find((b) => b.id === c)?.kind === kind);
+  const card = p(state, pid).hand.find((c) => ALL_CARDS.find((b) => b.id === c)?.kind === kind);
   if (!card) throw new Error(`${pid} 손에 ${kind} 가 없다`);
   return card;
 }
@@ -172,6 +183,7 @@ export function totalCards(state: GameState): number {
       if (f.k === 'judgement') return n + f.candidates.length;
       if (f.k === 'generalStore') return n + f.revealed.length;
       if (f.k === 'kitCarlson') return n + f.candidates.length;
+      if (f.k === 'poker') return n + f.pot.length;
       return n;
     }, 0)
   );

@@ -11,6 +11,7 @@
 
 import {
   inPlay,
+  kindOf,
   log,
   nameOf,
   playerOf,
@@ -20,7 +21,7 @@ import {
   toDiscard,
   updatePlayer,
 } from '../cards';
-import { onTargetedByBangFrames, playableAs } from '../hooks';
+import { evadeOptions, onTargetedByBangFrames, playableAs, withEvade } from '../hooks';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 import { ga, neun } from '../josa';
 
@@ -53,6 +54,20 @@ export function resolveBang(state: GameState, frame: Frame & { k: 'bang' }): Gam
     });
   }
 
+  // 피할 수 없는 총알 (콜로라도 빌 ♠)
+  if (frame.unavoidable) {
+    return pushSeq(popFrame(state), [
+      {
+        k: 'damage',
+        target: frame.target,
+        amount: frame.damage ?? 1,
+        source: frame.source,
+        credit: frame.source,
+        cause: frame.cause,
+      },
+    ]);
+  }
+
   // 술통과 주르도네 판정은 빗나감을 요구하기 전에 딱 한 번 돌린다.
   if (!frame.dodgeChecked) {
     const dodges = onTargetedByBangFrames(state, frame.target, frame.source);
@@ -73,7 +88,7 @@ export function resolveBang(state: GameState, frame: Frame & { k: 'bang' }): Gam
       {
         k: 'damage',
         target: frame.target,
-        amount: 1,
+        amount: frame.damage ?? 1,
         source: frame.source,
         credit: frame.source,
         cause: frame.cause,
@@ -103,7 +118,7 @@ export function respondBang(
       {
         k: 'damage',
         target: frame.target,
-        amount: 1,
+        amount: frame.damage ?? 1,
         source: frame.source,
         credit: frame.source,
         cause: frame.cause,
@@ -112,13 +127,28 @@ export function respondBang(
   }
 
   let cur = discardFromHand(state, frame.target, choice.card);
+  const backfire = kindOf(choice.card) === 'backfire';
   cur = log(cur, {
     t: 'playMissed',
     pid: frame.target,
     card: choice.card,
-    text: `${ga(nameOf(cur, frame.target))} 빗나감!을 냈다.`,
+    text: backfire
+      ? `${ga(nameOf(cur, frame.target))} 역화를 냈다. 총알이 ${nameOf(cur, frame.source)}에게 되돌아간다.`
+      : `${ga(nameOf(cur, frame.target))} 빗나감!을 냈다.`,
   });
-  return replaceTop(cur, { ...frame, missesRequired: frame.missesRequired - 1 });
+  cur = replaceTop(cur, { ...frame, missesRequired: frame.missesRequired - 1 });
+  if (!backfire || frame.source === frame.target) return cur;
+  // 역화: 쏜 사람이 뱅!의 표적이 된다. 지금 뱅!의 해결이 끝난 뒤에 쏜다.
+  const counter: Frame = {
+    k: 'bang',
+    source: frame.target,
+    target: frame.source,
+    missesRequired: 1,
+    cause: 'backfire',
+    dodgeChecked: false,
+  };
+  const top = cur.stack.length - 1;
+  return { ...cur, stack: [...cur.stack.slice(0, top), counter, cur.stack[top]] };
 }
 
 // ---------------------------------------------------------------------------
@@ -133,15 +163,16 @@ export function resolveGatling(state: GameState, frame: Frame & { k: 'gatling' }
   if (queue.length === 0) return popFrame(state);
 
   const target = queue[0];
+  const shot: Frame = {
+    k: 'bang',
+    source: frame.source,
+    target,
+    missesRequired: 1,
+    cause: 'gatling',
+    dodgeChecked: false,
+  };
   return pushSeq(replaceTop(state, { ...frame, queue: queue.slice(1) }), [
-    {
-      k: 'bang',
-      source: frame.source,
-      target,
-      missesRequired: 1,
-      cause: 'gatling',
-      dodgeChecked: false,
-    },
+    withEvade(state, target, frame.source, 'gatling', shot),
   ]);
 }
 
@@ -156,8 +187,20 @@ export function resolveIndians(state: GameState, frame: Frame & { k: 'indians' }
   if (queue.length === 0) return popFrame(state);
 
   const pid = queue[0];
+  // 탈출·믹 디펜더: 이 사람만 떼어 내 피할 기회를 먼저 준다
+  if (!frame.asked && evadeOptions(state, pid, 'indians').length > 0) {
+    return pushSeq(replaceTop(state, { ...frame, queue: queue.slice(1), asked: false }), [
+      {
+        k: 'evade',
+        pid,
+        source: frame.source,
+        kind: 'indians',
+        then: { k: 'indians', source: frame.source, queue: [pid], asked: true },
+      },
+    ]);
+  }
   const options = playableAs(state, pid, 'bang', true);
-  const advanced = replaceTop(state, { ...frame, queue });
+  const advanced = replaceTop(state, { ...frame, queue, asked: false });
 
   if (options.length === 0) {
     return pushSeq(replaceTop(advanced, { ...frame, queue: queue.slice(1) }), [

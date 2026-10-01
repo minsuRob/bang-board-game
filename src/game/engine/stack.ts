@@ -5,9 +5,9 @@
  * (카드 사용 단계·버리기 단계)에 닿을 때까지 프레임을 하나씩 해결한다.
  */
 
-import { inPlay, playerOf, topFrame } from './cards';
+import { heldAsGhost, inPlay, log, nameOf, playerOf, toDiscard, topFrame, updatePlayer } from './cards';
 import { resolveFrame } from './frames';
-import { onHandEmptyFrames } from './hooks';
+import { onHandEmptyFrames, resurrectsEliminated } from './hooks';
 import type { GameState } from './types';
 
 /** 안전장치. 정상적인 판은 한 액션에 이 근처도 못 간다. */
@@ -61,13 +61,31 @@ export function sweepHandEmpty(state: GameState): GameState {
   return cur;
 }
 
+/**
+ * 유령 카드를 잃은 유령은 다시 제거된다 (강탈·캣 발루·달톤 형제·조니 키시 어느 경로든).
+ * 유령도시 중에는 건너뛴다. 그때의 유령은 turnEnd 가 정리한다.
+ */
+export function sweepGhosts(state: GameState): GameState {
+  // 유령도시 중에는 카드 없는 유령이 정상이다. 그 유령은 자기 차례 끝에 사라진다 (turnEnd).
+  if (resurrectsEliminated(state)) return state;
+  let cur = state;
+  for (const p of state.players) {
+    if (p.alive || !p.ghost || heldAsGhost(p)) continue;
+    const cards = [...p.hand, ...p.equipment];
+    cur = updatePlayer(cur, p.id, (x) => ({ ...x, ghost: false, hand: [], equipment: [] }));
+    cur = toDiscard(cur, cards);
+    cur = log(cur, { t: 'ghostLeave', pid: p.id, text: `${nameOf(cur, p.id)}의 유령이 사라졌다.` });
+  }
+  return cur;
+}
+
 export function resolveStack(state: GameState): GameState {
   let cur = state;
 
   for (let step = 0; step < MAX_STEPS; step++) {
     if (cur.result || cur.awaiting || cur.draft) return cur;
 
-    const swept = sweepHandEmpty(cur);
+    const swept = sweepHandEmpty(sweepGhosts(cur));
     if (swept !== cur) {
       cur = swept;
       continue;

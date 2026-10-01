@@ -148,6 +148,72 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     ability: '카드를 앞에 내려놓을 때마다, 누구 앞에 있든 같은 이름의 다른 카드를 모두 버립니다.',
     expansion: 'highnoon',
   },
+  // ----- 그림자의 계곡 (맨 끝에만 붙인다) -----
+  blackFlower: {
+    id: 'blackFlower',
+    name: 'Black Flower',
+    nameKo: '블랙 플라워',
+    maxHp: 4,
+    ability: '자기 차례에 한 번, ♣ 카드 아무거나를 추가 <뱅!>으로 쓸 수 있습니다.',
+    expansion: 'valley',
+  },
+  coloradoBill: {
+    id: 'coloradoBill',
+    name: 'Colorado Bill',
+    nameKo: '콜로라도 빌',
+    maxHp: 4,
+    ability: "<뱅!> 카드를 낼 때마다 '카드 펼치기'를 해서 ♠가 나오면 그 총알은 피할 수 없습니다.",
+    expansion: 'valley',
+  },
+  derSpotBurstRinger: {
+    id: 'derSpotBurstRinger',
+    name: 'Der Spot - Burst Ringer',
+    nameKo: '더 스팟 버스트 링거',
+    maxHp: 4,
+    ability: '자기 차례에 한 번, <뱅!> 카드를 <기관총>으로 쓸 수 있습니다.',
+    expansion: 'valley',
+  },
+  evelynShebang: {
+    id: 'evelynShebang',
+    name: 'Evelyn Shebang',
+    nameKo: '이블린 쉬뱅',
+    maxHp: 4,
+    ability:
+      "'카드 가져오기' 단계에서 카드를 덜 가져올 수 있습니다. 안 가져온 한 장마다 사정거리 안의 서로 다른 사람에게 <뱅!>을 쏩니다.",
+    expansion: 'valley',
+  },
+  henryBlock: {
+    id: 'henryBlock',
+    name: 'Henry Block',
+    nameKo: '헨리 블록',
+    maxHp: 4,
+    ability: '내 카드(손패든 앞에 놓인 것이든)를 가져가거나 버리게 한 사람은 <뱅!>의 표적이 됩니다.',
+    expansion: 'valley',
+  },
+  lemonadeJim: {
+    id: 'lemonadeJim',
+    name: 'Lemonade Jim',
+    nameKo: '레모네이드 짐',
+    maxHp: 4,
+    ability: '다른 사람이 <맥주>를 낼 때마다, 손패 1장을 버리고 나도 목숨 1을 회복할 수 있습니다.',
+    expansion: 'valley',
+  },
+  mickDefender: {
+    id: 'mickDefender',
+    name: 'Mick Defender',
+    nameKo: '믹 디펜더',
+    maxHp: 4,
+    ability: '<뱅!>이 아닌 갈색 카드의 대상이 되면 <빗나감!>을 내서 그 카드를 피할 수 있습니다.',
+    expansion: 'valley',
+  },
+  tucoFranziskaner: {
+    id: 'tucoFranziskaner',
+    name: 'Tuco Franziskaner',
+    nameKo: '투코 프란치스카너',
+    maxHp: 5,
+    ability: "'카드 가져오기' 단계에 앞에 놓인 파랑 카드가 없으면 2장을 더 가져옵니다.",
+    expansion: 'valley',
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];

@@ -79,7 +79,12 @@ export type CardKind =
   | 'generalStore' | 'gatling' | 'indians' | 'duel' | 'panic' | 'catBalou'
   // 파랑 (장착)
   | 'volcanic' | 'schofield' | 'remington' | 'carabine' | 'winchester'
-  | 'scope' | 'mustang' | 'barrel' | 'jail' | 'dynamite';
+  | 'scope' | 'mustang' | 'barrel' | 'jail' | 'dynamite'
+  // 그림자의 계곡 — 갈색
+  | 'bandidos' | 'escape' | 'aim' | 'poker' | 'backfire' | 'saved'
+  | 'fanning' | 'tomahawk' | 'tornado' | 'lastCall'
+  // 그림자의 계곡 — 파랑
+  | 'ghost' | 'lemat' | 'rattlesnake' | 'shotgun' | 'bounty';
 
 /** 갈색 = 사용 즉시 버림, 파랑 = 테이블에 장착 */
 export type CardCategory = 'brown' | 'blue';
@@ -90,8 +95,10 @@ export type EquipSlot =
   | 'weapon'
   /** 자기 앞에 놓는 보조 장비 (조준경·야생마·술통·다이너마이트) */
   | 'self'
-  /** 다른 플레이어 앞에 놓는 장비 (감옥) */
-  | 'other';
+  /** 다른 플레이어 앞에 놓는 장비 (감옥·방울뱀·포상금) */
+  | 'other'
+  /** 제거된 플레이어 앞에 놓는 장비 (유령) */
+  | 'eliminated';
 
 export type CardDef = {
   kind: CardKind;
@@ -104,6 +111,12 @@ export type CardDef = {
   weaponRange?: number;
   symbols: CardSymbol[];
   text: string;
+  /** 이 카드를 다른 종류 한 장으로도 친다 (역화 = 빗나감!) */
+  countsAs?: CardKind;
+  /** 남의 차례에도 낼 수 있다 (탈출·구조!) */
+  outOfTurn?: boolean;
+  /** 확장판 카드면 그 확장판 */
+  expansion?: Expansion;
 };
 
 /** 덱에 실제로 존재하는 카드 한 장. id는 게임 내내 고유하고 안정적이다. */
@@ -126,7 +139,10 @@ export type CharacterId =
   | 'roseDoolan' | 'sidKetchum' | 'slabTheKiller' | 'suzyLafayette'
   | 'vultureSam' | 'willyTheKid'
   // 하이 눈 프로모
-  | 'uncleWill' | 'johnnyKisch';
+  | 'uncleWill' | 'johnnyKisch'
+  // 그림자의 계곡
+  | 'blackFlower' | 'coloradoBill' | 'derSpotBurstRinger' | 'evelynShebang'
+  | 'henryBlock' | 'lemonadeJim' | 'mickDefender' | 'tucoFranziskaner';
 
 export type CharacterDef = {
   id: CharacterId;
@@ -149,7 +165,7 @@ export type Role = 'sheriff' | 'deputy' | 'outlaw' | 'renegade';
 // 이벤트 카드 (하이 눈 등 확장판)
 // ---------------------------------------------------------------------------
 
-export type Expansion = 'highnoon';
+export type Expansion = 'highnoon' | 'valley';
 
 export type EventCardId =
   | 'blessing' | 'curse' | 'ghostTown' | 'goldRush' | 'hangover'

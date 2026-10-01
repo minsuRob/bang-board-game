@@ -6,7 +6,8 @@
  * 리듀서가 순수 함수라서 이 방법이 공짜로 나온다.
  */
 
-import { BASE_DECK } from '../data/cards.base';
+import { deckFor } from '../data/cards.base';
+import { isHidden } from '../engine/view';
 import { ROLE_DISTRIBUTION } from '../data/roles';
 import type { CardId, Role } from '../data/types';
 import {
@@ -57,9 +58,10 @@ export function determinize(
     if (f.k === 'judgement') for (const c of f.candidates) seen.add(c);
     if (f.k === 'generalStore') for (const c of f.revealed) seen.add(c);
     if (f.k === 'kitCarlson') for (const c of f.candidates) seen.add(c);
+    if (f.k === 'poker') for (const c of f.pot) if (!isHidden(c)) seen.add(c);
   }
 
-  const pool = BASE_DECK.map((c) => c.id).filter((c) => !seen.has(c));
+  const pool = deckFor(view.config.expansions).map((c) => c.id).filter((c) => !seen.has(c));
   const shuffled = shuffle(rng, pool);
   let cur = shuffled.rng;
   const bag = shuffled.value;
@@ -71,6 +73,13 @@ export function determinize(
     at += p.hand.length;
     return { ...p, hand };
   });
+  // 포커에 엎어 낸 판돈도 가려져 있다. 남은 카드에서 지어낸다
+  const stack = view.stack.map((f) => {
+    if (f.k !== 'poker' || !f.pot.some(isHidden)) return f;
+    const pot = f.pot.map((c) => (isHidden(c) ? bag[at++] : c));
+    return { ...f, pot };
+  });
+  view = { ...view, stack };
 
   // 감춰진 역할은 추론한 분포대로 지어낸다. 보안관을 쏜 사람은 대개 무법자로 채워진다.
   if (beliefs) {

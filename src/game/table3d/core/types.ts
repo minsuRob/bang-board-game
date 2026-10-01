@@ -60,7 +60,7 @@ export type TableLayout = {
 
 export type CameraFrame = { position: Vec3; lookAt: Vec3; fov: number };
 
-export type LimboKind = 'store' | 'judgement' | 'kit' | 'blackJack';
+export type LimboKind = 'store' | 'judgement' | 'kit' | 'blackJack' | 'poker';
 
 export type Zone =
   | { z: 'deck' }
