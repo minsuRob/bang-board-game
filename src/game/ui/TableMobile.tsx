@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 
 import { CARD_DEFS } from '../data/cards.base';
-import { HIGHNOON_EVENTS } from '../data/cards.highnoon';
+import { EVENTS } from '../data/events';
 import { CHARACTERS } from '../data/characters';
 import { ROLE_LABEL } from '../data/roles';
 import type { DimensionValue } from 'react-native';
@@ -99,7 +99,7 @@ export function TableMobile({
     if (!(steal && steal.target === pid)) setDetail(pid);
   };
   const top = view.discard[view.discard.length - 1];
-  const event = view.event?.current ? HIGHNOON_EVENTS[view.event.current] : null;
+  const event = view.event?.current ? EVENTS[view.event.current] : null;
   const eventImage = view.event?.current ? eventArt(view.event.current) : null;
   const back = cardBackArt();
   const wood = woodArt();

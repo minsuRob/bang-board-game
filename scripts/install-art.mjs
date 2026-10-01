@@ -21,6 +21,8 @@ const GROUPS = [
   { from: join(SRC, 'cards', 'highnoon'), to: join(DEST, 'cards', 'event') },
   // 그림자의 계곡 플레잉 카드는 기본판 카드와 같은 폴더에 kind 이름으로 둔다
   { from: join(SRC, 'cards', 'valley'), to: join(DEST, 'cards', 'card') },
+  // 와일드 웨스트 쇼 이벤트. id 가 하이 눈과 겹치지 않아 같은 폴더를 쓴다
+  { from: join(SRC, 'cards', 'wildwestshow'), to: join(DEST, 'cards', 'event') },
 ];
 
 function copyDir(from, to) {

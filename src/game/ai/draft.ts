@@ -46,6 +46,14 @@ const CHARACTER_VALUE: Record<CharacterId, number> = {
   prettyLuzena: 5,
   raddieSnake: 6,
   simeonPicos: 5,
+  bigSpencer: 6,
+  flintWestwood: 6,
+  garyLooter: 6,
+  greygoryDeck: 6,
+  johnPain: 6,
+  leeVanKliff: 6,
+  terenKill: 7,
+  youlGrinner: 6,
 };
 
 /** 역할이 좋아하는 성향 */

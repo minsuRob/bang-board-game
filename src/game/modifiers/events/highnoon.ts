@@ -5,7 +5,7 @@
  * 차례 시작마다 새 카드가 공개되어 이전 이벤트를 대체한다.
  */
 
-import type { EventCardId } from '../../data/types';
+import type { HighNoonEventId } from '../../data/types';
 import { effectiveSuit } from '../../engine/cards';
 import type { Modifier } from '../../engine/modifier';
 import type { Frame } from '../../engine/types';
@@ -181,7 +181,7 @@ const highNoon: Modifier = {
   ],
 };
 
-export const EVENT_MODIFIERS: Record<EventCardId, Modifier> = {
+export const HIGHNOON_EVENT_MODIFIERS: Record<HighNoonEventId, Modifier> = {
   blessing,
   curse,
   ghostTown,

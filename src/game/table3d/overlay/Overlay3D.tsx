@@ -7,7 +7,7 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useStore } from 'zustand';
 
-import { HIGHNOON_EVENTS } from '../../data/cards.highnoon';
+import { EVENTS } from '../../data/events';
 import type { CardId } from '../../data/types';
 import type { GameState, PlayerId } from '../../engine';
 import { CharacterDetailModal } from '../../ui/CharacterDetail';
@@ -47,7 +47,7 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
   }, []);
   const steal = api.prompt?.steal ?? null;
   const detailPlayer = (!view.draft && view.players.find((p) => p.id === detail)) || null;
-  const event = view.event?.current ? HIGHNOON_EVENTS[view.event.current] : null;
+  const event = view.event?.current ? EVENTS[view.event.current] : null;
   const deck = anchors.points[ANCHOR_DECK];
   const discard = anchors.points[ANCHOR_DISCARD];
   const ev = anchors.points[ANCHOR_EVENT];

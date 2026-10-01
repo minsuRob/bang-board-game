@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { CardId } from '../data/types';
 import { defOf, type Choice } from '../engine';
@@ -41,32 +41,46 @@ export function PickSpotlight({ prompt, onRespond, compact }: PickSpotlightProps
   };
 
   const def = focus ? defOf(focus) : null;
+  const cards = (
+    <>
+      {Array.from({ length: center.handCount }, (_, index) => (
+        <Pressable
+          key={`hand:${index}`}
+          onPress={() => onRespond({ c: 'pick', pick: { zone: 'hand', index } })}
+          accessibilityRole="button"
+          accessibilityLabel={`손패 ${index + 1}번째 카드`}
+          style={({ hovered }: { hovered?: boolean }) => [styles.card, hovered && styles.lifted]}>
+          <CardBack size={size} />
+        </Pressable>
+      ))}
+      {center.cards.map((card) => (
+        <View key={card} style={[styles.card, focus === card && styles.lifted]}>
+          <CardView
+            card={card}
+            size={size}
+            highlighted
+            onPress={() => pressCard(card)}
+            onHoverIn={() => setFocus(card)}
+            onHoverOut={() => setFocus((cur) => (cur === card ? null : cur))}
+          />
+        </View>
+      ))}
+    </>
+  );
   return (
     <View style={styles.spot}>
-      <View style={styles.row}>
-        {Array.from({ length: center.handCount }, (_, index) => (
-          <Pressable
-            key={`hand:${index}`}
-            onPress={() => onRespond({ c: 'pick', pick: { zone: 'hand', index } })}
-            accessibilityRole="button"
-            accessibilityLabel={`손패 ${index + 1}번째 카드`}
-            style={({ hovered }: { hovered?: boolean }) => [styles.card, hovered && styles.lifted]}>
-            <CardBack size={size} />
-          </Pressable>
-        ))}
-        {center.cards.map((card) => (
-          <View key={card} style={[styles.card, focus === card && styles.lifted]}>
-            <CardView
-              card={card}
-              size={size}
-              highlighted
-              onPress={() => pressCard(card)}
-              onHoverIn={() => setFocus(card)}
-              onHoverOut={() => setFocus((cur) => (cur === card ? null : cur))}
-            />
-          </View>
-        ))}
-      </View>
+      {compact ? (
+        // 폰: 카드가 많아도 줄바꿈하지 않고 좌우로 민다
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollRow}>
+          {cards}
+        </ScrollView>
+      ) : (
+        <View style={styles.row}>{cards}</View>
+      )}
       <PaperPlaque compact={compact} style={compact ? styles.plaqueCompact : styles.plaque}>
         <Text style={[plaque.meta, plaque.hint]} numberOfLines={1}>
           {prompt.title} — {focus && !CAN_HOVER ? '한 번 더 누르면 고른다' : prompt.hint}
@@ -92,6 +106,9 @@ export function PickSpotlight({ prompt, onRespond, compact }: PickSpotlightProps
 const styles = StyleSheet.create({
   spot: { alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three },
   row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: Spacing.two, maxWidth: 620 },
+  scroll: { flexGrow: 0, maxWidth: '100%' },
+  // 카드가 적으면 가운데, 많으면 왼쪽부터 늘어서며 밀린다. 그림자가 잘리지 않게 위아래로 여유를 둔다
+  scrollRow: { flexGrow: 1, justifyContent: 'center', gap: Spacing.two, paddingVertical: 16, paddingHorizontal: Spacing.two },
   card: { borderRadius: 8, boxShadow: '0 12px 28px rgba(0,0,0,0.6)' },
   lifted: { transform: [{ translateY: -10 }, { scale: 1.06 }] },
   plaque: { width: 340, gap: 2 },

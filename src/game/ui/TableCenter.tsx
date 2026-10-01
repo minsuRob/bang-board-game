@@ -4,7 +4,7 @@
 
 import { Image, StyleSheet, Text, View } from 'react-native';
 
-import { HIGHNOON_EVENTS } from '../data/cards.highnoon';
+import { EVENTS } from '../data/events';
 import type { GameState } from '../engine';
 import { eventArt } from './card-art';
 import { CardBack, CardView } from './CardView';
@@ -12,7 +12,7 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 
 export function TableCenter({ view, message }: { view: GameState; message: string }) {
   const top = view.discard[view.discard.length - 1];
-  const event = view.event?.current ? HIGHNOON_EVENTS[view.event.current] : null;
+  const event = view.event?.current ? EVENTS[view.event.current] : null;
   const eventImage = view.event?.current ? eventArt(view.event.current) : null;
 
   return (

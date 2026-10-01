@@ -3,6 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { ALL_CARDS_BY_ID, BASE_CARDS_BY_ID, BASE_DECK, CARD_DEFS } from './cards.base';
 import { VALLEY_DECK } from './cards.valley';
 import { HIGHNOON_EVENTS, HIGHNOON_FINAL_ID, HIGHNOON_SHUFFLED_IDS } from './cards.highnoon';
+import {
+  WILDWESTSHOW_EVENTS,
+  WILDWESTSHOW_FINAL_ID,
+  WILDWESTSHOW_SHUFFLED_IDS,
+} from './cards.wildwestshow';
+import { EVENTS, eventDeckFor, eventDeckSize } from './events';
 import { CHARACTER_IDS, CHARACTERS } from './characters';
 import { MAX_PLAYERS, MIN_PLAYERS, ROLE_DISTRIBUTION } from './roles';
 import { RANK_VALUE, type CardKind, type Role } from './types';
@@ -97,8 +103,8 @@ describe('기본 덱', () => {
 });
 
 describe('캐릭터', () => {
-  it('기본판 16종 + 하이 눈 프로모 2종 + 그림자의 계곡 8종 + 골드 러시 8종이다', () => {
-    expect(CHARACTER_IDS).toHaveLength(34);
+  it('기본판 16종 + 하이 눈 프로모 2종 + 그림자의 계곡 8종 + 골드 러시 8종 + 와일드 웨스트 쇼 8종이다', () => {
+    expect(CHARACTER_IDS).toHaveLength(42);
     expect(CHARACTER_IDS.filter((id) => CHARACTERS[id].expansion === 'valley')).toHaveLength(8);
     expect(CHARACTER_IDS.filter((id) => !CHARACTERS[id].expansion)).toHaveLength(16);
     expect(CHARACTER_IDS.filter((id) => CHARACTERS[id].expansion === 'highnoon').sort()).toEqual([
@@ -106,19 +112,38 @@ describe('캐릭터', () => {
       'uncleWill',
     ]);
     expect(CHARACTER_IDS.filter((id) => CHARACTERS[id].expansion === 'goldrush')).toHaveLength(8);
+    expect(
+      CHARACTER_IDS.filter((id) => CHARACTERS[id].expansion === 'wildwestshow').sort(),
+    ).toEqual([
+      'bigSpencer',
+      'flintWestwood',
+      'garyLooter',
+      'greygoryDeck',
+      'johnPain',
+      'leeVanKliff',
+      'terenKill',
+      'youlGrinner',
+    ]);
   });
 
-  it('총알 수는 3~5이고, 3인 캐릭터는 El Gringo·Paul Regret·Simeon Picos, 5인 캐릭터는 Tuco Franziskaner뿐이다', () => {
-    const three = CHARACTER_IDS.filter((id) => CHARACTERS[id].maxHp === 3);
-    expect(three.sort()).toEqual(['elGringo', 'paulRegret', 'simeonPicos']);
-    const five = CHARACTER_IDS.filter((id) => CHARACTERS[id].maxHp === 5);
-    expect(five).toEqual(['tucoFranziskaner']);
-    for (const id of CHARACTER_IDS) expect([3, 4, 5]).toContain(CHARACTERS[id].maxHp);
+  it('확장판 캐릭터는 기본판 16종 뒤에 붙는다 (기본판 시드 보존)', () => {
+    expect(CHARACTER_IDS.slice(0, 16).every((id) => !CHARACTERS[id].expansion)).toBe(true);
   });
 
-  it('새 캐릭터는 목록 맨 끝에 있다 (기본판 시드 결과 보존)', () => {
-    const firstExpansion = CHARACTER_IDS.findIndex((id) => CHARACTERS[id].expansion);
-    expect(CHARACTER_IDS.slice(firstExpansion).every((id) => CHARACTERS[id].expansion)).toBe(true);
+  it('기본판 총알 수는 3 또는 4이고, 3인 캐릭터는 El Gringo와 Paul Regret뿐이다', () => {
+    const base = CHARACTER_IDS.filter((id) => !CHARACTERS[id].expansion);
+    const three = base.filter((id) => CHARACTERS[id].maxHp === 3);
+    expect(three.sort()).toEqual(['elGringo', 'paulRegret']);
+    for (const id of base) expect([3, 4]).toContain(CHARACTERS[id].maxHp);
+  });
+
+  it('와일드 웨스트 쇼 총알 수: 빅 스펜서 9, 게리 루터 5, 그레고리 덱·테렌 킬 3', () => {
+    expect(CHARACTERS.bigSpencer.maxHp).toBe(9);
+    expect(CHARACTERS.garyLooter.maxHp).toBe(5);
+    expect(CHARACTERS.greygoryDeck.maxHp).toBe(3);
+    expect(CHARACTERS.terenKill.maxHp).toBe(3);
+    expect(CHARACTERS.simeonPicos.maxHp).toBe(3);
+    expect(CHARACTERS.tucoFranziskaner.maxHp).toBe(5);
   });
 
   it('id가 레코드 키와 일치한다', () => {
@@ -183,5 +208,27 @@ describe('골드 러시 장비 카드', () => {
     expect(new Set(GOLD_DECK.map((c) => c.id)).size).toBe(24);
     expect(GOLD_DECK.filter((c) => goldDefOf(c.id).category === 'brown')).toHaveLength(16);
     expect(GOLD_DECK.filter((c) => goldDefOf(c.id).category === 'black')).toHaveLength(8);
+  });
+});
+
+describe('와일드 웨스트 쇼 이벤트', () => {
+  it('10종이고 마지막 카드는 와일드 웨스트 쇼 하나뿐이다', () => {
+    expect(Object.keys(WILDWESTSHOW_EVENTS)).toHaveLength(10);
+    const finals = Object.values(WILDWESTSHOW_EVENTS).filter((e) => e.isFinal);
+    expect(finals.map((e) => e.id)).toEqual([WILDWESTSHOW_FINAL_ID]);
+    expect(WILDWESTSHOW_SHUFFLED_IDS).toHaveLength(9);
+  });
+
+  it('합본 EVENTS 는 25종이고 id 가 키와 같다', () => {
+    expect(Object.keys(EVENTS)).toHaveLength(25);
+    for (const [id, def] of Object.entries(EVENTS)) expect(def.id).toBe(id);
+  });
+
+  it('한 판에 이벤트 덱은 하나다. 둘 다 켜면 하이 눈을 쓴다', () => {
+    expect(eventDeckFor([])).toBeNull();
+    expect(eventDeckFor(['wildwestshow'])?.final).toBe('wildWestShow');
+    expect(eventDeckFor(['highnoon', 'wildwestshow'])?.final).toBe('highNoon');
+    expect(eventDeckSize('gag')).toBe(10);
+    expect(eventDeckSize('curse')).toBe(15);
   });
 });

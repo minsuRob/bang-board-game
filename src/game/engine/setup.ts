@@ -9,9 +9,9 @@
  */
 
 import { deckFor } from '../data/cards.base';
-import { HIGHNOON_FINAL_ID, HIGHNOON_SHUFFLED_IDS } from '../data/cards.highnoon';
 import { GOLD_DECK, GOLD_SHOP_SIZE } from '../data/cards.goldrush';
 import { charactersFor } from '../data/characters';
+import { eventDeckFor } from '../data/events';
 import { MAX_PLAYERS, MIN_PLAYERS, ROLE_DISTRIBUTION } from '../data/roles';
 import type { CharacterId, EventCardId } from '../data/types';
 import { createRng, shuffle } from './rng';
@@ -86,12 +86,14 @@ export function createGame(seed: number, config: GameConfig, seats: Seat[]): Gam
   rng = deckRolled.rng;
   const deck = deckRolled.value;
 
-  // 이벤트 덱: 하이 눈 카드를 맨 밑에 두고 나머지 14장을 섞어 그 위에 쌓는다
+  // 이벤트 덱: 마지막 고정 카드(하이 눈·와일드 웨스트 쇼)를 맨 밑에 두고 나머지를 섞어 그 위에 쌓는다.
+  // 한 판에는 이벤트 덱을 하나만 쓴다.
   let event: GameState['event'] = null;
-  if (config.expansions.includes('highnoon')) {
-    const evRolled = shuffle(rng, HIGHNOON_SHUFFLED_IDS);
+  const evSpec = eventDeckFor(config.expansions);
+  if (evSpec) {
+    const evRolled = shuffle(rng, evSpec.shuffled);
     rng = evRolled.rng;
-    const evDeck: EventCardId[] = [...evRolled.value, HIGHNOON_FINAL_ID];
+    const evDeck: EventCardId[] = [...evRolled.value, evSpec.final];
     event = { deck: evDeck, current: null, past: [] };
   }
 
