@@ -19,6 +19,8 @@ const GROUPS = [
   { from: join(SRC, 'cards', 'characters'), to: join(DEST, 'cards', 'character') },
   { from: join(SRC, 'cards', 'roles'), to: join(DEST, 'cards', 'role') },
   { from: join(SRC, 'cards', 'highnoon'), to: join(DEST, 'cards', 'event') },
+  // 그림자의 계곡 플레잉 카드는 기본판 카드와 같은 폴더에 kind 이름으로 둔다
+  { from: join(SRC, 'cards', 'valley'), to: join(DEST, 'cards', 'card') },
 ];
 
 function copyDir(from, to) {

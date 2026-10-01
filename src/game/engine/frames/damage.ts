@@ -18,14 +18,32 @@ import {
   playerOf,
   popFrame,
   pushSeq,
+  replaceTop,
   toDiscard,
   updatePlayer,
 } from '../cards';
-import { anytimeAbilitiesOf, canPlayCard, onDamagedFrames, onEliminatedFrames } from '../hooks';
+import { saversFor } from './valley';
+import {
+  anytimeAbilitiesOf,
+  canPlayCard,
+  onDamagedFrames,
+  onDealtDamageFrames,
+  onEliminatedFrames,
+} from '../hooks';
 import type { Choice, Frame, GameState } from '../types';
 import { ga, neun } from '../josa';
 
 export function resolveDamage(state: GameState, frame: Frame & { k: 'damage' }): GameState {
+  // 구조!: 목숨을 잃기 직전에 다른 사람이 막을 수 있다
+  if (!frame.savedAsked && playerOf(state, frame.target).alive) {
+    const savers = saversFor(state, frame.target);
+    if (savers.length > 0) {
+      return pushSeq(replaceTop(state, { ...frame, savedAsked: true }), [
+        { k: 'savedOffer', target: frame.target, queue: savers },
+      ]);
+    }
+  }
+
   let cur = popFrame(state);
   const p = playerOf(cur, frame.target);
   if (!p.alive && !p.ghost) return cur;
@@ -52,9 +70,12 @@ export function resolveDamage(state: GameState, frame: Frame & { k: 'damage' }):
   });
 
   // 능력이 먼저 울린다. 바트 캐시디가 뽑은 카드에 맥주가 있을 수 있기 때문이다.
-  const frames: Frame[] = onDamagedFrames(cur, p.id, frame.amount, frame.source);
+  const frames: Frame[] = onDamagedFrames(cur, p.id, frame.amount, frame.source, frame.cause);
   if (hp <= 0) {
     frames.push({ k: 'checkDeath', target: p.id, source: frame.credit ?? frame.source ?? null });
+  }
+  if (frame.source && frame.source !== p.id) {
+    frames.push(...onDealtDamageFrames(cur, frame.source, p.id, frame.amount, frame.cause));
   }
   return pushSeq(cur, frames);
 }

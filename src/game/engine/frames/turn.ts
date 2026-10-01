@@ -13,6 +13,7 @@ import { HIGHNOON_EVENTS } from '../../data/cards.highnoon';
 import { CHARACTERS } from '../../data/characters';
 import { SUIT_GLYPH, type Suit } from '../../data/types';
 import {
+  heldAsGhost,
   inPlay,
   log,
   nameOf,
@@ -163,8 +164,9 @@ export function resolveTurnEnd(state: GameState, frame: Frame & { k: 'turnEnd' }
   let cur = popFrame(state);
   const p = playerOf(cur, pid);
 
-  if (p.ghost) {
+  if (p.ghost && !heldAsGhost(p)) {
     // 유령은 차례가 끝나면 다시 사라진다. 들고 있던 카드는 전부 버려진다.
+    // 유령 카드(그림자의 계곡)로 돌아온 사람은 그 카드가 앞에 있는 동안 남는다.
     const cards = [...p.hand, ...p.equipment];
     cur = updatePlayer(cur, pid, (x) => ({ ...x, ghost: false, hand: [], equipment: [] }));
     cur = toDiscard(cur, cards);
@@ -187,7 +189,7 @@ export function resolveAdvanceTurn(
   for (let i = 1; i <= n; i++) {
     const seat = (((fromSeat + dir * i) % n) + n) % n;
     const cand = cur.players[seat];
-    if (cand.alive) {
+    if (cand.alive || (cand.ghost && heldAsGhost(cand))) {
       return pushSeq(cur, [{ k: 'turnStart', pid: cand.id }]);
     }
     if (ghosts && !cand.ghost) {

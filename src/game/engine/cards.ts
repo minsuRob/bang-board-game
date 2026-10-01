@@ -4,7 +4,7 @@
  * 모든 함수는 순수하다. 상태를 받아 새 상태를 돌려주며 원본을 건드리지 않는다.
  */
 
-import { BASE_CARDS_BY_ID, CARD_DEFS } from '../data/cards.base';
+import { ALL_CARDS_BY_ID, CARD_DEFS } from '../data/cards.base';
 import { CHARACTERS } from '../data/characters';
 import type { CardDef, CardId, CardInstance, CardKind, Suit } from '../data/types';
 import { shuffle } from './rng';
@@ -15,7 +15,7 @@ import type { Frame, GameEvent, GameState, Player, PlayerId } from './types';
 // ---------------------------------------------------------------------------
 
 export function cardOf(id: CardId): CardInstance {
-  const card = BASE_CARDS_BY_ID.get(id);
+  const card = ALL_CARDS_BY_ID.get(id);
   if (!card) throw new Error(`알 수 없는 카드 id: ${id}`);
   return card;
 }
@@ -63,6 +63,14 @@ export function updatePlayer(
 /** 살아 있거나 유령으로 되살아나 자리에 앉아 있는가 (거리 계산 대상) */
 export function inPlay(p: Player): boolean {
   return p.alive || p.ghost;
+}
+
+/**
+ * 제거된 사람 앞에 놓여 그를 유령으로 붙잡아 두는 카드(그림자의 계곡 '유령')를 들고 있는가.
+ * 카드 종류가 아니라 장착 자리(equip: 'eliminated')로 판단한다.
+ */
+export function heldAsGhost(p: Player): boolean {
+  return p.equipment.some((c) => CARD_DEFS[kindOf(c)].equip === 'eliminated');
 }
 
 /** 진짜로 생존해 있는 플레이어 (승리 판정·맥주 2인 규칙의 기준) */

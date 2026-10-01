@@ -26,9 +26,27 @@ import {
   onPutInPlayFrames,
   outgoingBangMissesOf,
   playAnyAsAbilitiesOf,
+  onOtherPlaysCardFrames,
+  onPlayBangFrames,
+  withEvade,
 } from './hooks';
 import type { Frame, GameState, PlayerId } from './types';
 import { eul, ga, ro } from './josa';
+
+/** 대상 한 명을 지목하는 갈색 효과 중 탈출로 피할 수 있는 것 */
+const SINGLE_TARGET_EVADABLE: readonly Frame['k'][] = ['duel', 'steal', 'bang'];
+
+export type PlayOptions = {
+  target2?: PlayerId;
+  extra?: CardId;
+  ability?: string;
+};
+
+/** 이 능력 key 가 뱅! 횟수를 쓰지 않는 추가 뱅!인가 (블랙 플라워) */
+function isExtraBang(state: GameState, pid: PlayerId, ability?: string): boolean {
+  if (!ability) return false;
+  return playAnyAsAbilitiesOf(state, pid, true).some((ab) => ab.key === ability && ab.extra === true);
+}
 
 /** 자신을 제외한 생존자를, 자기 왼쪽(다음 좌석)부터 시계 방향으로 */
 export function othersInOrder(state: GameState, source: PlayerId): PlayerId[] {
@@ -48,13 +66,20 @@ export function applyPlayCard(
   card: CardId,
   as: CardKind,
   target?: PlayerId,
+  opts: PlayOptions = {},
 ): GameState {
   const def = CARD_DEFS[as];
   const own = kindOf(card);
   let cur = state;
 
+  // 명시한 차례당 한 번 능력 (블랙 플라워·더 스팟 등)
+  if (opts.ability) {
+    const key = opts.ability;
+    cur = updatePlayer(cur, pid, (p) => ({ ...p, usedThisTurn: [...p.usedThisTurn, key] }));
+  }
+
   // 칼라미티 자넷식 치환이 아닌데 종류가 다르면, 차례당 한 번 능력(엉클 윌)을 쓴 것이다.
-  if (as !== own && !canUseCardAs(cur, pid, own, as)) {
+  if (!opts.ability && as !== own && !canUseCardAs(cur, pid, own, as)) {
     const ability = playAnyAsAbilitiesOf(cur, pid).find((ab) => ab.as === as);
     if (ability) {
       cur = updatePlayer(cur, pid, (p) => ({
@@ -70,7 +95,7 @@ export function applyPlayCard(
   const frames: Frame[] = [];
   if (def.category === 'blue') {
     cur = equipBlueCard(cur, pid, card, as, target);
-    const holder = def.equip === 'other' && target ? target : pid;
+    const holder = (def.equip === 'other' || def.equip === 'eliminated') && target ? target : pid;
     frames.push(...onPutInPlayFrames(cur, pid, card, holder));
   } else {
     cur = toDiscard(cur, [card]);
@@ -91,11 +116,33 @@ export function applyPlayCard(
       (target ? ` → ${nameOf(cur, target)}.` : '.'),
   });
 
-  if (as === 'bang') {
+  // 조준: 뱅!과 함께 낸 카드도 손을 떠난다.
+  if (opts.extra) {
+    const extra = opts.extra;
+    cur = updatePlayer(cur, pid, (p) => ({ ...p, hand: p.hand.filter((c) => c !== extra) }));
+    cur = toDiscard(cur, [extra]);
+    cur = log(cur, {
+      t: 'playCard',
+      pid,
+      card: extra,
+      target,
+      text: `${ga(nameOf(cur, pid))} ${eul(CARD_DEFS[kindOf(extra)].nameKo)} 함께 냈다.`,
+    });
+  }
+
+  // 패닝은 차례당 한 번인 뱅!으로 친다. 추가 뱅!(블랙 플라워)은 횟수를 쓰지 않는다.
+  if ((as === 'bang' || as === 'fanning') && !isExtraBang(cur, pid, opts.ability)) {
     cur = { ...cur, turn: { ...cur.turn, bangsPlayed: cur.turn.bangsPlayed + 1 } };
   }
 
-  frames.push(...effectFrames(cur, pid, as, target));
+  if (as === 'bang' && target) frames.push(...onPlayBangFrames(cur, pid, target));
+  frames.push(
+    ...effectFrames(cur, pid, as, target, opts).map((f) =>
+      // 탈출·믹 디펜더: 뱅!이 아닌 갈색 카드의 대상은 피할 기회를 얻는다
+      target && SINGLE_TARGET_EVADABLE.includes(f.k) ? withEvade(cur, target, pid, as, f) : f,
+    ),
+  );
+  frames.push(...onOtherPlaysCardFrames(cur, pid, as));
   return pushSeq(cur, frames);
 }
 
@@ -108,10 +155,17 @@ function equipBlueCard(
 ): GameState {
   const def = CARD_DEFS[as];
 
-  // 감옥은 상대 앞에 놓는다.
-  if (def.equip === 'other') {
-    if (!target) throw new Error('감옥은 대상이 필요하다');
-    return equipCard(state, target, card);
+  // 감옥·방울뱀·포상금은 상대 앞에, 유령은 제거된 사람 앞에 놓는다.
+  if (def.equip === 'other' || def.equip === 'eliminated') {
+    if (!target) throw new Error(`대상이 필요하다: ${def.nameKo}`);
+    const placed = equipCard(state, target, card);
+    if (def.equip !== 'eliminated') return placed;
+    // 유령: 제거된 사람이 목숨 없이 게임에 돌아온다.
+    return log(updatePlayer(placed, target, (p) => ({ ...p, ghost: true })), {
+      t: 'ghostRise',
+      pid: target,
+      text: `${ga(nameOf(placed, target))} 유령으로 돌아왔다.`,
+    });
   }
 
   // 무기는 한 번에 하나. 기존 무기는 버려진다.
@@ -135,7 +189,8 @@ function effectFrames(
   state: GameState,
   pid: PlayerId,
   as: CardKind,
-  target?: PlayerId,
+  target: PlayerId | undefined,
+  opts: PlayOptions,
 ): Frame[] {
   switch (as) {
     case 'bang':
@@ -148,12 +203,32 @@ function effectFrames(
           missesRequired: outgoingBangMissesOf(state, pid),
           cause: 'bang',
           dodgeChecked: false,
+          ...(opts.extra ? { damage: 2 } : {}),
         },
       ];
+    case 'fanning': {
+      if (!target) return [];
+      const shots: PlayerId[] = opts.target2 ? [target, opts.target2] : [target];
+      return shots.map((t): Frame => ({
+        k: 'bang',
+        source: pid,
+        target: t,
+        missesRequired: outgoingBangMissesOf(state, pid),
+        cause: 'fanning',
+        dodgeChecked: false,
+      }));
+    }
     case 'beer':
       // 생존자가 2명뿐이면 낼 수는 있지만 아무 효과가 없다 (카드만 버려진다).
       if (alivePlayers(state).length <= 2) return [];
       return [{ k: 'heal', pid, amount: 1 }];
+    case 'lastCall':
+      return [{ k: 'heal', pid, amount: 1 }];
+    case 'tomahawk':
+      if (!target) return [];
+      return [
+        { k: 'bang', source: pid, target, missesRequired: 1, cause: 'tomahawk', dodgeChecked: false },
+      ];
     case 'saloon':
       return [{ k: 'saloon', queue: alivePlayers(state).map((p) => p.id) }];
     case 'stagecoach':
@@ -169,6 +244,12 @@ function effectFrames(
     case 'duel':
       if (!target) return [];
       return [{ k: 'duel', a: pid, b: target, toPlay: target }];
+    case 'bandidos':
+      return [{ k: 'bandidos', source: pid, queue: othersInOrder(state, pid) }];
+    case 'poker':
+      return [{ k: 'poker', source: pid, queue: othersInOrder(state, pid), pot: [] }];
+    case 'tornado':
+      return [{ k: 'tornado', queue: [pid, ...othersInOrder(state, pid)] }];
     case 'panic':
       if (!target) return [];
       return [{ k: 'steal', source: pid, target, mode: 'panic' }];

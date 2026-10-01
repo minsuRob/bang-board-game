@@ -60,6 +60,26 @@ import {
   respondNewIdentity,
 } from './turn';
 import { resolveCheckWin } from './win';
+import {
+  resolveBandidos,
+  resolveEvelyn,
+  resolveLemonadeJim,
+  respondEvelyn,
+  respondLemonadeJim,
+  resolveSavedOffer,
+  resolveSavedReward,
+  respondSavedOffer,
+  respondSavedReward,
+  resolveEvade,
+  respondEvade,
+  resolveShotgunDiscard,
+  respondShotgunDiscard,
+  resolvePoker,
+  resolveTornado,
+  respondBandidos,
+  respondPoker,
+  respondTornado,
+} from './valley';
 
 export function resolveFrame(state: GameState, frame: Frame): GameState {
   switch (frame.k) {
@@ -131,6 +151,24 @@ export function resolveFrame(state: GameState, frame: Frame): GameState {
       return resolveBlackJackReveal(state, frame);
     case 'checkWin':
       return resolveCheckWin(state);
+    case 'bandidos':
+      return resolveBandidos(state, frame);
+    case 'poker':
+      return resolvePoker(state, frame);
+    case 'tornado':
+      return resolveTornado(state, frame);
+    case 'shotgunDiscard':
+      return resolveShotgunDiscard(state, frame);
+    case 'evade':
+      return resolveEvade(state, frame);
+    case 'evelyn':
+      return resolveEvelyn(state, frame);
+    case 'lemonadeJim':
+      return resolveLemonadeJim(state, frame);
+    case 'savedOffer':
+      return resolveSavedOffer(state, frame);
+    case 'savedReward':
+      return resolveSavedReward(state, frame);
     default: {
       const never: never = frame;
       throw new Error(`해결기가 없는 프레임: ${JSON.stringify(never)}`);
@@ -167,6 +205,24 @@ export function respondToFrame(state: GameState, frame: Frame, choice: Choice): 
       return respondJesseJones(state, frame, choice);
     case 'pedroRamirezChoice':
       return respondPedroRamirez(state, frame, choice);
+    case 'bandidos':
+      return respondBandidos(state, frame, choice);
+    case 'poker':
+      return respondPoker(state, frame, choice);
+    case 'tornado':
+      return respondTornado(state, frame, choice);
+    case 'shotgunDiscard':
+      return respondShotgunDiscard(state, frame, choice);
+    case 'evade':
+      return respondEvade(state, frame, choice);
+    case 'evelyn':
+      return respondEvelyn(state, frame, choice);
+    case 'lemonadeJim':
+      return respondLemonadeJim(state, frame, choice);
+    case 'savedOffer':
+      return respondSavedOffer(state, frame, choice);
+    case 'savedReward':
+      return respondSavedReward(state, frame, choice);
     default:
       throw new Error(`${frame.k} 프레임은 응답을 받지 않는다`);
   }

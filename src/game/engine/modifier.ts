@@ -9,8 +9,8 @@
  * 남고, 훅은 그때그때 조회한다 (engine/hooks.ts).
  */
 
-import type { CardId, CardKind } from '../data/types';
-import type { Frame, GameState, PlayerId } from './types';
+import type { CardId, CardKind, Suit } from '../data/types';
+import type { DamageCause, Frame, GameState, PlayerId } from './types';
 
 export type ModCtx = {
   state: GameState;
@@ -28,6 +28,12 @@ export type PlayAsAbility = {
   key: string;
   label: string;
   as: CardKind;
+  /** 이 종류의 카드만 바꿀 수 있다 (더 스팟: 뱅!만). 없으면 아무 카드나 */
+  from?: CardKind[];
+  /** 이 무늬의 카드만 (블랙 플라워 ♣). 실제 적용 무늬로 본다 */
+  suit?: Suit;
+  /** 차례당 뱅! 횟수를 쓰지 않는 추가 뱅!인가 (블랙 플라워) */
+  extra?: boolean;
 };
 
 export type Modifier = {
@@ -49,6 +55,8 @@ export type Modifier = {
   bangLimit?: (base: number) => number;
   /** 내가 쏜 뱅!을 막는 데 필요한 빗나감 장수 (슬랩 더 킬러 2) */
   outgoingBangMisses?: (base: number) => number;
+  /** 내가 뱅! 카드를 낼 때. 뱅! 프레임보다 먼저 해결된다 (콜로라도 빌) */
+  onPlayBang?: (ctx: ModCtx, target: PlayerId) => Frame[];
   /** 뱅!의 표적이 될 때 (술통·주르도네) */
   onTargetedByBang?: (ctx: ModCtx, source: PlayerId) => Frame[];
 
@@ -58,7 +66,14 @@ export type Modifier = {
 
   // --- 피해·탈락 --------------------------------------------------------
   /** 목숨을 잃을 때마다 (바트 캐시디·엘 그링고). amount 만큼 반복 호출되지 않고 한 번 받는다 */
-  onDamaged?: (ctx: ModCtx, amount: number, source: PlayerId | null) => Frame[];
+  onDamaged?: (
+    ctx: ModCtx,
+    amount: number,
+    source: PlayerId | null,
+    cause?: DamageCause,
+  ) => Frame[];
+  /** 내가 누군가에게 목숨을 잃게 했을 때 (샷건). ctx.pid 는 가해자 */
+  onDealtDamage?: (ctx: ModCtx, target: PlayerId, amount: number, cause: DamageCause) => Frame[];
   /** 손패가 비는 순간 (수지 라파예트) */
   onHandEmpty?: (ctx: ModCtx) => Frame[];
   /** 누군가 게임에서 제거될 때 (벌쳐 샘) */
@@ -82,7 +97,7 @@ export type Modifier = {
 
   // --- 카드 사용 --------------------------------------------------------
   /** 손에 든 from 종류 카드를 as 종류로 취급해 쓸 수 있는가 (칼라미티 자넷) */
-  canUseAs?: (from: CardKind, as: CardKind) => boolean;
+  canUseAs?: (from: CardKind, as: CardKind, ctx: ModCtx) => boolean;
   /**
    * 지금 이 종류의 카드를 쓸 수 있는가 (설교·목사·수갑).
    *
@@ -101,6 +116,13 @@ export type Modifier = {
    * holder 는 카드가 놓인 사람이다. 감옥이면 대상, 나머지는 자기 자신.
    */
   onPutInPlay?: (ctx: ModCtx, card: CardId, holder: PlayerId) => Frame[];
+
+  /** 내 카드(손패·앞)를 남이 가져가거나 버리게 했을 때. taker 가 그 사람 (헨리 블록) */
+  onCardTaken?: (ctx: ModCtx, taker: PlayerId) => Frame[];
+  /** 다른 사람이 카드를 낼 때 (레모네이드 짐: 맥주) */
+  onOtherPlaysCard?: (ctx: ModCtx, player: PlayerId, kind: CardKind) => Frame[];
+  /** 뱅!이 아닌 갈색 카드의 대상이 됐을 때 이 종류의 카드로 피할 수 있다 (믹 디펜더: 빗나감!) */
+  evadeBrownWith?: CardKind;
 
   // --- 기타 -------------------------------------------------------------
   /** 언제든 발동할 수 있는 능력 (시드 케첨) */

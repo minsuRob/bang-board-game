@@ -29,6 +29,14 @@ const CHARACTER_VALUE: Record<CharacterId, number> = {
   elGringo: 5,
   uncleWill: 6,
   johnnyKisch: 5,
+  blackFlower: 7,
+  coloradoBill: 6,
+  derSpotBurstRinger: 6,
+  evelynShebang: 7,
+  henryBlock: 5,
+  lemonadeJim: 5,
+  mickDefender: 6,
+  tucoFranziskaner: 7,
 };
 
 /** 역할이 좋아하는 성향 */

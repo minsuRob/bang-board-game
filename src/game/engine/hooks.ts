@@ -6,10 +6,11 @@
  */
 
 import { CHARACTER_MODIFIERS, equipmentModifier, EVENT_MODIFIERS } from '../modifiers';
+import { CARD_DEFS } from '../data/cards.base';
 import type { CardId, CardKind } from '../data/types';
 import { kindOf, playerOf } from './cards';
 import type { AnytimeAbility, ModCtx, Modifier, PlayAsAbility } from './modifier';
-import type { Frame, GameState, PlayerId } from './types';
+import type { DamageCause, Frame, GameState, PlayerId } from './types';
 
 const DEFAULT_ORDER = 50;
 
@@ -127,15 +128,22 @@ export function canUseCardAs(
   as: CardKind,
 ): boolean {
   if (from === as) return true;
-  return getModifiers(state, pid).some((m) => m.canUseAs?.(from, as) ?? false);
+  // 카드 자체가 다른 종류로도 치는 경우 (역화 = 빗나감!)
+  if (CARD_DEFS[from].countsAs === as) return true;
+  const ctx = ctxOf(state, pid);
+  return getModifiers(state, pid).some((m) => m.canUseAs?.(from, as, ctx) ?? false);
 }
 
 /** 이번 차례에 아직 쓸 수 있는 '아무 카드나 ~로' 능력 (엉클 윌) */
-export function playAnyAsAbilitiesOf(state: GameState, pid: PlayerId): PlayAsAbility[] {
+export function playAnyAsAbilitiesOf(
+  state: GameState,
+  pid: PlayerId,
+  includeUsed = false,
+): PlayAsAbility[] {
   const used = playerOf(state, pid).usedThisTurn;
   return getModifiers(state, pid)
     .flatMap((m) => (m.playAnyAs ? [m.playAnyAs] : []))
-    .filter((ab) => !used.includes(ab.key));
+    .filter((ab) => includeUsed || !used.includes(ab.key));
 }
 
 /** 언제든 쓸 수 있는 능력 목록 */
@@ -161,9 +169,24 @@ export function onDamagedFrames(
   target: PlayerId,
   amount: number,
   source: PlayerId | null,
+  cause?: DamageCause,
 ): Frame[] {
   const ctx = ctxOf(state, target);
-  return getModifiers(state, target).flatMap((m) => m.onDamaged?.(ctx, amount, source) ?? []);
+  return getModifiers(state, target).flatMap((m) => m.onDamaged?.(ctx, amount, source, cause) ?? []);
+}
+
+/** 가해자 쪽 훅 (샷건). 가해자가 자리에 없으면 울리지 않는다 */
+export function onDealtDamageFrames(
+  state: GameState,
+  source: PlayerId,
+  target: PlayerId,
+  amount: number,
+  cause: DamageCause,
+): Frame[] {
+  const p = state.players.find((x) => x.id === source);
+  if (!p || !(p.alive || p.ghost)) return [];
+  const ctx = ctxOf(state, source);
+  return getModifiers(state, source).flatMap((m) => m.onDealtDamage?.(ctx, target, amount, cause) ?? []);
 }
 
 export function onHandEmptyFrames(state: GameState, pid: PlayerId): Frame[] {
@@ -250,4 +273,63 @@ export function playableAs(
   return p.hand.filter(
     (c) => canUseCardAs(state, pid, kindOf(c), as) && canPlayCard(state, pid, as, c, reactive),
   );
+}
+
+/**
+ * 뱅!이 아닌 갈색 카드(kind)의 대상이 된 pid 가 그 효과를 피하려고 낼 수 있는 카드.
+ * 탈출 카드는 누구나, 믹 디펜더는 빗나감!(으로 칠 수 있는 카드)도 낸다. 남의 차례에 내는
+ * 반응이라 reactive 로 판정한다.
+ */
+export function evadeOptions(state: GameState, pid: PlayerId, kind: CardKind): CardId[] {
+  // 패닝은 뱅!으로 친다
+  if (kind === 'bang' || kind === 'fanning' || CARD_DEFS[kind].category !== 'brown') return [];
+  const p = playerOf(state, pid);
+  const out = new Set<CardId>(
+    p.hand.filter((c) => kindOf(c) === 'escape' && canPlayCard(state, pid, 'escape', c, true)),
+  );
+  for (const m of getModifiers(state, pid)) {
+    if (!m.evadeBrownWith) continue;
+    for (const c of playableAs(state, pid, m.evadeBrownWith, true)) out.add(c);
+  }
+  return [...out];
+}
+
+/** 피할 카드가 있으면 evade 로 감싸고, 없으면 그대로 */
+export function withEvade(
+  state: GameState,
+  pid: PlayerId,
+  source: PlayerId,
+  kind: CardKind,
+  then: Frame,
+): Frame {
+  if (pid === source) return then;
+  return evadeOptions(state, pid, kind).length > 0 ? { k: 'evade', pid, source, kind, then } : then;
+}
+
+export function onPlayBangFrames(state: GameState, pid: PlayerId, target: PlayerId): Frame[] {
+  const ctx = ctxOf(state, pid);
+  return getModifiers(state, pid).flatMap((m) => m.onPlayBang?.(ctx, target) ?? []);
+}
+
+/** 조건(종류·무늬·추가 뱅!)이 붙은 능력은 액션에 ability 로 명시해서 낸다 */
+export function isExplicitAbility(ab: PlayAsAbility): boolean {
+  return Boolean(ab.from || ab.suit || ab.extra);
+}
+
+/** 헨리 블록: victim 의 카드를 taker 가 가져가거나 버리게 했다 */
+export function onCardTakenFrames(state: GameState, victim: PlayerId, taker: PlayerId): Frame[] {
+  if (victim === taker) return [];
+  const ctx = ctxOf(state, victim);
+  return getModifiers(state, victim).flatMap((m) => m.onCardTaken?.(ctx, taker) ?? []);
+}
+
+/** 레모네이드 짐: player 가 kind 카드를 냈다. 자리에 있는 다른 사람들의 훅을 좌석 순으로 */
+export function onOtherPlaysCardFrames(state: GameState, player: PlayerId, kind: CardKind): Frame[] {
+  const frames: Frame[] = [];
+  for (const p of state.players) {
+    if (p.id === player || !(p.alive || p.ghost)) continue;
+    const ctx = ctxOf(state, p.id);
+    for (const m of getModifiers(state, p.id)) frames.push(...(m.onOtherPlaysCard?.(ctx, player, kind) ?? []));
+  }
+  return frames;
 }

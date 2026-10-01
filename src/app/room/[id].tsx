@@ -165,6 +165,19 @@ export default function RoomScreen() {
             />
           </Setting>
 
+          <Setting title="그림자의 계곡">
+            <Chip
+              label="끄기"
+              active={!room.valley}
+              onPress={() => updateRoomSettings(room.code, { valley: false })}
+            />
+            <Chip
+              label="켜기"
+              active={Boolean(room.valley)}
+              onPress={() => updateRoomSettings(room.code, { valley: true })}
+            />
+          </Setting>
+
           <Setting title="탈락자 채팅">
             <Chip
               label="허용"

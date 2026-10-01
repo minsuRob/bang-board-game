@@ -8,7 +8,7 @@
  * 모두 고른 뒤에야 목숨이 정해지고 시작 손패가 돌아간다 (frames/draft.ts).
  */
 
-import { BASE_DECK } from '../data/cards.base';
+import { deckFor } from '../data/cards.base';
 import { HIGHNOON_FINAL_ID, HIGHNOON_SHUFFLED_IDS } from '../data/cards.highnoon';
 import { charactersFor } from '../data/characters';
 import { MAX_PLAYERS, MIN_PLAYERS, ROLE_DISTRIBUTION } from '../data/roles';
@@ -81,7 +81,7 @@ export function createGame(seed: number, config: GameConfig, seats: Seat[]): Gam
   });
 
   // 플레잉 카드 덱. 시작 손패는 드래프트가 끝나고 목숨이 정해진 뒤에 돌린다.
-  const deckRolled = shuffle(rng, BASE_DECK.map((c) => c.id));
+  const deckRolled = shuffle(rng, deckFor(config.expansions).map((c) => c.id));
   rng = deckRolled.rng;
   const deck = deckRolled.value;
 

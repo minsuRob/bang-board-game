@@ -13,6 +13,10 @@ import { jail } from './jail';
 import { mustang } from './mustang';
 import { scope } from './scope';
 import { volcanic } from './volcanic';
+import { bounty } from './bounty';
+import { lemat } from './lemat';
+import { rattlesnake } from './rattlesnake';
+import { shotgun } from './shotgun';
 
 type Factory = (card: CardId) => Modifier;
 
@@ -23,6 +27,10 @@ const FACTORIES: Partial<Record<CardKind, Factory>> = {
   volcanic,
   dynamite,
   jail,
+  bounty,
+  lemat,
+  rattlesnake,
+  shotgun,
 };
 
 export function equipmentModifier(kind: CardKind, card: CardId): Modifier | null {

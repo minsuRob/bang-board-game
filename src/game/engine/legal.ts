@@ -11,18 +11,20 @@ import { SUITS } from '../data/types';
 import { SID_KETCHUM_ABILITY } from '../modifiers';
 import {
   alivePlayers,
+  effectiveSuit,
   inPlay,
   kindOf,
   playerOf,
   seatedPlayers,
   topFrame,
 } from './cards';
-import { canReachAtRange, canReachWithBang } from './distance';
+import { canReachAtRange, canReachWithBang, distance } from './distance';
 import {
   anytimeAbilitiesOf,
   bangLimitOf,
   canPlayCard,
   canUseCardAs,
+  isExplicitAbility,
   playAnyAsAbilitiesOf,
   playableAs,
 } from './hooks';
@@ -40,6 +42,9 @@ export function actionKey(action: Action): string {
         action.as ?? '',
         action.target ?? '',
         action.pick ? (action.pick.zone === 'hand' ? `h${action.pick.index}` : `e${action.pick.card}`) : '',
+        action.target2 ?? '',
+        action.extra ?? '',
+        action.ability ?? '',
       ].join('|');
     case 'respond': {
       const c = action.choice;
@@ -202,6 +207,34 @@ function respondActions(state: GameState, pid: PlayerId): Action[] {
       out.push({ type: 'respond', pid, choice: { c: 'yes' } });
       out.push(pass);
       break;
+    case 'evelyn':
+      for (const target of a.targets) {
+        out.push({ type: 'respond', pid, choice: { c: 'player', pid: target } });
+      }
+      out.push(pass);
+      break;
+    case 'saved':
+      for (const card of unique(a.options)) {
+        out.push({ type: 'respond', pid, choice: { c: 'card', card } });
+      }
+      out.push(pass);
+      break;
+    case 'savedReward':
+      out.push({ type: 'respond', pid, choice: { c: 'yes' } });
+      out.push(pass);
+      break;
+    case 'evade':
+      for (const card of unique(a.options)) {
+        out.push({ type: 'respond', pid, choice: { c: 'card', card } });
+      }
+      out.push(pass);
+      break;
+    case 'discardChoice':
+      for (const card of unique(a.options)) {
+        out.push({ type: 'respond', pid, choice: { c: 'card', card } });
+      }
+      if (a.canPass) out.push(pass);
+      break;
     case 'declareSuit':
       for (const suit of SUITS) {
         out.push({ type: 'respond', pid, choice: { c: 'suit', suit: suit as Suit } });
@@ -225,7 +258,9 @@ function usableKinds(state: GameState, pid: PlayerId, card: CardId): CardKind[] 
   for (const as of ['bang', 'missed'] as CardKind[]) {
     if (canUseCardAs(state, pid, own, as)) kinds.add(as);
   }
-  for (const ab of playAnyAsAbilitiesOf(state, pid)) kinds.add(ab.as);
+  for (const ab of playAnyAsAbilitiesOf(state, pid)) {
+    if (!isExplicitAbility(ab)) kinds.add(ab.as);
+  }
   return [...kinds];
 }
 
@@ -242,14 +277,42 @@ function playPhaseActions(state: GameState, pid: PlayerId): Action[] {
       switch (as) {
         case 'bang': {
           if (!bangsLeft) break;
+          // 조준: 뱅!과 함께 낼 수 있는 카드
+          const aims = unique(me.hand).filter(
+            (c) => c !== card && kindOf(c) === 'aim' && canPlayCard(state, pid, 'aim', c, false),
+          );
           for (const t of seatedPlayers(state)) {
             if (t.id === pid || !t.alive) continue;
             if (canReachWithBang(state, pid, t.id)) {
               out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
+              for (const extra of aims) {
+                out.push({ type: 'playCard', pid, card, as: explicit, target: t.id, extra });
+              }
             }
           }
           break;
         }
+        case 'fanning': {
+          if (!bangsLeft) break;
+          for (const t of seatedPlayers(state)) {
+            if (t.id === pid || !t.alive) continue;
+            if (!canReachWithBang(state, pid, t.id)) continue;
+            // 두 번째 표적: 첫 표적에서 거리 1, 나 제외 (원본 맵 v0.327)
+            const seconds = alivePlayers(state).filter(
+              (u) => u.id !== pid && u.id !== t.id && distance(state, t.id, u.id) <= 1,
+            );
+            if (seconds.length === 0) {
+              out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
+            }
+            for (const u of seconds) {
+              out.push({ type: 'playCard', pid, card, as: explicit, target: t.id, target2: u.id });
+            }
+          }
+          break;
+        }
+        case 'aim':
+          // 조준은 뱅!과 함께만 낸다.
+          break;
         case 'missed':
           // 빗나감!은 반응으로만 낸다.
           break;
@@ -257,12 +320,30 @@ function playPhaseActions(state: GameState, pid: PlayerId): Action[] {
           // 낼 수는 있다. 생존자가 2명뿐이거나 목숨이 가득이면 효과가 없을 뿐이다.
           out.push({ type: 'playCard', pid, card, as: explicit });
           break;
+        case 'lastCall':
+          // 맥주가 아니므로 2인에도 쓸 수 있다.
+          if (me.hp < me.maxHp && !me.ghost) {
+            out.push({ type: 'playCard', pid, card, as: explicit });
+          }
+          break;
+        case 'tomahawk':
+          // 무기와 무관하게 거리 2 이내. 뱅! 카드가 아니라 횟수를 쓰지 않는다.
+          for (const t of seatedPlayers(state)) {
+            if (t.id === pid || !t.alive) continue;
+            if (canReachAtRange(state, pid, t.id, 2)) {
+              out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
+            }
+          }
+          break;
         case 'saloon':
         case 'stagecoach':
         case 'wellsFargo':
         case 'generalStore':
         case 'gatling':
         case 'indians':
+        case 'bandidos':
+        case 'poker':
+        case 'tornado':
           out.push({ type: 'playCard', pid, card, as: explicit });
           break;
         case 'duel':
@@ -312,13 +393,55 @@ function playPhaseActions(state: GameState, pid: PlayerId): Action[] {
           // 나머지 파랑 카드는 자기 앞에 장착한다.
           const def = CARD_DEFS[as];
           if (def.category !== 'blue') break;
-          if (def.equip === 'weapon') {
+          if (def.equip === 'other') {
+            // 방울뱀·포상금: 다른 생존자 앞에 (같은 이름이 이미 있으면 안 된다)
+            for (const t of alivePlayers(state)) {
+              if (t.id === pid || hasSameBlueCard(state, t.id, as)) continue;
+              out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
+            }
+          } else if (def.equip === 'eliminated') {
+            // 유령: 제거되어 자리에 없는 사람 앞에
+            for (const t of state.players) {
+              if (t.alive || t.ghost || hasSameBlueCard(state, t.id, as)) continue;
+              out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
+            }
+          } else if (def.equip === 'weapon') {
             out.push({ type: 'playCard', pid, card, as: explicit });
           } else if (!hasSameBlueCard(state, pid, as)) {
             out.push({ type: 'playCard', pid, card, as: explicit });
           }
           break;
         }
+      }
+    }
+  }
+  out.push(...explicitAbilityActions(state, pid, bangsLeft));
+  return out;
+}
+
+/**
+ * 조건이 붙은 차례당 한 번 능력 (블랙 플라워 ♣ → 추가 뱅!, 더 스팟 뱅! → 기관총).
+ * 액션에 ability 를 명시해서, 같은 카드를 일반으로 내는 것과 구별한다.
+ */
+function explicitAbilityActions(state: GameState, pid: PlayerId, bangsLeft: boolean): Action[] {
+  const me = playerOf(state, pid);
+  const out: Action[] = [];
+  for (const ab of playAnyAsAbilitiesOf(state, pid)) {
+    if (!isExplicitAbility(ab)) continue;
+    for (const card of unique(me.hand)) {
+      const own = kindOf(card);
+      if (ab.from && !ab.from.includes(own)) continue;
+      if (ab.suit && effectiveSuit(state, card) !== ab.suit) continue;
+      if (!canPlayCard(state, pid, ab.as, card, false)) continue;
+      const as = ab.as === own ? undefined : ab.as;
+      if (ab.as === 'bang') {
+        if (!ab.extra && !bangsLeft) continue;
+        for (const t of seatedPlayers(state)) {
+          if (t.id === pid || !t.alive || !canReachWithBang(state, pid, t.id)) continue;
+          out.push({ type: 'playCard', pid, card, as, target: t.id, ability: ab.key });
+        }
+      } else if (CARD_DEFS[ab.as].category === 'brown') {
+        out.push({ type: 'playCard', pid, card, as, ability: ab.key });
       }
     }
   }

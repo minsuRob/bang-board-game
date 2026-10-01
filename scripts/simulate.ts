@@ -5,6 +5,7 @@
  * 실패하면 시드를 찍어 주므로 그 판을 그대로 재현할 수 있다.
  *
  *   npm run simulate -- --games 200 --players 7 --highnoon
+ *   npm run simulate -- --games 200 --players 7 --valley
  */
 
 import { analyze, decide, inferDepthOf, type AiTier } from '../src/game/ai';
@@ -23,6 +24,7 @@ type Options = {
   players: number;
   seed: number;
   highnoon: boolean;
+  valley: boolean;
   tiers: AiTier[];
   maxSteps: number;
   verbose: boolean;
@@ -40,6 +42,7 @@ function parseArgs(argv: string[]): Options {
     players: Number(get('players', '7')),
     seed: Number(get('seed', '1')),
     highnoon: has('highnoon'),
+    valley: has('valley'),
     tiers: get('tiers', 'hard,medium,easy').split(',') as AiTier[],
     maxSteps: Number(get('maxSteps', '6000')),
     verbose: has('verbose'),
@@ -124,7 +127,13 @@ function playOne(seed: number, opts: Options): GameOutcome {
   const start: Action = {
     type: 'startGame',
     seed,
-    config: { playerCount: opts.players, expansions: opts.highnoon ? ['highnoon'] : [] },
+    config: {
+      playerCount: opts.players,
+      expansions: [
+        ...(opts.highnoon ? (['highnoon'] as const) : []),
+        ...(opts.valley ? (['valley'] as const) : []),
+      ],
+    },
     seats,
   };
   const history: Action[] = [start];
@@ -195,9 +204,11 @@ function checkInvariants(state: GameState, seed: number, step: number, history: 
       if (f.k === 'judgement') return n + f.candidates.length;
       if (f.k === 'generalStore') return n + f.revealed.length;
       if (f.k === 'kitCarlson') return n + f.candidates.length;
+      if (f.k === 'poker') return n + f.pot.length;
       return n;
     }, 0);
-  if (total !== 80) {
+  const expected = state.config.expansions.includes('valley') ? 96 : 80;
+  if (total !== expected) {
     throw new SimulationError(`카드가 ${total}장이다 (step ${step})`, seed, history);
   }
   for (const p of state.players) {
@@ -306,7 +317,8 @@ function main() {
   const started = Date.now();
   console.log(
     `${opts.games}판 시뮬레이션 — ${opts.players}인, 난이도 ${opts.tiers.join('/')}` +
-      (opts.highnoon ? ', 하이 눈' : ''),
+      (opts.highnoon ? ', 하이 눈' : '') +
+      (opts.valley ? ', 그림자의 계곡' : ''),
   );
 
   const report = simulate(opts);

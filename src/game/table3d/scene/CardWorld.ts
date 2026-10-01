@@ -313,7 +313,9 @@ export class CardWorld {
         return i < 0 ? this.centerPose() : this.equipmentPose(i, ordinal, count, card);
       }
       case 'limbo':
-        return zone.kind === 'store' ? this.storePose(ordinal, count) : this.centerPose(0.05);
+        return zone.kind === 'store' || zone.kind === 'poker'
+          ? this.storePose(ordinal, count)
+          : this.centerPose(0.05);
     }
   }
 

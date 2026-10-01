@@ -40,6 +40,8 @@ export default function GameScreen() {
     players?: string;
     tier?: string;
     highnoon?: string;
+    /** 1이면 그림자의 계곡 카드·캐릭터를 섞는다 */
+    valley?: string;
     seed?: string;
     /** 1이면 내 자리까지 AI가 두는 관전 모드 */
     auto?: string;
@@ -92,6 +94,7 @@ export default function GameScreen() {
         seed: resumed.seed,
         players: saved.config.playerCount,
         highnoon: saved.config.expansions.includes('highnoon'),
+        valley: saved.config.expansions.includes('valley'),
         seats: resumed.seats as SeatSetup[],
         controlled: resumed.controlled,
         auto: resumed.controlled.length === 0,
@@ -102,6 +105,7 @@ export default function GameScreen() {
     const tier = (params.tier ?? 'medium') as AiTier;
     const seed = Number(params.seed ?? 1) || 1;
     const highnoon = params.highnoon === '1';
+    const valley = params.valley === '1';
     const seats: SeatSetup[] = Array.from({ length: players }, (_, i) => ({
       id: `p${i}`,
       name: i === 0 ? '나' : AI_NAMES[(i - 1) % AI_NAMES.length],
@@ -110,8 +114,8 @@ export default function GameScreen() {
     }));
     const auto = params.auto === '1';
     // 관전 모드에서는 아무 자리도 조작하지 않는다. 구동기가 전부 대신 둔다.
-    return { seed, players, highnoon, seats, controlled: auto ? [] : ['p0'], auto, resume: undefined };
-  }, [resumed, params.players, params.tier, params.seed, params.highnoon, params.auto]);
+    return { seed, players, highnoon, valley, seats, controlled: auto ? [] : ['p0'], auto, resume: undefined };
+  }, [resumed, params.players, params.tier, params.seed, params.highnoon, params.valley, params.auto]);
 
   const conn = useRoomConnection(code);
   useOnlineGameSession(code, conn);
@@ -133,7 +137,10 @@ export default function GameScreen() {
       seed: setup.seed,
       config: setup.resume?.config ?? {
         playerCount: setup.players,
-        expansions: setup.highnoon ? ['highnoon'] : [],
+        expansions: [
+          ...(setup.highnoon ? (['highnoon'] as const) : []),
+          ...(setup.valley ? (['valley'] as const) : []),
+        ],
       },
       seats: setup.seats,
       controlled: setup.controlled,

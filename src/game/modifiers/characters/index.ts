@@ -25,6 +25,14 @@ import { suzyLafayette } from './suzy-lafayette';
 import { uncleWill } from './uncle-will';
 import { vultureSam } from './vulture-sam';
 import { willyTheKid } from './willy-the-kid';
+import { blackFlower } from './black-flower';
+import { coloradoBill } from './colorado-bill';
+import { derSpotBurstRinger } from './der-spot-burst-ringer';
+import { evelynShebang } from './evelyn-shebang';
+import { henryBlock } from './henry-block';
+import { lemonadeJim } from './lemonade-jim';
+import { mickDefender } from './mick-defender';
+import { tucoFranziskaner } from './tuco-franziskaner';
 
 export const CHARACTER_MODIFIERS: Record<CharacterId, Modifier> = {
   bartCassidy,
@@ -45,8 +53,18 @@ export const CHARACTER_MODIFIERS: Record<CharacterId, Modifier> = {
   willyTheKid,
   uncleWill,
   johnnyKisch,
+  blackFlower,
+  coloradoBill,
+  derSpotBurstRinger,
+  evelynShebang,
+  henryBlock,
+  lemonadeJim,
+  mickDefender,
+  tucoFranziskaner,
 };
 
 export { SID_KETCHUM_ABILITY } from './sid-ketchum';
 export { SUZY_REASON } from './suzy-lafayette';
 export { UNCLE_WILL_ABILITY } from './uncle-will';
+export { BLACK_FLOWER_ABILITY } from './black-flower';
+export { DER_SPOT_ABILITY } from './der-spot-burst-ringer';

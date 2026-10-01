@@ -22,7 +22,7 @@ import {
   toDiscard,
   updatePlayer,
 } from '../cards';
-import { afterDrawFrames } from '../hooks';
+import { afterDrawFrames, onCardTakenFrames } from '../hooks';
 import { nextInt } from '../rng';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 import { eul, ga } from '../josa';
@@ -74,6 +74,7 @@ export function resolveDrawFromPlayer(
   }
   if (taken.length === 0) return cur;
 
+  cur = pushSeq(cur, onCardTakenFrames(cur, frame.from, frame.pid));
   cur = giveCards(cur, frame.pid, taken);
   return log(cur, {
     t: 'steal',
@@ -246,6 +247,8 @@ export function respondSteal(
   }
   let cur = popFrame(state);
   if (!card) return cur;
+  // 헨리 블록: 내 카드를 가져가거나 버리게 한 사람은 뱅!의 표적이 된다
+  cur = pushSeq(cur, onCardTakenFrames(cur, frame.target, frame.source));
 
   const picked = card;
   cur = updatePlayer(cur, frame.target, (p) =>

@@ -31,6 +31,8 @@ const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
   jourdonnais: '주르도네',
   dynamite: '다이너마이트',
   jail: '감옥',
+  rattlesnake: '방울뱀',
+  coloradoBill: '콜로라도 빌',
 };
 
 /** 스택에서 가장 위에 있는 뱅! 프레임의 요구 빗나감 장수를 1 줄인다. */
@@ -39,6 +41,18 @@ function creditDodge(state: GameState): GameState {
     const f = state.stack[i];
     if (f.k === 'bang') {
       const next: Frame = { ...f, missesRequired: Math.max(0, f.missesRequired - 1) };
+      return { ...state, stack: [...state.stack.slice(0, i), next, ...state.stack.slice(i + 1)] };
+    }
+  }
+  return state;
+}
+
+/** 스택에서 가장 위에 있는 뱅! 프레임을 피할 수 없게 만든다 (콜로라도 빌) */
+function markUnavoidable(state: GameState): GameState {
+  for (let i = state.stack.length - 1; i >= 0; i--) {
+    const f = state.stack[i];
+    if (f.k === 'bang') {
+      const next: Frame = { ...f, unavoidable: true };
       return { ...state, stack: [...state.stack.slice(0, i), next, ...state.stack.slice(i + 1)] };
     }
   }
@@ -121,6 +135,14 @@ function applyJudgement(
       return resolveDynamiteResult(cur, pid, suit, inst.rank);
     case 'jail':
       return resolveJailResult(cur, pid, suit);
+    case 'rattlesnake':
+      if (suit !== 'spades') return cur;
+      cur = log(cur, { t: 'rattlesnake', pid, text: `방울뱀이 ${ga(nameOf(cur, pid))} 물었다.` });
+      return pushSeq(cur, [{ k: 'damage', target: pid, amount: 1, source: null, cause: 'rattlesnake' }]);
+    case 'coloradoBill':
+      if (suit !== 'spades') return cur;
+      cur = markUnavoidable(cur);
+      return log(cur, { t: 'coloradoBill', pid, text: '♠ — 이 총알은 피할 수 없다.' });
   }
 }
 

@@ -105,6 +105,22 @@ const EMBLEM: Record<CardKind, Emblem> = {
   winchester: 'bar',
   jail: 'bars',
   dynamite: 'blast',
+  // 그림자의 계곡
+  bandidos: 'twoBullets',
+  escape: 'ring',
+  aim: 'bullet',
+  poker: 'card',
+  backfire: 'ring',
+  saved: 'plus',
+  fanning: 'twoBullets',
+  tomahawk: 'bullet',
+  tornado: 'card',
+  lastCall: 'plus',
+  ghost: 'ring',
+  lemat: 'bar',
+  rattlesnake: 'bars',
+  shotgun: 'bar',
+  bounty: 'card',
 };
 
 function insideEmblem(e: Emblem, x: number, y: number): boolean {
