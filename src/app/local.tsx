@@ -13,6 +13,7 @@ export default function LocalSetupScreen() {
   const [players, setPlayers] = useState(5);
   const [tier, setTier] = useState<AiTier>('medium');
   const [highnoon, setHighnoon] = useState(false);
+  const [goldrush, setGoldrush] = useState(false);
   const [seed, setSeed] = useState(() => Math.floor(Date.now() % 100000));
 
   return (
@@ -54,6 +55,13 @@ export default function LocalSetupScreen() {
         <Text style={styles.hint}>
           하이 눈은 보안관의 두 번째 차례부터 매 라운드 상황 카드가 하나씩 열린다.
         </Text>
+        <Row>
+          <Chip label="골드 러시 없음" active={!goldrush} onPress={() => setGoldrush(false)} />
+          <Chip label="골드 러시" active={goldrush} onPress={() => setGoldrush(true)} />
+        </Row>
+        <Text style={styles.hint}>
+          골드 러시는 상처를 입히거나 맥주를 팔아 금덩이를 모으고, 상점에서 장비를 산다. 하이 눈과 같이 켤 수 있다.
+        </Text>
       </Section>
 
       <Section title="시드">
@@ -76,6 +84,7 @@ export default function LocalSetupScreen() {
               players: String(players),
               tier,
               highnoon: highnoon ? '1' : '0',
+              goldrush: goldrush ? '1' : '0',
               seed: String(seed),
             },
           })

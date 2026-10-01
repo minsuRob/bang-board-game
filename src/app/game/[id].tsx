@@ -29,6 +29,7 @@ export default function GameScreen() {
     players?: string;
     tier?: string;
     highnoon?: string;
+    goldrush?: string;
     seed?: string;
     /** 1이면 내 자리까지 AI가 두는 관전 모드 */
     auto?: string;
@@ -51,14 +52,15 @@ export default function GameScreen() {
     const tier = (params.tier ?? 'medium') as AiTier;
     const seed = Number(params.seed ?? 1) || 1;
     const highnoon = params.highnoon === '1';
+    const goldrush = params.goldrush === '1';
     const seats: SeatSetup[] = Array.from({ length: players }, (_, i) => ({
       id: `p${i}`,
       name: i === 0 ? '나' : AI_NAMES[(i - 1) % AI_NAMES.length],
       human: i === 0,
       tier,
     }));
-    return { seed, players, highnoon, seats, auto: params.auto === '1' };
-  }, [params.players, params.tier, params.seed, params.highnoon, params.auto]);
+    return { seed, players, highnoon, goldrush, seats, auto: params.auto === '1' };
+  }, [params.players, params.tier, params.seed, params.highnoon, params.goldrush, params.auto]);
 
   const conn = useRoomConnection(code);
   useOnlineGameSession(code, conn);
@@ -78,7 +80,10 @@ export default function GameScreen() {
       seed: setup.seed,
       config: {
         playerCount: setup.players,
-        expansions: setup.highnoon ? ['highnoon'] : [],
+        expansions: [
+          ...(setup.highnoon ? (['highnoon'] as const) : []),
+          ...(setup.goldrush ? (['goldrush'] as const) : []),
+        ],
       },
       seats: setup.seats,
       // 관전 모드에서는 아무 자리도 조작하지 않는다. 구동기가 전부 대신 둔다.
