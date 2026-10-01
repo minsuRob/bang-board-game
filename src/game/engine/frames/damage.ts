@@ -26,10 +26,14 @@ import { saversFor } from './valley';
 import {
   anytimeAbilitiesOf,
   canPlayCard,
+  goldAbilitiesOf,
+  onBeerPlayedFrames,
   onDamagedFrames,
   onDealtDamageFrames,
   onEliminatedFrames,
 } from '../hooks';
+import { goldKindOf } from '../../data/cards.goldrush';
+import { addNuggets, discardGold, goldEnabled, goldEquipOf, nuggetsOf, woundsBeforeLast } from '../gold';
 import type { Choice, Frame, GameState } from '../types';
 import { ga, neun } from '../josa';
 
@@ -68,6 +72,22 @@ export function resolveDamage(state: GameState, frame: Frame & { k: 'damage' }):
     amount: frame.amount,
     text: `${ga(nameOf(cur, p.id))} 목숨 ${frame.amount}을 잃었다 (남은 목숨 ${Math.max(0, hp)}).`,
   });
+
+  // 골드 러시: 남에게 입힌 상처 1점마다 금덩이 1개. 자해와 죽이는 마지막 한 점은 세지 않는다.
+  const wounder = frame.credit ?? frame.source ?? null;
+  if (goldEnabled(cur) && wounder && wounder !== p.id) {
+    const n = woundsBeforeLast(p.hp, frame.amount);
+    const w = playerOf(cur, wounder);
+    if (n > 0 && (w.alive || w.ghost)) {
+      cur = addNuggets(cur, wounder, n);
+      cur = log(cur, {
+        t: 'nugget',
+        pid: wounder,
+        amount: n,
+        text: `${ga(nameOf(cur, wounder))} 금덩이 ${n}개를 얻었다.`,
+      });
+    }
+  }
 
   // 능력이 먼저 울린다. 바트 캐시디가 뽑은 카드에 맥주가 있을 수 있기 때문이다.
   const frames: Frame[] = onDamagedFrames(cur, p.id, frame.amount, frame.source, frame.cause);
@@ -122,7 +142,9 @@ export function resolveCheckDeath(
   const needed = 1 - p.hp;
   const beers = survivors > 2 ? survivableBeers(state, frame.target) : [];
   // 시드 케첨은 맥주 카드가 아니므로 목사 중에도, 맥주가 모자라도 살아날 길이 된다.
-  const canUseAbility = anytimeAbilitiesOf(state, frame.target).length > 0 && p.hand.length >= 2;
+  const canUseAbility =
+    (anytimeAbilitiesOf(state, frame.target).length > 0 && p.hand.length >= 2) ||
+    goldAbilitiesOf(state, frame.target).some((ab) => ab.whenDying && nuggetsOf(p) >= ab.cost);
 
   // 살아날 가능성이 없으면 물어보지 않는다.
   if (beers.length < needed && !canUseAbility) {
@@ -177,7 +199,8 @@ export function respondCheckDeath(
     text: `${ga(nameOf(cur, p.id))} 맥주를 마시고 버텼다.`,
   });
   // 프레임은 그대로 둔다. 아직 목숨이 0 이하면 다시 물어본다.
-  return cur;
+  // 그 위에 맥주에 반응하는 훅(마담 이토)을 먼저 해결한다.
+  return pushSeq(cur, onBeerPlayedFrames(cur, p.id));
 }
 
 export function resolveEliminate(
@@ -204,6 +227,8 @@ export function resolveEliminate(
 
   return pushSeq(cur, [
     ...onEliminatedFrames(cur, p.id),
+    // 수배 보상은 정리(장비 버림)와 보안관 벌칙보다 먼저다 (설명서 FAQ)
+    ...(goldEnabled(cur) ? [{ k: 'wantedReward', killer: frame.killer, victim: p.id } as Frame] : []),
     { k: 'eliminateCleanup', target: p.id },
     { k: 'bountyOrPenalty', killer: frame.killer, victim: p.id },
     { k: 'checkWin' },
@@ -217,11 +242,39 @@ export function resolveEliminateCleanup(
 ): GameState {
   let cur = popFrame(state);
   const p = playerOf(cur, frame.target);
+  // 골드 장비(수배 포함)는 장비 버린 더미로. 벌쳐 샘은 가져가지 못한다.
+  const gold = goldEquipOf(p);
+  if (gold.length > 0) {
+    cur = updatePlayer(cur, p.id, (x) => ({ ...x, goldEquipment: [] }));
+    cur = discardGold(cur, gold);
+  }
   const cards = [...p.hand, ...p.equipment];
   if (cards.length === 0) return cur;
 
   cur = updatePlayer(cur, p.id, (x) => ({ ...x, hand: [], equipment: [] }));
   return toDiscard(cur, cards);
+}
+
+/** 골드 러시 수배: 수배가 붙은 사람을 제거한 사람이 카드 2장과 금덩이 1개를 받는다 */
+export function resolveWantedReward(
+  state: GameState,
+  frame: Frame & { k: 'wantedReward' },
+): GameState {
+  let cur = popFrame(state);
+  const victim = playerOf(cur, frame.victim);
+  const wanted = goldEquipOf(victim).some((c) => goldKindOf(c) === 'wanted');
+  if (!wanted || !frame.killer || frame.killer === frame.victim) return cur;
+  const killer = playerOf(cur, frame.killer);
+  if (!killer.alive) return cur;
+
+  cur = addNuggets(cur, killer.id, 1);
+  cur = log(cur, {
+    t: 'wanted',
+    pid: killer.id,
+    target: victim.id,
+    text: `수배범을 잡았다. ${ga(nameOf(cur, killer.id))} 카드 2장과 금덩이 1개를 받는다.`,
+  });
+  return pushSeq(cur, [{ k: 'drawCards', pid: killer.id, count: 2, reason: 'wanted' }]);
 }
 
 /**

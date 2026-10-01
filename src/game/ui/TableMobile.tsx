@@ -28,6 +28,7 @@ import type { CardId, Role } from '../data/types';
 import { distance, kindOf, type GameState, type Player, type PlayerId } from '../engine';
 import { usePresence } from '../store/presence';
 import { ActionBar } from './ActionBar';
+import { GoldPanel } from './GoldPanel';
 import { DraftPanel } from './DraftPanel';
 import { CharacterDetailModal } from './CharacterDetail';
 import { PlayedCardSpotlight } from './PlayedCardSpotlight';
@@ -184,6 +185,16 @@ export function TableMobile({
         <DraftPanel draft={api.draft} viewer={viewer} onPick={api.pickCharacter} compact />
       ) : (
         <>
+          {view.gold ? (
+            <GoldPanel
+              view={view}
+              viewer={viewer}
+              actions={api.goldActions}
+              send={api.sendGold}
+              prompt={api.prompt}
+              respond={api.respond}
+            />
+          ) : null}
           <ActionBar
             prompt={api.prompt}
             onRespond={api.respond}

@@ -7,7 +7,7 @@
 
 import { heldAsGhost, inPlay, log, nameOf, playerOf, toDiscard, topFrame, updatePlayer } from './cards';
 import { resolveFrame } from './frames';
-import { onHandEmptyFrames, resurrectsEliminated } from './hooks';
+import { handLimitOf, onHandEmptyFrames, resurrectsEliminated } from './hooks';
 import type { GameState } from './types';
 
 /** 안전장치. 정상적인 판은 한 액션에 이 근처도 못 간다. */
@@ -33,7 +33,7 @@ export function isBlocked(state: GameState): boolean {
     // 전부 잃으므로(EC-101) 버리기를 건너뛴다. 수지 라파예트 유령이 버리고 뽑기를
     // 끝없이 되풀이하던 문제.
     if (p.ghost) return false;
-    return state.turn.phase === 'discard' && inPlay(p) && p.hand.length > p.hp;
+    return state.turn.phase === 'discard' && inPlay(p) && p.hand.length > handLimitOf(state, p.id);
   }
   return false;
 }

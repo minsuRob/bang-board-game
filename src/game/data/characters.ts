@@ -214,6 +214,72 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     ability: "'카드 가져오기' 단계에 앞에 놓인 파랑 카드가 없으면 2장을 더 가져옵니다.",
     expansion: 'valley',
   },
+  // 골드 러시. 능력은 dV Giochi 카드 원문(content/4/cards)을 옮겼다.
+  // 돈 벨·더치 윌은 원본 맵 패치노트 표기, 나머지는 음차했다.
+  donBell: {
+    id: 'donBell',
+    name: 'Don Bell',
+    nameKo: '돈 벨',
+    maxHp: 4,
+    ability: "자기 차례가 끝날 때 '카드 펼치기'를 합니다. 하트나 다이아몬드면 차례를 한 번 더 진행합니다.",
+    expansion: 'goldrush',
+  },
+  dutchWill: {
+    id: 'dutchWill',
+    name: 'Dutch Will',
+    nameKo: '더치 윌',
+    maxHp: 4,
+    ability: '카드를 2장 가져와 그중 1장을 버리고, 금덩이 1개를 받습니다.',
+    expansion: 'goldrush',
+  },
+  jackyMurieta: {
+    id: 'jackyMurieta',
+    name: 'Jacky Murieta',
+    nameKo: '재키 무리에타',
+    maxHp: 4,
+    ability: '자기 차례에 금덩이 2개를 내고 <뱅!>을 한 번 더 쏠 수 있습니다.',
+    expansion: 'goldrush',
+  },
+  joshMcCloud: {
+    id: 'joshMcCloud',
+    name: 'Josh McCloud',
+    nameKo: '조시 맥클라우드',
+    maxHp: 4,
+    ability: '금덩이 2개를 내고 장비 덱 맨 위 카드를 가져올 수 있습니다.',
+    expansion: 'goldrush',
+  },
+  madamYto: {
+    id: 'madamYto',
+    name: 'Madam Yto',
+    nameKo: '마담 이토',
+    maxHp: 4,
+    ability: '누군가 <맥주>를 낼 때마다 카드 더미에서 카드 한 장을 가져옵니다.',
+    expansion: 'goldrush',
+  },
+  prettyLuzena: {
+    id: 'prettyLuzena',
+    name: 'Pretty Luzena',
+    nameKo: '프리티 루제나',
+    maxHp: 4,
+    ability: '차례에 한 번, 장비 한 장을 금덩이 1개 싸게 살 수 있습니다.',
+    expansion: 'goldrush',
+  },
+  raddieSnake: {
+    id: 'raddieSnake',
+    name: 'Raddie Snake',
+    nameKo: '래디 스네이크',
+    maxHp: 4,
+    ability: '자기 차례에 금덩이 1개를 버리고 카드 한 장을 가져올 수 있습니다 (2번까지).',
+    expansion: 'goldrush',
+  },
+  simeonPicos: {
+    id: 'simeonPicos',
+    name: 'Simeon Picos',
+    nameKo: '시미언 피코스',
+    maxHp: 3,
+    ability: '목숨 1을 잃을 때마다 금덩이 1개를 받습니다.',
+    expansion: 'goldrush',
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];

@@ -28,10 +28,12 @@ import {
   drawPhaseOverride,
   onDrawPhaseEndFrames,
   onEventEnterFrames,
+  onTurnEndFrames,
   onTurnStartFrames,
   resurrectsEliminated,
   turnDirectionOf,
 } from '../hooks';
+import { discardGold, goldEquipOf } from '../gold';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 import { ga, neun } from '../josa';
 
@@ -55,7 +57,9 @@ export function resolveTurnStart(state: GameState, frame: Frame & { k: 'turnStar
   let cur = popFrame(state);
 
   const isSheriff = p.role === 'sheriff';
-  const round = isSheriff ? cur.turn.round + 1 : cur.turn.round;
+  // 추가 차례(돈 벨·황금 러시)는 라운드를 세지 않고 이벤트도 넘기지 않는다.
+  const extra = frame.extra === true;
+  const round = isSheriff && !extra ? cur.turn.round + 1 : cur.turn.round;
 
   cur = {
     ...cur,
@@ -66,13 +70,14 @@ export function resolveTurnStart(state: GameState, frame: Frame & { k: 'turnStar
       round,
       handcuffsSuit: null,
       drawn: false,
+      ...(extra ? { extra: true } : {}),
     },
   };
   cur = updatePlayer(cur, pid, (x) => ({ ...x, usedThisTurn: [] }));
   cur = log(cur, { t: 'turnStart', pid, text: `${nameOf(cur, pid)}의 차례.` });
 
   // 이벤트는 보안관의 두 번째 차례부터 공개된다.
-  const shouldReveal = Boolean(cur.event) && isSheriff && round >= 2;
+  const shouldReveal = Boolean(cur.event) && isSheriff && !extra && round >= 2;
 
   const frames: Frame[] = [];
   if (shouldReveal) frames.push({ k: 'revealEvent' });
@@ -163,17 +168,27 @@ export function resolveTurnEnd(state: GameState, frame: Frame & { k: 'turnEnd' }
   const { pid } = frame;
   let cur = popFrame(state);
   const p = playerOf(cur, pid);
+  // 차례 끝 능력(돈 벨). 유령에게는 걸지 않는다.
+  const endFrames = p.alive && !p.ghost ? onTurnEndFrames(cur, pid) : [];
 
   if (p.ghost && !heldAsGhost(p)) {
     // 유령은 차례가 끝나면 다시 사라진다. 들고 있던 카드는 전부 버려진다.
     // 유령 카드(그림자의 계곡)로 돌아온 사람은 그 카드가 앞에 있는 동안 남는다.
     const cards = [...p.hand, ...p.equipment];
-    cur = updatePlayer(cur, pid, (x) => ({ ...x, ghost: false, hand: [], equipment: [] }));
+    const gold = goldEquipOf(p);
+    cur = updatePlayer(cur, pid, (x) => ({
+      ...x,
+      ghost: false,
+      hand: [],
+      equipment: [],
+      ...(gold.length > 0 ? { goldEquipment: [] } : {}),
+    }));
     cur = toDiscard(cur, cards);
+    cur = discardGold(cur, gold);
     cur = log(cur, { t: 'ghostLeave', pid, text: `${nameOf(cur, pid)}의 유령이 사라졌다.` });
   }
 
-  return pushSeq(cur, [{ k: 'checkWin' }, { k: 'advanceTurn', from: pid }]);
+  return pushSeq(cur, [...endFrames, { k: 'checkWin' }, { k: 'advanceTurn', from: pid }]);
 }
 
 export function resolveAdvanceTurn(
@@ -181,6 +196,20 @@ export function resolveAdvanceTurn(
   frame: Frame & { k: 'advanceTurn' },
 ): GameState {
   let cur = popFrame(state);
+
+  // 추가 차례 (돈 벨·황금 러시). 한 번만 받는다.
+  const extraFor = cur.turn.extraTurnFor;
+  if (extraFor) {
+    cur = { ...cur, turn: { ...cur.turn, extraTurnFor: null } };
+    if (playerOf(cur, extraFor).alive) {
+      cur = log(cur, {
+        t: 'extraTurn',
+        pid: extraFor,
+        text: `${ga(nameOf(cur, extraFor))} 차례를 한 번 더 진행한다.`,
+      });
+      return pushSeq(cur, [{ k: 'turnStart', pid: extraFor, extra: true }]);
+    }
+  }
   const dir = turnDirectionOf(cur);
   const ghosts = resurrectsEliminated(cur);
   const n = cur.players.length;

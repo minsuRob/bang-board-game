@@ -21,6 +21,8 @@ import {
   type PlayerId,
 } from '../engine';
 import { isHidden } from '../engine/view';
+import { handLimitOf } from '../engine/hooks';
+import { scoreGold } from './gold-policy';
 import {
   analyze,
   hostility,
@@ -136,6 +138,11 @@ export function scoreAction(
       return danger(view, me) > 0.6 ? 14 : -4;
     case 'endTurn':
       return NEUTRAL;
+    case 'buyGold':
+    case 'removeGold':
+    case 'beerForGold':
+    case 'goldAbility':
+      return scoreGold(view, me, action, beliefs);
     default:
       return NEUTRAL;
   }
@@ -212,7 +219,7 @@ function scorePlay(
       if (!own || own === 'generalStore') return base;
       // 다른 카드를 잡화점으로 낸다(엉클 윌). 그 카드의 값어치를 치른다.
       // 어차피 버릴 카드(손패가 넘칠 때)면 거의 공짜다.
-      const overflow = my.hand.length > my.hp;
+      const overflow = my.hand.length > handLimitOf(view, me);
       return base - cardValue(own) * 1.2 + (overflow ? cardValue(own) : 0);
     }
     case 'gatling':

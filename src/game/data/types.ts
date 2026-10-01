@@ -142,7 +142,10 @@ export type CharacterId =
   | 'uncleWill' | 'johnnyKisch'
   // 그림자의 계곡
   | 'blackFlower' | 'coloradoBill' | 'derSpotBurstRinger' | 'evelynShebang'
-  | 'henryBlock' | 'lemonadeJim' | 'mickDefender' | 'tucoFranziskaner';
+  | 'henryBlock' | 'lemonadeJim' | 'mickDefender' | 'tucoFranziskaner'
+  // 골드 러시
+  | 'donBell' | 'dutchWill' | 'jackyMurieta' | 'joshMcCloud'
+  | 'madamYto' | 'prettyLuzena' | 'raddieSnake' | 'simeonPicos';
 
 export type CharacterDef = {
   id: CharacterId;
@@ -165,7 +168,7 @@ export type Role = 'sheriff' | 'deputy' | 'outlaw' | 'renegade';
 // 이벤트 카드 (하이 눈 등 확장판)
 // ---------------------------------------------------------------------------
 
-export type Expansion = 'highnoon' | 'valley';
+export type Expansion = 'highnoon' | 'valley' | 'goldrush';
 
 export type EventCardId =
   | 'blessing' | 'curse' | 'ghostTown' | 'goldRush' | 'hangover'
@@ -181,3 +184,37 @@ export type EventCardDef = {
   /** 이벤트 덱 맨 밑에 고정되는 마지막 카드인가 (하이 눈) */
   isFinal?: boolean;
 };
+
+// ---------------------------------------------------------------------------
+// 골드 러시 장비 카드
+//
+// 플레잉 카드 덱과 섞이지 않는 별도의 24장이다. 무늬도 숫자도 없고, 값(금덩이)만 있다.
+// 그래서 CardId 와 섞지 않고 따로 부른다. 강탈·캣 발루·벌쳐 샘이 이 카드에 손대지
+// 못하는 규칙이 타입에서부터 지켜진다.
+// ---------------------------------------------------------------------------
+
+export type GoldCardKind =
+  // 갈색 (사자마자 쓰고 버린다. 수배만 누군가의 앞에 남는다)
+  | 'shot' | 'bottle' | 'pardner' | 'goldRush' | 'wanted' | 'rhum' | 'unionPacific'
+  // 검정 (자기 앞에 두는 장비)
+  | 'calumet' | 'gunBelt' | 'horseshoe' | 'pickaxe' | 'goldPan' | 'boots' | 'luckyCharm'
+  | 'rucksack';
+
+export type GoldCardCategory = 'brown' | 'black';
+
+export type GoldCardDef = {
+  kind: GoldCardKind;
+  /** 도감 표기 (이탈리아어) */
+  name: string;
+  nameEn: string;
+  nameKo: string;
+  /** 사는 값 (금덩이). 남의 앞에서 치우려면 여기에 1을 더 낸다 */
+  cost: number;
+  category: GoldCardCategory;
+  /** 덱에 든 장수 */
+  count: number;
+  text: string;
+};
+
+/** 골드 러시 카드 한 장. 'gr-<kind>-<n>' */
+export type GoldCardId = string;

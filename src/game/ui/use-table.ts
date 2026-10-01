@@ -21,6 +21,7 @@ import {
   type GameState,
   type PlayerId,
 } from '../engine';
+import type { GoldUse } from '../engine/types';
 import { selectActor, useGameStore } from '../store/game-store';
 
 export type Prompt = {
@@ -32,6 +33,8 @@ export type Prompt = {
   suits: Suit[];
   yesNo: boolean;
   players: PlayerId[];
+  /** 골드 러시 갈색 카드 사용법 (조시 맥클라우드가 뽑았을 때) */
+  goldUses?: GoldUse[];
   steal: { target: PlayerId; handCount: number; equipment: CardId[] } | null;
   /** 테이블 가운데 창에서 고른다 (잡화점·강탈·캣 발루). 있으면 하단 바는 안내만 한다 */
   center: CenterPick | null;
@@ -74,6 +77,9 @@ export type TableApi = {
   /** 캐릭터 드래프트 중이면 내 후보와 진행 상황. 아니면 null */
   draft: DraftInfo | null;
   pickCharacter: (id: CharacterId) => void;
+  /** 골드 러시 합법 수 (사기·치우기·맥주 팔기·금덩이 능력) */
+  goldActions: Action[];
+  sendGold: (a: Action) => void;
 };
 
 export type DraftInfo = {
@@ -249,6 +255,20 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
 
   const prompt = useMemo(() => (view && waitingOnMe ? buildPrompt(view) : null), [view, waitingOnMe]);
 
+  // 골드 러시: 사기·치우기·맥주 팔기·금덩이 능력. 배낭은 죽기 직전에도 나온다.
+  const goldActions = useMemo(
+    () =>
+      allLegal.filter(
+        (a) =>
+          a.type === 'buyGold' ||
+          a.type === 'removeGold' ||
+          a.type === 'beerForGold' ||
+          a.type === 'goldAbility',
+      ),
+    [allLegal],
+  );
+  const sendGold = useCallback((a: Action) => submit(a), [submit]);
+
   return {
     view,
     viewer,
@@ -273,6 +293,8 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     arm,
     draft,
     pickCharacter,
+    goldActions,
+    sendGold,
   };
 }
 
@@ -451,5 +473,19 @@ function buildPrompt(view: GameState): Prompt | null {
     }
     case 'declareSuit':
       return { ...base, title: '수갑', hint: '이번 차례에 쓸 무늬를 선언한다', suits: SUIT_ALL };
+    case 'dutchWill':
+      return {
+        ...base,
+        title: '더치 윌',
+        hint: '방금 뽑은 카드 중 버릴 1장을 고른다. 금덩이 1개를 받는다',
+        cardOptions: a.options,
+      };
+    case 'goldUse':
+      return {
+        ...base,
+        title: '골드 러시 카드',
+        hint: '이 카드를 어떻게 쓸지 고른다',
+        goldUses: a.options,
+      };
   }
 }

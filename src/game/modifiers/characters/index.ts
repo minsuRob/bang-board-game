@@ -33,6 +33,16 @@ import { henryBlock } from './henry-block';
 import { lemonadeJim } from './lemonade-jim';
 import { mickDefender } from './mick-defender';
 import { tucoFranziskaner } from './tuco-franziskaner';
+import {
+  donBell,
+  dutchWill,
+  jackyMurieta,
+  joshMcCloud,
+  madamYto,
+  prettyLuzena,
+  raddieSnake,
+  simeonPicos,
+} from './gold-rush';
 
 export const CHARACTER_MODIFIERS: Record<CharacterId, Modifier> = {
   bartCassidy,
@@ -61,6 +71,14 @@ export const CHARACTER_MODIFIERS: Record<CharacterId, Modifier> = {
   lemonadeJim,
   mickDefender,
   tucoFranziskaner,
+  donBell,
+  dutchWill,
+  jackyMurieta,
+  joshMcCloud,
+  madamYto,
+  prettyLuzena,
+  raddieSnake,
+  simeonPicos,
 };
 
 export { SID_KETCHUM_ABILITY } from './sid-ketchum';

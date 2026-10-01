@@ -37,6 +37,15 @@ const CHARACTER_VALUE: Record<CharacterId, number> = {
   lemonadeJim: 5,
   mickDefender: 6,
   tucoFranziskaner: 7,
+  // 골드 러시. 금덩이가 돌아야 빛나므로 기본 능력만 보고 낮게 잡는다
+  donBell: 7,
+  dutchWill: 5,
+  jackyMurieta: 6,
+  joshMcCloud: 5,
+  madamYto: 6,
+  prettyLuzena: 5,
+  raddieSnake: 6,
+  simeonPicos: 5,
 };
 
 /** 역할이 좋아하는 성향 */

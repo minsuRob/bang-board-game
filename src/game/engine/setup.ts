@@ -10,6 +10,7 @@
 
 import { deckFor } from '../data/cards.base';
 import { HIGHNOON_FINAL_ID, HIGHNOON_SHUFFLED_IDS } from '../data/cards.highnoon';
+import { GOLD_DECK, GOLD_SHOP_SIZE } from '../data/cards.goldrush';
 import { charactersFor } from '../data/characters';
 import { MAX_PLAYERS, MIN_PLAYERS, ROLE_DISTRIBUTION } from '../data/roles';
 import type { CharacterId, EventCardId } from '../data/types';
@@ -94,13 +95,25 @@ export function createGame(seed: number, config: GameConfig, seats: Seat[]): Gam
     event = { deck: evDeck, current: null, past: [] };
   }
 
-  const sheriff = players.find((p) => p.role === 'sheriff');
+  // 골드 러시: 장비 덱을 섞어 상점에 3장을 펼친다. 확장을 켰을 때만 난수를 쓴다.
+  let gold: GameState['gold'] = null;
+  let seated = players;
+  if (config.expansions.includes('goldrush')) {
+    const goldRolled = shuffle(rng, GOLD_DECK.map((c) => c.id));
+    rng = goldRolled.rng;
+    const goldDeck = goldRolled.value;
+    const shop = goldDeck.slice(-GOLD_SHOP_SIZE).reverse();
+    gold = { deck: goldDeck.slice(0, -GOLD_SHOP_SIZE), shop, discard: [] };
+    seated = players.map((p) => ({ ...p, nuggets: 0, goldEquipment: [] }));
+  }
+
+  const sheriff = seated.find((p) => p.role === 'sheriff');
   if (!sheriff) throw new Error('보안관이 없다');
 
   return {
     config,
     rng,
-    players,
+    players: seated,
     turn: {
       active: sheriff.id,
       phase: 'draw',
@@ -115,6 +128,7 @@ export function createGame(seed: number, config: GameConfig, seats: Seat[]): Gam
     stack: [],
     awaiting: null,
     event,
+    gold,
     log: [
       {
         t: 'gameStart',

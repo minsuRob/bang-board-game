@@ -6,6 +6,7 @@
  *
  *   npm run simulate -- --games 200 --players 7 --highnoon
  *   npm run simulate -- --games 200 --players 7 --valley
+ *   npm run simulate -- --games 200 --players 7 --goldrush
  */
 
 import { analyze, decide, inferDepthOf, type AiTier } from '../src/game/ai';
@@ -25,6 +26,7 @@ type Options = {
   seed: number;
   highnoon: boolean;
   valley: boolean;
+  goldrush: boolean;
   tiers: AiTier[];
   maxSteps: number;
   verbose: boolean;
@@ -43,6 +45,7 @@ function parseArgs(argv: string[]): Options {
     seed: Number(get('seed', '1')),
     highnoon: has('highnoon'),
     valley: has('valley'),
+    goldrush: has('goldrush'),
     tiers: get('tiers', 'hard,medium,easy').split(',') as AiTier[],
     maxSteps: Number(get('maxSteps', '6000')),
     verbose: has('verbose'),
@@ -132,6 +135,7 @@ function playOne(seed: number, opts: Options): GameOutcome {
       expansions: [
         ...(opts.highnoon ? (['highnoon'] as const) : []),
         ...(opts.valley ? (['valley'] as const) : []),
+        ...(opts.goldrush ? (['goldrush'] as const) : []),
       ],
     },
     seats,
@@ -210,6 +214,27 @@ function checkInvariants(state: GameState, seed: number, step: number, history: 
   const expected = state.config.expansions.includes('valley') ? 96 : 80;
   if (total !== expected) {
     throw new SimulationError(`카드가 ${total}장이다 (step ${step})`, seed, history);
+  }
+  // 골드 러시: 장비 24장 보존, 금덩이는 음수가 되지 않는다
+  if (state.gold) {
+    const g = state.gold;
+    const gold =
+      g.deck.length +
+      g.shop.length +
+      g.discard.length +
+      state.players.reduce((n, p) => n + (p.goldEquipment?.length ?? 0), 0) +
+      state.stack.filter((f) => f.k === 'goldUse').length;
+    if (gold !== 24) {
+      throw new SimulationError(`골드 러시 카드가 ${gold}장이다 (step ${step})`, seed, history);
+    }
+    if (g.shop.length > 3) {
+      throw new SimulationError(`상점에 ${g.shop.length}장이 있다 (step ${step})`, seed, history);
+    }
+    for (const p of state.players) {
+      if ((p.nuggets ?? 0) < 0) {
+        throw new SimulationError(`${p.id} 금덩이가 음수다 (step ${step})`, seed, history);
+      }
+    }
   }
   for (const p of state.players) {
     if (p.hp > p.maxHp) {

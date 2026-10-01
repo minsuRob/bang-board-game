@@ -20,6 +20,7 @@ import {
   updatePlayer,
 } from './cards';
 import { applyPick } from './draft';
+import { applyGoldAction } from './gold-actions';
 import { respondToFrame } from './frames';
 import { actionKey, legalActions } from './legal';
 import { applyPlayCard } from './play';
@@ -115,6 +116,15 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
       cur = { ...cur, stack: cur.stack.slice(0, -1) };
       break;
     }
+    case 'buyGold':
+    case 'removeGold':
+    case 'beerForGold':
+      cur = applyGoldAction(cur, action);
+      break;
+    case 'goldAbility':
+      // 배낭은 맥주를 묻는 도중에도 쓴다. 낡은 대기는 버리고 다시 묻게 한다.
+      cur = { ...applyGoldAction(cur, action), awaiting: null };
+      break;
     default:
       return cur;
   }
@@ -187,6 +197,7 @@ function favourableJudgementCard(
 ): string {
   const score = (card: string): number => {
     const suit = effectiveSuit(state, card);
+    if (purpose === 'donBell') return suit === 'hearts' || suit === 'diamonds' ? 1 : 0;
     if (purpose === 'dynamite') {
       const v = RANK_VALUE[cardOf(card).rank];
       const explodes = suit === 'spades' && v >= 2 && v <= 9;

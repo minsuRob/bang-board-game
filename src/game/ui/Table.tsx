@@ -15,6 +15,7 @@ import type { CardId } from '../data/types';
 import type { GameState, PlayerId } from '../engine';
 import { Table3D, useTableMode } from '../table3d';
 import { ActionBar } from './ActionBar';
+import { GoldPanel } from './GoldPanel';
 import { DraftPanel } from './DraftPanel';
 import { feltArt, woodArt } from './card-art';
 import { Hand } from './Hand';
@@ -164,6 +165,16 @@ export function Table({ view, viewer, api, clock }: TableProps) {
           <DraftPanel draft={api.draft} viewer={viewer} onPick={api.pickCharacter} />
         ) : (
           <>
+            {view.gold ? (
+              <GoldPanel
+                view={view}
+                viewer={viewer}
+                actions={api.goldActions}
+                send={api.sendGold}
+                prompt={api.prompt}
+                respond={api.respond}
+              />
+            ) : null}
             <ActionBar
               prompt={api.prompt}
               onRespond={api.respond}

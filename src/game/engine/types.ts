@@ -14,6 +14,7 @@ import type {
   CharacterId,
   EventCardId,
   Expansion,
+  GoldCardId,
   Role,
   Suit,
 } from '../data/types';
@@ -45,6 +46,10 @@ export type Player = {
   roleRevealed: boolean;
   /** 이번 차례에 이미 쓴 1회성 능력 키 목록 */
   usedThisTurn: string[];
+  /** 골드 러시 금덩이. 확장을 안 쓰면 없다 */
+  nuggets?: number;
+  /** 골드 러시 장비(검정)와 앞에 놓인 수배. 파랑 카드와 영역이 따로라 강탈·캣 발루가 닿지 않는다 */
+  goldEquipment?: GoldCardId[];
 };
 
 export type GameConfig = {
@@ -63,7 +68,23 @@ export type TurnState = {
   handcuffsSuit: Suit | null;
   /** 카드 가져오기 단계를 이미 마쳤는가 */
   drawn: boolean;
+  /** 추가로 얻은 차례인가 (돈 벨·황금 러시). 추가 차례 끝에는 다시 얻지 않는다 */
+  extra?: boolean;
+  /** 이 차례가 끝나면 한 번 더 차례를 받을 사람 */
+  extraTurnFor?: PlayerId | null;
 };
+
+/** 골드 러시 장비 덱. 플레잉 카드와 섞이지 않는다 */
+export type GoldState = {
+  /** 맨 뒤가 맨 위 */
+  deck: GoldCardId[];
+  /** 앞면으로 펼친 상점 (최대 3장) */
+  shop: GoldCardId[];
+  discard: GoldCardId[];
+};
+
+/** 갈색 골드 카드를 어떻게 쓸지 (병·동업자의 종류, 대상) */
+export type GoldUse = { as?: CardKind; target?: PlayerId };
 
 export type EventState = {
   /** 남은 이벤트 덱. 맨 앞이 다음에 공개될 카드 */
@@ -95,7 +116,9 @@ export type JudgementPurpose =
   /** 방울뱀: ♠ 면 목숨 1을 잃는다 */
   | 'rattlesnake'
   /** 콜로라도 빌: ♠ 면 그 뱅!은 피할 수 없다 */
-  | 'coloradoBill';
+  | 'coloradoBill'
+  /** 돈 벨: 차례 끝에 ♥·♦ 면 차례를 한 번 더 */
+  | 'donBell';
 
 // ---------------------------------------------------------------------------
 // 효과 스택 프레임
@@ -122,7 +145,7 @@ export type DamageCause =
 
 export type Frame =
   // 턴 흐름
-  | { k: 'turnStart'; pid: PlayerId }
+  | { k: 'turnStart'; pid: PlayerId; extra?: boolean }
   | { k: 'revealEvent' }
   | { k: 'eventTurnStart'; pid: PlayerId }
   | { k: 'drawPhase'; pid: PlayerId; done: number }
@@ -216,6 +239,15 @@ export type Frame =
   | { k: 'lemonadeJim'; pid: PlayerId }
   /** 샷건에 맞은 사람이 손패 1장을 골라 버린다 */
   | { k: 'shotgunDiscard'; pid: PlayerId }
+  // 골드 러시
+  /** 수배가 붙은 사람을 제거한 사람: 카드 2장 + 금덩이 1 */
+  | { k: 'wantedReward'; killer: PlayerId | null; victim: PlayerId }
+  /** 더치 윌: 뽑은 카드 중 1장을 버린다 */
+  | { k: 'dutchWill'; pid: PlayerId; candidates: CardId[]; count?: number }
+  /** 갈색 골드 카드를 쓰는 방법을 고른다 (조시 맥클라우드가 덱에서 뽑았을 때) */
+  | { k: 'goldUse'; pid: PlayerId; card: GoldCardId }
+  /** 금덩이를 받는다 (시미언 피코스·부적) */
+  | { k: 'gainNuggets'; pid: PlayerId; amount: number; reason: string }
   // 승리 판정
   | { k: 'checkWin' };
 
@@ -278,7 +310,11 @@ export type PendingInput =
       remaining: number;
       canPass: boolean;
       reason: 'bandidos' | 'poker' | 'tornado' | 'shotgun' | 'lemonadeJim';
-    };
+    }
+  /** 더치 윌: 뽑은 카드 중 버릴 1장 */
+  | { k: 'dutchWill'; pid: PlayerId; options: CardId[] }
+  /** 갈색 골드 카드를 어떻게 쓸지 */
+  | { k: 'goldUse'; pid: PlayerId; card: GoldCardId; options: GoldUse[] };
 
 // ---------------------------------------------------------------------------
 // 로그
@@ -294,6 +330,8 @@ export type GameEvent = {
   /** 카드를 다른 종류로 취급해 냈을 때의 종류 (칼라미티 자넷·엉클 윌) */
   as?: CardKind;
   cards?: CardId[];
+  /** 골드 러시 카드 (산 카드·치운 카드). 플레잉 카드 id 와 섞지 않으려고 따로 둔다 */
+  gold?: GoldCardId;
   amount?: number;
   /** UI 에 그대로 보여줄 한국어 문장 */
   text: string;
@@ -346,7 +384,16 @@ export type Action =
   /** 캐릭터 드래프트: 받은 후보 중 하나를 고른다 */
   | { type: 'pickCharacter'; pid: PlayerId; character: CharacterId }
   /** 제한시간 만료. 구동기가 발행하며 기본 행동을 대신 수행한다. */
-  | { type: 'timeout'; pid: PlayerId };
+  | { type: 'timeout'; pid: PlayerId }
+  // --- 골드 러시 (카드 사용 단계) ---
+  /** 상점의 장비를 산다. 갈색이면 곧바로 쓴다 */
+  | { type: 'buyGold'; pid: PlayerId; card: GoldCardId; use?: GoldUse }
+  /** 남의 앞에 있는 장비를 값+1 을 내고 버리게 한다 */
+  | { type: 'removeGold'; pid: PlayerId; target: PlayerId; card: GoldCardId }
+  /** 맥주를 목숨 대신 금덩이 1개로 바꾼다 */
+  | { type: 'beerForGold'; pid: PlayerId; card: CardId }
+  /** 금덩이를 내는 능력 (캐릭터·장비). 배낭은 죽기 직전에도 쓴다 */
+  | { type: 'goldAbility'; pid: PlayerId; ability: string; target?: PlayerId };
 
 export type Choice =
   /** 반응하지 않음 / 능력 사용 안 함 */
@@ -360,7 +407,9 @@ export type Choice =
   /** 예/아니오 */
   | { c: 'yes' }
   /** 제시 존스: 특정 플레이어의 손에서 */
-  | { c: 'player'; pid: PlayerId };
+  | { c: 'player'; pid: PlayerId }
+  /** 갈색 골드 카드 사용법 */
+  | { c: 'goldUse'; use: GoldUse };
 
 // ---------------------------------------------------------------------------
 // 상태
@@ -381,6 +430,8 @@ export type GameState = {
   awaiting: PendingInput | null;
   /** 확장판 이벤트 상태. 확장을 안 쓰면 null */
   event: EventState | null;
+  /** 골드 러시 장비 덱·상점. 확장을 안 쓰면 없거나 null */
+  gold?: GoldState | null;
   log: GameEvent[];
   result: GameResult | null;
   /** 처리한 액션 수 */

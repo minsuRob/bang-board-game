@@ -33,6 +33,7 @@ const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
   jail: '감옥',
   rattlesnake: '방울뱀',
   coloradoBill: '콜로라도 빌',
+  donBell: '돈 벨',
 };
 
 /** 스택에서 가장 위에 있는 뱅! 프레임의 요구 빗나감 장수를 1 줄인다. */
@@ -143,6 +144,15 @@ function applyJudgement(
       if (suit !== 'spades') return cur;
       cur = markUnavoidable(cur);
       return log(cur, { t: 'coloradoBill', pid, text: '♠ — 이 총알은 피할 수 없다.' });
+    case 'donBell': {
+      if (suit !== 'hearts' && suit !== 'diamonds') return cur;
+      cur = { ...cur, turn: { ...cur.turn, extraTurnFor: pid } };
+      return log(cur, {
+        t: 'donBell',
+        pid,
+        text: `${neun(nameOf(cur, pid))} 붉은 무늬가 나와 차례를 한 번 더 얻었다.`,
+      });
+    }
   }
 }
 
