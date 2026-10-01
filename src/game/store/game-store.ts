@@ -45,6 +45,11 @@ export type StartOptions = {
    * 온라인에서는 호스트 하나만 제출한다. 나머지는 로그를 받아 접기만 한다.
    */
   submitStart?: boolean;
+  /**
+   * 저장본에서 이어 본다. 이 상태에서 곧장 시작하고 startGame 은 내지 않는다.
+   * 이후 액션은 평소처럼 트랜스포트를 돌아 이 상태 위에 접힌다.
+   */
+  resume?: GameState;
 };
 
 type GameStore = {
@@ -113,14 +118,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
       handoffPending: false,
     });
 
-    if (options.submitStart ?? true) {
-      transport.submit({
-        type: 'startGame',
-        seed: options.seed,
-        config: options.config,
-        seats: options.seats.map((s) => ({ id: s.id, name: s.name })),
-      });
+    const startAction: Action = {
+      type: 'startGame',
+      seed: options.seed,
+      config: options.config,
+      seats: options.seats.map((s) => ({ id: s.id, name: s.name })),
+    };
+
+    if (options.resume) {
+      set({ state: options.resume });
+      // prev 가 없으면 연출 층은 판을 그대로 놓는다 (fx-plan 의 snap)
+      emitTransition({ prev: null, next: options.resume, action: startAction });
+      return;
     }
+
+    if (options.submitStart ?? true) transport.submit(startAction);
   },
 
   submit(action) {
