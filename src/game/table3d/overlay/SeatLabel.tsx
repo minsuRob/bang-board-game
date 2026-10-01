@@ -37,6 +37,7 @@ export type SeatLabelProps = {
   y: number;
   active: boolean;
   targetable: boolean;
+  /** 겨눌 수 있으면 카드를 내고, 아니면 상세를 연다 */
   onPress: () => void;
   picking: { handCount: number; equipment: CardId[] } | null;
   onPickHand: (index: number) => void;
@@ -151,9 +152,8 @@ export function SeatLabel({
     <View style={[styles.slot, { left: x - w / 2, width: w }, place]}>
       <Pressable
         onPress={onPress}
-        disabled={!targetable}
-        accessibilityRole={targetable ? 'button' : undefined}
-        accessibilityLabel={`${player.name}${presenceText} · ${character.nameKo}`}
+        accessibilityRole="button"
+        accessibilityLabel={`${player.name}${presenceText} · ${character.nameKo}${targetable ? '' : ' 상세 보기'}`}
         style={[
           styles.label,
           big && styles.selfLabel,

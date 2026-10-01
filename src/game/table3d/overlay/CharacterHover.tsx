@@ -5,20 +5,19 @@
  * 그 자리가 없으면 카드 옆에 작은 말풍선으로 띄운다.
  *
  * 3D 카드 자체는 포인터를 받지 않으므로, 앵커가 준 카드의 화면 사각형에
- * 투명한 RN 칸을 얹어 hover 를 받는다. 폰에는 hover 가 없고 투명 칸이
- * 탭을 가로채면 안 되므로 웹에서만 그린다.
+ * 투명한 RN 칸을 얹어 hover 를 받는다.
+ *
+ * 폰에는 hover 가 없다. 그래서 칸을 탭하면 (카드로 겨눌 수 있는 상대가 아닐 때)
+ * 카드 그림과 상세 설명을 가운데에 띄운다. 겨눌 수 있는 상대를 탭하면 그대로 카드가 나간다.
  */
 
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useStore } from 'zustand';
 
-import { CARD_DEFS } from '../../data/cards.base';
 import { CHARACTERS } from '../../data/characters';
-import { ROLE_LABEL } from '../../data/roles';
-import { kindOf, type GameState, type Player, type PlayerId } from '../../engine';
-import { CharacterCard } from '../../ui/CharacterCard';
+import type { GameState, Player, PlayerId } from '../../engine';
+import { CharacterDetail } from '../../ui/CharacterDetail';
 import { anchorsStore, characterKey } from '../core/anchors-store';
-import { ROLE_COLOR, safeDistance } from './SeatLabel';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 const TIP_W = 240;
@@ -29,14 +28,20 @@ export type PreviewSlot = { left: number; bottom: number; width: number };
 export function CharacterHover({
   view,
   viewer,
+  targets,
   onSeatPress,
+  onDetail,
   slot,
   hovered,
   onHoverChange,
 }: {
   view: GameState;
   viewer: PlayerId;
+  /** 지금 고른 카드로 겨눌 수 있는 상대 */
+  targets: PlayerId[];
   onSeatPress: (pid: PlayerId) => void;
+  /** 탭으로 상세 설명을 열어 달라는 요청 */
+  onDetail: (pid: PlayerId) => void;
   slot: PreviewSlot | null;
   /** 이벤트 카드 hover 와 같은 자리를 나눠 쓰므로 hover 상태는 부모가 쥔다 */
   hovered: PlayerId | null;
@@ -45,7 +50,7 @@ export function CharacterHover({
   const anchors = useStore(anchorsStore);
 
   // 드래프트 중에는 캐릭터가 아직 정해지지 않았다
-  if (Platform.OS !== 'web' || view.draft) return null;
+  if (view.draft) return null;
 
   const tipFor = view.players.find((p) => p.id === hovered) ?? null;
   const tipIndex = tipFor ? view.players.indexOf(tipFor) : -1;
@@ -65,8 +70,15 @@ export function CharacterHover({
             key={player.id}
             onHoverIn={() => onHoverChange(player.id, true)}
             onHoverOut={() => onHoverChange(player.id, false)}
-            // 보드를 눌러 대상을 고르던 동작을 막지 않는다
-            onPress={() => onSeatPress(player.id)}
+            onPress={() => {
+              // 보드를 눌러 대상을 고르던 동작을 막지 않는다
+              if (targets.includes(player.id)) {
+                onSeatPress(player.id);
+                return;
+              }
+              // 마우스로 이미 미리보기 자리에 떠 있으면 또 띄우지 않는다
+              if (!(slot && hovered === player.id)) onDetail(player.id);
+            }}
             accessibilityLabel={`${CHARACTERS[player.character].nameKo} 능력 보기`}
             style={[previewStyles.hit, { left: r.left, top, width: r.right - r.left, height: bottom - top }]}
           />
@@ -102,50 +114,9 @@ function PreviewPanel({
   player: Player;
   slot: PreviewSlot;
 }) {
-  const isSelf = player.id === viewer;
-  const dead = !player.alive && !player.ghost;
-  const character = CHARACTERS[player.character];
-  const hp = Math.max(0, player.hp);
-  const dist = !isSelf && !dead ? safeDistance(view, viewer, player.id) : null;
   return (
     <View style={[previewStyles.tip, previewStyles.panel, { left: slot.left, bottom: slot.bottom, width: slot.width }]}>
-      <View style={previewStyles.panelTop}>
-        <CharacterCard id={player.character} compact />
-        <View style={previewStyles.panelInfo}>
-          <View style={previewStyles.tipHead}>
-            <Text style={previewStyles.panelName} numberOfLines={1}>
-              {isSelf ? '나' : player.name}
-            </Text>
-            {(player.roleRevealed || isSelf) && (
-              <Text style={[previewStyles.panelRole, { color: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
-            )}
-          </View>
-          <Text style={previewStyles.panelCharacter}>
-            {character.nameKo}
-            {player.ghost ? ' · 유령' : dead ? ' · 제거됨' : ''}
-          </Text>
-          <Text style={previewStyles.panelHp}>
-            {'●'.repeat(hp)}
-            <Text style={previewStyles.hpEmpty}>{'○'.repeat(Math.max(0, player.maxHp - hp))}</Text>
-            <Text style={previewStyles.panelHpNumber}>
-              {'  '}
-              {hp}/{player.maxHp}
-            </Text>
-          </Text>
-          {!isSelf && (
-            <Text style={previewStyles.panelMeta}>
-              손패 {player.hand.length}
-              {dist !== null ? ` · 거리 ${dist}` : ''}
-            </Text>
-          )}
-          {player.equipment.length > 0 && (
-            <Text style={previewStyles.panelEquipment}>
-              {player.equipment.map((c) => CARD_DEFS[kindOf(c)].nameKo).join(' · ')}
-            </Text>
-          )}
-        </View>
-      </View>
-      <Text style={previewStyles.panelAbility}>{character.ability}</Text>
+      <CharacterDetail view={view} viewer={viewer} player={player} />
     </View>
   );
 }
@@ -206,12 +177,6 @@ export const previewStyles = StyleSheet.create({
   panelTop: { flexDirection: 'row', gap: Spacing.two },
   panelInfo: { flex: 1, minWidth: 0, gap: 3 },
   panelName: { color: Colors.text, fontSize: 16, fontWeight: '900', flexShrink: 1 },
-  panelRole: { fontSize: 11, fontWeight: '800' },
-  panelCharacter: { color: Colors.text, fontSize: 13, fontWeight: '700' },
-  panelHp: { color: Colors.hp, fontSize: 13, letterSpacing: 1 },
-  hpEmpty: { color: Colors.border },
-  panelHpNumber: { color: Colors.text, fontSize: 12, fontWeight: '800', letterSpacing: 0 },
   panelMeta: { color: Colors.textMuted, fontSize: 11 },
-  panelEquipment: { color: Colors.deputy, fontSize: 11 },
   panelAbility: { color: Colors.text, fontSize: 12, lineHeight: 17 },
 });

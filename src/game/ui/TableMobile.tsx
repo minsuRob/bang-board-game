@@ -29,6 +29,7 @@ import { distance, kindOf, type GameState, type Player, type PlayerId } from '..
 import { usePresence } from '../store/presence';
 import { ActionBar } from './ActionBar';
 import { DraftPanel } from './DraftPanel';
+import { CharacterDetailModal } from './CharacterDetail';
 import { PlayedCardSpotlight } from './PlayedCardSpotlight';
 import { PRESENCE_LABEL, PresenceDot } from './PresenceDot';
 import { DraftSeatStatus } from './DraftSeatStatus';
@@ -74,6 +75,8 @@ export function TableMobile({
   clock,
 }: TableMobileProps) {
   const [logOpen, setLogOpen] = useState(false);
+  // 탭해서 띄운 캐릭터 카드와 상세 설명
+  const [detail, setDetail] = useState<PlayerId | null>(null);
   const unread = useChatUnread(logOpen);
   const { width, height } = useWindowDimensions();
   // 폭이 넓으면 좌석을 여러 열로 늘어놓는다. 폰을 눕혔을 때가 이 경우다.
@@ -85,6 +88,15 @@ export function TableMobile({
   const me = view.players.find((p) => p.id === viewer)!;
   const others = orderedOthers(view, viewer);
   const steal = api.prompt?.steal ?? null;
+  const detailPlayer = (!view.draft && view.players.find((p) => p.id === detail)) || null;
+  // 겨눌 수 있으면 카드를 내고, 아니면 상세를 연다. 카드를 고르는 중에는 안쪽 칸이 받는다
+  const pressSeat = (pid: PlayerId) => {
+    if (targets.includes(pid)) {
+      onSeatPress(pid);
+      return;
+    }
+    if (!(steal && steal.target === pid)) setDetail(pid);
+  };
   const top = view.discard[view.discard.length - 1];
   const event = view.event?.current ? HIGHNOON_EVENTS[view.event.current] : null;
   const eventImage = view.event?.current ? eventArt(view.event.current) : null;
@@ -129,7 +141,7 @@ export function TableMobile({
                 player={player}
                 active={view.turn.active === player.id}
                 targetable={targets.includes(player.id)}
-                onPress={() => onSeatPress(player.id)}
+                onPress={() => pressSeat(player.id)}
                 picking={steal && steal.target === player.id ? steal : null}
                 onPickHand={(index) => api.respond({ c: 'pick', pick: { zone: 'hand', index } })}
                 onPickEquipment={(card) => api.respond({ c: 'pick', pick: { zone: 'equipment', card } })}
@@ -193,7 +205,7 @@ export function TableMobile({
               player={me}
               active={view.turn.active === viewer}
               targetable={targets.includes(viewer)}
-              onPress={() => onSeatPress(viewer)}
+              onPress={() => pressSeat(viewer)}
               picking={steal && steal.target === viewer ? steal : null}
               onPickHand={(index) => api.respond({ c: 'pick', pick: { zone: 'hand', index } })}
               onPickEquipment={(card) => api.respond({ c: 'pick', pick: { zone: 'equipment', card } })}
@@ -211,6 +223,10 @@ export function TableMobile({
             </View>
           </View>
         </>
+      )}
+
+      {detailPlayer && (
+        <CharacterDetailModal view={view} viewer={viewer} player={detailPlayer} onClose={() => setDetail(null)} />
       )}
 
       {logOpen && (
@@ -275,9 +291,8 @@ function CompactSeat({
   return (
     <Pressable
       onPress={onPress}
-      disabled={!targetable}
-      accessibilityRole={targetable ? 'button' : undefined}
-      accessibilityLabel={`${player.name}${presence ? ` · ${PRESENCE_LABEL[presence]}` : ''} · ${CHARACTERS[player.character].nameKo}`}
+      accessibilityRole="button"
+      accessibilityLabel={`${player.name}${presence ? ` · ${PRESENCE_LABEL[presence]}` : ''} · ${CHARACTERS[player.character].nameKo}${targetable || view.draft ? '' : ' 상세 보기'}`}
       style={[
         styles.compact,
         basis ? { flexBasis: basis } : null,
