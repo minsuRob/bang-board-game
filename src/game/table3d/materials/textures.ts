@@ -225,6 +225,21 @@ export function cardBackTexture(): THREE.DataTexture {
   return backTexture;
 }
 
+/**
+ * 더미 옆면. 카드 한 장 두께마다 종이 면 위에 어두운 줄 하나가 지나간다.
+ * 세로로 되풀이해 쓰므로 부르는 쪽이 장수만큼 repeat.y 를 맞춘다. 더미마다 repeat 이 달라 새로 만든다
+ */
+export function stackEdgeTexture(face: string, line: string): THREE.DataTexture {
+  const f = hex(face);
+  const l = hex(line);
+  const p = new Painter(2, 4);
+  p.each((_x, y) => (y === 3 ? l : f));
+  const tex = p.toTexture();
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
 let eventTexture: THREE.DataTexture | null = null;
 
 /** 하이 눈 이벤트 카드. 보라 테두리, 글자는 오버레이가 */
