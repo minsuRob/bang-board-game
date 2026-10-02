@@ -139,9 +139,13 @@ export function legalActions(state: GameState, pid: PlayerId): Action[] {
 
   const top = topFrame(state);
   if (top?.k === 'playPhase' && state.turn.phase === 'play') {
-    out.push(...playPhaseActions(state, pid));
+    const plays = playPhaseActions(state, pid);
+    out.push(...plays);
     out.push(...goldPlayActions(state, pid));
-    out.push({ type: 'endTurn', pid });
+    // 서부의 법: 보여 준 카드를 낼 수 있는 동안은 차례를 마칠 수 없다.
+    const must = state.turn.mustPlay;
+    const owed = must !== undefined && plays.some((x) => x.type === 'playCard' && x.card === must);
+    if (!owed) out.push({ type: 'endTurn', pid });
   } else if (top?.k === 'discardPhase' && state.turn.phase === 'discard') {
     for (const card of unique(me.hand)) out.push({ type: 'discardCard', pid, card });
   }

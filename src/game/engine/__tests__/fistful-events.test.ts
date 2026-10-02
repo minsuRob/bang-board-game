@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import type { EventCardId } from '../../data/types';
 import { distance } from '../distance';
 import { legalActions } from '../legal';
-import { reduce } from '../reducer';
+import { defaultAction, reduce } from '../reducer';
 import type { GameState, PlayerId } from '../types';
 import { beginTurn, handCard, logged, loggedCount, p, resolveStack, scenario, type PlayerSpec } from './helpers';
 
@@ -307,5 +307,34 @@ describe('리코체', () => {
     expect(s.discard).toContain(barrel);
     expect(s.turn.bangsPlayed).toBe(0);
     expect(p(s, 'b').hp).toBe(p(s, 'b').maxHp);
+  });
+});
+
+describe('서부의 법 — 차례 마치기', () => {
+  function owing(): GameState {
+    const s0 = table('lawOfTheWest', { hp: 3, hand: ['beer', 'panic'] })();
+    return { ...s0, turn: { ...s0.turn, mustPlay: handCard(s0, 'a', 'beer') } };
+  }
+
+  it('보여 준 카드를 낼 수 있으면 차례를 마칠 수 없다', () => {
+    const s = owing();
+    expect(legalActions(s, 'a').some((x) => x.type === 'endTurn')).toBe(false);
+  });
+
+  it('시간이 다 되면 그 카드를 낸다', () => {
+    const s = owing();
+    expect(defaultAction(s, 'a')).toMatchObject({ type: 'playCard', card: handCard(s, 'a', 'beer') });
+  });
+
+  it('그 카드를 내면 차례를 마칠 수 있다', () => {
+    let s = owing();
+    s = reduce(s, { type: 'playCard', pid: 'a', card: handCard(s, 'a', 'beer') });
+    expect(legalActions(s, 'a').some((x) => x.type === 'endTurn')).toBe(true);
+  });
+
+  it('낼 수 없는 카드(빗나감!)면 막지 않는다', () => {
+    const s0 = table('lawOfTheWest', { hand: ['missed'] })();
+    const s = { ...s0, turn: { ...s0.turn, mustPlay: handCard(s0, 'a', 'missed') } };
+    expect(legalActions(s, 'a').some((x) => x.type === 'endTurn')).toBe(true);
   });
 });

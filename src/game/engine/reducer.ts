@@ -191,6 +191,13 @@ export function defaultAction(state: GameState, pid: PlayerId): Action | null {
     return pass ?? legal[0];
   }
 
+  // 서부의 법으로 차례를 못 마치면 그 카드를 낸다.
+  // 저격수·리코체 같은 특별한 사용법보다 평범한 사용을 먼저 고른다
+  const must = state.turn.mustPlay;
+  const owed = must ? legal.filter((x) => x.type === 'playCard' && x.card === must) : [];
+  const forced = owed.find((x) => x.type === 'playCard' && !x.also && !x.pick) ?? owed[0];
+  if (forced) return forced;
+
   // 카드 사용 단계 → 차례 마치기, 버리기 단계 → 첫 카드 버리기
   const endTurn = legal.find((x) => x.type === 'endTurn');
   if (endTurn) return endTurn;
