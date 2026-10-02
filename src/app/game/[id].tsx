@@ -24,6 +24,7 @@ import { useChat } from '@/game/store/use-chat';
 import { useOnlineGameSession, useRoomConnection } from '@/game/store/use-online-game';
 import { preloadArt, useArtProgress, useArtReady } from '@/game/ui/art-preload';
 import { GameClock, useStopwatch } from '@/game/ui/GameClock';
+import { LogCardPeek } from '@/game/ui/LogPanel';
 import { FullscreenButton } from '@/game/ui/FullscreenButton';
 import { PauseButton } from '@/game/ui/PauseButton';
 import { SaveButton, SaveNotice, type SaveStatus } from '@/game/ui/SaveButton';
@@ -341,6 +342,8 @@ export default function GameScreen() {
         api={api}
         clock={<GameClock stopwatch={stopwatch} />}
       />
+
+      <LogCardPeek />
 
       {!state.result && (
         <View style={styles.topLeft}>
