@@ -149,6 +149,10 @@ export function resolveGeneralStore(
   }
 
   cur = replaceTop(cur, { ...frame, revealed, queue });
+  // 한 장만 남았으면 고를 것이 없다. 묻지 않고 그 사람 손으로 넘긴다.
+  if (revealed.length === 1) {
+    return respondGeneralStore(cur, { ...frame, revealed, queue }, { c: 'card', card: revealed[0] });
+  }
   return { ...cur, awaiting: { k: 'generalStore', pid: queue[0], options: revealed } };
 }
 
