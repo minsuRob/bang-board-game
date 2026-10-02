@@ -18,6 +18,7 @@ import {
   kindOf,
   legalActions,
   isExplicitAbility,
+  isRepeatableBrown,
   playAnyAsAbilitiesOf,
   repeatAbilitiesOf,
   swapAbilitiesOf,
@@ -358,14 +359,25 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     return out;
   }, [legal]);
 
-  // 목숨이 가득 차면 엔진이 회복을 막는다. 버튼이 말없이 사라지면 고장처럼 보이므로 이유를 띄운다
+  // 능력 버튼이 말없이 사라지면 고장처럼 보이므로, 지금 못 쓰는 이유를 흐린 칩으로 띄운다
   const abilityBlocked = useMemo(() => {
     if (!view || !viewer || abilities.length > 0) return null;
     const me = view.players.find((p) => p.id === viewer);
-    if (!me || me.ghost || me.hp < me.maxHp) return null;
+    if (!me || me.ghost) return null;
+    // 시드 케첨: 목숨이 가득 차면 엔진이 회복을 막는다
     const hasSid = anytimeAbilitiesOf(view, viewer).some((ab) => ab.key === SID_KETCHUM_ABILITY);
-    return hasSid ? '능력 · 목숨이 가득 차서 쓸 수 없음' : null;
-  }, [view, viewer, abilities]);
+    if (hasSid && me.hp >= me.maxHp) return '능력 · 목숨이 가득 차서 쓸 수 없음';
+    // 리 반 클리프: 내 차례에 '한 번 더' 버튼이 없을 때
+    const repeat = repeatAbilitiesOf(view, viewer)[0];
+    if (repeat && canEndTurn && !turnModes.some((m) => m.key === repeat.key)) {
+      const last = view.turn.lastBrown;
+      if (!last || !isRepeatableBrown(last)) return '능력 · 갈색 카드를 낸 뒤 뱅!을 버려 한 번 더';
+      const name = CARD_DEFS[last].nameKo;
+      const hasFrom = me.hand.some((c) => kindOf(c) === repeat.from);
+      return hasFrom ? `능력 · ${eul(name)} 다시 낼 수 없음` : `능력 · 뱅!이 없어 ${name} 한 번 더 못 냄`;
+    }
+    return null;
+  }, [view, viewer, abilities, canEndTurn, turnModes]);
 
   const useAbility = useCallback(
     (key: string, cards: CardId[]) => {

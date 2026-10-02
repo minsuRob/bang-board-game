@@ -432,13 +432,18 @@ export function forcedPlayOf(
 /** 갈색 카드 중 리 반 클리프가 다시 낼 수 없는 것. 뱅!류와 단독으로 못 내는 카드 */
 const NOT_REPEATABLE: readonly CardKind[] = ['bang', 'fanning', 'missed', 'aim'];
 
+/** 리 반 클리프가 다시 낼 수 있는 갈색 카드 종류인가 */
+export function isRepeatableBrown(kind: CardKind): boolean {
+  return !NOT_REPEATABLE.includes(kind);
+}
+
 /**
  * 리 반 클리프: 방금 낸 갈색 카드를, 뱅! 카드를 버려 한 번 더 낸다.
  * 대상은 새로 고르므로 그 카드를 평소에 낼 때의 수를 그대로 쓰고 ability 만 붙인다.
  */
 function repeatBrownActions(state: GameState, pid: PlayerId): Action[] {
   const last = state.turn.lastBrown;
-  if (!last || NOT_REPEATABLE.includes(last)) return [];
+  if (!last || !isRepeatableBrown(last)) return [];
   const me = playerOf(state, pid);
   const out: Action[] = [];
   for (const ab of repeatAbilitiesOf(state, pid)) {

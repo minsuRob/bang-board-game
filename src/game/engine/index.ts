@@ -6,7 +6,7 @@
 
 export { reduce, defaultAction } from './reducer';
 export { createGame, draftOfferCount } from './setup';
-export { legalActions, actionKey, hasReaction, actorsOf } from './legal';
+export { legalActions, actionKey, hasReaction, actorsOf, isRepeatableBrown } from './legal';
 export { checkWin } from './frames/win';
 export {
   distance,
