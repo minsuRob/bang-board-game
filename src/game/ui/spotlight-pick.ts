@@ -4,7 +4,7 @@
  * 손에서 낸 카드와 새로 공개된 이벤트 카드를 띄운다. 한 번에 여러 개가 들어왔으면 가장 나중 것.
  * 남의 카드를 버리게·가져가게 한 결과(캣 발루·강탈·리코체)도 띄운다.
  * 공개된 카드(장비)면 그 카드, 손패에서 뽑았으면 로그에 카드가 없어 뒷면이다.
- * 판정·블랙 잭·피요테처럼 카드를 펼친 결과도 띄운다 (로그의 reveal).
+ * 판정·블랙 잭·피요테처럼 카드를 펼친 결과도 띄운다 (로그의 reveal). 포커·럼처럼 여러 장을 펼친 것도.
  *
  * 낸 카드 뒤에 결과가 이어지면(뱅! → 술통 판정) 둘 다 순서대로 띄운다.
  */
@@ -40,9 +40,21 @@ export function isRevealEvent(e: GameEvent): boolean {
   return Boolean(e.reveal && e.card && !isHidden(e.card));
 }
 
+/** 여러 장을 한꺼번에 펼친 결과 (포커 판돈 공개·럼) */
+const GROUP_REVEAL_EVENTS = new Set(['pokerReveal', 'rhum']);
+
+export function isGroupRevealEvent(e: GameEvent): boolean {
+  return GROUP_REVEAL_EVENTS.has(e.t) && Boolean(e.cards?.length) && e.cards!.every((c) => !isHidden(c));
+}
+
+/** 카드를 펼쳐 성공·실패가 갈린 결과. 다음 카드가 끼어들어도 버리지 않는다 */
+export function isFlipResult(e: GameEvent): boolean {
+  return isRevealEvent(e) || isGroupRevealEvent(e);
+}
+
 /** 앞선 카드에 이어 붙는 결과. 낸 카드를 덮지 않고 뒤에 줄 선다 */
 export function isFollowUp(e: GameEvent): boolean {
-  return isTakeEvent(e) || isRevealEvent(e);
+  return isTakeEvent(e) || isFlipResult(e);
 }
 
 function isMain(e: GameEvent): boolean {
@@ -65,8 +77,12 @@ export function pickSpotlights(log: readonly GameEvent[], since: number): GameEv
   fresh.forEach((e, i) => {
     if (isMain(e)) lastMain = i;
   });
-  const picked = lastMain >= 0 ? fresh.slice(lastMain) : fresh;
-  return picked.slice(-MAX_QUEUE);
+  if (lastMain < 0) return fresh.slice(-MAX_QUEUE);
+  // 낸 카드보다 앞선 결과는 버리되, 카드를 펼친 결과(판정·포커·럼)는 남긴다.
+  // 이벤트가 공개되자마자 판정이 돌고 곧바로 카드가 나오면 판정이 통째로 사라졌다
+  const flips = fresh.slice(0, lastMain).filter(isFlipResult);
+  const tail = fresh.slice(lastMain);
+  return [...flips.slice(-(MAX_QUEUE - 1)), ...tail].slice(0, Math.max(MAX_QUEUE, flips.length + 1));
 }
 
 /** seq 가 since 보다 뒤인 로그 중 가운데에 띄울 마지막 것 */

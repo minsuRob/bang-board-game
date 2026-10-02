@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import type { GameEvent } from '../engine';
+import type { GameEvent, JudgementPurpose } from '../engine';
 import { HIDDEN_CARD } from '../engine/view';
-import { isRevealEvent, isTakeEvent, pickSpotlight, pickSpotlights, revealedEventOf, takenCardOf } from './spotlight-pick';
+import { isGroupRevealEvent, isRevealEvent, isTakeEvent, pickSpotlight, pickSpotlights, revealedEventOf, takenCardOf } from './spotlight-pick';
 
 const ev = (seq: number, t: string, card?: string): GameEvent => ({ t, card, seq, text: t });
 
@@ -72,7 +72,7 @@ describe('남의 카드를 버리게·가져간 결과', () => {
 });
 
 describe('카드 펼치기 결과', () => {
-  const judge = (seq: number, card: string, suit: 'hearts' | 'spades', purpose: 'barrel' | 'dynamite' | 'jail'): GameEvent => ({
+  const judge = (seq: number, card: string, suit: 'hearts' | 'spades', purpose: JudgementPurpose): GameEvent => ({
     t: 'judgement',
     pid: 'p1',
     card,
@@ -97,8 +97,23 @@ describe('카드 펼치기 결과', () => {
     expect(pickSpotlights(log, 2).map((e) => e.reveal?.purpose)).toEqual(['dynamite', 'jail']);
   });
 
-  it('낸 카드보다 앞선 결과는 버린다', () => {
-    const log = [judge(4, 'bang-2', 'spades', 'jail'), ev(4, 'playCard', 'beer-1')];
-    expect(pickSpotlights(log, 3).map((e) => e.t)).toEqual(['playCard']);
+  it('낸 카드보다 앞선 결과는 버리지만 판정은 남긴다', () => {
+    const take = { ...ev(4, 'catBalou', 'bang-3'), target: 'p1' };
+    const log = [take, judge(4, 'bang-2', 'spades', 'jail'), ev(4, 'playCard', 'beer-1')];
+    expect(pickSpotlights(log, 3).map((e) => e.t)).toEqual(['judgement', 'playCard']);
+  });
+
+  it('이벤트 공개 → 헬레나 존테로 판정 → 바로 낸 카드까지 모두 띄운다', () => {
+    const log = [ev(5, 'event', 'helenaZontero'), judge(5, 'beer-1', 'hearts', 'helenaZontero'), ev(5, 'playCard', 'bang-1')];
+    expect(pickSpotlights(log, 4).map((e) => e.t)).toEqual(['judgement', 'playCard']);
+  });
+
+  it('포커 판돈 공개와 럼은 여러 장을 펼친 결과로 띄운다', () => {
+    const poker: GameEvent = { t: 'pokerReveal', pid: 'p0', cards: ['bang-1', 'beer-1'], seq: 6, text: '' };
+    const rhum: GameEvent = { t: 'rhum', pid: 'p0', cards: ['bang-1'], amount: 1, seq: 6, text: '' };
+    expect(isGroupRevealEvent(poker)).toBe(true);
+    expect(isGroupRevealEvent(rhum)).toBe(true);
+    expect(isGroupRevealEvent({ ...poker, cards: ['bang-1', HIDDEN_CARD] })).toBe(false);
+    expect(pickSpotlights([poker], 5)).toEqual([poker]);
   });
 });

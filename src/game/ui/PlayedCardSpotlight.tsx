@@ -62,7 +62,16 @@ import {
 import { PaperPlaque, plaque } from './PaperPlaque';
 import { PickSpotlight } from './PickSpotlight';
 import { playSfx, preloadSfx } from './sfx';
-import { isFollowUp, isRevealEvent, isTakeEvent, pickSpotlights, revealedEventOf, takenCardOf } from './spotlight-pick';
+import {
+  isFlipResult,
+  isFollowUp,
+  isGroupRevealEvent,
+  isRevealEvent,
+  isTakeEvent,
+  pickSpotlights,
+  revealedEventOf,
+  takenCardOf,
+} from './spotlight-pick';
 import type { CenterPick, TableApi } from './use-table';
 import { Colors, Spacing } from '@/constants/theme';
 
@@ -86,6 +95,8 @@ function beyondFour(scale: number): number {
 
 /** 펼친 카드는 무늬 배지와 도장까지 읽을 시간을 더 준다 (1배속) */
 const REVEAL_SHOW_MS = 2600;
+/** 지금 연출 뒤에 줄 세워 둘 수 있는 최대 개수 */
+const MAX_PENDING = 4;
 /** 카드가 올라선 뒤 무늬 배지가 튀어 오르기까지, 배지가 뜬 뒤 도장이 찍히기까지 (1배속) */
 const BADGE_DELAY_MS = 260;
 const STAMP_DELAY_MS = 320;
@@ -148,7 +159,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
   // 개발용 (웹): 주소에 ?fxloop=1 이면 뱅!, ?fxloop=missed 면 빗나감! 연출을 3초마다 되풀이한다.
   // ?fxloop=event 면 하이 눈 이벤트 카드를 한 장씩 돌려 가며 띄운다.
   // ?fxloop=take 면 캣 발루·강탈 결과(손패 뒷면, 장비 앞면)를 번갈아 띄운다.
-  // ?fxloop=reveal 이면 판정·블랙 잭으로 펼친 카드(성공·실패·축복)를 돌려 가며 띄운다.
+  // ?fxloop=reveal 이면 판정·블랙 잭으로 펼친 카드(성공·실패·축복)와 포커·럼을 돌려 가며 띄운다.
   // ?fxloop=hold 면 되풀이하지 않고 globalThis.__shot 으로 진행도를 손으로 멈춰 한 장면씩 본다
   // (__shot.progress.value = 0.2 로 멈추기, __shot.start() 로 한 번 돌리기)
   useEffect(() => {
@@ -182,6 +193,10 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
         { t: 'judgement', pid: a, card: pick('bang', 'clubs'), reveal: { suit: 'clubs', hit: false, purpose: 'jail' }, text: '연출 시험 — 감옥 판정 실패' },
         { t: 'blackJack', pid: a, card: pick('bang', 'diamonds'), reveal: { suit: 'diamonds', hit: true }, text: '연출 시험 — 블랙 잭' },
         { t: 'judgement', pid: a, card: pick('missed', 'clubs'), reveal: { suit: 'hearts', hit: true, purpose: 'barrel' }, text: '연출 시험 — 축복으로 ♥' },
+        { t: 'judgement', pid: a, card: pick('bang', 'diamonds'), reveal: { suit: 'diamonds', hit: true, purpose: 'helenaZontero' }, text: '연출 시험 — 헬레나 존테로 섞임' },
+        { t: 'judgement', pid: a, card: pick('bang', 'spades'), reveal: { suit: 'spades', hit: false, purpose: 'helenaZontero' }, text: '연출 시험 — 헬레나 존테로 그대로' },
+        { t: 'pokerReveal', pid: a, cards: [pick('bang', 'hearts'), pick('missed', 'clubs'), pick('beer', 'hearts'), pick('bang', 'spades')], text: '연출 시험 — 포커' },
+        { t: 'rhum', pid: a, cards: [pick('bang', 'hearts'), pick('missed', 'clubs'), pick('beer', 'hearts'), pick('bang', 'diamonds')], amount: 3, text: '연출 시험 — 럼' },
       ];
       let i = 0;
       let seq = 1_000_000;
@@ -228,8 +243,12 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
     const picked = pickSpotlights(view.log, since);
     if (picked.length === 0) return;
     const [first, ...rest] = picked;
-    if (isFollowUp(first) && shownRef.current) {
-      pending.current = [...pending.current, ...picked].slice(-3);
+    // 펼친 카드의 결과(헬레나 존테로·감옥·다이너마이트…)는 다음 카드가 끼어들어도 버리지 않는다.
+    // 이벤트 공개 바로 뒤에 AI 가 카드를 내면 판정이 통째로 사라졌다
+    const holdsReveal = Boolean(shownRef.current && isFlipResult(shownRef.current)) || pending.current.some(isFlipResult);
+    if (shownRef.current && (isFollowUp(first) || holdsReveal)) {
+      const waiting = isFollowUp(first) ? pending.current : pending.current.filter(isFlipResult);
+      pending.current = [...waiting, ...picked].slice(-MAX_PENDING);
       return;
     }
     // 다른 카드가 끼어들면 기다리던 결과는 버린다. 빨리 둘 때 연출이 밀리지 않게
@@ -262,6 +281,14 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
           ) : isRevealEvent(shown) ? (
             <RevealSpot
               key={`${shown.seq}:${shown.t}:${shown.card}`}
+              event={shown}
+              faces={facesOf(view, viewer, shown)}
+              compact={compact}
+              onDone={() => clear(shown)}
+            />
+          ) : isGroupRevealEvent(shown) ? (
+            <GroupRevealSpot
+              key={`${shown.seq}:${shown.t}`}
               event={shown}
               faces={facesOf(view, viewer, shown)}
               compact={compact}
@@ -764,6 +791,169 @@ function RevealMarks({
   );
 }
 
+/** 여러 장을 펼친 결과의 규칙. 어떤 카드에 표시를 할지, 결과 글과 도장 */
+type GroupReveal = { title: string; need: string; good: boolean; result: string; stamp: string; marked: boolean[] };
+
+function groupRevealOf(e: GameEvent): GroupReveal {
+  const cards = e.cards ?? [];
+  if (e.t === 'pokerReveal') {
+    // 판돈에 에이스가 하나라도 있으면 모두 버려진다. 포커를 낸 사람에게는 실패다
+    const aces = cards.map((c) => cardOf(c).rank === 'A');
+    const ace = aces.some(Boolean);
+    return {
+      title: '포커',
+      need: '에이스가 없어야',
+      good: !ace,
+      result: ace ? '에이스! 판돈을 모두 버린다' : '판돈에서 2장까지 가져간다',
+      stamp: ace ? '꽝' : '성공',
+      marked: aces,
+    };
+  }
+  // 럼: 무늬 가짓수만큼 목숨을 되찾는다. 무늬마다 처음 나온 카드에 표시한다
+  const n = e.amount ?? 0;
+  const seen = new Set<Suit>();
+  const marked = cards.map((c) => {
+    const suit = cardOf(c).suit;
+    if (seen.has(suit)) return false;
+    seen.add(suit);
+    return true;
+  });
+  return { title: '럼', need: '무늬 가짓수만큼 회복', good: n > 0, result: `목숨 ${n} 회복`, stamp: `+${n}`, marked };
+}
+
+/** 펼친 카드 사이 간격. 많으면 겹쳐 놓는다 */
+function groupGap(count: number, width: number, compact?: boolean): number {
+  const room = compact ? 300 : 460;
+  const fit = (room - width) / Math.max(1, count - 1) - width;
+  return Math.max(-width * 0.55, Math.min(Spacing.two, fit));
+}
+
+/**
+ * 포커 판돈·럼처럼 여러 장을 한꺼번에 펼친 결과. 카드가 한 장씩 뒤집혀 올라오고,
+ * 조건에 걸린 카드(에이스·새 무늬)가 떠오른 뒤 가운데에 성공·실패 도장이 찍힌다
+ */
+function GroupRevealSpot({ event, faces, compact, onDone }: { event: GameEvent; faces: Faces | null; compact?: boolean; onDone: () => void }) {
+  const cards = event.cards ?? [];
+  const [t] = useState(() => new Animated.Value(0));
+  const [flips] = useState(() => cards.map(() => new Animated.Value(0)));
+  const [mark] = useState(() => new Animated.Value(0));
+  const [stamp] = useState(() => new Animated.Value(0));
+  const done = useRef(onDone);
+  useEffect(() => {
+    done.current = onDone;
+  });
+
+  useEffect(() => {
+    const scale = Math.max(1, fxPacing.getState().timeScale);
+    const step = 140 / scale;
+    const flipsIn = flips.length * step;
+    const anim = Animated.sequence([
+      Animated.spring(t, { toValue: 1, friction: 6, tension: 140, useNativeDriver: NATIVE_DRIVER }),
+      Animated.delay(Math.max(1100 / beyondFour(scale), (REVEAL_SHOW_MS + 600) / scale - 400) + flipsIn),
+      Animated.timing(t, { toValue: 0, duration: 220, useNativeDriver: NATIVE_DRIVER }),
+    ]);
+    // 표시 스프링이 다 가라앉기를 기다리지 않고 도장은 제 시간에 찍는다
+    const shown = flipsIn + 220 / scale;
+    const marks = Animated.parallel([
+      Animated.stagger(
+        step,
+        flips.map((f) => Animated.timing(f, { toValue: 1, duration: 220 / scale, easing: Easing.out(Easing.back(1.6)), useNativeDriver: NATIVE_DRIVER })),
+      ),
+      Animated.sequence([
+        Animated.delay(shown),
+        Animated.spring(mark, { toValue: 1, friction: 5, tension: 160, useNativeDriver: NATIVE_DRIVER }),
+      ]),
+      Animated.sequence([
+        Animated.delay(shown + STAMP_DELAY_MS / scale),
+        Animated.timing(stamp, { toValue: 1, duration: 160, easing: Easing.out(Easing.back(2)), useNativeDriver: NATIVE_DRIVER }),
+      ]),
+    ]);
+    anim.start(({ finished }) => {
+      if (finished) done.current();
+    });
+    marks.start();
+    return () => {
+      anim.stop();
+      marks.stop();
+    };
+  }, [t, flips, mark, stamp]);
+
+  const rule = groupRevealOf(event);
+  const tone = rule.good ? Colors.success : Colors.danger;
+  const size = compact ? 'sm' : 'md';
+  const dim = CARD_DIMENSIONS[size];
+  const gap = groupGap(cards.length, dim.width, compact);
+  const faceW = compact ? FACE_W_COMPACT * 0.8 : FACE_W * 0.8;
+  const actor = faces?.actor;
+
+  return (
+    <Animated.View style={[styles.spot, popStyle(t)]}>
+      <View style={styles.faceRow}>
+        {actor && (
+          <View style={[{ width: faceW }, styles.cardShadow, styles.faceActor]}>
+            <CharacterCard id={actor.character} width={faceW} />
+          </View>
+        )}
+        <View style={styles.groupRow}>
+          {cards.map((c, i) => {
+            const f = flips[i];
+            const lit = rule.marked[i];
+            return (
+              <Animated.View
+                key={c}
+                style={[
+                  styles.cardShadow,
+                  { marginLeft: i === 0 ? 0 : gap, zIndex: lit ? 2 : 1 },
+                  {
+                    opacity: f.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 1, 1] }),
+                    transform: [
+                      { perspective: 600 },
+                      { rotateY: f.interpolate({ inputRange: [0, 1], outputRange: ['80deg', '0deg'] }) },
+                      { translateY: lit ? mark.interpolate({ inputRange: [0, 1], outputRange: [0, -dim.height * 0.12] }) : 0 },
+                    ],
+                  },
+                ]}>
+                <CardView card={c} size={size} />
+                {lit && (
+                  <Animated.View
+                    style={[
+                      styles.groupMark,
+                      { borderColor: rule.good ? Colors.highlight : Colors.danger, opacity: mark },
+                    ]}
+                  />
+                )}
+              </Animated.View>
+            );
+          })}
+          <View style={[styles.marks, styles.groupStampSlot]}>
+            <Animated.View
+              style={[
+                styles.stamp,
+                { borderColor: tone, position: 'relative' },
+                {
+                  opacity: stamp,
+                  transform: [{ rotate: '-12deg' }, { scale: stamp.interpolate({ inputRange: [0, 1], outputRange: [1.8, 1] }) }],
+                },
+              ]}>
+              <Text style={[styles.stampText, { color: tone, fontSize: compact ? 18 : 24 }]}>{rule.stamp}</Text>
+            </Animated.View>
+          </View>
+        </View>
+      </View>
+      <PaperPlaque compact={compact} style={compact ? styles.plaqueCompact : styles.plaque}>
+        <Text style={plaque.meta} numberOfLines={1}>
+          {`${rule.title} · ${rule.need}`}
+        </Text>
+        <Text style={[plaque.text, compact && plaque.textCompact]} numberOfLines={3}>
+          <Text style={[plaque.name, { color: tone }]}>{rule.result}</Text>
+          {'  '}
+          {event.text}
+        </Text>
+      </PaperPlaque>
+    </Animated.View>
+  );
+}
+
 /** 새로 공개된 이벤트 카드. 낸 카드처럼 튀어 올랐다가, 효과를 읽을 만큼 머문 뒤 사라진다 */
 function EventSpot({ def, compact, onDone }: { def: EventCardDef; compact?: boolean; onDone: () => void }) {
   const [t] = useState(() => new Animated.Value(0));
@@ -995,6 +1185,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239,226,198,0.88)',
   },
   stampText: { fontWeight: '900', letterSpacing: 2 },
+  groupRow: { flexDirection: 'row', alignItems: 'center' },
+  // 조건에 걸린 카드 테두리 (에이스·새 무늬)
+  groupMark: { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderWidth: 3, borderRadius: 9 },
+  groupStampSlot: { right: 0, bottom: 0, justifyContent: 'center', zIndex: 3 },
   plaque: { width: 340, gap: 2 },
   plaqueCompact: { width: 260, gap: 1 },
 });
