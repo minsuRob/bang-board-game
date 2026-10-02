@@ -46,11 +46,6 @@ const MIXED = new Set([
   'src/game/table3d/overlay/SeatLabel.tsx',
 ]);
 
-/** 아직 옮기지 못한 UI. 옮기면 여기서 지운다 */
-const PENDING = new Set([
-  'src/game/table3d/overlay/Overlay3D.tsx',
-]);
-
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const path = join(dir, name);
@@ -71,7 +66,7 @@ describe('화면 테마', () => {
 
   it('판이 아닌 UI 는 고정 팔레트 Colors 를 읽지 않는다', () => {
     const offenders = files.filter(
-      (f) => !BOARD.has(f) && !MIXED.has(f) && !PENDING.has(f) && importsColors(readFileSync(join(ROOT, f), 'utf8')),
+      (f) => !BOARD.has(f) && !MIXED.has(f) && importsColors(readFileSync(join(ROOT, f), 'utf8')),
     );
     expect(offenders).toEqual([]);
   });

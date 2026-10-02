@@ -22,7 +22,8 @@ import { CharacterHover, type PreviewSlot } from './CharacterHover';
 import { EventHover } from './EventHover';
 import { FloatingNumbers } from './FloatingNumbers';
 import { LABEL_W, LABEL_W_COMPACT, LABEL_W_SELF, LABEL_W_SELF_COMPACT, SeatLabel } from './SeatLabel';
-import { Colors, Spacing } from '@/constants/theme';
+import { themedStyles, useColors } from '../../ui/theme/use-theme';
+import type { ThemeColor } from '@/constants/theme';
 
 export type Overlay3DProps = {
   view: GameState;
@@ -130,7 +131,7 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
 
       {deck?.visible && <Pill x={deck.x} y={deck.y} text={`덱 ${view.deck.length}`} />}
       {discard?.visible && <Pill x={discard.x} y={discard.y} text={`버린 더미 ${view.discard.length}`} />}
-      {event && ev?.visible && <Pill x={ev.x} y={ev.y} text={event.nameKo} tone={Colors.renegade} />}
+      {event && ev?.visible && <Pill x={ev.x} y={ev.y} text={event.nameKo} tone="renegade" />}
 
       <CharacterHover
         view={view}
@@ -200,10 +201,13 @@ function selfLabelBox(
   return { mode: 'inside', x, x0: x - w / 2, x1: x + w / 2, y0: bottom - SELF_LABEL_H, y1: bottom, room: w };
 }
 
-function Pill({ x, y, text, tone }: { x: number; y: number; text: string; tone?: string }) {
+/** 테이블 위 작은 이름표 (지금 열린 이벤트 카드 이름). 글자색은 테마 팔레트의 tone */
+function Pill({ x, y, text, tone }: { x: number; y: number; text: string; tone?: ThemeColor }) {
+  const pillStyles = usePillStyles();
+  const c = useColors();
   return (
     <View style={[styles.pillWrap, { left: x - 60, top: y + 28 }]}>
-      <Text style={[styles.pill, tone ? { color: tone } : null]} numberOfLines={1}>
+      <Text style={[pillStyles.pill, tone ? { color: c[tone] } : null]} numberOfLines={1}>
         {text}
       </Text>
     </View>
@@ -213,13 +217,19 @@ function Pill({ x, y, text, tone }: { x: number; y: number; text: string; tone?:
 const styles = StyleSheet.create({
   layer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' },
   pillWrap: { position: 'absolute', width: 120, alignItems: 'center', pointerEvents: 'none' },
+});
+
+const usePillStyles = themedStyles((c) => ({
   pill: {
-    color: Colors.paperEdge,
+    color: c.textMuted,
     fontSize: 10,
-    backgroundColor: 'rgba(24, 16, 9, 0.75)',
-    borderRadius: 4,
-    paddingHorizontal: 5,
+    fontWeight: '800',
+    backgroundColor: c.panel,
+    borderWidth: 1,
+    borderColor: c.panelBorder,
+    borderRadius: 999,
+    paddingHorizontal: 7,
     paddingVertical: 1,
     overflow: 'hidden',
   },
-});
+}));
