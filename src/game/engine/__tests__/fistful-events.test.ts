@@ -213,3 +213,47 @@ describe('폐광', () => {
     expect(s.log.find((e) => e.t === 'discard')?.card).toBeUndefined();
   });
 });
+
+describe('망자', () => {
+  /** b 가 이미 첫 탈락자로 적혀 있는 판 */
+  function withFirstOut(s: GameState, pid: PlayerId, used = false): GameState {
+    return { ...s, event: { ...s.event!, firstOut: pid, deadManUsed: used } };
+  }
+
+  it('이벤트 덱을 쓰면 첫 탈락자를 적어 두고, 두 번째 탈락자로 덮지 않는다', () => {
+    let s = table('blessing', {}, { hp: 1 })();
+    s = resolveStack({
+      ...s,
+      stack: [...s.stack, { k: 'damage', target: 'b', amount: 1, source: 'a', credit: 'a', cause: 'bang' }],
+    });
+    expect(p(s, 'b').alive).toBe(false);
+    expect(s.event?.firstOut).toBe('b');
+
+    s = resolveStack({
+      ...s,
+      players: s.players.map((x) => (x.id === 'c' ? { ...x, hp: 1 } : x)),
+      stack: [...s.stack, { k: 'damage', target: 'c', amount: 1, source: 'a', credit: 'a', cause: 'bang' }],
+    });
+    expect(p(s, 'c').alive).toBe(false);
+    expect(s.event?.firstOut).toBe('b');
+  });
+
+  it('첫 탈락자는 자기 차례에 목숨 2 · 카드 2장으로 돌아온다', () => {
+    let s = withFirstOut(table('deadMan', {}, { alive: false, hp: 0 })(), 'b');
+    s = endTurn(s, 'a');
+    expect(s.turn.active).toBe('b');
+    expect(p(s, 'b').alive).toBe(true);
+    expect(p(s, 'b').hp).toBe(2);
+    // 돌아올 때 2장 + 카드 가져오기 단계 2장
+    expect(p(s, 'b').hand).toHaveLength(4);
+    expect(s.event?.deadManUsed).toBe(true);
+    expect(logged(s, 'deadMan')).toBe(true);
+  });
+
+  it('한 번 돌아왔으면 다시 돌아오지 않는다', () => {
+    let s = withFirstOut(table('deadMan', {}, { alive: false, hp: 0 })(), 'b', true);
+    s = endTurn(s, 'a');
+    expect(s.turn.active).toBe('c');
+    expect(p(s, 'b').alive).toBe(false);
+  });
+});

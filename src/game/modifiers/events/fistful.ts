@@ -104,6 +104,9 @@ const abandonedMine: Modifier = {
   discardsToDeck: true,
 };
 
+/** 망자 — 가장 먼저 제거된 사람이 자기 차례에 목숨 2 · 카드 2장으로 돌아온다 */
+const deadMan: Modifier = { id: 'event:deadMan', from: 'event', revivesFirstOut: { hp: 2, cards: 2 } };
+
 /** 매복 — 두 사람 사이의 거리는 모두 1. 앞에 놓인 카드로만 달라진다 */
 const ambush: Modifier = { id: 'event:ambush', from: 'event', fixedDistance: 1 };
 
@@ -129,7 +132,7 @@ export const FISTFUL_EVENT_MODIFIERS: Record<FistfulEventId, Modifier> = {
   abandonedMine,
   ambush,
   bloodBrothers,
-  deadMan: ev('deadMan'),
+  deadMan,
   hardLiquor,
   lasso,
   lawOfTheWest,

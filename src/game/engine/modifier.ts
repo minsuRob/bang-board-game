@@ -180,4 +180,6 @@ export type Modifier = {
   drawsFromDiscard?: boolean;
   /** 버리기 단계에서 버린 카드를 뒷면으로 덱 위에 올린다 (폐광) */
   discardsToDeck?: boolean;
+  /** 가장 먼저 제거된 사람이 자기 차례에 이 목숨·카드로 돌아온다. 한 판에 한 번 (망자) */
+  revivesFirstOut?: { hp: number; cards: number };
 };

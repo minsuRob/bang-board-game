@@ -50,6 +50,11 @@ export function discardsToDeck(state: GameState): boolean {
   return eventModifier(state)?.discardsToDeck === true;
 }
 
+/** 망자: 가장 먼저 제거된 사람이 돌아올 때의 목숨·카드. 없으면 null */
+export function firstOutRevival(state: GameState): { hp: number; cards: number } | null {
+  return eventModifier(state)?.revivesFirstOut ?? null;
+}
+
 /** 숙취처럼 캐릭터 능력을 통째로 죽이는 효과가 걸려 있는가 */
 export function characterAbilitiesDisabled(state: GameState): boolean {
   return eventModifier(state)?.disablesCharacterAbilities === true;
