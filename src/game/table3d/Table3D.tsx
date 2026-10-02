@@ -232,6 +232,8 @@ export function Table3D({ view, viewer, api, clock }: Table3DProps) {
                 onDragStart={onDragStart}
                 onDrop={onDrop}
                 showIndex={wide}
+                owner={viewer}
+                resetKey={`${view.turn.round}:${view.turn.active}`}
               />
             </View>
           </>

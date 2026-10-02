@@ -141,6 +141,17 @@ describe('축복', () => {
     expect(totalCards(s)).toBe(80);
   });
 
+  it('판정 로그의 무늬는 효과 무늬(♥)다 — 가운데 연출이 이걸 강조한다', () => {
+    const s0 = scenario({
+      players: [{ hand: ['bang'] }, { equipment: ['barrel'] }, {}, {}],
+      deckTop: [{ kind: 'missed', suit: 'clubs', rank: '10' }],
+      event: 'blessing',
+    });
+    const s = reduce(s0, bangAt(s0, 'p0', 'p1'));
+    const e = s.log.find((x) => x.t === 'judgement');
+    expect(e?.reveal).toEqual({ suit: 'hearts', hit: true, purpose: 'barrel' });
+  });
+
   it('다이너마이트는 절대 터지지 않는다', () => {
     const s0 = scenario({
       players: [{ equipment: ['dynamite'] }, {}, {}, {}],
@@ -610,6 +621,13 @@ describe('달톤 형제', () => {
     expect(p(s, 'p0').equipment).toHaveLength(0);
     expect(logged(s, 'daltons')).toBe(true);
     expect(totalCards(s)).toBe(80);
+  });
+
+  it('버린 장비는 앞에 놓여 있던 카드라 로그에 이름을 적는다', () => {
+    const s0 = scenario({ players: [{ equipment: ['mustang'] }, {}, {}, {}] });
+    const s = settle(revealEvent(s0, 'theDaltons'));
+    const e = s.log.find((x) => x.t === 'daltons');
+    expect(e?.text).toContain('야생마를 버렸다');
   });
 
   it('파랑 카드가 없으면 건너뛴다', () => {

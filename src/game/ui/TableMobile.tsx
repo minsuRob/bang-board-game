@@ -232,6 +232,8 @@ export function TableMobile({
                 discardable={api.discardable}
                 selected={api.selected}
                 onSelect={onCardPress}
+                owner={viewer}
+                resetKey={`${view.turn.round}:${view.turn.active}`}
               />
             </View>
           </View>

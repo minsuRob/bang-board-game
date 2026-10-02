@@ -9,6 +9,7 @@
 import { RANK_VALUE, SUIT_GLYPH, type Suit } from '../../data/types';
 import {
   cardOf,
+  defOf,
   drawFromDeck,
   effectiveSuit,
   giveCards,
@@ -26,7 +27,7 @@ import { judgementCardTaker, judgementPeekOf, turnDirectionOf } from '../hooks';
 import type { Choice, Frame, GameState, JudgementPurpose, PlayerId } from '../types';
 import { skipRestOfTurn } from './turn';
 import { shuffleLivingRoles } from './wildwest';
-import { ga, neun } from '../josa';
+import { eul, ga, neun } from '../josa';
 
 const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
   barrel: '술통',
@@ -40,6 +41,32 @@ const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
   vendetta: '복수',
   helenaZontero: '헬레나 존테로',
 };
+
+/**
+ * 펼친 카드가 조건에 맞았는가 (효과가 발동하는가). 좋은 결과인지와는 다르다 — 다이너마이트는 맞으면 터진다.
+ * 판정 처리와 로그(UI 연출)가 같은 답을 쓰도록 한곳에 둔다.
+ */
+export function judgementHit(purpose: JudgementPurpose, suit: Suit, rank: keyof typeof RANK_VALUE): boolean {
+  switch (purpose) {
+    case 'barrel':
+    case 'jourdonnais':
+    case 'jail':
+    case 'vendetta':
+      return suit === 'hearts';
+    case 'rattlesnake':
+    case 'coloradoBill':
+      return suit === 'spades';
+    case 'donBell':
+    case 'helenaZontero':
+      return suit === 'hearts' || suit === 'diamonds';
+    case 'terenKill':
+      return suit !== 'spades';
+    case 'dynamite': {
+      const value = RANK_VALUE[rank];
+      return suit === 'spades' && value >= 2 && value <= 9;
+    }
+  }
+}
 
 /** 스택에서 가장 위에 있는 뱅! 프레임의 요구 빗나감 장수를 1 줄인다. */
 function creditDodge(state: GameState): GameState {
@@ -126,6 +153,7 @@ function applyJudgement(
 ): GameState {
   const suit = effectiveSuit(state, card);
   const inst = cardOf(card);
+  const hit = judgementHit(purpose, suit, inst.rank);
   // 존 페인: 손패가 모자라면 펼친 카드를 버린 더미 대신 손으로 가져간다
   const taker = judgementCardTaker(state, pid);
   let cur = toDiscard(state, taker ? discarded : [card, ...discarded]);
@@ -133,6 +161,7 @@ function applyJudgement(
     t: 'judgement',
     pid,
     card,
+    reveal: { suit, hit, purpose },
     text: `${nameOf(cur, pid)}의 ${PURPOSE_LABEL[purpose]} 판정: ${inst.rank}${SUIT_GLYPH[suit]}`,
   });
   if (taker) {
@@ -141,14 +170,14 @@ function applyJudgement(
       t: 'johnPain',
       pid: taker,
       card,
-      text: `${ga(nameOf(cur, taker))} 펼친 카드를 손에 넣었다.`,
+      text: `${ga(nameOf(cur, taker))} 펼친 ${eul(defOf(card).nameKo)} 손에 넣었다.`,
     });
   }
 
   switch (purpose) {
     case 'barrel':
     case 'jourdonnais': {
-      if (suit !== 'hearts') return cur;
+      if (!hit) return cur;
       cur = creditDodge(cur);
       return log(cur, {
         t: 'dodge',
@@ -157,19 +186,19 @@ function applyJudgement(
       });
     }
     case 'dynamite':
-      return resolveDynamiteResult(cur, pid, suit, inst.rank);
+      return resolveDynamiteResult(cur, pid, hit);
     case 'jail':
-      return resolveJailResult(cur, pid, suit);
+      return resolveJailResult(cur, pid, hit);
     case 'rattlesnake':
-      if (suit !== 'spades') return cur;
+      if (!hit) return cur;
       cur = log(cur, { t: 'rattlesnake', pid, text: `방울뱀이 ${ga(nameOf(cur, pid))} 물었다.` });
       return pushSeq(cur, [{ k: 'damage', target: pid, amount: 1, source: null, cause: 'rattlesnake' }]);
     case 'coloradoBill':
-      if (suit !== 'spades') return cur;
+      if (!hit) return cur;
       cur = markUnavoidable(cur);
       return log(cur, { t: 'coloradoBill', pid, text: '♠ — 이 총알은 피할 수 없다.' });
     case 'donBell': {
-      if (suit !== 'hearts' && suit !== 'diamonds') return cur;
+      if (!hit) return cur;
       cur = { ...cur, turn: { ...cur.turn, extraTurnFor: pid } };
       return log(cur, {
         t: 'donBell',
@@ -178,7 +207,7 @@ function applyJudgement(
       });
     }
     case 'terenKill': {
-      if (suit === 'spades') return cur;
+      if (!hit) return cur;
       cur = markSpared(updatePlayer(cur, pid, (x) => ({ ...x, hp: 1 })), pid);
       cur = log(cur, {
         t: 'terenKill',
@@ -189,7 +218,7 @@ function applyJudgement(
     }
     case 'vendetta': {
       // 돈 벨과 같은 추가 차례 자리를 쓴다. 추가 차례 끝에는 다시 펼치지 않는다
-      if (suit !== 'hearts') return cur;
+      if (!hit) return cur;
       cur = { ...cur, turn: { ...cur.turn, extraTurnFor: pid } };
       return log(cur, {
         t: 'vendetta',
@@ -206,18 +235,11 @@ function applyJudgement(
   }
 }
 
-function resolveDynamiteResult(
-  state: GameState,
-  pid: PlayerId,
-  suit: Suit,
-  rank: keyof typeof RANK_VALUE,
-): GameState {
+function resolveDynamiteResult(state: GameState, pid: PlayerId, explodes: boolean): GameState {
   const p = playerOf(state, pid);
   const dyn = p.equipment.find((c) => cardOf(c).kind === 'dynamite');
   if (!dyn) return state;
 
-  const value = RANK_VALUE[rank];
-  const explodes = suit === 'spades' && value >= 2 && value <= 9;
 
   let cur = updatePlayer(state, pid, (x) => ({
     ...x,
@@ -250,7 +272,7 @@ function resolveDynamiteResult(
   return toDiscard(cur, [dyn]);
 }
 
-function resolveJailResult(state: GameState, pid: PlayerId, suit: Suit): GameState {
+function resolveJailResult(state: GameState, pid: PlayerId, escapes: boolean): GameState {
   const p = playerOf(state, pid);
   const jailCard = p.equipment.find((c) => cardOf(c).kind === 'jail');
   if (!jailCard) return state;
@@ -261,7 +283,7 @@ function resolveJailResult(state: GameState, pid: PlayerId, suit: Suit): GameSta
   }));
   cur = toDiscard(cur, [jailCard]);
 
-  if (suit === 'hearts') {
+  if (escapes) {
     return log(cur, { t: 'jailEscape', pid, text: `${ga(nameOf(cur, pid))} 감옥에서 탈출했다.` });
   }
   cur = log(cur, { t: 'jailSkip', pid, text: `${neun(nameOf(cur, pid))} 감옥에 갇혀 차례를 건너뛴다.` });

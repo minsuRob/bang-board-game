@@ -3,6 +3,7 @@
  */
 
 import type { PlayerId } from '../../engine';
+import { markLanded } from '../../ui/hand-arrival';
 import { DUR, flightMs } from '../core/durations';
 import { fxPacing } from '../../store/fx-pacing';
 import { finishFx, fxStore, pushNumber, setCaption, shiftFx } from '../core/fx-store';
@@ -297,6 +298,8 @@ export class Sequencer {
           if (!last) return;
           h.set({ ...seg.b });
           fx.releaseShadow(shadow);
+          // 내 손으로 온 카드는 여기서 화면 아래로 빠진다. 손패 줄이 이어받아 솟아오르게 한다
+          if (cmd.to?.z === 'hand' && world.isViewer(cmd.to.pid)) markLanded(cmd.card);
           if (cmd.slam) {
             const slamStart = segStart + ms;
             const base = seg.b.scale;

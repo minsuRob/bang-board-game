@@ -3,13 +3,14 @@
  * 카메라가 움직일 때만 리렌더된다.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useStore } from 'zustand';
 
 import { EVENTS } from '../../data/events';
 import type { CardId } from '../../data/types';
 import type { GameState, PlayerId } from '../../engine';
+import { clearRoleGuesses } from '../../store/role-guess';
 import { CharacterDetailModal } from '../../ui/CharacterDetail';
 import { PlayedCardSpotlight } from '../../ui/PlayedCardSpotlight';
 import type { TableApi } from '../../ui/use-table';
@@ -38,6 +39,8 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
   const [hover, setHover] = useState<HoverTarget>(null);
   // 폰에는 hover 가 없다. 탭해서 가운데에 띄운 캐릭터 상세
   const [detail, setDetail] = useState<PlayerId | null>(null);
+  // 직업 짐작은 이 판 화면에서만 쓴다
+  useEffect(() => clearRoleGuesses, []);
   // 떠날 때는 지금 가리키는 것이 자기일 때만 비운다 (옆 카드로 바로 옮겨 가면 새 것이 이긴다)
   const onPlayerHover = useCallback((pid: PlayerId, on: boolean) => {
     setHover((h) => (on ? { k: 'player', pid } : h?.k === 'player' && h.pid === pid ? null : h));

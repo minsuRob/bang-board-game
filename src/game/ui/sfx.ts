@@ -14,6 +14,7 @@ import { createStore } from 'zustand/vanilla';
 const SOURCES = {
   gunshot: require('../../../assets/sfx/gunshot.wav'),
   bullet_whiz: require('../../../assets/sfx/bullet_whiz.wav'),
+  card_draw: require('../../../assets/sfx/card_draw.wav'),
 } as const;
 
 export type SfxId = keyof typeof SOURCES;

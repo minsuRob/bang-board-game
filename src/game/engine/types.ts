@@ -409,6 +409,11 @@ export type GameEvent = {
   /** 골드 러시 카드 (산 카드·치운 카드). 플레잉 카드 id 와 섞지 않으려고 따로 둔다 */
   gold?: GoldCardId;
   amount?: number;
+  /**
+   * 카드 펼치기 결과 (판정·블랙 잭·피요테). suit 는 효과 무늬라 축복·저주면 인쇄 무늬와 다를 수 있다.
+   * hit 는 카드의 조건이 맞았다는 뜻이다. 좋은 결과인지는 목적마다 다르다 (다이너마이트 hit = 폭발)
+   */
+  reveal?: { suit: Suit; hit: boolean; purpose?: JudgementPurpose };
   /** UI 에 그대로 보여줄 한국어 문장 */
   text: string;
   /** 이 로그를 만든 액션의 순번 */

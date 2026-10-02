@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { GameEvent } from '../engine';
 import { HIDDEN_CARD } from '../engine/view';
-import { pickSpotlight, revealedEventOf } from './spotlight-pick';
+import { isRevealEvent, isTakeEvent, pickSpotlight, pickSpotlights, revealedEventOf, takenCardOf } from './spotlight-pick';
 
 const ev = (seq: number, t: string, card?: string): GameEvent => ({ t, card, seq, text: t });
 
@@ -38,5 +38,67 @@ describe('revealedEventOf', () => {
   it('이벤트 공개 로그만 카드 정의를 돌려준다', () => {
     expect(revealedEventOf(ev(1, 'event', 'highNoon'))?.isFinal).toBe(true);
     expect(revealedEventOf(ev(1, 'playCard', 'blessing'))).toBeNull();
+  });
+});
+
+describe('남의 카드를 버리게·가져간 결과', () => {
+  const take = (seq: number, t: string, card?: string): GameEvent => ({
+    t,
+    pid: 'p1',
+    target: 'p0',
+    card,
+    seq,
+    text: t,
+  });
+
+  it('손패에서 뽑은 캣 발루·강탈은 뒷면으로 띄운다', () => {
+    for (const t of ['catBalou', 'panic']) {
+      const e = pickSpotlight([take(2, t)], 1);
+      expect(e?.t).toBe(t);
+      expect(isTakeEvent(e!)).toBe(true);
+      expect(takenCardOf(e!)).toBeNull();
+    }
+  });
+
+  it('장비를 버리게 한 캣 발루·리코체는 그 카드를 띄운다', () => {
+    expect(takenCardOf(pickSpotlight([take(2, 'catBalou', 'barrel-1')], 1)!)).toBe('barrel-1');
+    expect(takenCardOf(pickSpotlight([take(2, 'ricochet', 'mustang-1')], 1)!)).toBe('mustang-1');
+  });
+
+  it('가려진 카드는 뒷면, 대상이 없으면 띄우지 않는다', () => {
+    expect(takenCardOf(take(2, 'panic', HIDDEN_CARD))).toBeNull();
+    expect(pickSpotlight([{ ...take(2, 'catBalou'), target: undefined }], 1)).toBeNull();
+  });
+});
+
+describe('카드 펼치기 결과', () => {
+  const judge = (seq: number, card: string, suit: 'hearts' | 'spades', purpose: 'barrel' | 'dynamite' | 'jail'): GameEvent => ({
+    t: 'judgement',
+    pid: 'p1',
+    card,
+    reveal: { suit, hit: suit === 'hearts', purpose },
+    seq,
+    text: 'judgement',
+  });
+
+  it('판정 로그를 띄운다', () => {
+    const e = pickSpotlight([judge(2, 'beer-1', 'hearts', 'barrel')], 1);
+    expect(e?.t).toBe('judgement');
+    expect(isRevealEvent(e!)).toBe(true);
+  });
+
+  it('뱅! 뒤의 술통 판정은 뱅! 다음에 줄 선다', () => {
+    const log = [ev(2, 'playCard', 'bang-1'), judge(2, 'beer-1', 'hearts', 'barrel'), ev(2, 'dodge')];
+    expect(pickSpotlights(log, 1).map((e) => e.t)).toEqual(['playCard', 'judgement']);
+  });
+
+  it('차례 시작의 다이너마이트와 감옥 판정을 둘 다 띄운다', () => {
+    const log = [ev(3, 'turnStart'), judge(3, 'bang-2', 'spades', 'dynamite'), judge(3, 'beer-3', 'hearts', 'jail')];
+    expect(pickSpotlights(log, 2).map((e) => e.reveal?.purpose)).toEqual(['dynamite', 'jail']);
+  });
+
+  it('낸 카드보다 앞선 결과는 버린다', () => {
+    const log = [judge(4, 'bang-2', 'spades', 'jail'), ev(4, 'playCard', 'beer-1')];
+    expect(pickSpotlights(log, 3).map((e) => e.t)).toEqual(['playCard']);
   });
 });

@@ -225,6 +225,8 @@ export function Table({ view, viewer, api, clock }: TableProps) {
                   selected={api.selected}
                   onSelect={(card) => handleHandTap(api, card)}
                   showIndex
+                  owner={viewer}
+                  resetKey={`${view.turn.round}:${view.turn.active}`}
                 />
               </View>
             </View>

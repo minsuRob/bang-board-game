@@ -13,6 +13,7 @@ import { EVENTS } from '../../data/events';
 import { CHARACTERS } from '../../data/characters';
 import { SUIT_GLYPH, type Suit } from '../../data/types';
 import {
+  defOf,
   heldAsGhost,
   inPlay,
   log,
@@ -40,7 +41,7 @@ import {
 import { reviveFromBoneOrchard } from './wildwest';
 import { discardGold, goldEquipOf } from '../gold';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
-import { ga, neun } from '../josa';
+import { eul, ga, neun } from '../josa';
 
 /** 감옥에 걸려 차례를 건너뛸 때, 이번 차례의 남은 단계를 스택에서 걷어낸다. */
 export function skipRestOfTurn(state: GameState, pid: PlayerId): GameState {
@@ -405,7 +406,7 @@ export function respondDaltonsDiscard(
     t: 'daltons',
     pid,
     card,
-    text: `달톤 형제: ${ga(nameOf(cur, pid))} 장착 카드 1장을 버렸다.`,
+    text: `달톤 형제: ${ga(nameOf(cur, pid))} ${eul(defOf(card).nameKo)} 버렸다.`,
   });
 
   return {

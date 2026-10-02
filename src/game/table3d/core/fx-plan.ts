@@ -199,6 +199,7 @@ export function planFx(t: Transition, moves: CardMove[], viewer: PlayerId | null
       }
 
       case 'generalStore': {
+        // 펼친 카드는 바닥이 아니라 화면 가운데 창에 뜬다. 덱에서 가운데 위로 빨려 올라가기만 한다
         const spread = movesTo((m) => m.to?.z === 'limbo' && m.to.kind === 'store');
         push(...spread.map((m, i) => moveCmd(m, 'deal', { delayMs: i * DUR.dealStagger })));
         break;

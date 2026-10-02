@@ -11,6 +11,12 @@
  * 드러난 부관이면 캐릭터 카드 위에 부관 별을 단다.
  * 연출이 붙은 카드(fx/card-fx.ts)는 카드가 올라선 직후 소리와 화면 효과가 같은 틱에 터진다.
  * 첫 메뉴에서 고화질을 골랐고 Skia 가 준비됐으면 Skia 연출(fx/skia), 아니면 일반 연출(RN Animated).
+ *
+ * 캣 발루·강탈·리코체는 낸 카드가 사라진 뒤 결과를 한 번 더 띄운다. 공개된 카드면 그 카드,
+ * 손패에서 뽑았으면 뒷면이다. 결과가 낸 카드를 덮지 않게 차례를 기다린다.
+ *
+ * 판정(술통·다이너마이트·감옥 …)·블랙 잭·피요테로 펼친 카드도 결과처럼 줄 서서 뜬다.
+ * 카드가 올라선 뒤 나온 무늬를 큰 배지로 강조하고, 성공·실패 도장을 찍는다.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -20,13 +26,23 @@ import { useStore } from 'zustand';
 
 import { BASE_DECK } from '../data/cards.base';
 import { HIGHNOON_EVENT_IDS } from '../data/cards.highnoon';
-import type { CardId, CharacterId, EventCardDef } from '../data/types';
-import { defOf, kindOf, roleVisibleTo, type GameEvent, type GameState, type PlayerId } from '../engine';
+import { RED_SUITS, SUIT_GLYPH, type CardId, type CharacterId, type EventCardDef, type Suit } from '../data/types';
+import {
+  cardOf,
+  defOf,
+  kindOf,
+  roleVisibleTo,
+  type GameEvent,
+  type GameState,
+  type JudgementPurpose,
+  type PlayerId,
+} from '../engine';
+import { ga } from '../engine/josa';
 import { fxPacing } from '../store/fx-pacing';
 import { roleArt } from './card-art';
 import { CAN_HOVER, cardPeek, setPeek } from './card-peek';
 import { CharacterCard } from './CharacterCard';
-import { CARD_DIMENSIONS, CardView } from './CardView';
+import { CARD_DIMENSIONS, CardBack, CardView } from './CardView';
 import { EventCardFace } from './EventCardFace';
 import { cardFxFor, type CardFx } from './fx/card-fx';
 import { GUNSHOT_MS, GunshotFx, recoilStyle, screenFlashStyle } from './fx/GunshotFx';
@@ -46,8 +62,8 @@ import {
 import { PaperPlaque, plaque } from './PaperPlaque';
 import { PickSpotlight } from './PickSpotlight';
 import { playSfx, preloadSfx } from './sfx';
-import { pickSpotlight, revealedEventOf } from './spotlight-pick';
-import type { TableApi } from './use-table';
+import { isFollowUp, isRevealEvent, isTakeEvent, pickSpotlights, revealedEventOf, takenCardOf } from './spotlight-pick';
+import type { CenterPick, TableApi } from './use-table';
 import { Colors, Spacing } from '@/constants/theme';
 
 const NATIVE_DRIVER = Platform.OS !== 'web';
@@ -67,6 +83,12 @@ const EVENT_MIN_MS = 1800;
 function beyondFour(scale: number): number {
   return Math.max(1, scale / 4);
 }
+
+/** 펼친 카드는 무늬 배지와 도장까지 읽을 시간을 더 준다 (1배속) */
+const REVEAL_SHOW_MS = 2600;
+/** 카드가 올라선 뒤 무늬 배지가 튀어 오르기까지, 배지가 뜬 뒤 도장이 찍히기까지 (1배속) */
+const BADGE_DELAY_MS = 260;
+const STAMP_DELAY_MS = 320;
 
 /** 카드가 튀어 오른 뒤 총이 터지기까지 (1배속) */
 const FIRE_DELAY_MS = 180;
@@ -104,6 +126,13 @@ function useFxStage() {
 
 export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSpotlightProps) {
   const [shown, setShown] = useState<GameEvent | null>(null);
+  // 지금 떠 있는 것과, 그 뒤에 줄 선 결과들 (캣 발루·강탈의 결과, 판정으로 펼친 카드)
+  const shownRef = useRef<GameEvent | null>(null);
+  const pending = useRef<GameEvent[]>([]);
+  const show = (e: GameEvent | null) => {
+    shownRef.current = e;
+    setShown(e);
+  };
   // 처음 그릴 때 이미 있던 로그는 띄우지 않는다
   const seen = useRef<number | null>(null);
   const peek = useStore(cardPeek, (s) => s.card);
@@ -111,11 +140,15 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
   const peeking = peek !== null && hand.includes(peek) ? peek : null;
   // 잡화점·강탈·캣 발루로 고르는 중이면 가운데 창이 가장 앞이다
   const picking = api.prompt?.center ? api.prompt : null;
+  // 남이 잡화점에서 고르는 동안에도 펼친 카드를 가운데 창에 띄워 둔다 (설명은 hover·탭)
+  const watching = picking ? null : storeWatch(view);
 
   const { hqLayer, progress, geom, layer, stage } = useFxStage();
 
   // 개발용 (웹): 주소에 ?fxloop=1 이면 뱅!, ?fxloop=missed 면 빗나감! 연출을 3초마다 되풀이한다.
   // ?fxloop=event 면 하이 눈 이벤트 카드를 한 장씩 돌려 가며 띄운다.
+  // ?fxloop=take 면 캣 발루·강탈 결과(손패 뒷면, 장비 앞면)를 번갈아 띄운다.
+  // ?fxloop=reveal 이면 판정·블랙 잭으로 펼친 카드(성공·실패·축복)를 돌려 가며 띄운다.
   // ?fxloop=hold 면 되풀이하지 않고 globalThis.__shot 으로 진행도를 손으로 멈춰 한 장면씩 본다
   // (__shot.progress.value = 0.2 로 멈추기, __shot.start() 로 한 번 돌리기)
   useEffect(() => {
@@ -136,8 +169,40 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
         const id = HIGHNOON_EVENT_IDS[i++ % HIGHNOON_EVENT_IDS.length];
         return { t: 'event', card: id, text: '연출 시험 — 이벤트', seq: seq++ };
       };
-      setShown(make());
-      const timer = setInterval(() => setShown(make()), EVENT_SHOW_MS + 800);
+      show(make());
+      const timer = setInterval(() => show(make()), EVENT_SHOW_MS + 800);
+      return () => clearInterval(timer);
+    }
+    if (mode === 'reveal') {
+      const pick = (kind: string, suit: Suit) => BASE_DECK.find((c) => c.kind === kind && c.suit === suit)?.id ?? BASE_DECK[0].id;
+      const a = view.players[0]?.id;
+      const samples: Omit<GameEvent, 'seq'>[] = [
+        { t: 'judgement', pid: a, card: pick('beer', 'hearts'), reveal: { suit: 'hearts', hit: true, purpose: 'barrel' }, text: '연출 시험 — 술통 판정 성공' },
+        { t: 'judgement', pid: a, card: pick('bang', 'spades'), reveal: { suit: 'spades', hit: true, purpose: 'dynamite' }, text: '연출 시험 — 다이너마이트 폭발' },
+        { t: 'judgement', pid: a, card: pick('bang', 'clubs'), reveal: { suit: 'clubs', hit: false, purpose: 'jail' }, text: '연출 시험 — 감옥 판정 실패' },
+        { t: 'blackJack', pid: a, card: pick('bang', 'diamonds'), reveal: { suit: 'diamonds', hit: true }, text: '연출 시험 — 블랙 잭' },
+        { t: 'judgement', pid: a, card: pick('missed', 'clubs'), reveal: { suit: 'hearts', hit: true, purpose: 'barrel' }, text: '연출 시험 — 축복으로 ♥' },
+      ];
+      let i = 0;
+      let seq = 1_000_000;
+      const make = (): GameEvent => ({ ...samples[i++ % samples.length], seq: seq++ });
+      show(make());
+      const timer = setInterval(() => show(make()), REVEAL_SHOW_MS + 800);
+      return () => clearInterval(timer);
+    }
+    if (mode === 'take') {
+      const barrel = BASE_DECK.find((c) => c.kind === 'barrel')?.id;
+      const [a, b] = [view.players[0]?.id, view.players[1]?.id];
+      const samples: Omit<GameEvent, 'seq'>[] = [
+        { t: 'catBalou', pid: a, target: b, text: '연출 시험 — 손패를 버리게 했다.' },
+        { t: 'catBalou', pid: a, target: b, card: barrel, text: '연출 시험 — 장비를 버리게 했다.' },
+        { t: 'panic', pid: b, target: a, text: '연출 시험 — 손패를 강탈했다.' },
+      ];
+      let i = 0;
+      let seq = 1_000_000;
+      const make = (): GameEvent => ({ ...samples[i++ % samples.length], seq: seq++ });
+      show(make());
+      const timer = setInterval(() => show(make()), SHOW_MS + 800);
       return () => clearInterval(timer);
     }
     if (mode !== '1' && mode !== 'missed') return;
@@ -149,8 +214,10 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
       isMissed
         ? { t: 'playMissed', card: card.id, text: '연출 시험 — 빗나감!', seq: seq++ }
         : { t: 'playCard', card: card.id, text: '연출 시험 — 뱅!', seq: seq++ };
-    const timer = setInterval(() => setShown(make()), 3400);
+    const timer = setInterval(() => show(make()), 3400);
     return () => clearInterval(timer);
+    // 개발용이라 처음 한 번만 본다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progress, geom]);
 
   useEffect(() => {
@@ -158,12 +225,25 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
     const since = seen.current;
     seen.current = lastSeq;
     if (since === null || lastSeq <= since) return;
-    const latest = pickSpotlight(view.log, since);
-    if (latest) setShown(latest);
+    const picked = pickSpotlights(view.log, since);
+    if (picked.length === 0) return;
+    const [first, ...rest] = picked;
+    if (isFollowUp(first) && shownRef.current) {
+      pending.current = [...pending.current, ...picked].slice(-3);
+      return;
+    }
+    // 다른 카드가 끼어들면 기다리던 결과는 버린다. 빨리 둘 때 연출이 밀리지 않게
+    pending.current = rest;
+    show(first);
   }, [view.log]);
 
   const shownEvent = shown ? revealedEventOf(shown) : null;
-  const clear = (cur: GameEvent) => setShown((s) => (s === cur ? null : s));
+  const clear = (cur: GameEvent) => {
+    if (shownRef.current !== cur) return;
+    const [next = null, ...rest] = pending.current;
+    pending.current = rest;
+    show(next);
+  };
 
 
   // 살펴보던 카드가 손을 떠났다 (냈거나 뺏겼다)
@@ -176,9 +256,25 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
   return (
     <View ref={layer} style={styles.root}>
       {shown && (
-        <View style={[styles.layer, styles.passThrough, (peeking || picking) && styles.hidden]}>
+        <View style={[styles.layer, styles.passThrough, (peeking || picking || watching) && styles.hidden]}>
           {shownEvent ? (
             <EventSpot key={`${shown.seq}:${shown.card}`} def={shownEvent} compact={compact} onDone={() => clear(shown)} />
+          ) : isRevealEvent(shown) ? (
+            <RevealSpot
+              key={`${shown.seq}:${shown.t}:${shown.card}`}
+              event={shown}
+              faces={facesOf(view, viewer, shown)}
+              compact={compact}
+              onDone={() => clear(shown)}
+            />
+          ) : isTakeEvent(shown) ? (
+            <TakenSpot
+              key={`${shown.seq}:${shown.t}:${shown.card ?? 'back'}`}
+              event={shown}
+              faces={facesOf(view, viewer, shown)}
+              compact={compact}
+              onDone={() => clear(shown)}
+            />
           ) : (
             <PlayedSpot
               key={`${shown.seq}:${shown.card}`}
@@ -193,7 +289,18 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
       )}
       {picking && (
         <View style={styles.layer}>
-          <PickSpotlight prompt={picking} onRespond={api.respond} compact={compact} />
+          <PickSpotlight
+            title={picking.title}
+            hint={picking.hint}
+            center={picking.center!}
+            onRespond={api.respond}
+            compact={compact}
+          />
+        </View>
+      )}
+      {watching && !peeking && (
+        <View style={styles.layer}>
+          <PickSpotlight title="잡화점" hint={watching.hint} center={watching.center} compact={compact} />
         </View>
       )}
       {peeking && !picking && (
@@ -205,6 +312,17 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
       {hqLayer && <hqLayer.Layer progress={progress} geom={geom} />}
     </View>
   );
+}
+
+/** 남이 잡화점에서 고르는 중이면 그 사람과 펼친 카드 */
+function storeWatch(view: GameState): { hint: string; center: CenterPick } | null {
+  const a = view.awaiting;
+  if (a?.k !== 'generalStore' || a.options.length === 0) return null;
+  const name = view.players.find((p) => p.id === a.pid)?.name;
+  return {
+    hint: name ? `${ga(name)} 고르는 중` : '고르는 중',
+    center: { cards: a.options, zone: 'option', handCount: 0 },
+  };
 }
 
 /**
@@ -246,8 +364,9 @@ function facesOf(view: GameState, viewer: PlayerId, event: GameEvent): Faces | n
     return { character: p.character, deputy: p.role === 'deputy' && roleVisibleTo(viewer, p) };
   };
   const actor = characterOf(event.pid);
-  // 뱅!·캣 발루·강탈·결투·감옥처럼 남을 겨눈 카드는 대상도 세운다
-  const target = event.t === 'playCard' && event.target && event.target !== event.pid ? characterOf(event.target) : null;
+  // 뱅!·캣 발루·강탈·결투·감옥처럼 남을 겨눈 카드와 그 결과는 대상도 세운다
+  const aimed = event.t === 'playCard' || isTakeEvent(event);
+  const target = aimed && event.target && event.target !== event.pid ? characterOf(event.target) : null;
   // 역마차·맥주·장비처럼 혼자 쓰는 카드, 빗나감!, 인디언·결투에 맞선 뱅!은 낸 사람만
   return actor || target ? { actor, target } : null;
 }
@@ -413,6 +532,238 @@ function CardFxOverlay({
   }
 }
 
+/** 결과 명판 위 줄 */
+const TAKE_TITLE: Record<string, string> = { catBalou: '캣 발루', panic: '강탈', ricochet: '리코체' };
+
+/**
+ * 남의 카드를 버리게·가져간 결과. 공개된 카드면 그 카드, 손패에서 뽑았으면 뒷면을 띄운다.
+ * 명판에는 엔진 로그 글을 그대로 쓴다
+ */
+function TakenSpot({ event, faces, compact, onDone }: { event: GameEvent; faces: Faces | null; compact?: boolean; onDone: () => void }) {
+  const [t] = useState(() => new Animated.Value(0));
+  const done = useRef(onDone);
+  useEffect(() => {
+    done.current = onDone;
+  });
+
+  useEffect(() => {
+    const scale = Math.max(1, fxPacing.getState().timeScale);
+    const anim = Animated.sequence([
+      Animated.spring(t, { toValue: 1, friction: 6, tension: 140, useNativeDriver: NATIVE_DRIVER }),
+      Animated.delay(Math.max(600 / beyondFour(scale), SHOW_MS / scale - 400)),
+      Animated.timing(t, { toValue: 0, duration: 220, useNativeDriver: NATIVE_DRIVER }),
+    ]);
+    anim.start(({ finished }) => {
+      if (finished) done.current();
+    });
+    return () => anim.stop();
+  }, [t]);
+
+  const card = takenCardOf(event);
+  const hiddenNote = event.t === 'panic' ? '손에서 가져간 카드' : '손에서 뽑아 버린 카드';
+  return (
+    <Animated.View style={[styles.spot, popStyle(t)]}>
+      <CardSpotlight
+        card={card}
+        meta={card ? (TAKE_TITLE[event.t] ?? '') : `${TAKE_TITLE[event.t] ?? ''} · ${hiddenNote}`}
+        body={event.text}
+        faces={faces}
+        compact={compact}
+      />
+    </Animated.View>
+  );
+}
+
+type RevealRule = {
+  title: string;
+  /** 나와야 하는 무늬 */
+  need: string;
+  /** 조건이 맞은 것이 펼친 사람에게 좋은 일인가 */
+  hitIsGood: boolean;
+  hitText: string;
+  missText: string;
+  /** 도장 글. 없으면 좋으면 '성공', 나쁘면 '실패' */
+  hitStamp?: string;
+  missStamp?: string;
+};
+
+const JUDGEMENT_RULE: Record<JudgementPurpose, RevealRule> = {
+  barrel: { title: '술통 판정', need: '♥', hitIsGood: true, hitText: '빗나감 1회', missText: '막지 못했다' },
+  jourdonnais: { title: '주르도네 판정', need: '♥', hitIsGood: true, hitText: '빗나감 1회', missText: '막지 못했다' },
+  dynamite: {
+    title: '다이너마이트 판정',
+    need: '♠ 2~9',
+    hitIsGood: false,
+    hitText: '펑! 목숨 3을 잃는다',
+    missText: '옆 사람에게 넘어간다',
+    hitStamp: '펑!',
+    missStamp: '불발',
+  },
+  jail: { title: '감옥 판정', need: '♥', hitIsGood: true, hitText: '탈출', missText: '차례를 건너뛴다' },
+  rattlesnake: {
+    title: '방울뱀 판정',
+    need: '♠',
+    hitIsGood: false,
+    hitText: '물렸다 — 목숨 1',
+    missText: '무사하다',
+    hitStamp: '물림',
+    missStamp: '무사',
+  },
+  coloradoBill: { title: '콜로라도 빌', need: '♠', hitIsGood: true, hitText: '피할 수 없는 총알', missText: '평범한 뱅!' },
+  donBell: { title: '돈 벨', need: '♥ ♦', hitIsGood: true, hitText: '차례를 한 번 더', missText: '차례가 끝난다' },
+  terenKill: { title: '테렌 킬', need: '♠ 말고', hitIsGood: true, hitText: '목숨 1로 버틴다', missText: '쓰러졌다' },
+  vendetta: { title: '복수', need: '♥', hitIsGood: true, hitText: '차례를 한 번 더', missText: '차례가 끝난다' },
+  helenaZontero: {
+    title: '헬레나 존테로',
+    need: '♥ ♦',
+    hitIsGood: true,
+    hitText: '역할을 다시 나눈다',
+    missText: '역할은 그대로',
+    hitStamp: '섞임',
+    missStamp: '그대로',
+  },
+};
+
+const OTHER_REVEAL_RULE: Record<string, RevealRule> = {
+  blackJack: { title: '블랙 잭', need: '♥ ♦', hitIsGood: true, hitText: '한 장 더', missText: '그대로' },
+  peyote: { title: '피요테', need: '부른 색', hitIsGood: true, hitText: '맞혔다', missText: '틀렸다' },
+};
+
+function revealRuleOf(e: GameEvent): RevealRule {
+  const purpose = e.reveal?.purpose;
+  if (purpose) return JUDGEMENT_RULE[purpose];
+  return OTHER_REVEAL_RULE[e.t] ?? { title: '카드 펼치기', need: '', hitIsGood: true, hitText: '성공', missText: '실패' };
+}
+
+/**
+ * 판정·블랙 잭·피요테로 펼친 카드. 카드가 올라서면 나온 무늬가 큰 배지로 튀어 오르고,
+ * 이어서 성공·실패 도장이 찍힌다. 명판에는 필요한 무늬와 결과, 엔진 로그 글을 적는다
+ */
+function RevealSpot({ event, faces, compact, onDone }: { event: GameEvent; faces: Faces | null; compact?: boolean; onDone: () => void }) {
+  const [t] = useState(() => new Animated.Value(0));
+  const [badge] = useState(() => new Animated.Value(0));
+  const [stamp] = useState(() => new Animated.Value(0));
+  const done = useRef(onDone);
+  useEffect(() => {
+    done.current = onDone;
+  });
+
+  useEffect(() => {
+    const scale = Math.max(1, fxPacing.getState().timeScale);
+    const anim = Animated.sequence([
+      Animated.spring(t, { toValue: 1, friction: 6, tension: 140, useNativeDriver: NATIVE_DRIVER }),
+      Animated.delay(Math.max(900 / beyondFour(scale), REVEAL_SHOW_MS / scale - 400)),
+      Animated.timing(t, { toValue: 0, duration: 220, useNativeDriver: NATIVE_DRIVER }),
+    ]);
+    // 배지 스프링이 다 가라앉기를 기다리지 않고 도장은 제 시간에 찍는다
+    const marks = Animated.parallel([
+      Animated.sequence([
+        Animated.delay(BADGE_DELAY_MS / scale),
+        Animated.spring(badge, { toValue: 1, friction: 4, tension: 160, useNativeDriver: NATIVE_DRIVER }),
+      ]),
+      Animated.sequence([
+        Animated.delay((BADGE_DELAY_MS + STAMP_DELAY_MS) / scale),
+        Animated.timing(stamp, { toValue: 1, duration: 160, easing: Easing.out(Easing.back(2)), useNativeDriver: NATIVE_DRIVER }),
+      ]),
+    ]);
+    anim.start(({ finished }) => {
+      if (finished) done.current();
+    });
+    marks.start();
+    return () => {
+      anim.stop();
+      marks.stop();
+    };
+  }, [t, badge, stamp]);
+
+  const reveal = event.reveal!;
+  const card = event.card!;
+  const rule = revealRuleOf(event);
+  const good = reveal.hit === rule.hitIsGood;
+  const stampText = (reveal.hit ? rule.hitStamp : rule.missStamp) ?? (good ? '성공' : '실패');
+  const printed = cardOf(card).suit;
+  const dim = CARD_DIMENSIONS[compact ? 'lg' : 'xl'];
+  const tone = good ? Colors.success : Colors.danger;
+
+  return (
+    <Animated.View style={[styles.spot, popStyle(t)]}>
+      <CardSpotlight
+        card={card}
+        meta={rule.need ? `${rule.title} · 필요 ${rule.need}` : rule.title}
+        body={
+          <>
+            <Text style={[plaque.name, { color: tone }]}>{reveal.hit ? rule.hitText : rule.missText}</Text>
+            {'  '}
+            {event.text}
+            {printed !== reveal.suit ? `  (인쇄 무늬 ${SUIT_GLYPH[printed]} → ${SUIT_GLYPH[reveal.suit]})` : ''}
+          </>
+        }
+        faces={faces}
+        compact={compact}
+        overlay={<RevealMarks suit={reveal.suit} good={good} stampText={stampText} badge={badge} stamp={stamp} width={dim.width} height={dim.height} />}
+      />
+    </Animated.View>
+  );
+}
+
+/** 펼친 카드 위에 겹치는 무늬 배지(아래쪽)와 결과 도장(가운데) */
+function RevealMarks({
+  suit,
+  good,
+  stampText,
+  badge,
+  stamp,
+  width,
+  height,
+}: {
+  suit: Suit;
+  good: boolean;
+  stampText: string;
+  badge: Animated.Value;
+  stamp: Animated.Value;
+  width: number;
+  height: number;
+}) {
+  const size = Math.round(width * 0.46);
+  const red = RED_SUITS.includes(suit);
+  const tone = good ? Colors.success : Colors.danger;
+  return (
+    <View style={[styles.marks, { width, height }]}>
+      <Animated.View
+        style={[
+          styles.stamp,
+          { borderColor: tone, top: height * 0.36 },
+          {
+            opacity: stamp,
+            transform: [{ rotate: '-12deg' }, { scale: stamp.interpolate({ inputRange: [0, 1], outputRange: [1.8, 1] }) }],
+          },
+        ]}>
+        <Text style={[styles.stampText, { color: tone, fontSize: Math.round(width * 0.15) }]}>{stampText}</Text>
+      </Animated.View>
+      <Animated.View
+        style={[
+          styles.suitBadge,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            bottom: -size * 0.32,
+            borderColor: good ? Colors.highlight : Colors.textMuted,
+            boxShadow: good ? `0 0 0 3px ${Colors.highlight}55, 0 0 18px ${Colors.highlight}AA` : '0 4px 10px rgba(0,0,0,0.5)',
+          },
+          {
+            opacity: badge.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 1, 1] }),
+            transform: [{ scale: badge.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] }) }],
+          },
+        ]}>
+        <Text style={[styles.suitGlyph, { color: red ? Colors.suitRed : Colors.suitBlack, fontSize: Math.round(size * 0.66), lineHeight: Math.round(size * 0.8) }]}>
+          {SUIT_GLYPH[suit]}
+        </Text>
+      </Animated.View>
+    </View>
+  );
+}
+
 /** 새로 공개된 이벤트 카드. 낸 카드처럼 튀어 올랐다가, 효과를 읽을 만큼 머문 뒤 사라진다 */
 function EventSpot({ def, compact, onDone }: { def: EventCardDef; compact?: boolean; onDone: () => void }) {
   const [t] = useState(() => new Animated.Value(0));
@@ -480,8 +831,11 @@ function PeekSpot({ card, meta, compact }: { card: CardId; meta: string; compact
 }
 
 type CardSpotlightProps = {
-  card: CardId;
+  /** null 이면 뒷면 (가려진 카드) */
+  card: CardId | null;
   meta: string;
+  /** 명판 본문. 없으면 카드 이름과 효과 */
+  body?: React.ReactNode;
   /** 양옆에 세울 캐릭터 카드 */
   faces?: Faces | null;
   hint?: boolean;
@@ -496,11 +850,12 @@ type CardSpotlightProps = {
   overlay?: React.ReactNode;
 };
 
-function CardSpotlight({ card, meta, faces, hint, compact, cardStyle, anchorRef, cardWrap, overlay }: CardSpotlightProps) {
-  const def = defOf(card);
+function CardSpotlight({ card, meta, body, faces, hint, compact, cardStyle, anchorRef, cardWrap, overlay }: CardSpotlightProps) {
+  const def = card ? defOf(card) : null;
+  const size = compact ? 'lg' : 'xl';
   const cardNode = (
     <Animated.View style={[styles.cardShadow, cardStyle]}>
-      <CardView card={card} size={compact ? 'lg' : 'xl'} />
+      {card ? <CardView card={card} size={size} /> : <CardBack size={size} />}
     </Animated.View>
   );
   const played = (
@@ -533,9 +888,13 @@ function CardSpotlight({ card, meta, faces, hint, compact, cardStyle, anchorRef,
           {meta}
         </Text>
         <Text style={[plaque.text, compact && plaque.textCompact]} numberOfLines={3}>
-          <Text style={plaque.name}>{def.nameKo}</Text>
-          {'  '}
-          {def.text}
+          {body ?? (
+            <>
+              <Text style={plaque.name}>{def?.nameKo}</Text>
+              {'  '}
+              {def?.text}
+            </>
+          )}
         </Text>
       </PaperPlaque>
     </>
@@ -618,6 +977,24 @@ const styles = StyleSheet.create({
     boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
   },
   starGlyph: { color: Colors.deputy, fontWeight: '900' },
+  marks: { position: 'absolute', top: 0, left: 0, alignItems: 'center', pointerEvents: 'none' },
+  suitBadge: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.paper,
+    borderWidth: 4,
+  },
+  suitGlyph: { fontWeight: '900', textAlign: 'center' },
+  stamp: {
+    position: 'absolute',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 2,
+    borderWidth: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(239,226,198,0.88)',
+  },
+  stampText: { fontWeight: '900', letterSpacing: 2 },
   plaque: { width: 340, gap: 2 },
   plaqueCompact: { width: 260, gap: 1 },
 });
