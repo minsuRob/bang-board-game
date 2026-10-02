@@ -23,6 +23,11 @@ describe('pickSpotlight', () => {
     expect(pickSpotlight(log, 2)).toBeNull();
   });
 
+  it('와일드 웨스트 쇼 · 한줌의 카드 이벤트도 띄운다', () => {
+    expect(pickSpotlight([ev(2, 'event', 'gag')], 1)?.card).toBe('gag');
+    expect(pickSpotlight([ev(2, 'event', 'ambush')], 1)?.card).toBe('ambush');
+  });
+
   it('가려진 카드와 모르는 이벤트는 띄우지 않는다', () => {
     expect(pickSpotlight([ev(2, 'playCard', HIDDEN_CARD)], 1)).toBeNull();
     expect(pickSpotlight([ev(2, 'event', 'noSuchEvent')], 1)).toBeNull();

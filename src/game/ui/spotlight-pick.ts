@@ -4,7 +4,7 @@
  * 손에서 낸 카드와 새로 공개된 이벤트 카드를 띄운다. 한 번에 여러 개가 들어왔으면 가장 나중 것.
  */
 
-import { HIGHNOON_EVENTS } from '../data/cards.highnoon';
+import { EVENTS } from '../data/events';
 import type { EventCardDef } from '../data/types';
 import { isHidden, type GameEvent } from '../engine';
 
@@ -14,7 +14,7 @@ const PLAY_EVENTS = new Set(['playCard', 'playMissed', 'indiansBang', 'duelBang'
 /** 이벤트 공개 로그의 카드 정의. 이벤트 로그가 아니거나 모르는 이벤트면 null */
 export function revealedEventOf(e: GameEvent): EventCardDef | null {
   if (e.t !== 'event' || !e.card) return null;
-  return (HIGHNOON_EVENTS as Record<string, EventCardDef | undefined>)[e.card] ?? null;
+  return (EVENTS as Record<string, EventCardDef | undefined>)[e.card] ?? null;
 }
 
 function spotlightable(e: GameEvent): boolean {
