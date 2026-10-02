@@ -1,7 +1,8 @@
 /**
  * 와일드 웨스트 쇼 이벤트 패널.
  *
- * - 사카가웨이: 펼쳐 놓은 남의 손패를 보여 준다
+ * - 사카가웨이: 펼쳐 놓은 남의 손패를 한 사람씩 보여 준다. 기본은 차례인 사람,
+ *   이름에 마우스를 올리면(폰은 탭) 그 사람 손패로 바뀐다
  * - 레이디 로즈 오브 텍사스: 오른쪽 사람과 자리 바꾸기 버튼
  * - 도로시 레이지: 누구에게 · 무슨 카드를 · 누구에게 낼지 차례로 골라 시킨다
  *
@@ -9,7 +10,7 @@
  * 이벤트가 없거나 보여 줄 것이 없으면 아무것도 그리지 않는다.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../data/cards.base';
@@ -19,6 +20,7 @@ import { isHidden, type Action, type GameState, type PlayerId } from '../engine'
 import { rightNeighborOf } from '../engine/distance';
 import { handsRevealed, turnDirectionOf } from '../engine/hooks';
 import { wa } from '../engine/josa';
+import { CAN_HOVER } from './card-peek';
 import { CardView } from './CardView';
 
 type EventAction = Extract<Action, { type: 'eventAbility' }>;
@@ -58,29 +60,54 @@ export function EventAbilityPanel({ view, viewer, actions, send }: Props) {
   );
 }
 
-/** 사카가웨이: 남의 손패. 내 손은 아래 손패 줄에 이미 있다 */
+/**
+ * 사카가웨이: 남의 손패를 한 번에 한 사람만. 내 손은 아래 손패 줄에 이미 있다.
+ * 기본은 차례인 사람(내 차례면 다음 사람). 웹은 이름에 올리는 동안, 폰은 탭해서 바꾼다
+ */
 function OpenHands({ view, viewer }: { view: GameState; viewer: PlayerId | null }) {
   const others = view.players.filter((p) => p.id !== viewer && (p.alive || p.ghost));
+  const active = view.turn.active;
+  const [picked, setPicked] = useState<PlayerId | null>(null);
+  // 차례가 넘어가면 다시 차례인 사람으로
+  useEffect(() => setPicked(null), [active]);
+
+  const fallback =
+    active !== viewer
+      ? active
+      : viewer
+        ? (rightNeighborOf(view, viewer, turnDirectionOf(view)) ?? others[0]?.id)
+        : others[0]?.id;
+  const shownId = others.some((p) => p.id === picked) ? picked : fallback;
+  const shown = others.find((p) => p.id === shownId) ?? others[0];
+  if (!shown) return null;
+
   return (
     <>
       <Text style={styles.title}>사카가웨이 — 모두 손패를 펼쳐 놓는다</Text>
-      {/* 사람이 많으면 테이블을 가리지 않게 높이를 묶고 안에서 내린다 */}
-      <ScrollView style={styles.hands} nestedScrollEnabled>
+      <View style={styles.row}>
         {others.map((p) => (
-          <View key={p.id} style={styles.handRow}>
-            <Text style={styles.handName} numberOfLines={1}>
-              {who(view, p.id)} {p.hand.length}장
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.row}>
-                {p.hand.filter((c) => !isHidden(c)).map((c) => (
-                  <CardView key={c} card={c} size="sm" />
-                ))}
-              </View>
-            </ScrollView>
-          </View>
+          <Chip
+            key={p.id}
+            label={`${who(view, p.id)} ${p.hand.length}장`}
+            active={p.id === shown.id}
+            marked={p.id === active}
+            {...(CAN_HOVER
+              ? { onHoverIn: () => setPicked(p.id), onHoverOut: () => setPicked((c) => (c === p.id ? null : c)) }
+              : { onPress: () => setPicked((c) => (c === p.id ? null : p.id)) })}
+          />
         ))}
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={styles.row}>
+          {shown.hand.filter((c) => !isHidden(c)).map((c) => (
+            <CardView key={c} card={c} size="sm" />
+          ))}
+          {shown.hand.length === 0 && <Text style={styles.hint}>손패가 없다</Text>}
+        </View>
       </ScrollView>
+      <Text style={styles.hint}>
+        {CAN_HOVER ? '이름에 마우스를 올리면 그 사람 손패를 본다' : '이름을 누르면 그 사람 손패를 본다'}
+      </Text>
     </>
   );
 }
@@ -140,14 +167,31 @@ function DorothyPicker({ view, orders, send }: { view: GameState; orders: EventA
   );
 }
 
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function Chip({
+  label,
+  active,
+  marked,
+  onPress,
+  onHoverIn,
+  onHoverOut,
+}: {
+  label: string;
+  active: boolean;
+  /** 차례인 사람 표시 */
+  marked?: boolean;
+  onPress?: () => void;
+  onHoverIn?: () => void;
+  onHoverOut?: () => void;
+}) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
-      style={[styles.chip, active && styles.chipActive]}
-      onPress={onPress}>
+      style={[styles.chip, marked && styles.chipMarked, active && styles.chipActive]}
+      onPress={onPress}
+      onHoverIn={onHoverIn}
+      onHoverOut={onHoverOut}>
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
     </Pressable>
   );
@@ -172,9 +216,6 @@ const styles = StyleSheet.create({
   label: { color: '#e8dcc0', fontSize: 12 },
   hint: { color: '#e8dcc0', fontSize: 11, opacity: 0.8 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
-  hands: { maxHeight: 150 },
-  handRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  handName: { color: '#e8dcc0', fontSize: 12, width: 110 },
   chip: {
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -182,6 +223,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#9a6a3a',
   },
+  chipMarked: { borderColor: '#f5d77a', borderStyle: 'dashed' },
   chipActive: { backgroundColor: '#9a6a3a', borderColor: '#f5d77a' },
   chipText: { color: '#e8dcc0', fontSize: 12, fontWeight: '600' },
   chipTextActive: { color: '#fff4d6' },

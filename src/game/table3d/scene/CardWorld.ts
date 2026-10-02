@@ -12,7 +12,8 @@ import * as THREE from 'three';
 
 import { CARD_DEFS } from '../../data/cards.base';
 import type { CardId, EventCardId } from '../../data/types';
-import { kindOf, type GameState, type PlayerId } from '../../engine';
+import { isHidden, kindOf, type GameState, type PlayerId } from '../../engine';
+import { handsRevealed } from '../../engine/hooks';
 import {
   equipmentOffset,
   FAN_CARD_SCALE,
@@ -28,6 +29,7 @@ import {
   eventMaterialFor,
   eventMaterialShared,
 } from '../materials/card-materials';
+import { stackEdgeTexture } from '../materials/textures';
 import { BoardBullets } from './BoardBullets';
 import { CardHandle, IDLE_POSE, type Pose } from './CardHandle';
 import { OpponentFans } from './OpponentFans';
@@ -55,11 +57,14 @@ export class CardWorld {
   private eventShown: EventCardId | null = null;
 
   constructor(readonly budget: FxBudget) {
-    const side = new THREE.MeshBasicMaterial({ color: '#2B1F13' });
-    const paperSide = new THREE.MeshBasicMaterial({ color: '#C9B48A' });
+    // 옆면은 카드 장수만큼 줄이 진 종이 결이다. 어두운 테이블 위에서도 두께가 보이게 밝게 둔다.
+    // 덱은 뒷면 카드의 나무색 테두리를 따라 조금 더 짙게, 버린 더미는 앞면 종이색으로
+    const deckSide = new THREE.MeshBasicMaterial({ map: stackEdgeTexture('#C8B48C', '#6E5132') });
+    const paperSide = new THREE.MeshBasicMaterial({ map: stackEdgeTexture('#DCCBA4', '#9C845A') });
+    const paperTop = new THREE.MeshBasicMaterial({ color: '#C9B48A' });
     const box = new THREE.BoxGeometry(CARD_SIZE.w, 1, CARD_SIZE.h);
-    this.deckStack = new THREE.Mesh(box, [side, side, backMaterialShared(), side, side, side]);
-    this.discardStack = new THREE.Mesh(box, [paperSide, paperSide, paperSide, paperSide, paperSide, paperSide]);
+    this.deckStack = new THREE.Mesh(box, [deckSide, deckSide, backMaterialShared(), deckSide, deckSide, deckSide]);
+    this.discardStack = new THREE.Mesh(box, [paperSide, paperSide, paperTop, paperTop, paperSide, paperSide]);
     this.eventCard = new THREE.Mesh(cardPlaneGeometry(CARD_SIZE.w, CARD_SIZE.h), eventMaterialShared());
     this.eventCard.rotation.x = -Math.PI / 2;
     this.eventCard.scale.setScalar(EVENT_CARD_SCALE);
@@ -164,6 +169,26 @@ export class CardWorld {
     this.seatCards.update(state, viewerIndex, snap);
     this.bullets.update(layout, state, snap);
 
+    // 사카가웨이: 남의 손패를 앞면으로 펼친다. 새로 올라온 카드는 뒷면에서 제자리로 뒤집힌다
+    const open = handsRevealed(state);
+    if (open) {
+      state.players.forEach((p, i) => {
+        if (i === viewerIndex || !layout.seats[i]) return;
+        const shown = p.hand.filter((c) => !isHidden(c));
+        shown.forEach((card, j) => {
+          const pose = this.handPose(i, j, shown.length);
+          if (!snap && !this.handles.has(card) && !reserved(card)) {
+            const h = this.handle(card);
+            h.resident = true;
+            h.snap({ ...pose, flip: Math.PI });
+            h.setTarget(pose);
+            return;
+          }
+          place(card, pose);
+        });
+      });
+    }
+
     // 버린 더미 맨 위 (공개)
     const top = state.discard[state.discard.length - 1];
     if (top) place(top, this.discardPose(state.discard.length - 1));
@@ -180,7 +205,9 @@ export class CardWorld {
     this.stack(this.discardStack, layout.discard, Math.max(0, state.discard.length - 1));
 
     // 상대 손패 부채
-    const counts = state.players.map((p, i) => (i === viewerIndex ? 0 : p.hand.length));
+    const counts = state.players.map((p, i) =>
+      i === viewerIndex ? 0 : open ? p.hand.filter(isHidden).length : p.hand.length,
+    );
     this.fans.update(layout, counts);
 
     // 이벤트 카드. 새 이벤트가 공개되면 그 카드의 그림으로 갈아입는다
@@ -223,6 +250,9 @@ export class CardWorld {
       return;
     }
     const h = Math.max(T, count * T);
+    // 옆면 줄을 카드 한 장에 하나씩
+    const side = (mesh.material as THREE.MeshBasicMaterial[])[0];
+    if (side.map) side.map.repeat.set(1, Math.max(1, count));
     mesh.visible = true;
     mesh.scale.y = h;
     mesh.position.set(at[0], h / 2 + 0.002, at[2]);
@@ -295,7 +325,8 @@ export class CardWorld {
       pos: [seat.hand[0] + seat.right[0] * dx, 0.01 + ordinal * T, seat.hand[2] + seat.right[2] * dx],
       yaw: seat.yaw,
       spin: rot,
-      flip: Math.PI,
+      // 사카가웨이면 남의 손패도 앞면이다 (view 에 실제 카드가 들어 있다)
+      flip: this.state && handsRevealed(this.state) ? 0 : Math.PI,
       scale: FAN_CARD_SCALE,
     };
   }

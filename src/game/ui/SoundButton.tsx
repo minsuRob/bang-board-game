@@ -3,6 +3,8 @@
  *
  * 버튼에 마우스를 올리면(hover) 버튼 위로 세로 슬라이더가 뜬다.
  * 위로 드래그하면 100, 아래로 내리면 0. 누르면 음소거 토글.
+ * 폰에는 hover 가 없으니 첫 탭이 슬라이더를 열고, 열린 채로 다시 탭하면 음소거 토글.
+ * 손대지 않으면 3초 뒤 닫힌다.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -20,8 +22,12 @@ import {
 } from 'react-native';
 import { useStore } from 'zustand';
 
+import { CAN_HOVER } from './card-peek';
 import { setMuted, setVolume, sfxSettings } from './sfx';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+
+/** 폰에서 탭으로 연 슬라이더를 닫기까지 (ms) */
+const TAP_CLOSE_MS = 3000;
 
 /** 슬라이더 트랙 높이(px). 이 높이 안에서 위=100, 아래=0. */
 const TRACK_HEIGHT = 120;
@@ -68,8 +74,20 @@ export function SoundButton({ style }: { style?: StyleProp<ViewStyle> }) {
   };
   useEffect(() => cancelLeave, []);
 
+  // 폰: 탭으로 연 슬라이더는 드래그가 끝나고 잠시 뒤 닫는다
+  useEffect(() => {
+    if (CAN_HOVER || !hovered || dragging) return;
+    const t = setTimeout(() => setHovered(false), TAP_CLOSE_MS);
+    return () => clearTimeout(t);
+  }, [hovered, dragging, volume]);
+
+  const onPress = () => {
+    if (!CAN_HOVER && !hovered) return setHovered(true);
+    setMuted(!muted);
+  };
+
   // react-native-web 에서만 있는 hover 이벤트. RN 네이티브 타입엔 없어 따로 얹는다.
-  const hoverProps = {
+  const hoverProps = (CAN_HOVER ? {
     onMouseEnter: () => {
       cancelLeave();
       setHovered(true);
@@ -78,7 +96,7 @@ export function SoundButton({ style }: { style?: StyleProp<ViewStyle> }) {
       cancelLeave();
       leaveTimer.current = setTimeout(() => setHovered(false), 250);
     },
-  } as unknown as ViewProps;
+  } : {}) as unknown as ViewProps;
 
   return (
     <View style={styles.wrap} {...hoverProps}>
@@ -101,7 +119,7 @@ export function SoundButton({ style }: { style?: StyleProp<ViewStyle> }) {
         accessibilityRole="button"
         accessibilityState={{ selected: !muted }}
         accessibilityLabel={muted ? '소리 켜기' : '소리 끄기'}
-        onPress={() => setMuted(!muted)}>
+        onPress={onPress}>
         <Text style={styles.text}>{muted ? '🔇' : '🔊'}</Text>
       </Pressable>
     </View>

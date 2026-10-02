@@ -6,16 +6,17 @@
  * 자리가 없는 좁은 화면이면 카드 아래에 작은 말풍선으로 띄운다.
  *
  * 3D 카드는 포인터를 받지 않으므로 앵커가 준 카드의 화면 사각형에 투명한 RN 칸을 얹는다.
- * 폰에는 hover 가 없으니 웹에서만 그린다.
+ * 폰에는 hover 가 없으니 칸을 탭하면 열고, 다시 탭(또는 설명을 탭)하면 닫는다.
  */
 
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useStore } from 'zustand';
 
 import { EVENTS } from '../../data/events';
 import type { EventCardId } from '../../data/types';
 import type { GameState } from '../../engine';
 import { eventArt } from '../../ui/card-art';
+import { CAN_HOVER } from '../../ui/card-peek';
 import { eventProgress } from '../../ui/event-progress';
 import { ANCHOR_EVENT, anchorsStore } from '../core/anchors-store';
 import { previewStyles, type PreviewSlot } from './CharacterHover';
@@ -39,7 +40,7 @@ export function EventHover({
 }) {
   const anchors = useStore(anchorsStore);
   const current = view.event?.current ?? null;
-  if (Platform.OS !== 'web' || view.draft || !current || !view.event) return null;
+  if (view.draft || !current || !view.event) return null;
 
   const r = anchors.points[ANCHOR_EVENT];
   if (!r || !r.visible || r.left === undefined || r.right === undefined) return null;
@@ -50,12 +51,17 @@ export function EventHover({
   return (
     <>
       <Pressable
-        onHoverIn={() => onHoverChange(true)}
-        onHoverOut={() => onHoverChange(false)}
+        {...(CAN_HOVER
+          ? { onHoverIn: () => onHoverChange(true), onHoverOut: () => onHoverChange(false) }
+          : { onPress: () => onHoverChange(!hovered) })}
         accessibilityLabel={`${def.nameKo} 이벤트 보기`}
         style={[styles.hit, { left: r.left, top, width: r.right - r.left, height: bottom - top }]}
       />
       {hovered && slot && <EventPanel view={view} id={current} slot={slot} />}
+      {hovered && !CAN_HOVER && (
+        // 폰: 설명 창은 포인터를 받지 않으니 화면 아무 데나 눌러 닫는 막을 깐다
+        <Pressable accessibilityLabel="이벤트 설명 닫기" style={StyleSheet.absoluteFill} onPress={() => onHoverChange(false)} />
+      )}
       {hovered && !slot && (
         <View
           style={[

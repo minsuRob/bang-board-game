@@ -14,12 +14,14 @@ import type { CharacterId } from '../data/types';
 import type { PlayerId } from '../engine';
 import { draftUi, setDraftHover } from '../store/draft-ui';
 import { TIME_LIMIT_MS } from '../store/online-driver';
+import { CAN_HOVER } from './card-peek';
 import { CharacterCard } from './CharacterCard';
 import { PaperPlaque, plaque } from './PaperPlaque';
 import type { DraftInfo } from './use-table';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
-const WEB = Platform.OS === 'web';
+/** 마우스로 올려 볼 수 있는 화면. 폰 브라우저는 앱처럼 첫 탭이 보기다 */
+const WEB = CAN_HOVER;
 
 export type DraftPanelProps = {
   draft: DraftInfo;
