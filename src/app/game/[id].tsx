@@ -32,6 +32,7 @@ import { SettingsButton } from '@/game/ui/SettingsButton';
 import { SettingsSheet } from '@/game/ui/settings/SettingsSheet';
 import { SoundButton } from '@/game/ui/SoundButton';
 import { SpeedControl } from '@/game/ui/SpeedControl';
+import { ResultTable } from '@/game/ui/ResultTable';
 import { Table } from '@/game/ui/Table';
 import { useHotkeys } from '@/game/ui/use-hotkeys';
 import { useTable } from '@/game/ui/use-table';
@@ -418,15 +419,13 @@ export default function GameScreen() {
       )}
 
       {state.result && !resultHidden && (
-        <View style={styles.overlay}>
-          <View style={styles.resultCard}>
+        <View style={[styles.overlay, compact && styles.overlayCompact]}>
+          <View style={[styles.resultCard, compact && styles.resultCardCompact]}>
             <Text style={styles.resultTitle}>
               {state.result.winners.map((r) => ROLE_LABEL[r]).join('·')} 승리
             </Text>
             <Text style={styles.resultReason}>{state.result.reason}</Text>
-            <Text style={styles.resultRoles}>
-              {state.players.map((p) => `${p.name} — ${ROLE_LABEL[p.role]}`).join('   ')}
-            </Text>
+            <ResultTable state={state} viewer={viewer} compact={compact} />
             <View style={styles.resultButtons}>
               <Pressable
                 style={({ pressed }) => [styles.secondary, pressed && styles.secondaryPressed]}
@@ -554,9 +553,13 @@ const useStyles = themedStyles((c) => ({
     borderColor: c.panelBorder,
     padding: Spacing.four,
     gap: Spacing.two,
-    maxWidth: 560,
+    width: '100%',
+    maxWidth: 720,
     boxShadow: `0 10px 30px ${c.shadow}`,
   },
+  // 폰 폭: 결과 표의 이름 칸이 넓도록 바깥 여백을 줄인다
+  overlayCompact: { padding: Spacing.two },
+  resultCardCompact: { padding: Spacing.three },
   resultTitle: {
     color: c.heading,
     fontSize: 28,
@@ -569,7 +572,6 @@ const useStyles = themedStyles((c) => ({
     borderBottomColor: c.rule,
   },
   resultReason: { color: c.text, fontSize: 14.5, textAlign: 'center', fontFamily: WesternFonts.body },
-  resultRoles: { color: c.textMuted, fontSize: 11.5, textAlign: 'center', lineHeight: 18, fontFamily: WesternFonts.body },
   resultButtons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
