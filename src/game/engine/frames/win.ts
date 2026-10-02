@@ -8,10 +8,26 @@
 
 import type { Role } from '../../data/types';
 import { alivePlayers, log, popFrame } from '../cards';
+import { lastOneStanding } from '../hooks';
+import { ga } from '../josa';
 import type { GameResult, GameState } from '../types';
 
 export function checkWin(state: GameState): GameResult | null {
   const alive = alivePlayers(state);
+
+  // 와일드 웨스트 쇼: 역할과 상관없이 마지막까지 살아남은 한 사람이 이긴다.
+  // 보안관이 쓰러져도 판은 이어진다.
+  if (lastOneStanding(state)) {
+    if (alive.length > 1) return null;
+    const last = alive[0];
+    if (!last) return { winners: [], winnerIds: [], reason: '아무도 살아남지 못했다.' };
+    return {
+      winners: [last.role],
+      winnerIds: [last.id],
+      reason: `${ga(last.name)} 마지막까지 살아남았다.`,
+    };
+  }
+
   const sheriff = state.players.find((p) => p.role === 'sheriff');
   if (!sheriff) return null;
 
@@ -59,8 +75,12 @@ export function resolveCheckWin(state: GameState): GameState {
     outlaw: '무법자',
     renegade: '배신자',
   };
+  // 와일드 웨스트 쇼에서는 역할이 아니라 사람이 이긴다
+  const who = lastOneStanding(cur)
+    ? result.winnerIds.map((id) => cur.players.find((p) => p.id === id)?.name ?? id).join('·')
+    : result.winners.map((r) => label[r]).join('·');
   return log({ ...cur, result, stack: [], awaiting: null }, {
     t: 'gameEnd',
-    text: `${result.winners.map((r) => label[r]).join('·')} 승리. ${result.reason}`,
+    text: who ? `${who} 승리. ${result.reason}` : `승자 없음. ${result.reason}`,
   });
 }

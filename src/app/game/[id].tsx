@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { AiSpeed, AiTier } from '@/game/ai/types';
+import { LOCAL_AI_SPEEDS, type AiSpeed, type AiTier, type LocalAiSpeed } from '@/game/ai/types';
 import { setAiSpeed } from '@/firebase/rooms';
-import { eventExpansionOf, expansionsFor, isEventExpansion } from '@/game/data/events';
+import { EVENTS, eventExpansionOf, expansionsFor, isEventExpansion } from '@/game/data/events';
+import type { EventCardId } from '@/game/data/types';
 import { ROLE_LABEL } from '@/game/data/roles';
 import { makeView, useGameStore, type SeatSetup } from '@/game/store/game-store';
 import { useAiDriver } from '@/game/store/ai-driver';
@@ -35,6 +36,14 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 
 const AI_NAMES = ['보안관보', '건슬링어', '떠돌이', '광부', '바텐더', '현상금꾼', '무법자'];
 
+/** 개발용 주소 옵션(devEvent · notimer)은 웹 개발 모드에서만 받는다. fxloop 과 같은 관례다 */
+const DEV_WEB = __DEV__ && Platform.OS === 'web';
+
+function devEventOf(value: string | undefined): EventCardId | null {
+  if (!DEV_WEB || !value) return null;
+  return value in EVENTS ? (value as EventCardId) : null;
+}
+
 export default function GameScreen() {
   const params = useLocalSearchParams<{
     id: string;
@@ -53,6 +62,10 @@ export default function GameScreen() {
     auto?: string;
     /** 저장한 판 id. 있으면 그 판을 이어 본다 (다른 설정 값은 무시) */
     save?: string;
+    /** 개발용: 이 이벤트가 보안관의 첫 차례부터 걸려 있다 (그 확장판을 저절로 켠다) */
+    devEvent?: string;
+    /** 개발용: 1이면 내 자리 제한시간을 끈다 */
+    notimer?: string;
   }>();
   const router = useRouter();
 
@@ -113,7 +126,10 @@ export default function GameScreen() {
     const seed = Number(params.seed ?? 1) || 1;
     const legacyEvent =
       params.highnoon === '1' ? 'highnoon' : params.wildwestshow === '1' ? 'wildwestshow' : null;
-    const event = isEventExpansion(params.event) ? params.event : params.event ? null : legacyEvent;
+    const devEvent = devEventOf(params.devEvent);
+    const chosen = isEventExpansion(params.event) ? params.event : params.event ? null : legacyEvent;
+    const devExpansion = devEvent ? EVENTS[devEvent].expansion : null;
+    const event = devExpansion && isEventExpansion(devExpansion) ? devExpansion : chosen;
     const valley = params.valley === '1';
     const goldrush = params.goldrush === '1';
     const seats: SeatSetup[] = Array.from({ length: players }, (_, i) => ({
@@ -124,8 +140,19 @@ export default function GameScreen() {
     }));
     const auto = params.auto === '1';
     // 관전 모드에서는 아무 자리도 조작하지 않는다. 구동기가 전부 대신 둔다.
-    return { seed, players, event, valley, goldrush, seats, controlled: auto ? [] : ['p0'], auto, resume: undefined };
-  }, [resumed, params.players, params.tier, params.seed, params.event, params.highnoon, params.wildwestshow, params.valley, params.goldrush, params.auto]);
+    return {
+      seed,
+      players,
+      event,
+      valley,
+      goldrush,
+      seats,
+      controlled: auto ? [] : ['p0'],
+      auto,
+      resume: undefined,
+      devEvent,
+    };
+  }, [resumed, params.players, params.tier, params.seed, params.event, params.highnoon, params.wildwestshow, params.valley, params.goldrush, params.auto, params.devEvent]);
 
   const conn = useRoomConnection(code);
   useOnlineGameSession(code, conn);
@@ -148,6 +175,7 @@ export default function GameScreen() {
       config: setup.resume?.config ?? {
         playerCount: setup.players,
         expansions: expansionsFor(setup),
+        ...('devEvent' in setup && setup.devEvent ? { devEvent: setup.devEvent } : {}),
       },
       seats: setup.seats,
       controlled: setup.controlled,
@@ -157,13 +185,14 @@ export default function GameScreen() {
   }, [online, artReady, saveParam, resumed, setup, start, reset]);
 
   // AI 빠르기. 온라인은 방 문서의 값을 모두가 따르고 방장만 바꾼다. 혼자 하는 판은 내가 방장이다.
-  const [localSpeed, setLocalSpeed] = useState<AiSpeed>(1);
-  const speed: AiSpeed = online ? (conn.room?.aiSpeed ?? 1) : localSpeed;
+  // 혼자 하는 판은 검증용으로 4배를 넘는 배속(최대 100배)까지 고를 수 있다. 온라인 방은 1~4배다.
+  const [localSpeed, setLocalSpeed] = useState<LocalAiSpeed>(1);
+  const speed: LocalAiSpeed = online ? (conn.room?.aiSpeed ?? 1) : localSpeed;
   const onSpeedChange = useMemo(() => {
-    if (!online) return setLocalSpeed;
+    if (!online) return (next: LocalAiSpeed) => setLocalSpeed(next);
     if (!conn.isHost || !code) return null;
-    return (next: AiSpeed) => {
-      setAiSpeed(code, next).catch(() => {});
+    return (next: LocalAiSpeed) => {
+      setAiSpeed(code, next as AiSpeed).catch(() => {});
     };
   }, [online, conn.isHost, code]);
 
@@ -218,9 +247,11 @@ export default function GameScreen() {
     return () => clearTimeout(timer);
   }, [saveStatus]);
 
-  // 관전 모드는 예전처럼 빠르게 흘려 본다
-  useAiDriver(!halted, setup.auto ? 6 : speed);
-  useTimeoutDriver(controlled, !halted);
+  // 관전 모드는 예전처럼 6배 이상으로 흘려 보고, 배속 칩으로 더 올릴 수 있다
+  useAiDriver(!halted, setup.auto ? Math.max(6, speed) : speed);
+  // 개발용 ?notimer=1: 확인하는 동안 내 차례가 시간에 넘어가지 않게 한다
+  const noTimer = DEV_WEB && params.notimer === '1';
+  useTimeoutDriver(controlled, !halted && !noTimer);
 
   const view = useMemo(() => makeView(state, viewer), [state, viewer]);
   const api = useTable(view, viewer);
@@ -313,7 +344,7 @@ export default function GameScreen() {
 
       {!state.result && (
         <View style={styles.topLeft}>
-          {!setup.auto && !state.result && <SpeedControl speed={speed} onChange={onSpeedChange} />}
+          {!state.result && <SpeedControl speed={speed} onChange={onSpeedChange} speeds={online ? undefined : LOCAL_AI_SPEEDS} />}
           {canPause && <PauseButton paused={paused} onToggle={() => setPaused((v) => !v)} />}
           {canSave && <SaveButton status={saveStatus} onSave={onSave} />}
           <SoundButton />

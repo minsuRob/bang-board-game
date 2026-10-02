@@ -28,6 +28,7 @@ import type { CardId, Role } from '../data/types';
 import { distance, kindOf, type GameState, type Player, type PlayerId } from '../engine';
 import { usePresence } from '../store/presence';
 import { ActionBar } from './ActionBar';
+import { EventAbilityPanel } from './EventAbilityPanel';
 import { GoldPanel } from './GoldPanel';
 import { DraftPanel } from './DraftPanel';
 import { CharacterDetailModal } from './CharacterDetail';
@@ -195,6 +196,7 @@ export function TableMobile({
               respond={api.respond}
             />
           ) : null}
+          <EventAbilityPanel view={view} viewer={viewer} actions={api.eventActions} send={api.sendGold} />
           <ActionBar
             prompt={api.prompt}
             onRespond={api.respond}

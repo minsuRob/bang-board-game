@@ -63,5 +63,7 @@ function finishDraft(state: GameState): GameState {
   });
 
   const sheriff = players.find((p) => p.role === 'sheriff')!;
-  return push(cur, { k: 'turnStart', pid: sheriff.id });
+  // 개발용 devEvent: 첫 차례부터 그 이벤트가 걸려 있게 바로 공개한다
+  const devReveal = Boolean(cur.config.devEvent && cur.event?.deck[0] === cur.config.devEvent);
+  return push(cur, { k: 'turnStart', pid: sheriff.id, ...(devReveal ? { reveal: true } : {}) });
 }

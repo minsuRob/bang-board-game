@@ -18,7 +18,7 @@ import {
   seatedPlayers,
   topFrame,
 } from './cards';
-import { canReachAtRange, canReachWithBang, distance } from './distance';
+import { canReachAtRange, canReachWithBang, distance, rightNeighborOf } from './distance';
 import {
   allowsDoubleBang,
   allowsRicochet,
@@ -26,6 +26,7 @@ import {
   bangLimitOf,
   canPlayCard,
   canUseCardAs,
+  eventAbilityOf,
   isExplicitAbility,
   immuneToCard,
   isSwapAbility,
@@ -33,10 +34,11 @@ import {
   playableAs,
   repeatAbilitiesOf,
   swapAbilitiesOf,
+  turnDirectionOf,
 } from './hooks';
 import { hasSameBlueCard } from './play';
 import { goldDyingActions, goldPlayActions } from './gold-actions';
-import type { Action, GameState, PlayerId } from './types';
+import type { Action, EventAbilityKind, GameState, PlayerId } from './types';
 
 /** 액션을 문자열 하나로 정규화한다. 검증에서 동등성 비교에 쓴다. */
 export function actionKey(action: Action): string {
@@ -92,6 +94,8 @@ export function actionKey(action: Action): string {
       return ['beerForGold', action.pid, action.card].join('|');
     case 'goldAbility':
       return ['goldAbility', action.pid, action.ability, action.target ?? ''].join('|');
+    case 'eventAbility':
+      return ['eventAbility', action.pid, action.ability, action.forced ?? '', action.kind ?? '', action.target ?? ''].join('|');
     case 'startGame':
       return 'startGame';
   }
@@ -145,6 +149,7 @@ export function legalActions(state: GameState, pid: PlayerId): Action[] {
     const plays = playPhaseActions(state, pid);
     out.push(...plays);
     out.push(...goldPlayActions(state, pid));
+    out.push(...eventAbilityActions(state, pid));
     // 서부의 법: 보여 준 카드를 낼 수 있는 동안은 차례를 마칠 수 없다.
     const must = state.turn.mustPlay;
     const owed =
@@ -338,6 +343,90 @@ function playPhaseActions(state: GameState, pid: PlayerId): Action[] {
   out.push(...repeatBrownActions(state, pid));
   out.push(...swapActions(state, pid));
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// 이벤트가 주는 차례당 한 번 행동 (와일드 웨스트 쇼)
+// ---------------------------------------------------------------------------
+
+/** usedThisTurn 에 넣는 key */
+export function eventAbilityKey(ability: EventAbilityKind): string {
+  return `event:${ability}`;
+}
+
+/** 도로시 레이지가 남에게 내게 할 수 있는 갈색 카드. 대상이 둘이거나 다른 카드와 함께 내는 것은 뺀다 */
+const DOROTHY_BASE: readonly CardKind[] = [
+  'bang', 'beer', 'saloon', 'stagecoach', 'wellsFargo', 'generalStore',
+  'gatling', 'indians', 'duel', 'panic', 'catBalou',
+];
+const DOROTHY_VALLEY: readonly CardKind[] = ['tomahawk', 'bandidos', 'poker', 'tornado', 'lastCall'];
+
+export function dorothyKinds(state: GameState): CardKind[] {
+  return state.config.expansions.includes('valley') ? [...DOROTHY_BASE, ...DOROTHY_VALLEY] : [...DOROTHY_BASE];
+}
+
+/**
+ * forced 가 kind 를 낸다면 고를 수 있는 대상. 대상이 없는 카드면 [undefined].
+ * forced 의 손패는 보지 않는다 (시키는 사람은 남의 손을 모른다). 실제로 낼 수 있는지는 낼 때 본다.
+ */
+function dorothyTargets(state: GameState, forced: PlayerId, kind: CardKind): (PlayerId | undefined)[] {
+  const others = seatedPlayers(state).filter((t) => t.id !== forced && t.alive);
+  const hasCards = (t: { hand: unknown[]; equipment: unknown[] }) => t.hand.length + t.equipment.length > 0;
+  switch (kind) {
+    case 'bang':
+      return others.filter((t) => canReachWithBang(state, forced, t.id)).map((t) => t.id);
+    case 'tomahawk':
+      return others.filter((t) => canReachAtRange(state, forced, t.id, 2)).map((t) => t.id);
+    case 'panic':
+      return others.filter((t) => hasCards(t) && canReachAtRange(state, forced, t.id, 1)).map((t) => t.id);
+    case 'catBalou':
+      return others.filter(hasCards).map((t) => t.id);
+    case 'duel':
+      return others.map((t) => t.id);
+    default:
+      return [undefined];
+  }
+}
+
+function eventAbilityActions(state: GameState, pid: PlayerId): Action[] {
+  const ability = eventAbilityOf(state);
+  const me = playerOf(state, pid);
+  if (!ability || me.ghost || me.usedThisTurn.includes(eventAbilityKey(ability))) return [];
+
+  if (ability === 'ladyRose') {
+    return rightNeighborOf(state, pid, turnDirectionOf(state)) ? [{ type: 'eventAbility', pid, ability }] : [];
+  }
+  const out: Action[] = [];
+  for (const x of alivePlayers(state)) {
+    if (x.id === pid || x.ghost) continue;
+    for (const kind of dorothyKinds(state)) {
+      for (const target of dorothyTargets(state, x.id, kind)) {
+        out.push({ type: 'eventAbility', pid, ability, forced: x.id, kind, ...(target ? { target } : {}) });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * 도로시 레이지로 시킨 수: forced 가 손의 kind 카드로 target 에게 낼 수 있는 수.
+ * 그 카드가 없거나, 있어도 지금 그 대상에게 낼 수 없으면 null (아무 일도 없다).
+ */
+export function forcedPlayOf(
+  state: GameState,
+  forced: PlayerId,
+  kind: CardKind,
+  target: PlayerId | undefined,
+): Extract<Action, { type: 'playCard' }> | null {
+  const x = playerOf(state, forced);
+  for (const card of unique(x.hand)) {
+    if (kindOf(card) !== kind || !canPlayCard(state, forced, kind, card, false)) continue;
+    for (const a of kindActions(state, forced, card, kind, undefined, true)) {
+      if (a.type !== 'playCard' || a.pick || a.extra || a.also || a.target2) continue;
+      if (a.target === target) return a;
+    }
+  }
+  return null;
 }
 
 /** 갈색 카드 중 리 반 클리프가 다시 낼 수 없는 것. 뱅!류와 단독으로 못 내는 카드 */

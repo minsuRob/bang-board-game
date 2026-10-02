@@ -9,6 +9,7 @@
 
 import type { CardId, Role } from '../data/types';
 import { playerOf } from './cards';
+import { handsRevealed } from './hooks';
 import type { GameState, PlayerId } from './types';
 
 /** 가려진 카드 자리표시자 */
@@ -35,12 +36,14 @@ export function roleVisibleTo(
  *
  * 형태는 GameState 그대로라서 거리 계산·합법 액션 열거가 그대로 돌아간다.
  * 가려지는 것: 남의 손패, 덱, 남은 이벤트 덱, 감춰진 역할.
+ * 사카가웨이(와일드 웨스트 쇼)가 걸려 있으면 남의 손패는 펼쳐 둔다. 역할은 그대로 가린다.
  */
 export function viewFor(state: GameState, pid: PlayerId): GameState {
   // 드래프트 중에는 남의 후보와 선택을 가린다. 남의 캐릭터 칸에는 자리표시자로
   // 내 후보 첫 장을 채운다 (남의 후보 첫 장이 새지 않게). 선택 여부만 남긴다.
   const d = state.draft;
   const mask = d ? (d.offers[pid]?.[0] ?? state.players[0].character) : null;
+  const openHands = handsRevealed(state);
   const draft = d
     ? {
         offers: Object.fromEntries(
@@ -59,7 +62,7 @@ export function viewFor(state: GameState, pid: PlayerId): GameState {
       return {
         ...p,
         character: mask ?? p.character,
-        hand: hiddenList(p.hand.length),
+        hand: openHands ? p.hand : hiddenList(p.hand.length),
         role: roleVisibleTo(pid, p) ? p.role : ('outlaw' as Role),
         // 역할이 안 보이면 UI 와 AI 는 roleRevealed 로 판단해야 한다.
       };

@@ -81,6 +81,7 @@ import { resolveCheckWin } from './win';
 import {
   resolveBorrowCharacters,
   resolveGifts,
+  resolveHandRedraw,
   respondBorrowCharacters,
   respondGifts,
 } from './wildwest';
@@ -221,6 +222,8 @@ export function resolveFrame(state: GameState, frame: Frame): GameState {
       return resolveBorrowCharacters(state, frame);
     case 'gifts':
       return resolveGifts(state, frame);
+    case 'handRedraw':
+      return resolveHandRedraw(state, frame);
     default: {
       const never: never = frame;
       throw new Error(`해결기가 없는 프레임: ${JSON.stringify(never)}`);

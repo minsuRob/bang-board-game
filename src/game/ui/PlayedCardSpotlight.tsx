@@ -63,6 +63,11 @@ const SHOW_MS = 2200;
 const EVENT_SHOW_MS = 4200;
 const EVENT_MIN_MS = 1800;
 
+/** 4배까지는 1, 그보다 빠르면 4배 대비 몇 배인지. 최소 표시 시간을 이만큼 나눈다 */
+function beyondFour(scale: number): number {
+  return Math.max(1, scale / 4);
+}
+
 /** 카드가 튀어 오른 뒤 총이 터지기까지 (1배속) */
 const FIRE_DELAY_MS = 180;
 
@@ -280,8 +285,8 @@ function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
     const scale = Math.max(1, fxPacing.getState().timeScale);
     const fireAt = missed ? 0 : FIRE_DELAY_MS / scale;
     const shotMs = (missed ? MISSED_HQ_MS : hq ? GUNSHOT_HQ_MS : GUNSHOT_MS) / scale;
-    // 연출이 끝날 때까지는 떠 있는다
-    const hold = Math.max(600, SHOW_MS / scale - 400, fx ? fireAt + shotMs - 200 : 0);
+    // 연출이 끝날 때까지는 떠 있는다. 4배를 넘는 검증용 배속에서는 최소 시간도 같이 줄인다
+    const hold = Math.max(600 / beyondFour(scale), SHOW_MS / scale - 400, fx ? fireAt + shotMs - 200 : 0);
     const anim = Animated.sequence([
       ...(missed ? [] : [Animated.spring(t, { toValue: 1, friction: 6, tension: 140, useNativeDriver: NATIVE_DRIVER })]),
       Animated.delay(hold),
@@ -418,7 +423,7 @@ function EventSpot({ def, compact, onDone }: { def: EventCardDef; compact?: bool
 
   useEffect(() => {
     const scale = Math.max(1, fxPacing.getState().timeScale);
-    const hold = Math.max(EVENT_MIN_MS, EVENT_SHOW_MS / scale);
+    const hold = Math.max(EVENT_MIN_MS / beyondFour(scale), EVENT_SHOW_MS / scale);
     const anim = Animated.sequence([
       Animated.spring(t, { toValue: 1, friction: 6, tension: 140, useNativeDriver: NATIVE_DRIVER }),
       Animated.delay(hold),

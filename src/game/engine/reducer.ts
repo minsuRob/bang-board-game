@@ -33,6 +33,7 @@ import {
 import { nextInt } from './rng';
 import { applyPick } from './draft';
 import { applyGoldAction } from './gold-actions';
+import { applyEventAbility } from './event-abilities';
 import { respondToFrame } from './frames';
 import { actionKey, legalActions } from './legal';
 import { applyPlayCard } from './play';
@@ -92,6 +93,10 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
         break;
       }
       const as = action.as ?? kindOf(action.card);
+      // 미스 수잔나: 차례인 사람이 손에서 낸 카드 장수를 센다
+      if (action.pid === cur.turn.active) {
+        cur = { ...cur, turn: { ...cur.turn, cardsPlayed: (cur.turn.cardsPlayed ?? 0) + 1 } };
+      }
       cur = applyPlayCard(cur, action.pid, action.card, as, action.target, {
         target2: action.target2,
         extra: action.extra,
@@ -157,6 +162,9 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
     case 'removeGold':
     case 'beerForGold':
       cur = applyGoldAction(cur, action);
+      break;
+    case 'eventAbility':
+      cur = applyEventAbility(cur, action);
       break;
     case 'goldAbility':
       // 배낭은 맥주를 묻는 도중에도 쓴다. 낡은 대기는 버리고 다시 묻게 한다.
@@ -246,7 +254,8 @@ function applyAbility(
 // ---------------------------------------------------------------------------
 
 export function defaultAction(state: GameState, pid: PlayerId): Action | null {
-  const legal = legalActions(state, pid).filter((a) => a.type !== 'useAbility');
+  // 고르는 능력(시드 케첨·이벤트 행동)은 시간이 지났다고 대신 쓰지 않는다
+  const legal = legalActions(state, pid).filter((a) => a.type !== 'useAbility' && a.type !== 'eventAbility');
   if (legal.length === 0) return null;
 
   const a = state.awaiting;

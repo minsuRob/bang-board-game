@@ -14,6 +14,7 @@ import type { GameState, PlayerId } from '../engine';
 import { useGameStore } from '../store/game-store';
 import type { CardId } from '../data/types';
 import { ActionBar } from '../ui/ActionBar';
+import { EventAbilityPanel } from '../ui/EventAbilityPanel';
 import { GoldPanel } from '../ui/GoldPanel';
 import { DraftPanel } from '../ui/DraftPanel';
 import { useChatUnread } from '../ui/ChatPanel';
@@ -197,6 +198,7 @@ export function Table3D({ view, viewer, api, clock }: Table3DProps) {
                 respond={api.respond}
               />
             ) : null}
+            <EventAbilityPanel view={view} viewer={viewer} actions={api.eventActions} send={api.sendGold} />
             <ActionBar
               prompt={api.prompt}
               onRespond={api.respond}

@@ -1,11 +1,12 @@
 /**
  * 와일드 웨스트 쇼 캐릭터가 만드는 프레임: 그레고리 덱의 캐릭터 빌리기, 율 그리너의 선물.
+ * 이벤트(달링 발렌타인·헬레나 존테로·묘지)가 손패와 역할을 바꾸는 일도 여기서 한다.
  */
 
 import { CHARACTERS, charactersFor } from '../../data/characters';
 import type { CharacterId } from '../../data/types';
-import { inPlay, log, nameOf, playerOf, popFrame, replaceTop, updatePlayer } from '../cards';
-import { shuffle } from '../rng';
+import { inPlay, log, nameOf, playerOf, popFrame, pushSeq, replaceTop, toDiscard, updatePlayer } from '../cards';
+import { nextInt, shuffle } from '../rng';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 import { ga, neun } from '../josa';
 
@@ -128,4 +129,63 @@ function othersInSeatOrder(state: GameState, pid: PlayerId): PlayerId[] {
     if (p.alive && !p.ghost) out.push(p.id);
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// 와일드 웨스트 쇼 이벤트
+// ---------------------------------------------------------------------------
+
+/** 달링 발렌타인: 손패를 모두 버리고 같은 장수를 덱에서 새로 가져온다 */
+export function resolveHandRedraw(state: GameState, frame: Frame & { k: 'handRedraw' }): GameState {
+  let cur = popFrame(state);
+  const p = playerOf(cur, frame.pid);
+  if (!inPlay(p) || p.hand.length === 0) return cur;
+  const n = p.hand.length;
+  cur = updatePlayer(cur, frame.pid, (x) => ({ ...x, hand: [] }));
+  cur = toDiscard(cur, p.hand);
+  cur = log(cur, {
+    t: 'darlingValentine',
+    pid: frame.pid,
+    cards: p.hand,
+    text: `달링 발렌타인: ${ga(nameOf(cur, frame.pid))} 손패 ${n}장을 버리고 새로 가져온다.`,
+  });
+  return pushSeq(cur, [{ k: 'drawCards', pid: frame.pid, count: n, reason: 'darlingValentine' }]);
+}
+
+/** 헬레나 존테로: 보안관을 뺀 살아 있는 사람의 역할을 섞어 다시 나눈다 */
+export function shuffleLivingRoles(state: GameState): GameState {
+  const ids = state.players.filter((p) => p.alive && p.role !== 'sheriff').map((p) => p.id);
+  if (ids.length < 2) return state;
+  const rolled = shuffle(state.rng, ids.map((id) => playerOf(state, id).role));
+  let cur: GameState = { ...state, rng: rolled.rng };
+  ids.forEach((id, i) => {
+    cur = updatePlayer(cur, id, (x) => ({ ...x, role: rolled.value[i], roleRevealed: false }));
+  });
+  return log(cur, {
+    t: 'rolesShuffled',
+    text: '헬레나 존테로: 보안관을 뺀 살아 있는 사람들의 역할을 섞어 다시 나눴다.',
+  });
+}
+
+/**
+ * 묘지: 제거된 사람이 자기 차례에 목숨 1로 돌아온다.
+ * 역할은 제거된 사람들의 역할 중 하나를 무작위로 받는다. 받은 역할의 주인과 역할을 맞바꾸므로
+ * 역할 묶음은 그대로다. 돌아온 사람의 역할은 다시 가린다.
+ */
+export function reviveFromBoneOrchard(state: GameState, pid: PlayerId): GameState {
+  const pool = state.players.filter((p) => !p.alive && !p.ghost);
+  const rolled = nextInt(state.rng, Math.max(1, pool.length));
+  let cur: GameState = { ...state, rng: rolled.rng };
+  const other = pool[rolled.value];
+  if (other && other.id !== pid) {
+    const mine = playerOf(cur, pid).role;
+    cur = updatePlayer(cur, other.id, (x) => ({ ...x, role: mine }));
+    cur = updatePlayer(cur, pid, (x) => ({ ...x, role: other.role }));
+  }
+  cur = updatePlayer(cur, pid, (x) => ({ ...x, alive: true, ghost: false, hp: 1, roleRevealed: false }));
+  return log(cur, {
+    t: 'rolesShuffled',
+    pid,
+    text: `묘지: ${ga(nameOf(cur, pid))} 목숨 1로 돌아왔다. 역할은 제거된 사람들의 것 중에서 다시 받았다.`,
+  });
 }

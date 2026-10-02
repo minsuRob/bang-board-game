@@ -22,6 +22,19 @@ export type AiSpeed = 1 | 2 | 3 | 4;
 
 export const AI_SPEEDS: AiSpeed[] = [1, 2, 3, 4];
 
+/**
+ * 혼자 하는 판에서만 고를 수 있는 배속. 검증할 때 판을 빨리 넘기려는 것이다.
+ * 100 은 '최대': AI 계산과 화면 그리기가 따라오는 만큼 빠르게 둔다. 온라인 방은 AiSpeed 만 쓴다.
+ */
+export type LocalAiSpeed = AiSpeed | 8 | 16 | 32 | 100;
+
+export const LOCAL_AI_SPEEDS: LocalAiSpeed[] = [1, 2, 4, 8, 16, 32, 100];
+
+/** 배속 칩에 적는 글자 */
+export function speedLabel(speed: number): string {
+  return speed >= 100 ? '최대' : `${speed}×`;
+}
+
 export type AiContext = {
   /** 가려진 상태 */
   view: GameState;

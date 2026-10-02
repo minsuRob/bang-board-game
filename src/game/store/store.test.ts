@@ -280,4 +280,11 @@ describe('AI 박자', () => {
   it('연출이 더 오래 걸리면 연출이 끝난 뒤에 둔다', () => {
     expect(aiDelayMs(4, 1500)).toBe(1580);
   });
+
+  it('혼자 하는 판의 검증용 배속(최대 100배)은 연출 뒤 여유도 줄인다', () => {
+    expect(aiDelayMs(16, 0)).toBe(187.5);
+    expect(aiDelayMs(100, 0)).toBe(30);
+    expect(aiDelayMs(16, 100)).toBe(187.5);
+    expect(aiDelayMs(100, 100)).toBe(110);
+  });
 });

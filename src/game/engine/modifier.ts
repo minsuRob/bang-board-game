@@ -10,7 +10,7 @@
  */
 
 import type { CardId, CardKind, Suit } from '../data/types';
-import type { DamageCause, Frame, GameState, PlayerId } from './types';
+import type { DamageCause, EventAbilityKind, Frame, GameState, PlayerId } from './types';
 
 export type ModCtx = {
   state: GameState;
@@ -210,4 +210,18 @@ export type Modifier = {
   allowsDoubleBang?: boolean;
   /** 뱅!을 버려 남의 앞에 놓인 카드를 노릴 수 있다 (리코체) */
   allowsRicochet?: boolean;
+
+  // 와일드 웨스트 쇼 이벤트
+  /** 채팅을 막는다 (재갈) */
+  silencesChat?: boolean;
+  /** 제거된 사람이 자기 차례에 목숨 1로 돌아오고, 제거된 사람들의 역할을 다시 나눠 받는다 (묘지) */
+  revivesWithShuffledRoles?: boolean;
+  /** 모두 손패를 펼쳐 놓고 한다. 역할은 그대로 가린다 (사카가웨이) */
+  revealsHands?: boolean;
+  /** 차례에 이만큼 카드를 내지 못하면 차례 끝에 목숨 1을 잃는다 (미스 수잔나 3) */
+  minCardsPerTurn?: number;
+  /** 모두의 목표가 '마지막까지 살아남기'가 된다 (와일드 웨스트 쇼) */
+  lastOneStanding?: boolean;
+  /** 차례에 한 번 쓰는 행동 (레이디 로즈 오브 텍사스·도로시 레이지) */
+  eventAbility?: EventAbilityKind;
 };

@@ -2,26 +2,29 @@
  * AI 빠르기 선택기.
  *
  * 방장만 바꿀 수 있다. 나머지는 지금 배속만 본다.
+ * 혼자 하는 판은 speeds 로 더 빠른 배속(최대 100배)을 넘겨받는다.
  */
 
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { AI_SPEEDS, type AiSpeed } from '../ai/types';
+import { AI_SPEEDS, speedLabel, type LocalAiSpeed } from '../ai/types';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 type Props = {
-  speed: AiSpeed;
+  speed: LocalAiSpeed;
   /** null 이면 읽기 전용 */
-  onChange: ((speed: AiSpeed) => void) | null;
+  onChange: ((speed: LocalAiSpeed) => void) | null;
+  /** 고를 수 있는 배속. 없으면 온라인과 같은 1~4배 */
+  speeds?: readonly LocalAiSpeed[];
   style?: StyleProp<ViewStyle>;
 };
 
-export function SpeedControl({ speed, onChange, style }: Props) {
+export function SpeedControl({ speed, onChange, speeds = AI_SPEEDS, style }: Props) {
   if (!onChange) {
     return (
       <View style={[styles.root, style]} accessibilityLabel={`AI 속도 ${speed}배`}>
         <Text style={styles.label}>AI 속도</Text>
-        <Text style={styles.readonly}>{speed}×</Text>
+        <Text style={styles.readonly}>{speedLabel(speed)}</Text>
       </View>
     );
   }
@@ -29,7 +32,7 @@ export function SpeedControl({ speed, onChange, style }: Props) {
   return (
     <View style={[styles.root, style]}>
       <Text style={styles.label}>AI 속도</Text>
-      {AI_SPEEDS.map((s) => {
+      {speeds.map((s) => {
         const active = s === speed;
         return (
           <Pressable
@@ -37,9 +40,9 @@ export function SpeedControl({ speed, onChange, style }: Props) {
             style={[styles.chip, active && styles.chipActive]}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
-            accessibilityLabel={`AI 속도 ${s}배`}
+            accessibilityLabel={s >= 100 ? 'AI 속도 최대' : `AI 속도 ${s}배`}
             onPress={() => onChange(s)}>
-            <Text style={[styles.chipText, active && styles.chipTextActive]}>{s}×</Text>
+            <Text style={[styles.chipText, active && styles.chipTextActive]}>{speedLabel(s)}</Text>
           </Pressable>
         );
       })}

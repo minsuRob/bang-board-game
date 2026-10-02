@@ -25,6 +25,7 @@ import {
 import { judgementCardTaker, judgementPeekOf, turnDirectionOf } from '../hooks';
 import type { Choice, Frame, GameState, JudgementPurpose, PlayerId } from '../types';
 import { skipRestOfTurn } from './turn';
+import { shuffleLivingRoles } from './wildwest';
 import { ga, neun } from '../josa';
 
 const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
@@ -37,6 +38,7 @@ const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
   terenKill: '테렌 킬',
   donBell: '돈 벨',
   vendetta: '복수',
+  helenaZontero: '헬레나 존테로',
 };
 
 /** 스택에서 가장 위에 있는 뱅! 프레임의 요구 빗나감 장수를 1 줄인다. */
@@ -195,6 +197,12 @@ function applyJudgement(
         text: `복수: ${neun(nameOf(cur, pid))} ♥가 나와 차례를 한 번 더 얻었다.`,
       });
     }
+    case 'helenaZontero':
+      // ♥·♦ 면 보안관을 뺀 살아 있는 사람의 역할을 다시 나눈다
+      if (suit !== 'hearts' && suit !== 'diamonds') {
+        return log(cur, { t: 'helenaZontero', pid, text: '헬레나 존테로: 검은 무늬라 역할은 그대로다.' });
+      }
+      return shuffleLivingRoles(cur);
   }
 }
 

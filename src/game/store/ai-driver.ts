@@ -15,9 +15,17 @@ import { setWaitDeadline } from './wait-clock';
 /** 1배속에서 AI 가 한 과정(액션 하나)마다 들이는 뜸. 사람이 흐름을 따라올 수 있는 정도 */
 export const AI_STEP_MS = 3000;
 
-/** 다음 AI 수까지 기다릴 시간. 연출이 더 오래 걸리면 연출이 끝난 뒤에 둔다 */
+/** 연출 배율 상한. 혼자 하는 판의 '최대'(100배)까지 따라간다 */
+export const MAX_TIME_SCALE = 100;
+
+/**
+ * 다음 AI 수까지 기다릴 시간. 연출이 더 오래 걸리면 연출이 끝난 뒤에 둔다.
+ * 연출 뒤의 여유(1배속 80ms)도 4배를 넘으면 배속에 맞춰 줄인다 (최소 10ms).
+ */
 export function aiDelayMs(speed: number, holdMs: number): number {
-  return Math.max(AI_STEP_MS / Math.max(0.1, speed), holdMs + 80);
+  const s = Math.max(0.1, speed);
+  const margin = s > 4 ? Math.max(10, 320 / s) : 80;
+  return Math.max(AI_STEP_MS / s, holdMs + margin);
 }
 
 export function useAiDriver(enabled = true, speed = 1) {
@@ -28,9 +36,9 @@ export function useAiDriver(enabled = true, speed = 1) {
   const submit = useGameStore((s) => s.submit);
   const seed = useGameStore((s) => s.seed);
 
-  // 빠르게 둘 때는 연출도 그만큼 빨리 넘긴다 (최대 4배)
+  // 빠르게 둘 때는 연출도 그만큼 빨리 넘긴다
   useEffect(() => {
-    fxPacing.setState({ timeScale: Math.min(Math.max(1, speed), 4) });
+    fxPacing.setState({ timeScale: Math.min(Math.max(1, speed), MAX_TIME_SCALE) });
   }, [speed]);
 
   // 캐릭터 드래프트: AI 는 뜸 들이지 않고 모두 한꺼번에 바로 고른다.

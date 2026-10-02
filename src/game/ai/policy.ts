@@ -21,7 +21,8 @@ import {
   type PlayerId,
 } from '../engine';
 import { isHidden } from '../engine/view';
-import { handLimitOf, isRepeatAbility, isSwapAbility } from '../engine/hooks';
+import { handLimitOf, isRepeatAbility, isSwapAbility, turnDirectionOf } from '../engine/hooks';
+import { rightNeighborOf } from '../engine/distance';
 import { CHARACTER_VALUE } from './draft';
 import { scoreGold } from './gold-policy';
 import {
@@ -142,6 +143,8 @@ export function scoreAction(
     case 'useAbility':
       // 시드 케첨: 위급할수록 값어치가 오른다.
       return danger(view, me) > 0.6 ? 14 : -4;
+    case 'eventAbility':
+      return scoreEventAbility(view, me, action, beliefs);
     case 'endTurn':
       return NEUTRAL;
     case 'buyGold':
@@ -152,6 +155,54 @@ export function scoreAction(
     default:
       return NEUTRAL;
   }
+}
+
+// ---------------------------------------------------------------------------
+// 이벤트 행동 (와일드 웨스트 쇼)
+// ---------------------------------------------------------------------------
+
+/** 도로시 레이지로 남에게 시켜서 좋은 카드: 대상을 치는 카드 */
+const FORCED_ATTACK: Partial<Record<CardKind, number>> = { bang: 10, duel: 8, panic: 7, catBalou: 6, tomahawk: 9 };
+
+/**
+ * 레이디 로즈: 오른쪽 사람이 차례를 한 번 잃는다. 적이면 좋고 같은 편이면 나쁘다.
+ * 도로시 레이지: 시킨 사람이 그 카드를 가졌을 확률 × 대상을 친 값. 남의 손은 모르니 장수로 어림한다.
+ */
+function scoreEventAbility(
+  view: GameState,
+  me: PlayerId,
+  action: Extract<Action, { type: 'eventAbility' }>,
+  beliefs: Beliefs,
+): number {
+  const sit = situation(view, me, beliefs);
+  if (action.ability === 'ladyRose') {
+    const right = rightNeighborOf(view, me, turnDirectionOf(view));
+    if (!right) return -10;
+    const h = hostility(view, me, right, beliefs, sit);
+    return h >= 0.5 ? 6 + 6 * h : -8;
+  }
+  const { forced, kind, target } = action;
+  if (!forced || !kind) return -10;
+  const per = FORCED_ATTACK[kind];
+  if (per === undefined || !target || target === me) return -6;
+  const x = view.players.find((p) => p.id === forced);
+  if (!x) return -10;
+  // 펼쳐진 손패(사카가웨이)면 확실히 안다
+  const seen = x.hand.filter((c) => !isHidden(c));
+  const odds = seen.length === x.hand.length
+    ? (seen.some((c) => kindOf(c) === kind) ? 1 : 0)
+    : Math.min(1, (x.hand.length * countInDeck(kind)) / 80);
+  const enemy = hostility(view, me, target, beliefs, sit);
+  if (enemy < FRIEND) return -6;
+  // 같은 편에게 시키면 그 사람의 카드를 쓰게 만드는 셈이라 조금 뺀다
+  const cost = hostility(view, me, forced, beliefs, sit) < FRIEND ? 2 : 0;
+  return odds * per * enemy - cost - 1;
+}
+
+function countInDeck(kind: CardKind): number {
+  let n = 0;
+  for (const c of BASE_CARDS_BY_ID.values()) if (c.kind === kind) n++;
+  return Math.max(1, n);
 }
 
 // ---------------------------------------------------------------------------

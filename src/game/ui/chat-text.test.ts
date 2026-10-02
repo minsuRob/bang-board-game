@@ -106,4 +106,8 @@ describe('채팅 입력 잠금', () => {
   it('유령도시로 돌아온 유령은 탈락자로 보지 않는다', () => {
     expect(chatBlockReason({ mode: 'online', me: ghost, deadChat: false })).toBeNull();
   });
+
+  it('재갈이 걸려 있으면 아무도 말할 수 없다', () => {
+    expect(chatBlockReason({ mode: 'online', me: alive, deadChat: true, gagged: true })).toMatch(/재갈/);
+  });
 });

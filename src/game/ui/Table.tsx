@@ -15,6 +15,7 @@ import type { CardId } from '../data/types';
 import type { GameState, PlayerId } from '../engine';
 import { Table3D, useTableMode } from '../table3d';
 import { ActionBar } from './ActionBar';
+import { EventAbilityPanel } from './EventAbilityPanel';
 import { GoldPanel } from './GoldPanel';
 import { DraftPanel } from './DraftPanel';
 import { feltArt, woodArt } from './card-art';
@@ -175,6 +176,7 @@ export function Table({ view, viewer, api, clock }: TableProps) {
                 respond={api.respond}
               />
             ) : null}
+            <EventAbilityPanel view={view} viewer={viewer} actions={api.eventActions} send={api.sendGold} />
             <ActionBar
               prompt={api.prompt}
               onRespond={api.respond}

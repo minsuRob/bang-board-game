@@ -22,7 +22,7 @@ import type {
   Modifier,
   PlayAsAbility,
 } from './modifier';
-import type { DamageCause, Frame, GameState, PlayerId } from './types';
+import type { DamageCause, EventAbilityKind, Frame, GameState, PlayerId } from './types';
 
 const DEFAULT_ORDER = 50;
 
@@ -65,6 +65,36 @@ export function allowsDoubleBang(state: GameState): boolean {
 /** 뱅!으로 앞에 놓인 카드를 노리는 리코체가 열려 있는가 */
 export function allowsRicochet(state: GameState): boolean {
   return eventModifier(state)?.allowsRicochet === true;
+}
+
+/** 채팅을 쓸 수 없는가 (재갈) */
+export function chatSilenced(state: GameState): boolean {
+  return eventModifier(state)?.silencesChat === true;
+}
+
+/** 제거된 사람이 역할을 다시 받아 돌아오는가 (묘지) */
+export function revivesWithShuffledRoles(state: GameState): boolean {
+  return eventModifier(state)?.revivesWithShuffledRoles === true;
+}
+
+/** 모두 손패를 펼쳐 놓고 하는가 (사카가웨이) */
+export function handsRevealed(state: GameState): boolean {
+  return eventModifier(state)?.revealsHands === true;
+}
+
+/** 차례에 내야 하는 카드 장수. 없으면 null (미스 수잔나) */
+export function minCardsPerTurn(state: GameState): number | null {
+  return eventModifier(state)?.minCardsPerTurn ?? null;
+}
+
+/** 목표가 '마지막까지 살아남기'인가 (와일드 웨스트 쇼) */
+export function lastOneStanding(state: GameState): boolean {
+  return eventModifier(state)?.lastOneStanding === true;
+}
+
+/** 지금 이벤트가 주는 차례당 한 번 행동. 없으면 null */
+export function eventAbilityOf(state: GameState): EventAbilityKind | null {
+  return eventModifier(state)?.eventAbility ?? null;
 }
 
 /** 숙취처럼 캐릭터 능력을 통째로 죽이는 효과가 걸려 있는가 */

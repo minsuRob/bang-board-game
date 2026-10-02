@@ -23,6 +23,7 @@ import { CHAT_MAX_LENGTH } from '../../firebase/chat-model';
 import type { Role } from '../data/types';
 import { lastOtherId, useChatStore } from '../store/chat-store';
 import { useGameStore } from '../store/game-store';
+import { chatSilenced } from '../engine/hooks';
 import { chatBlockReason, chatSpeaker } from './chat-text';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
@@ -44,7 +45,7 @@ export function ChatPanel({ style }: { style?: object }) {
   const { mode, messages, myUid, mySeat, deadChat, error, notice, send } = useChatStore();
 
   const me = mode === 'online' && mySeat !== null ? (state?.players.find((p) => p.seat === mySeat) ?? null) : null;
-  const blocked = chatBlockReason({ mode, me, deadChat });
+  const blocked = chatBlockReason({ mode, me, deadChat, gagged: state ? chatSilenced(state) : false });
   const canSend = !blocked && send !== null;
 
   const [draft, setDraft] = useState('');

@@ -111,7 +111,10 @@ export type TableApi = {
   /** 골드 러시 합법 수 (사기·치우기·맥주 팔기·금덩이 능력) */
   goldActions: Action[];
   sendGold: (a: Action) => void;
+  /** 이벤트가 주는 차례당 한 번 행동 (레이디 로즈 오브 텍사스·도로시 레이지) */
+  eventActions: Extract<Action, { type: 'eventAbility' }>[];
 };
+
 
 export type DraftInfo = {
   offers: CharacterId[];
@@ -410,6 +413,11 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
   );
   const sendGold = useCallback((a: Action) => submit(a), [submit]);
 
+  const eventActions = useMemo(
+    () => allLegal.filter((a): a is Extract<Action, { type: 'eventAbility' }> => a.type === 'eventAbility'),
+    [allLegal],
+  );
+
   return {
     view,
     viewer,
@@ -436,6 +444,7 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     pickCharacter,
     goldActions,
     sendGold,
+    eventActions,
   };
 }
 

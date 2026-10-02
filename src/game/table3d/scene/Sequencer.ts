@@ -4,6 +4,7 @@
 
 import type { PlayerId } from '../../engine';
 import { DUR, flightMs } from '../core/durations';
+import { fxPacing } from '../../store/fx-pacing';
 import { finishFx, fxStore, pushNumber, setCaption, shiftFx } from '../core/fx-store';
 import {
   arcControl,
@@ -89,7 +90,9 @@ export class Sequencer {
     }
     this.batch = batch;
     this.stepIndex = 0;
-    this.scale = fxStore.getState().timeScale * (batch.fast ? 3 : 1);
+    // AI 배속(fxPacing)을 따른다. 따르지 않으면 빠르게 둘 때 연출이 1배속으로 줄줄이 밀린다
+    const scale = Math.max(fxStore.getState().timeScale, fxPacing.getState().timeScale);
+    this.scale = scale * (batch.fast ? 3 : 1);
     this.runStep(now);
   }
 

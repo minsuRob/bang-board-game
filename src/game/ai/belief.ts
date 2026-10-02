@@ -15,6 +15,7 @@
 import { ROLE_DISTRIBUTION } from '../data/roles';
 import type { CardKind, Role } from '../data/types';
 import { kindOf, type GameState, type PlayerId } from '../engine';
+import { lastOneStanding } from '../engine/hooks';
 import type { RngState } from '../engine/rng';
 import { nextInt } from '../engine/rng';
 
@@ -200,7 +201,15 @@ function readLog(
     else e.anti -= signal;
   };
 
-  for (const ev of view.log) {
+  // 헬레나 존테로·묘지로 역할을 다시 나눴으면 그 전의 행동은 지금 역할을 말해 주지 않는다
+  let from = 0;
+  for (let i = view.log.length - 1; i >= 0; i--) {
+    if (view.log[i].t === 'rolesShuffled') {
+      from = i + 1;
+      break;
+    }
+  }
+  for (const ev of view.log.slice(from)) {
     const actor = ev.pid;
     if (!actor || !evidence[actor]) continue;
 
@@ -410,6 +419,8 @@ export function hostility(
   sit: Situation = situation(view, me, beliefs),
 ): number {
   if (target === me) return 0;
+  // 와일드 웨스트 쇼: 역할과 상관없이 모두가 적이다. 나를 노린 사람을 조금 더 친다
+  if (lastOneStanding(view)) return Math.min(1.2, 0.85 + 0.08 * Math.min(2, beliefs[target]?.hostilityToMe ?? 0));
   const myRole = view.players.find((p) => p.id === me)?.role;
   const them = beliefs[target];
   if (!myRole || !them) return 0;

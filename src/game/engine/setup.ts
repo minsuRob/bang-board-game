@@ -93,7 +93,10 @@ export function createGame(seed: number, config: GameConfig, seats: Seat[]): Gam
   if (evSpec) {
     const evRolled = shuffle(rng, evSpec.shuffled);
     rng = evRolled.rng;
-    const evDeck: EventCardId[] = [...evRolled.value, evSpec.final];
+    let evDeck: EventCardId[] = [...evRolled.value, evSpec.final];
+    // 개발용: 보고 싶은 이벤트를 맨 앞으로 (덱에 있는 카드일 때만)
+    const dev = config.devEvent;
+    if (dev && evDeck.includes(dev)) evDeck = [dev, ...evDeck.filter((id) => id !== dev)];
     event = { deck: evDeck, current: null, past: [] };
   }
 

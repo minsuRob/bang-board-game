@@ -26,7 +26,10 @@ export type Phase = 'draw' | 'play' | 'discard';
 
 export type Player = {
   id: PlayerId;
-  /** 착석 번호. 배열 인덱스와 같으며 게임 내내 바뀌지 않는다 (거리 계산의 기준) */
+  /**
+   * 착석 번호. 배열 인덱스와 늘 같다 (거리 계산의 기준).
+   * 레이디 로즈 오브 텍사스로 두 사람이 자리를 바꿀 때만 배열 자리와 함께 바뀐다.
+   */
   seat: number;
   name: string;
   role: Role;
@@ -52,11 +55,18 @@ export type Player = {
   goldEquipment?: GoldCardId[];
   /** 그레고리 덱이 차례 시작에 뽑아 능력을 빌린 기본판 캐릭터 */
   borrowed?: CharacterId[];
+  /** 레이디 로즈 오브 텍사스에게 자리를 빼앗겨 다음 차례를 건너뛴다 */
+  skipsNextTurn?: boolean;
 };
 
 export type GameConfig = {
   playerCount: number;
   expansions: Expansion[];
+  /**
+   * 개발용: 이 이벤트를 덱 맨 앞에 두고 보안관의 첫 차례에 바로 공개한다 (?devEvent=).
+   * 설정에 들어 있으므로 저장·리플레이·온라인 락스텝이 그대로 맞는다.
+   */
+  devEvent?: EventCardId;
 };
 
 export type TurnState = {
@@ -78,6 +88,8 @@ export type TurnState = {
   mustPlay?: CardId;
   /** 이번 차례에 방금 낸 갈색 카드의 종류. 다른 카드를 내면 바뀐다 (리 반 클리프) */
   lastBrown?: CardKind;
+  /** 이번 차례에 차례인 사람이 손에서 낸 카드 장수 (미스 수잔나) */
+  cardsPlayed?: number;
 };
 
 /** 골드 러시 장비 덱. 플레잉 카드와 섞이지 않는다 */
@@ -132,7 +144,9 @@ export type JudgementPurpose =
   /** 복수(한줌의 카드): 차례 끝에 ♥ 면 차례를 한 번 더 */
   | 'vendetta'
   /** 테렌 킬: 제거되기 직전에 ♠ 가 아니면 목숨 1로 버틴다 */
-  | 'terenKill';
+  | 'terenKill'
+  /** 헬레나 존테로(와일드 웨스트 쇼): 공개될 때 ♥·♦ 면 보안관을 뺀 역할을 다시 나눈다 */
+  | 'helenaZontero';
 
 // ---------------------------------------------------------------------------
 // 효과 스택 프레임
@@ -160,11 +174,15 @@ export type DamageCause =
   /** 차례 시작에 손패 장수만큼 맞는, 쏜 사람 없는 뱅! */
   | 'fistful'
   | 'russianRoulette'
-  | 'bloodBrothers';
+  | 'bloodBrothers'
+  // 와일드 웨스트 쇼
+  /** 미스 수잔나: 차례에 카드를 3장 내지 못했다 */
+  | 'missSusanna';
 
 export type Frame =
   // 턴 흐름
-  | { k: 'turnStart'; pid: PlayerId; extra?: boolean }
+  /** reveal: 라운드와 상관없이 이벤트를 공개한다 (개발용 devEvent 의 첫 차례) */
+  | { k: 'turnStart'; pid: PlayerId; extra?: boolean; reveal?: boolean }
   | { k: 'revealEvent' }
   | { k: 'eventTurnStart'; pid: PlayerId }
   | { k: 'drawPhase'; pid: PlayerId; done: number }
@@ -288,6 +306,8 @@ export type Frame =
   | { k: 'borrowCharacters'; pid: PlayerId; count: number }
   /** 율 그리너: 손패가 pid 보다 많은 사람이 1장씩 준다. queue 는 처음 해결될 때 정한다 */
   | { k: 'gifts'; pid: PlayerId; queue?: PlayerId[] }
+  /** 달링 발렌타인: 손패를 모두 버리고 같은 장수를 새로 가져온다 */
+  | { k: 'handRedraw'; pid: PlayerId }
   // 승리 판정
   | { k: 'checkWin' };
 
@@ -435,6 +455,19 @@ export type Action =
   | { type: 'respond'; pid: PlayerId; choice: Choice }
   /** 언제든 쓸 수 있는 능력 (시드 케첨) */
   | { type: 'useAbility'; pid: PlayerId; ability: string; cards?: CardId[] }
+  /**
+   * 이벤트가 주는 차례당 한 번 행동 (와일드 웨스트 쇼).
+   * - ladyRose: 오른쪽 사람과 자리를 바꾼다
+   * - dorothyRage: forced 에게 kind 카드를 target 에게 내게 한다 (손에 없으면 아무 일도 없다)
+   */
+  | {
+      type: 'eventAbility';
+      pid: PlayerId;
+      ability: EventAbilityKind;
+      forced?: PlayerId;
+      kind?: CardKind;
+      target?: PlayerId;
+    }
   /** 버리기 단계에서 손패 버림 */
   | { type: 'discardCard'; pid: PlayerId; card: CardId }
   /** 차례 마치기 */
@@ -452,6 +485,8 @@ export type Action =
   | { type: 'beerForGold'; pid: PlayerId; card: CardId }
   /** 금덩이를 내는 능력 (캐릭터·장비). 배낭은 죽기 직전에도 쓴다 */
   | { type: 'goldAbility'; pid: PlayerId; ability: string; target?: PlayerId };
+
+export type EventAbilityKind = 'ladyRose' | 'dorothyRage';
 
 export type Choice =
   /** 반응하지 않음 / 능력 사용 안 함 */

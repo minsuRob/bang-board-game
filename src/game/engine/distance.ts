@@ -86,3 +86,17 @@ export function canReachAtRange(
   if (from === to) return false;
   return distance(state, from, to) <= range;
 }
+
+/**
+ * 오른쪽 이웃: 차례가 넘어오는 쪽(차례 진행의 반대 방향)으로 가장 가까운, 원 안의 다른 사람.
+ * 레이디 로즈 오브 텍사스가 자리를 바꾸는 상대다. 없으면 null.
+ */
+export function rightNeighborOf(state: GameState, pid: PlayerId, dir: 1 | -1 = 1): PlayerId | null {
+  const n = state.players.length;
+  const seat = playerOf(state, pid).seat;
+  for (let i = 1; i < n; i++) {
+    const p = state.players[(((seat - dir * i) % n) + n) % n];
+    if (p.id !== pid && p.alive) return p.id;
+  }
+  return null;
+}

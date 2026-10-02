@@ -46,8 +46,11 @@ export function chatBlockReason(opts: {
   me: Player | null;
   /** 방 설정: 탈락한 사람도 말할 수 있는가 */
   deadChat: boolean;
+  /** 재갈(와일드 웨스트 쇼)이 걸려 있다 */
+  gagged?: boolean;
 }): string | null {
   if (opts.mode === 'local') return '채팅은 온라인 판에서만 쓸 수 있다';
+  if (opts.gagged) return '재갈: 지금은 아무도 말할 수 없다';
   if (!opts.me) return '자리에 앉은 사람만 말할 수 있다';
   const out = !opts.me.alive && !opts.me.ghost;
   if (out && !opts.deadChat) return '탈락한 뒤에는 읽기만 할 수 있다';

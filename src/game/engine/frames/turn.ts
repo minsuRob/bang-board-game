@@ -28,13 +28,16 @@ import {
   drawCountOf,
   drawPhaseOverride,
   firstOutRevival,
+  minCardsPerTurn,
   onDrawPhaseEndFrames,
   onEventEnterFrames,
   onTurnEndFrames,
   onTurnStartFrames,
   resurrectsEliminated,
+  revivesWithShuffledRoles,
   turnDirectionOf,
 } from '../hooks';
+import { reviveFromBoneOrchard } from './wildwest';
 import { discardGold, goldEquipOf } from '../gold';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 import { ga, neun } from '../josa';
@@ -79,7 +82,7 @@ export function resolveTurnStart(state: GameState, frame: Frame & { k: 'turnStar
   cur = log(cur, { t: 'turnStart', pid, text: `${nameOf(cur, pid)}의 차례.` });
 
   // 이벤트는 보안관의 두 번째 차례부터 공개된다.
-  const shouldReveal = Boolean(cur.event) && isSheriff && !extra && round >= 2;
+  const shouldReveal = Boolean(cur.event) && ((isSheriff && !extra && round >= 2) || frame.reveal === true);
 
   const frames: Frame[] = [];
   if (shouldReveal) frames.push({ k: 'revealEvent' });
@@ -175,6 +178,19 @@ export function resolveTurnEnd(state: GameState, frame: Frame & { k: 'turnEnd' }
   // 차례 끝 능력(돈 벨). 유령에게는 걸지 않는다.
   const endFrames = p.alive && !p.ghost ? onTurnEndFrames(cur, pid) : [];
 
+  // 미스 수잔나: 차례에 카드를 정해진 장수만큼 못 냈으면 목숨 1을 잃는다.
+  // 감옥으로 차례를 건너뛰었으면(카드 가져오기도 못 했다) 묻지 않는다.
+  const need = minCardsPerTurn(cur);
+  const played = cur.turn.cardsPlayed ?? 0;
+  if (need !== null && p.alive && !p.ghost && cur.turn.drawn && played < need) {
+    cur = log(cur, {
+      t: 'missSusanna',
+      pid,
+      text: `미스 수잔나: ${neun(nameOf(cur, pid))} 카드를 ${played}장만 내서 목숨 1을 잃는다.`,
+    });
+    endFrames.unshift({ k: 'damage', target: pid, amount: 1, source: null, cause: 'missSusanna' });
+  }
+
   if (p.ghost && !heldAsGhost(p)) {
     // 유령은 차례가 끝나면 다시 사라진다. 들고 있던 카드는 전부 버려진다.
     // 유령 카드(그림자의 계곡)로 돌아온 사람은 그 카드가 앞에 있는 동안 남는다.
@@ -220,10 +236,27 @@ export function resolveAdvanceTurn(
   const n = cur.players.length;
   const fromSeat = playerOf(cur, frame.from).seat;
 
+  const boneOrchard = revivesWithShuffledRoles(cur);
+
   for (let i = 1; i <= n; i++) {
     const seat = (((fromSeat + dir * i) % n) + n) % n;
     const cand = cur.players[seat];
+    if (cand.alive && cand.skipsNextTurn) {
+      // 레이디 로즈 오브 텍사스에게 자리를 빼앗겼다. 이번 차례 한 번만 건너뛴다
+      cur = updatePlayer(cur, cand.id, ({ skipsNextTurn: _skip, ...x }) => x);
+      cur = log(cur, {
+        t: 'ladyRoseSkip',
+        pid: cand.id,
+        text: `${neun(nameOf(cur, cand.id))} 자리를 빼앗겨 이번 차례를 건너뛴다.`,
+      });
+      continue;
+    }
     if (cand.alive || (cand.ghost && heldAsGhost(cand))) {
+      return pushSeq(cur, [{ k: 'turnStart', pid: cand.id }]);
+    }
+    if (boneOrchard && !cand.ghost) {
+      // 묘지: 제거된 사람이 자기 차례에 목숨 1로 돌아온다
+      cur = reviveFromBoneOrchard(cur, cand.id);
       return pushSeq(cur, [{ k: 'turnStart', pid: cand.id }]);
     }
     const ev = cur.event;

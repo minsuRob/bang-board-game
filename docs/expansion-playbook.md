@@ -115,12 +115,21 @@ AGENTS.md 와 docs/expansion-playbook.md 를 먼저 읽고 그 규칙을 지킨�
   npm test && npm run typecheck
   npm run simulate -- --games 100 --players 7
   npm run simulate -- --games 200 --players 7 --<확장판 플래그>
+  # 규칙·불변식만 빠르게: 작업자 병렬 + 역할 추정 측정 끔 + 중·하 난이도 (수천 판이 몇십 초)
+  npm run simulate -- --games 2000 --players 7 --<확장판 플래그> --fast --events
   ```
+
+  - `--events` 는 이벤트마다 공개 횟수와 그 이벤트에서 유난히 많이 나온 로그를 찍는다.
+    "눈에 띄는 로그 없음" 이면 효과가 비어 있는지 확인한다 (손패 공개·채팅처럼 로그 없이 도는 이벤트도 여기 뜬다).
+  - `--jobs N` 으로 작업자 수를 정한다 (기본 CPU 수 - 1). 상 난이도는 수읽기가 비싸 병렬로도 몇 배에 그친다.
 
 - **브라우저 확인**:
   - `.claude/launch.json` 에서 비어 있는 포트를 골라 `preview_start` 한다.
   - 새 캐릭터가 내 후보에 나오는 시드를 먼저 스크립트로 찾는다. `createGame` 을 돌려 `draft.offers.p0` 를 본다.
   - `/game/local?players=5&highnoon=1&seed=N` 으로 연다. 새 확장판이면 파라미터를 추가한다.
+  - 이벤트는 `&devEvent=<이벤트 id>` 를 붙이면 보안관의 첫 차례부터 걸려 있다 (그 확장판도 저절로 켠다, 웹 개발 모드 전용).
+    `&notimer=1` 은 내 차례 제한시간을 끄고, `&auto=1` 은 내 자리까지 AI 가 둔다.
+  - 혼자 하는 판의 AI 속도는 8×·16×·32×·최대(100×)까지 있다. 7인 한 판이 최대 배속에서 10초 안팎이다.
   - 창이 숨겨져 있으면 턴 타이머가 먼저 끝난다. 버튼 클릭과 결과 읽기는 `javascript_tool` 한 번에 묶는다.
   - 1440×900 으로 키워야 왼쪽 미리보기 자리가 생긴다.
 
