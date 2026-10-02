@@ -156,7 +156,7 @@ export class CardWorld {
 
     // 보드 위 직업·캐릭터 카드와 목숨 총알
     this.seatCards.update(state, viewerIndex, snap);
-    this.bullets.update(layout, state);
+    this.bullets.update(layout, state, snap);
 
     // 버린 더미 맨 위 (공개)
     const top = state.discard[state.discard.length - 1];
@@ -330,6 +330,7 @@ export class CardWorld {
     let moving = this.table.tick(dt, now);
     if (this.seatCards.tick(dt)) moving = true;
     for (const h of this.handles.values()) if (h.tick(dt)) moving = true;
+    if (this.bullets.tick(dt)) moving = true;
     return moving;
   }
 }

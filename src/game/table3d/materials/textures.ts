@@ -436,6 +436,36 @@ export function bulletTexture(): THREE.DataTexture {
   return bulletTex;
 }
 
+let bulletBackTex: THREE.DataTexture | null = null;
+
+/**
+ * 뒤집힌 총알(잃은 목숨). 앞면과 같은 실루엣을 빛바랜 빈 탄피 색으로 칠한다.
+ * 긴 축으로 뒤집어 보이므로 위아래가 바뀐다. 하이라이트를 아래에 두어 화면에서는 위로 온다.
+ */
+export function bulletBackTexture(): THREE.DataTexture {
+  if (bulletBackTex) return bulletBackTex;
+  const W = 96;
+  const H = 32;
+  const body = hex('#4A3A28');
+  const rim = hex('#2E2418');
+  const shine: RGBA = [140, 118, 90, 150];
+  const p = new Painter(W, H);
+  const cy = H / 2;
+  p.each((x, y) => {
+    const dy = Math.abs(y - cy);
+    if (x >= 4 && x < 10 && dy < 13) return rim;
+    if (x >= 10 && x < 58 && dy < 11) return y > cy + 5 && y < cy + 9 ? shine : body;
+    if (x >= 58 && x < 92) {
+      const t = (x - 58) / 34;
+      const r = 11 * Math.sqrt(Math.max(0, 1 - t * t));
+      if (dy < r) return y > cy + r * 0.45 && y < cy + r * 0.8 ? shine : rim;
+    }
+    return null;
+  });
+  bulletBackTex = p.toTexture();
+  return bulletBackTex;
+}
+
 /** 역할 카드 뒷면의 보안관 배지. 여섯 꼭짓점 별 + 끝의 구슬 */
 function insideBadge(x: number, y: number): boolean {
   const a = Math.atan2(y, x) + Math.PI / 2;

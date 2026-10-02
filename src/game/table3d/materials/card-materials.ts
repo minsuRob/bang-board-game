@@ -17,6 +17,7 @@ import {
 } from '../../ui/card-art';
 import { CARD_SIZE } from '../core/types';
 import {
+  bulletBackTexture,
   bulletTexture,
   cardBackTexture,
   cardFaceTexture,
@@ -116,8 +117,27 @@ let bulletMat: THREE.MeshBasicMaterial | null = null;
 
 export function bulletMaterial(): THREE.MeshBasicMaterial {
   if (bulletMat) return bulletMat;
-  bulletMat = new THREE.MeshBasicMaterial({ map: bulletTexture(), transparent: true, depthWrite: false });
+  bulletMat = new THREE.MeshBasicMaterial({
+    map: bulletTexture(),
+    side: THREE.FrontSide,
+    transparent: true,
+    depthWrite: false,
+  });
   return bulletMat;
+}
+
+let bulletBackMat: THREE.MeshBasicMaterial | null = null;
+
+/** 잃은 목숨 총알의 뒷면. 앞면과 같은 행렬로 그리고 뒤집혔을 때만 보인다 */
+export function bulletBackMaterial(): THREE.MeshBasicMaterial {
+  if (bulletBackMat) return bulletBackMat;
+  bulletBackMat = new THREE.MeshBasicMaterial({
+    map: bulletBackTexture(),
+    side: THREE.BackSide,
+    transparent: true,
+    depthWrite: false,
+  });
+  return bulletBackMat;
 }
 
 let roleBackMat: THREE.MeshBasicMaterial | null = null;
