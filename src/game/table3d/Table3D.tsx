@@ -138,6 +138,8 @@ export function Table3D({ view, viewer, api, clock }: Table3DProps) {
         best = p.id;
       }
     });
+    // 아무 자리 근처도 아니면 대상 없이 낸다 (대상 없이도 낼 수 있는 카드만, 내 자리가 그 표시다)
+    if (!best && cardTargets.includes(viewer)) best = viewer;
     if (best) api.playCard(card, best);
     return done(best !== null);
   };

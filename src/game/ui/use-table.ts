@@ -268,18 +268,25 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     [legal],
   );
 
+  // 대상 없이도, 지목해서도 낼 수 있는 카드(결전의 맥주·역마차 등)는 내 자리를 '대상 없이 내기'로 쓴다.
+  // 지목 수만 있으면 고르기 모드로 들어가, 맥주를 그냥 마실 길이 막힌다.
   const targetsFor = useCallback(
     (card: CardId) => {
       const out = new Set<PlayerId>();
-      for (const a of plays(card)) if (a.target) out.add(a.target);
+      const list = plays(card);
+      for (const a of list) if (a.target) out.add(a.target);
+      if (out.size > 0 && viewer && list.some((a) => !a.target)) out.add(viewer);
       return [...out];
     },
-    [plays],
+    [plays, viewer],
   );
 
   const playCard = useCallback(
     (card: CardId, target?: PlayerId) => {
-      const matches = plays(card).filter((a) => a.target === target);
+      let matches = plays(card).filter((a) => a.target === target);
+      if (matches.length === 0 && target && target === viewer) {
+        matches = plays(card).filter((a) => !a.target);
+      }
       if (matches.length === 0) return;
       // 리코체로 노릴 카드가 여럿이면 고르게 한다
       if (armedMode === 'ricochet' && target && matches.length > 1) {
@@ -292,7 +299,7 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
       setArmedFor(null);
       setRicochetAt(null);
     },
-    [plays, submit, armedMode, turnId],
+    [plays, submit, armedMode, turnId, viewer],
   );
 
   const arm = useCallback(

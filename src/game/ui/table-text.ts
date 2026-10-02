@@ -69,7 +69,13 @@ export function bottomStatus(view: GameState, viewer: PlayerId, api: TableApi): 
     const me = view.players.find((p) => p.id === viewer)!;
     return `손패를 목숨 수(${me.hp}장)까지 줄여야 한다`;
   }
-  if (api.selected) return '지목할 상대를 고른다 (Esc 취소)';
+  if (api.selected) {
+    // 대상 없이도 낼 수 있으면 내 자리를 누르면 된다 (결전의 맥주 등)
+    if (api.targetsFor(api.selected).includes(viewer)) {
+      return `지목할 상대를 고른다 · 내 자리를 누르면 ${eul(CARD_DEFS[kindOf(api.selected)].nameKo)} 그대로 낸다 (Esc 취소)`;
+    }
+    return '지목할 상대를 고른다 (Esc 취소)';
+  }
   if (api.armed) {
     const ab = api.playAsAbilities.find((x) => x.key === api.armed);
     if (ab?.status) return ab.status;
