@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, Pressable, Text, View } from 'react-native';
 
 import { CHARACTERS } from '../data/characters';
 import type { CharacterId } from '../data/types';
@@ -18,7 +18,9 @@ import { CAN_HOVER } from './card-peek';
 import { CharacterCard } from './CharacterCard';
 import { PaperPlaque, plaque } from './PaperPlaque';
 import type { DraftInfo } from './use-table';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { WesternFonts } from './menu/western-fonts';
+import { themedStyles } from './theme/use-theme';
+import { Radius, Spacing } from '@/constants/theme';
 
 /** 마우스로 올려 볼 수 있는 화면. 폰 브라우저는 앱처럼 첫 탭이 보기다 */
 const WEB = CAN_HOVER;
@@ -31,6 +33,7 @@ export type DraftPanelProps = {
 };
 
 export function DraftPanel({ draft, viewer, onPick, compact }: DraftPanelProps) {
+  const styles = useStyles();
   const hover = useSyncExternalStore(
     draftUi.subscribe,
     () => draftUi.getState().hover[viewer] ?? null,
@@ -117,6 +120,7 @@ type OfferCardProps = {
 };
 
 function OfferCard({ id, compact, lifted, picked, dimmed, disabled, onHoverIn, onHoverOut, onPress }: OfferCardProps) {
+  const styles = useStyles();
   const [lift] = useState(() => new Animated.Value(0));
   useEffect(() => {
     Animated.spring(lift, {
@@ -170,16 +174,23 @@ function useCountdown(): number | null {
   return Math.max(0, Math.ceil((startedAt + TIME_LIMIT_MS.draft - now) / 1000));
 }
 
-const styles = StyleSheet.create({
+// 후보 카드와 명판(PaperPlaque)은 판의 종이라 고정색, 둘레 글자와 테는 테마를 따른다
+const useStyles = themedStyles((c) => ({
   root: { paddingVertical: Spacing.two, paddingHorizontal: Spacing.three, gap: Spacing.two, alignItems: 'center' },
   header: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.three },
-  title: { color: Colors.text, fontSize: 16, fontWeight: '800' },
-  progress: { color: Colors.textMuted, fontSize: 12, fontWeight: '700' },
-  timer: { color: Colors.highlight, fontSize: 16, fontWeight: '900', fontVariant: ['tabular-nums'] },
-  timerUrgent: { color: Colors.danger },
+  title: { color: c.heading, fontSize: 16, fontWeight: '800', fontFamily: WesternFonts.label },
+  progress: { color: c.textMuted, fontSize: 12, fontWeight: '700' },
+  timer: {
+    color: c.highlight,
+    fontSize: 16,
+    fontWeight: '900',
+    fontFamily: WesternFonts.type,
+    fontVariant: ['tabular-nums'],
+  },
+  timerUrgent: { color: c.danger },
   row: { flexDirection: 'row', gap: Spacing.three, paddingTop: Spacing.three, justifyContent: 'center' },
   offer: { borderRadius: Radius.md },
-  offerLifted: { boxShadow: `0 10px 24px rgba(0,0,0,0.55), 0 0 0 2px ${Colors.highlight}` },
+  offerLifted: { boxShadow: `0 10px 24px ${c.shadow}, 0 0 0 2px ${c.selectedBorder}` },
   dimmed: { opacity: 0.4 },
   check: {
     position: 'absolute',
@@ -188,14 +199,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.success,
+    backgroundColor: c.success,
     borderWidth: 2,
-    borderColor: Colors.paper,
+    borderColor: c.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkText: { color: '#fff', fontSize: 18, fontWeight: '900', lineHeight: 20 },
+  checkText: { color: c.onAccent, fontSize: 18, fontWeight: '900', lineHeight: 20 },
   // 크기는 고정해 hover 할 때 높이가 튀지 않게 한다
   plaque: { minWidth: 320, minHeight: 52 },
   plaqueCompact: { minWidth: 0, minHeight: 44 },
-});
+}));

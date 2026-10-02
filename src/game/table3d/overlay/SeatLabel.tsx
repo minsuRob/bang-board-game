@@ -2,7 +2,7 @@
  * 3D 좌석 위에 얹는 RN 라벨. 이름·역할·목숨·손패 장수·거리. 글자는 전부 여기서.
  */
 
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../../data/cards.base';
 import { CHARACTERS } from '../../data/characters';
@@ -15,8 +15,11 @@ import { AttackBadges } from '../../ui/AttackBadges';
 import { cardBackArt } from '../../ui/card-art';
 import { PlayerSeat } from '../../ui/PlayerSeat';
 import { PRESENCE_LABEL, PresenceDot } from '../../ui/PresenceDot';
+import { WesternFonts } from '../../ui/menu/western-fonts';
+import { themedStyles, useColors } from '../../ui/theme/use-theme';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
+/** 판 팔레트의 역할 색 (테마를 모르는 곳용). 라벨은 테마 팔레트의 c[role] 을 쓴다 */
 export const ROLE_COLOR: Record<Role, string> = {
   sheriff: Colors.sheriff,
   deputy: Colors.deputy,
@@ -77,6 +80,8 @@ export function SeatLabel({
   compact,
   canvasHeight,
 }: SeatLabelProps) {
+  const styles = useStyles();
+  const c = useColors();
   const isSelf = player.id === viewer;
   const presence = usePresence(player.id);
   const presenceText = presence ? ` · ${PRESENCE_LABEL[presence]}` : '';
@@ -129,7 +134,7 @@ export function SeatLabel({
               {player.name}
             </Text>
             {(player.roleRevealed || isSelf) && (
-              <Text style={[styles.role, { color: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
+              <Text style={[styles.role, { color: c[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
             )}
           </View>
           <View style={styles.draftRow}>
@@ -172,9 +177,9 @@ export function SeatLabel({
           {!isSelf && <AttackBadges view={view} from={player.id} viewer={viewer} />}
           {(player.roleRevealed || isSelf) &&
             (big ? (
-              <Text style={[styles.roleChip, { backgroundColor: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
+              <Text style={[styles.roleChip, { backgroundColor: c[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
             ) : (
-              <Text style={[styles.role, { color: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
+              <Text style={[styles.role, { color: c[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
             ))}
           {!player.roleRevealed && !isSelf && !dead && (
             <RoleGuess pid={player.id} playerCount={view.players.length} />
@@ -201,7 +206,7 @@ export function SeatLabel({
         </View>
         {player.equipment.length > 0 && (
           <Text style={[styles.equipment, big && styles.selfEquipment]} numberOfLines={big ? 2 : 1}>
-            {player.equipment.map((c) => CARD_DEFS[kindOf(c)].nameKo).join(' · ')}
+            {player.equipment.map((e) => CARD_DEFS[kindOf(e)].nameKo).join(' · ')}
           </Text>
         )}
         {isSelf && (
@@ -216,6 +221,8 @@ export function SeatLabel({
 
 /** 숨은 직업 자리. 탭할 때마다 ??? → ?무법자? → … 로 짐작을 바꾼다. 나만 보인다 */
 function RoleGuess({ pid, playerCount }: { pid: PlayerId; playerCount: number }) {
+  const styles = useStyles();
+  const c = useColors();
   const guess = useRoleGuess(pid);
   return (
     <Pressable
@@ -227,8 +234,8 @@ function RoleGuess({ pid, playerCount }: { pid: PlayerId; playerCount: number })
       // 웹에서 button 역할을 주면 라벨의 <button> 안에 <button> 이 들어가 경고가 난다
       accessibilityRole={Platform.OS === 'web' ? undefined : 'button'}
       accessibilityLabel={guess ? `직업 짐작: ${ROLE_LABEL[guess]}. 눌러서 바꾸기` : '직업 짐작하기'}
-      style={({ pressed }) => [styles.guess, guess && { borderColor: ROLE_COLOR[guess] }, pressed && styles.guessPressed]}>
-      <Text style={[styles.guessText, guess && { color: ROLE_COLOR[guess] }]}>
+      style={({ pressed }) => [styles.guess, guess && { borderColor: c[guess] }, pressed && styles.guessPressed]}>
+      <Text style={[styles.guessText, guess && { color: c[guess] }]}>
         {guess ? `?${ROLE_LABEL[guess]}?` : '???'}
       </Text>
     </Pressable>
@@ -237,6 +244,7 @@ function RoleGuess({ pid, playerCount }: { pid: PlayerId; playerCount: number })
 
 /** 네모창 윗변에 걸치는 손패 장수. 카드 뒷면 그림 + x8 */
 function HandCount({ count }: { count: number }) {
+  const styles = useStyles();
   const art = cardBackArt();
   return (
     <View style={styles.handCount} accessibilityLabel={`손패 ${count}장`} pointerEvents="none">
@@ -258,41 +266,43 @@ export function safeDistance(view: GameState, from: PlayerId, to: PlayerId): num
   }
 }
 
-const styles = StyleSheet.create({
+// 이름표는 어두운 3D 판 위에 얹는 패널이다. 라이트면 종이 패찰, 다크면 밤 나무 패찰
+const useStyles = themedStyles((c) => ({
   slot: { position: 'absolute', alignItems: 'center' },
   label: {
     width: '100%',
-    backgroundColor: 'rgba(30, 20, 11, 0.9)',
+    backgroundColor: c.panel,
     borderRadius: Radius.md,
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: c.panelBorder,
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.one,
     gap: 1,
+    boxShadow: `0 4px 14px ${c.shadow}`,
   },
-  active: { borderColor: Colors.activeTurn, backgroundColor: 'rgba(26, 44, 24, 0.94)' },
-  targetable: { borderColor: Colors.highlight, borderWidth: 2, boxShadow: `0 0 10px ${Colors.highlight}` },
+  active: { borderColor: c.activeTurn, borderWidth: 2, boxShadow: `0 0 10px ${c.activeTurn}` },
+  targetable: { borderColor: c.highlight, borderWidth: 2, boxShadow: `0 0 10px ${c.highlight}` },
   dead: { opacity: 0.45 },
-  ghost: { borderColor: Colors.renegade, borderStyle: 'dashed' },
+  ghost: { borderColor: c.renegade, borderStyle: 'dashed' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.one },
-  name: { color: Colors.text, fontWeight: '800', fontSize: 12, flexShrink: 1 },
+  name: { color: c.heading, fontWeight: '800', fontSize: 12, flexShrink: 1, fontFamily: WesternFonts.label },
   role: { fontSize: 9, fontWeight: '800' },
-  character: { color: Colors.textMuted, fontSize: 10 },
-  hp: { color: Colors.hp, fontSize: 10, letterSpacing: 1 },
-  hpEmpty: { color: Colors.border },
-  meta: { color: Colors.textMuted, fontSize: 9 },
+  character: { color: c.textMuted, fontSize: 10 },
+  hp: { color: c.hp, fontSize: 10, letterSpacing: 1 },
+  hpEmpty: { color: c.rule },
+  meta: { color: c.textMuted, fontSize: 9 },
   guess: {
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: Colors.border,
+    borderColor: c.chipBorder,
     borderRadius: 4,
     paddingHorizontal: 4,
     paddingVertical: 1,
   },
   guessPressed: { opacity: 0.6 },
-  guessText: { color: Colors.textMuted, fontSize: 9, fontWeight: '800', opacity: 0.85 },
-  equipment: { color: Colors.deputy, fontSize: 9 },
-  detail: { color: Colors.textMuted, fontSize: 9, lineHeight: 12 },
+  guessText: { color: c.textMuted, fontSize: 9, fontWeight: '800', opacity: 0.85 },
+  equipment: { color: c.deputy, fontSize: 9 },
+  detail: { color: c.textMuted, fontSize: 9, lineHeight: 12, fontFamily: WesternFonts.body },
   handCount: {
     position: 'absolute',
     top: -17,
@@ -300,21 +310,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: 'rgba(30, 20, 11, 0.95)',
+    backgroundColor: c.panel,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.panelBorder,
     paddingHorizontal: 4,
     paddingVertical: 1,
   },
   handCountArt: { width: 14, height: 20, borderRadius: 2 },
+  // 카드 뒷면 그림이 없을 때 대신 놓는 뒷면 색이라 판 팔레트 고정
   handCountFallback: { backgroundColor: Colors.surfaceRaised },
-  handCountText: { color: Colors.text, fontSize: 11, fontWeight: '800' },
-  drafted: { borderColor: Colors.success },
+  handCountText: { color: c.text, fontSize: 11, fontWeight: '800' },
+  drafted: { borderColor: c.success },
   selfLabel: {
-    backgroundColor: 'rgba(22, 14, 7, 0.94)',
     borderWidth: 2,
-    borderColor: Colors.hp,
+    borderColor: c.hp,
     borderRadius: Radius.lg,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
@@ -322,7 +332,8 @@ const styles = StyleSheet.create({
   },
   selfName: { fontSize: 18, fontWeight: '900' },
   roleChip: {
-    color: '#1A120A',
+    // 역할 색 바탕 위 글자. 다크는 짙은 나무, 라이트는 종이색으로 뒤집힌다
+    color: c.background,
     fontSize: 12,
     fontWeight: '900',
     borderRadius: 999,
@@ -330,9 +341,9 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     overflow: 'hidden',
   },
-  selfCharacter: { fontSize: 14, color: Colors.text, fontWeight: '700' },
+  selfCharacter: { fontSize: 14, color: c.text, fontWeight: '700' },
   selfHp: { fontSize: 16, letterSpacing: 2 },
-  selfHpNumber: { color: Colors.text, fontSize: 13, fontWeight: '800', letterSpacing: 0 },
+  selfHpNumber: { color: c.text, fontSize: 13, fontWeight: '800', letterSpacing: 0 },
   selfEquipment: { fontSize: 12 },
   selfDetail: { fontSize: 11, lineHeight: 15 },
   draftRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, minHeight: 18 },
@@ -340,10 +351,10 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: Colors.success,
+    backgroundColor: c.success,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkText: { color: '#fff', fontSize: 11, fontWeight: '900', lineHeight: 13 },
-  draftDone: { color: Colors.success, fontSize: 10, fontWeight: '800' },
-});
+  checkText: { color: c.onAccent, fontSize: 11, fontWeight: '900', lineHeight: 13 },
+  draftDone: { color: c.success, fontSize: 10, fontWeight: '800' },
+}));

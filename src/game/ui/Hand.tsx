@@ -6,14 +6,15 @@
  * 새로 들어온 카드는 칸이 벌어지고 덱에서 날아와 꽂히며 뒤집힌다 (HandArrival).
  */
 
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
 import type { CardId } from '../data/types';
 import { clearPeek, setPeek } from './card-peek';
 import { CardView } from './CardView';
 import { HandArrival } from './HandArrival';
 import { useHandArrivals } from './hand-arrival';
-import { Colors, Spacing } from '@/constants/theme';
+import { themedStyles } from './theme/use-theme';
+import { Spacing } from '@/constants/theme';
 
 export type HandProps = {
   cards: CardId[];
@@ -30,6 +31,7 @@ export type HandProps = {
 };
 
 export function Hand({ cards, playable, selected, onSelect, discardable, showIndex, owner, resetKey }: HandProps) {
+  const styles = useStyles();
   const arrivals = useHandArrivals(cards, { waitFor3d: false, owner, resetKey });
   if (cards.length === 0) {
     return (
@@ -83,10 +85,10 @@ export function Hand({ cards, playable, selected, onSelect, discardable, showInd
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   row: { flexDirection: 'row', gap: Spacing.two, paddingHorizontal: Spacing.two, paddingTop: 10 },
   slot: { alignItems: 'center', gap: 2 },
-  index: { color: Colors.textMuted, fontSize: 10, fontVariant: ['tabular-nums'] },
+  index: { color: c.textMuted, fontSize: 10, fontVariant: ['tabular-nums'] },
   empty: { paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
-  emptyText: { color: Colors.textMuted, fontSize: 13 },
-});
+  emptyText: { color: c.textMuted, fontSize: 13 },
+}));

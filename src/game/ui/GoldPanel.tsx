@@ -5,7 +5,7 @@
  * 여기서는 그 액션을 한국어 라벨로 보여 주고 누르면 그대로 보낸다.
  */
 
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../data/cards.base';
 import { goldDefOf } from '../data/cards.goldrush';
@@ -13,7 +13,10 @@ import { CHARACTERS } from '../data/characters';
 import type { Action, Choice, GameState, PlayerId } from '../engine';
 import { buyPriceOf } from '../engine/gold-actions';
 import type { GoldUse } from '../engine/types';
+import { WesternFonts } from './menu/western-fonts';
+import { themedStyles } from './theme/use-theme';
 import type { Prompt } from './use-table';
+import { Radius } from '@/constants/theme';
 
 type Props = {
   view: GameState;
@@ -64,6 +67,7 @@ export function labelOf(view: GameState, a: Action): string {
 }
 
 export function GoldPanel({ view, viewer, actions, send, prompt, respond }: Props) {
+  const styles = useStyles();
   if (!view.gold) return null;
   const me = viewer ? view.players.find((p) => p.id === viewer) : null;
 
@@ -142,26 +146,32 @@ export function GoldPanel({ view, viewer, actions, send, prompt, respond }: Prop
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   panel: {
     padding: 8,
     gap: 4,
-    borderRadius: 8,
-    backgroundColor: 'rgba(40, 28, 10, 0.85)',
+    borderRadius: Radius.md,
+    backgroundColor: c.panel,
+    borderWidth: 1.5,
+    borderColor: c.panelBorder,
+    boxShadow: `0 4px 14px ${c.shadow}`,
   },
-  title: { color: '#f5d77a', fontWeight: '700', fontSize: 14 },
-  label: { color: '#e8dcc0', fontSize: 12, marginTop: 4 },
+  title: { color: c.heading, fontWeight: '700', fontSize: 14, fontFamily: WesternFonts.label },
+  label: { color: c.textMuted, fontSize: 12, marginTop: 4, fontFamily: WesternFonts.label },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  card: { width: 150, padding: 6, borderRadius: 6, borderWidth: 2 },
-  brown: { borderColor: '#9a6a3a', backgroundColor: 'rgba(90, 60, 30, 0.6)' },
-  black: { borderColor: '#222', backgroundColor: 'rgba(20, 20, 20, 0.6)' },
-  cardName: { color: '#fff4d6', fontWeight: '700', fontSize: 12 },
-  cardText: { color: '#e8dcc0', fontSize: 11 },
+  // 상점 카드: 테두리 색이 갈색(즉시) / 검정(장착) 구분이다
+  card: { width: 150, padding: 6, borderRadius: 6, borderWidth: 2, backgroundColor: c.chip },
+  brown: { borderColor: c.cardBrown },
+  black: { borderColor: c.suitBlack },
+  cardName: { color: c.text, fontWeight: '700', fontSize: 12 },
+  cardText: { color: c.textMuted, fontSize: 11 },
   button: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#c9962e',
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: c.chipBorder,
+    backgroundColor: c.chip,
   },
-  buttonText: { color: '#1b1204', fontWeight: '700', fontSize: 12 },
-});
+  buttonText: { color: c.text, fontWeight: '700', fontSize: 12, fontFamily: WesternFonts.label },
+}));

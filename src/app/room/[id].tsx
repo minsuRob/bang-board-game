@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
 import { AI_TIERS, AI_TIER_LABEL } from '@/game/ai';
 import type { AiTier } from '@/game/ai/types';
@@ -18,14 +18,22 @@ import {
 import { EVENT_EXPANSIONS } from '@/game/data/events';
 import { EXPANSION_LABEL } from '@/game/data/types';
 import { useRoomConnection } from '@/game/store/use-online-game';
-import { PRESENCE_COLOR, PRESENCE_LABEL, PresenceDot } from '@/game/ui/PresenceDot';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Chip } from '@/game/ui/Chip';
+import { MenuBackdrop } from '@/game/ui/menu/MenuBackdrop';
+import { InkLink, PaperSection, PaperSheet, StampButton, usePaperText } from '@/game/ui/menu/PaperUi';
+import { WesternFonts } from '@/game/ui/menu/western-fonts';
+import { PRESENCE_LABEL, PresenceDot, presenceColor } from '@/game/ui/PresenceDot';
+import { themedStyles, useColors } from '@/game/ui/theme/use-theme';
+import { Radius, Spacing } from '@/constants/theme';
 
 const COUNTS = [4, 5, 6, 7];
 
 export default function RoomScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const styles = useStyles();
+  const paperText = usePaperText();
+  const c = useColors();
   const [code, setCode] = useState<string | null>(id === 'new' ? null : (id ?? null));
   const [localError, setLocalError] = useState<string | null>(null);
   // 존재 표시등을 다시 그리기 위한 시계. 렌더 중에 Date.now() 를 부르면 안 된다.
@@ -88,11 +96,14 @@ export default function RoomScreen() {
 
   if (!room || !identity) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={Colors.highlight} />
-        <Text style={styles.loadingText}>
-          {id === 'new' && !code ? '방을 만드는 중' : '방에 들어가는 중'}
-        </Text>
+      <View style={styles.screen}>
+        <MenuBackdrop veil={0.55} />
+        <View style={styles.loading}>
+          <ActivityIndicator color={c.highlight} />
+          <Text style={styles.loadingText}>
+            {id === 'new' && !code ? '방을 만드는 중' : '방에 들어가는 중'}
+          </Text>
+        </View>
       </View>
     );
   }
@@ -100,140 +111,141 @@ export default function RoomScreen() {
   const seated = room.seats.filter((s) => s.uid).length;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.codeBlock}>
-        <Text style={styles.codeLabel}>방 코드</Text>
-        <Text style={styles.code}>{room.code}</Text>
-        <Text style={styles.codeHint}>친구에게 이 코드를 알려 주면 들어온다.</Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>자리 ({seated}/{room.playerCount})</Text>
-        {room.seats.map((seat, i) => {
-          const member = seat.uid ? members[seat.uid] : undefined;
-          const presence = seat.uid ? presenceOf(member, now) : null;
-          return (
-            <View key={i} style={styles.seatRow}>
-              <Text style={styles.seatIndex}>{i + 1}</Text>
-              <PresenceDot presence={presence} size={10} />
-              <Text style={[styles.seatName, !seat.uid && styles.seatEmpty]}>
-                {seat.uid ? member?.nick || seat.nick : '비어 있음 → AI가 앉는다'}
-              </Text>
-              {seat.uid === identity.uid && <Text style={styles.seatBadge}>나</Text>}
-              {seat.uid === room.hostUid && <Text style={styles.seatBadge}>호스트</Text>}
-              {presence && (
-                <Text style={[styles.presenceText, { color: PRESENCE_COLOR[presence] }]}>
-                  {PRESENCE_LABEL[presence]}
-                </Text>
-              )}
-            </View>
-          );
-        })}
-      </View>
-
-      {isHost ? (
-        <>
-          <Setting title="인원">
-            {COUNTS.map((n) => (
-              <Chip
-                key={n}
-                label={`${n}인`}
-                active={room.playerCount === n}
-                onPress={() => updateRoomSettings(room.code, { playerCount: n })}
-              />
-            ))}
-          </Setting>
-
-          <Setting title="빈 자리 AI 난이도">
-            {AI_TIERS.map((t: AiTier) => (
-              <Chip
-                key={t}
-                label={AI_TIER_LABEL[t]}
-                active={room.tier === t}
-                onPress={() => updateRoomSettings(room.code, { tier: t })}
-              />
-            ))}
-          </Setting>
-
-          <Setting title="상황 카드 확장판">
-            <Chip
-              label="기본"
-              active={roomEventExpansion(room) === null}
-              onPress={() => updateRoomSettings(room.code, { eventExpansion: null })}
-            />
-            {EVENT_EXPANSIONS.map((x) => (
-              <Chip
-                key={x}
-                label={EXPANSION_LABEL[x]}
-                active={roomEventExpansion(room) === x}
-                onPress={() => updateRoomSettings(room.code, { eventExpansion: x })}
-              />
-            ))}
-          </Setting>
-
-          <Setting title="카드·캐릭터 확장판">
-            <Text style={styles.settingHint}>
-              그림자의 계곡과 골드 러시는 상황 카드 확장판과 함께 사용할 수 있습니다.
+    <View style={styles.screen}>
+      <MenuBackdrop veil={0.55} />
+      <ScrollView contentContainerStyle={styles.container}>
+        <PaperSheet>
+          <View style={styles.codeBlock}>
+            <Text style={styles.codeLabel}>방 코드</Text>
+            <Text style={styles.code} accessibilityRole="header">
+              {room.code}
             </Text>
-            <Chip
-              label="끄기"
-              active={!room.valley}
-              onPress={() => updateRoomSettings(room.code, { valley: false })}
-            />
-            <Chip
-              label="켜기"
-              active={Boolean(room.valley)}
-              onPress={() => updateRoomSettings(room.code, { valley: true })}
-            />
-          </Setting>
+            <View style={styles.doubleRule} />
+            <Text style={paperText.hint}>친구에게 이 코드를 알려 주면 들어온다.</Text>
+          </View>
 
-          <Setting title="탈락자 채팅">
-            <Chip
-              label="허용"
-              active={room.deadChat !== false}
-              onPress={() => updateRoomSettings(room.code, { deadChat: true })}
+          <PaperSection title={`자리 (${seated}/${room.playerCount})`}>
+            {room.seats.map((seat, i) => {
+              const member = seat.uid ? members[seat.uid] : undefined;
+              const presence = seat.uid ? presenceOf(member, now) : null;
+              return (
+                <View key={i} style={styles.seatRow}>
+                  <Text style={styles.seatIndex}>{i + 1}</Text>
+                  <PresenceDot presence={presence} size={10} />
+                  <Text style={[styles.seatName, !seat.uid && styles.seatEmpty]}>
+                    {seat.uid ? member?.nick || seat.nick : '비어 있음 → AI가 앉는다'}
+                  </Text>
+                  {seat.uid === identity.uid && <Text style={styles.seatBadge}>나</Text>}
+                  {seat.uid === room.hostUid && <Text style={styles.seatBadge}>호스트</Text>}
+                  {presence && (
+                    <Text style={[styles.presenceText, { color: presenceColor(c, presence) }]}>
+                      {PRESENCE_LABEL[presence]}
+                    </Text>
+                  )}
+                </View>
+              );
+            })}
+          </PaperSection>
+
+          {isHost ? (
+            <>
+              <Setting title="인원">
+                {COUNTS.map((n) => (
+                  <Chip
+                    key={n}
+                    label={`${n}인`}
+                    active={room.playerCount === n}
+                    onPress={() => updateRoomSettings(room.code, { playerCount: n })}
+                  />
+                ))}
+              </Setting>
+
+              <Setting title="빈 자리 AI 난이도">
+                {AI_TIERS.map((t: AiTier) => (
+                  <Chip
+                    key={t}
+                    label={AI_TIER_LABEL[t]}
+                    active={room.tier === t}
+                    onPress={() => updateRoomSettings(room.code, { tier: t })}
+                  />
+                ))}
+              </Setting>
+
+              <Setting title="상황 카드 확장판">
+                <Chip
+                  label="기본"
+                  active={roomEventExpansion(room) === null}
+                  onPress={() => updateRoomSettings(room.code, { eventExpansion: null })}
+                />
+                {EVENT_EXPANSIONS.map((x) => (
+                  <Chip
+                    key={x}
+                    label={EXPANSION_LABEL[x]}
+                    active={roomEventExpansion(room) === x}
+                    onPress={() => updateRoomSettings(room.code, { eventExpansion: x })}
+                  />
+                ))}
+              </Setting>
+
+              <Setting title="카드·캐릭터 확장판">
+                <Text style={[paperText.hint, styles.fullWidth]}>
+                  그림자의 계곡과 골드 러시는 상황 카드 확장판과 함께 사용할 수 있습니다.
+                </Text>
+                <Chip
+                  label="끄기"
+                  active={!room.valley}
+                  onPress={() => updateRoomSettings(room.code, { valley: false })}
+                />
+                <Chip
+                  label="켜기"
+                  active={Boolean(room.valley)}
+                  onPress={() => updateRoomSettings(room.code, { valley: true })}
+                />
+              </Setting>
+
+              <Setting title="탈락자 채팅">
+                <Chip
+                  label="허용"
+                  active={room.deadChat !== false}
+                  onPress={() => updateRoomSettings(room.code, { deadChat: true })}
+                />
+                <Chip
+                  label="읽기만"
+                  active={room.deadChat === false}
+                  onPress={() => updateRoomSettings(room.code, { deadChat: false })}
+                />
+              </Setting>
+
+              <StampButton
+                label="판 열기"
+                onPress={() => markStarted(room.code).catch((err) => setLocalError(err.message))}
+              />
+            </>
+          ) : (
+            <Text style={styles.waiting}>호스트가 판을 열기를 기다리는 중</Text>
+          )}
+
+          <View style={styles.links}>
+            <InkLink
+              label="나가기"
+              onPress={async () => {
+                await leaveRoom(room.code, identity.uid).catch(() => {});
+                router.replace('/');
+              }}
             />
-            <Chip
-              label="읽기만"
-              active={room.deadChat === false}
-              onPress={() => updateRoomSettings(room.code, { deadChat: false })}
+            <InkLink
+              label="닉네임 바꾸기"
+              onPress={async () => {
+                const next = `총잡이 ${Math.floor(Math.random() * 900 + 100)}`;
+                await setNickname(next);
+                const id2 = await getIdentity();
+                if (code) await joinRoom(code, id2).catch(() => {});
+              }}
             />
-          </Setting>
-
-          <Pressable
-            style={styles.start}
-            accessibilityRole="button"
-            accessibilityLabel="판 열기"
-            onPress={() => markStarted(room.code).catch((err) => setLocalError(err.message))}>
-            <Text style={styles.startText}>판 열기</Text>
-          </Pressable>
-        </>
-      ) : (
-        <Text style={styles.waiting}>호스트가 판을 열기를 기다리는 중</Text>
-      )}
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="나가기"
-        onPress={async () => {
-          await leaveRoom(room.code, identity.uid).catch(() => {});
-          router.replace('/');
-        }}>
-        <Text style={styles.back}>나가기</Text>
-      </Pressable>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="닉네임 바꾸기"
-        onPress={async () => {
-          const next = `총잡이 ${Math.floor(Math.random() * 900 + 100)}`;
-          await setNickname(next);
-          const id2 = await getIdentity();
-          if (code) await joinRoom(code, id2).catch(() => {});
-        }}>
-        <Text style={styles.back}>닉네임 바꾸기</Text>
-      </Pressable>
-    </ScrollView>
+          </View>
+        </PaperSheet>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -246,54 +258,39 @@ function Notice({
   body: string;
   onBack: () => void;
 }) {
+  const styles = useStyles();
+  const paperText = usePaperText();
   return (
-    <View style={styles.loading}>
-      <Text style={styles.noticeTitle}>{title}</Text>
-      <Text style={styles.noticeBody}>{body}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={onBack}>
-        <Text style={styles.back}>돌아가기</Text>
-      </Pressable>
+    <View style={styles.screen}>
+      <MenuBackdrop veil={0.55} />
+      <View style={styles.loading}>
+        <PaperSheet style={styles.noticeSheet}>
+          <Text style={styles.noticeTitle}>{title}</Text>
+          <Text style={[paperText.hint, styles.noticeBody]}>{body}</Text>
+          <InkLink label="돌아가기" onPress={onBack} />
+        </PaperSheet>
+      </View>
     </View>
   );
 }
 
 function Setting({ title, children }: { title: string; children: React.ReactNode }) {
+  const styles = useStyles();
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+    <PaperSection title={title}>
       <View style={styles.row}>{children}</View>
-    </View>
+    </PaperSection>
   );
 }
 
-function Chip({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ selected: active }}
-      style={[styles.chip, active && styles.chipActive]}>
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
+  screen: { flex: 1, backgroundColor: c.background },
   container: {
     flexGrow: 1,
-    padding: Spacing.four,
-    gap: Spacing.four,
-    backgroundColor: Colors.background,
-    maxWidth: 560,
+    justifyContent: 'center',
+    padding: Spacing.three,
+    paddingVertical: Spacing.five,
+    maxWidth: 600,
     width: '100%',
     alignSelf: 'center',
   },
@@ -302,64 +299,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.background,
     padding: Spacing.four,
   },
-  loadingText: { color: Colors.textMuted, fontSize: 13 },
-  noticeTitle: { color: Colors.text, fontSize: 18, fontWeight: '800' },
-  noticeBody: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', maxWidth: 420 },
+  loadingText: { color: c.textMuted, fontSize: 13.5, fontFamily: WesternFonts.body },
+  noticeSheet: { alignItems: 'center', gap: Spacing.three, maxWidth: 480 },
+  noticeTitle: { color: c.heading, fontSize: 22, fontWeight: '900', textAlign: 'center', fontFamily: WesternFonts.label },
+  noticeBody: { textAlign: 'center' },
+  // 방 코드는 메뉴 제목 자리에 큰 활자로 찍는다
   codeBlock: { alignItems: 'center', gap: 4 },
-  codeLabel: { color: Colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  code: { color: Colors.highlight, fontSize: 40, fontWeight: '900', letterSpacing: 8 },
-  codeHint: { color: Colors.textMuted, fontSize: 12 },
-  section: { gap: Spacing.two },
-  sectionTitle: { color: Colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  settingHint: { color: Colors.textMuted, fontSize: 12, lineHeight: 18, width: '100%' },
-  row: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
+  codeLabel: { color: c.textMuted, fontSize: 13, letterSpacing: 4, fontFamily: WesternFonts.label },
+  code: {
+    color: c.heading,
+    fontSize: 44,
+    fontWeight: '900',
+    letterSpacing: 10,
+    fontFamily: WesternFonts.type,
+    fontVariant: ['tabular-nums'],
+  },
+  doubleRule: {
+    alignSelf: 'stretch',
+    marginVertical: 4,
+    height: 5,
+    borderTopWidth: 1.5,
+    borderBottomWidth: 1,
+    borderColor: c.rule,
+  },
+  row: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap', alignItems: 'center' },
+  fullWidth: { width: '100%' },
   seatRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
+    backgroundColor: c.field,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.rule,
   },
-  seatIndex: { color: Colors.textMuted, fontSize: 12, width: 16 },
-  seatName: { color: Colors.text, fontSize: 14, flex: 1 },
-  seatEmpty: { color: Colors.textMuted, fontStyle: 'italic' },
+  seatIndex: { color: c.textMuted, fontSize: 12, width: 16, fontFamily: WesternFonts.type },
+  seatName: { color: c.text, fontSize: 14.5, fontWeight: '700', flex: 1, fontFamily: WesternFonts.body },
+  seatEmpty: { color: c.textMuted, fontStyle: 'italic', fontWeight: '400' },
   seatBadge: {
-    color: Colors.sheriff,
-    fontSize: 10,
+    color: c.sheriff,
+    fontSize: 10.5,
     fontWeight: '800',
     borderWidth: 1,
-    borderColor: Colors.sheriff,
+    borderColor: c.sheriff,
     borderRadius: Radius.sm,
     paddingHorizontal: 4,
+    fontFamily: WesternFonts.label,
   },
   presenceText: { fontSize: 11, fontWeight: '800', minWidth: 52, textAlign: 'right' },
-  chip: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-  chipActive: { backgroundColor: Colors.cardBrown, borderColor: Colors.highlight },
-  chipText: { color: Colors.textMuted, fontSize: 13, fontWeight: '700' },
-  chipTextActive: { color: Colors.paper },
-  start: {
-    backgroundColor: Colors.cardBrown,
-    borderRadius: Radius.lg,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: Colors.highlight,
-  },
-  startText: { color: Colors.paper, fontSize: 18, fontWeight: '900' },
-  waiting: { color: Colors.textMuted, fontSize: 13, textAlign: 'center' },
-  back: { color: Colors.textMuted, fontSize: 13, textAlign: 'center' },
-});
+  waiting: { color: c.textMuted, fontSize: 14, textAlign: 'center', fontFamily: WesternFonts.body },
+  links: { gap: Spacing.three },
+}));

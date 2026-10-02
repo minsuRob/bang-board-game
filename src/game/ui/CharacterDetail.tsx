@@ -6,7 +6,7 @@
  * hover 가 없는 폰에서 상대 캐릭터를 탭했을 때 쓴다.
  */
 
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../data/cards.base';
 import { CHARACTERS } from '../data/characters';
@@ -14,14 +14,14 @@ import { ROLE_LABEL } from '../data/roles';
 import type { Role } from '../data/types';
 import { distance, kindOf, type GameState, type Player, type PlayerId } from '../engine';
 import { CharacterCard } from './CharacterCard';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { WesternFonts } from './menu/western-fonts';
+import { themedStyles, useColors } from './theme/use-theme';
+import { Radius, Spacing, type ThemeColors } from '@/constants/theme';
 
-const ROLE_COLOR: Record<Role, string> = {
-  sheriff: Colors.sheriff,
-  deputy: Colors.deputy,
-  outlaw: Colors.outlaw,
-  renegade: Colors.renegade,
-};
+/** 역할 색. 테마마다 종이·밤 바탕에서 읽히는 색이 다르다 */
+function roleColor(c: ThemeColors, role: Role): string {
+  return c[role];
+}
 
 export function CharacterDetail({
   view,
@@ -35,6 +35,8 @@ export function CharacterDetail({
   /** 카드를 작게 (미리보기 자리). 끄면 기본 크기 */
   compact?: boolean;
 }) {
+  const styles = useStyles();
+  const c = useColors();
   const isSelf = player.id === viewer;
   const dead = !player.alive && !player.ghost;
   const character = CHARACTERS[player.character];
@@ -50,7 +52,7 @@ export function CharacterDetail({
               {isSelf ? '나' : player.name}
             </Text>
             {(player.roleRevealed || isSelf) && (
-              <Text style={[styles.role, { color: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
+              <Text style={[styles.role, { color: roleColor(c, player.role) }]}>{ROLE_LABEL[player.role]}</Text>
             )}
           </View>
           <Text style={styles.character}>
@@ -72,15 +74,15 @@ export function CharacterDetail({
             </Text>
           )}
           {player.equipment.length > 0 && (
-            <Text style={styles.equipment}>{player.equipment.map((c) => CARD_DEFS[kindOf(c)].nameKo).join(' · ')}</Text>
+            <Text style={styles.equipment}>{player.equipment.map((e) => CARD_DEFS[kindOf(e)].nameKo).join(' · ')}</Text>
           )}
         </View>
       </View>
       <Text style={[styles.ability, compact && styles.abilityCompact]}>{character.ability}</Text>
       {/* 그레고리 덱이 빌린 기본판 캐릭터 */}
-      {(player.borrowed ?? []).map((c) => (
-        <Text key={c} style={[styles.ability, compact && styles.abilityCompact]}>
-          빌린 능력 · {CHARACTERS[c].nameKo}: {CHARACTERS[c].ability}
+      {(player.borrowed ?? []).map((b) => (
+        <Text key={b} style={[styles.ability, compact && styles.abilityCompact]}>
+          빌린 능력 · {CHARACTERS[b].nameKo}: {CHARACTERS[b].ability}
         </Text>
       ))}
     </View>
@@ -99,6 +101,7 @@ export function CharacterDetailModal({
   player: Player;
   onClose: () => void;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.layer}>
       <Pressable accessibilityRole="button" accessibilityLabel="캐릭터 설명 닫기" onPress={onClose} style={styles.backdrop} />
@@ -120,7 +123,7 @@ function safeDistance(view: GameState, from: PlayerId, to: PlayerId): number | n
   }
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   layer: {
     position: 'absolute',
     top: 0,
@@ -132,39 +135,39 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     zIndex: 50,
   },
-  backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' },
+  backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: c.scrim },
   sheet: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: 'rgba(22, 14, 7, 0.97)',
-    borderRadius: Radius.lg,
-    borderWidth: 2,
-    borderColor: Colors.highlight,
+    backgroundColor: c.surface,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: c.rule,
     padding: Spacing.three,
     gap: Spacing.two,
-    boxShadow: '0 6px 18px rgba(0,0,0,0.5)',
+    boxShadow: `0 14px 40px ${c.shadow}`,
   },
   close: {
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.one,
+    paddingVertical: Spacing.one + 2,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: 1.5,
+    borderColor: c.chipBorder,
   },
-  closeText: { color: Colors.text, fontSize: 13, fontWeight: '700' },
+  closeText: { color: c.text, fontSize: 13, fontWeight: '700' },
   body: { gap: Spacing.two },
   top: { flexDirection: 'row', gap: Spacing.two },
   info: { flex: 1, minWidth: 0, gap: 3 },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.one },
-  name: { color: Colors.text, fontSize: 16, fontWeight: '900', flexShrink: 1 },
+  name: { color: c.heading, fontSize: 16, fontWeight: '900', flexShrink: 1, fontFamily: WesternFonts.label },
   role: { fontSize: 11, fontWeight: '800' },
-  character: { color: Colors.text, fontSize: 13, fontWeight: '700' },
-  hp: { color: Colors.hp, fontSize: 13, letterSpacing: 1 },
-  hpEmpty: { color: Colors.border },
-  hpNumber: { color: Colors.text, fontSize: 12, fontWeight: '800', letterSpacing: 0 },
-  meta: { color: Colors.textMuted, fontSize: 11 },
-  equipment: { color: Colors.deputy, fontSize: 11 },
-  ability: { color: Colors.text, fontSize: 13, lineHeight: 19 },
+  character: { color: c.text, fontSize: 13, fontWeight: '700' },
+  hp: { color: c.hp, fontSize: 13, letterSpacing: 1 },
+  hpEmpty: { color: c.border },
+  hpNumber: { color: c.text, fontSize: 12, fontWeight: '800', letterSpacing: 0 },
+  meta: { color: c.textMuted, fontSize: 11 },
+  equipment: { color: c.deputy, fontSize: 11 },
+  ability: { color: c.text, fontSize: 13, lineHeight: 19, fontFamily: WesternFonts.body },
   abilityCompact: { fontSize: 12, lineHeight: 17 },
-});
+}));

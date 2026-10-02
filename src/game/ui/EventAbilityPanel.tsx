@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../data/cards.base';
 import { CHARACTERS } from '../data/characters';
@@ -22,6 +22,9 @@ import { handsRevealed, turnDirectionOf } from '../engine/hooks';
 import { wa } from '../engine/josa';
 import { CAN_HOVER } from './card-peek';
 import { CardView } from './CardView';
+import { WesternFonts } from './menu/western-fonts';
+import { themedStyles } from './theme/use-theme';
+import { Radius } from '@/constants/theme';
 
 type EventAction = Extract<Action, { type: 'eventAbility' }>;
 
@@ -38,6 +41,7 @@ function who(view: GameState, pid: PlayerId): string {
 }
 
 export function EventAbilityPanel({ view, viewer, actions, send }: Props) {
+  const styles = useStyles();
   const open = handsRevealed(view);
   const rose = actions.find((a) => a.ability === 'ladyRose');
   const orders = actions.filter((a) => a.ability === 'dorothyRage');
@@ -65,6 +69,7 @@ export function EventAbilityPanel({ view, viewer, actions, send }: Props) {
  * 기본은 차례인 사람(내 차례면 다음 사람). 웹은 이름에 올리는 동안, 폰은 탭해서 바꾼다
  */
 function OpenHands({ view, viewer }: { view: GameState; viewer: PlayerId | null }) {
+  const styles = useStyles();
   const others = view.players.filter((p) => p.id !== viewer && (p.alive || p.ghost));
   const active = view.turn.active;
   const [picked, setPicked] = useState<PlayerId | null>(null);
@@ -114,6 +119,7 @@ function OpenHands({ view, viewer }: { view: GameState; viewer: PlayerId | null 
 
 /** 도로시 레이지: 시킬 사람 → 카드 → 대상 순으로 고르고 시킨다 */
 function DorothyPicker({ view, orders, send }: { view: GameState; orders: EventAction[]; send: (a: Action) => void }) {
+  const styles = useStyles();
   const [forced, setForced] = useState<PlayerId | null>(null);
   const [kind, setKind] = useState<CardKind | null>(null);
 
@@ -183,6 +189,7 @@ function Chip({
   onHoverIn?: () => void;
   onHoverOut?: () => void;
 }) {
+  const styles = useStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -197,7 +204,9 @@ function Chip({
   );
 }
 
+/** 실제로 행동을 보내는 버튼은 작은 빨간 도장 */
 function Button({ label, onPress }: { label: string; onPress: () => void }) {
+  const styles = useStyles();
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={label} style={styles.button} onPress={onPress}>
       <Text style={styles.buttonText}>{label}</Text>
@@ -205,33 +214,39 @@ function Button({ label, onPress }: { label: string; onPress: () => void }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   panel: {
     padding: 8,
     gap: 4,
-    borderRadius: 8,
-    backgroundColor: 'rgba(40, 28, 10, 0.85)',
+    borderRadius: Radius.md,
+    backgroundColor: c.panel,
+    borderWidth: 1.5,
+    borderColor: c.panelBorder,
+    boxShadow: `0 4px 14px ${c.shadow}`,
   },
-  title: { color: '#f5d77a', fontWeight: '700', fontSize: 13 },
-  label: { color: '#e8dcc0', fontSize: 12 },
-  hint: { color: '#e8dcc0', fontSize: 11, opacity: 0.8 },
+  title: { color: c.heading, fontWeight: '700', fontSize: 13, fontFamily: WesternFonts.label },
+  label: { color: c.text, fontSize: 12 },
+  hint: { color: c.textMuted, fontSize: 11 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
   chip: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#9a6a3a',
+    borderWidth: 1.5,
+    borderColor: c.chipBorder,
+    backgroundColor: c.chip,
   },
-  chipMarked: { borderColor: '#f5d77a', borderStyle: 'dashed' },
-  chipActive: { backgroundColor: '#9a6a3a', borderColor: '#f5d77a' },
-  chipText: { color: '#e8dcc0', fontSize: 12, fontWeight: '600' },
-  chipTextActive: { color: '#fff4d6' },
+  // 차례인 사람: 점선 테두리
+  chipMarked: { borderColor: c.highlight, borderStyle: 'dashed' },
+  chipActive: { backgroundColor: c.selected, borderColor: c.selectedBorder },
+  chipText: { color: c.text, fontSize: 12, fontWeight: '600' },
+  chipTextActive: { color: c.onSelected },
   button: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#c9962e',
+    borderRadius: Radius.sm,
+    backgroundColor: c.accent,
+    boxShadow: `0 2px 0 ${c.accentShadow}`,
   },
-  buttonText: { color: '#1b1204', fontWeight: '700', fontSize: 12 },
-});
+  buttonText: { color: c.onAccent, fontWeight: '700', fontSize: 12, fontFamily: WesternFonts.label },
+}));

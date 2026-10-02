@@ -7,7 +7,7 @@
  */
 
 import { useMemo, type ReactNode } from 'react';
-import { ImageBackground, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ImageBackground, Text, View, useWindowDimensions } from 'react-native';
 
 import { CHARACTERS } from '../data/characters';
 import { ROLE_GOAL, ROLE_LABEL } from '../data/roles';
@@ -27,6 +27,7 @@ import { SidePanel } from './SidePanel';
 import { TableCenter } from './TableCenter';
 import { TableMobile } from './TableMobile';
 import { bottomStatus, handleHandTap, statusMessage } from './table-text';
+import { themedStyles } from './theme/use-theme';
 import type { TableApi } from './use-table';
 import { Colors, MinTableHeight, MobileBreakpoint, Spacing } from '@/constants/theme';
 
@@ -44,6 +45,7 @@ export type TableProps = {
 };
 
 export function Table({ view, viewer, api, clock }: TableProps) {
+  const styles = useStyles();
   const mode = useTableMode();
   const { width, height } = useWindowDimensions();
   // 폭도 높이도 넉넉해야 원형 배치를 쓴다. 하나라도 모자라면 좌석이 겹친다.
@@ -239,7 +241,8 @@ export function Table({ view, viewer, api, clock }: TableProps) {
   );
 }
 
-const styles = StyleSheet.create({
+// 판(나무·펠트·좌석)은 고정 Colors, 아래 막대와 기록 칸 같은 UI 는 테마 팔레트를 따른다
+const useStyles = themedStyles((c) => ({
   root: { flex: 1, backgroundColor: Colors.background },
   main: { flex: 1, flexDirection: 'row', gap: Spacing.three, padding: Spacing.two },
   woodBackdrop: {
@@ -281,8 +284,13 @@ const styles = StyleSheet.create({
   // 테이블 오른쪽 위 = 옆 칸(진행 기록) 바로 왼쪽
   clockSlot: { position: 'absolute', top: Spacing.two, right: 0, pointerEvents: 'none' },
   side: { width: LOG_WIDTH, marginVertical: Spacing.two },
-  sidePanel: { backgroundColor: 'rgba(28, 19, 11, 0.92)' },
-  bottom: { backgroundColor: Colors.surface },
+  sidePanel: { backgroundColor: c.panel },
+  bottom: {
+    backgroundColor: c.surface,
+    borderTopWidth: 1.5,
+    borderTopColor: c.panelBorder,
+    boxShadow: `0 -4px 14px ${c.shadow}`,
+  },
   myRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -291,7 +299,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.two,
   },
   mySeat: { gap: 4, maxWidth: 220 },
-  goal: { color: Colors.textMuted, fontSize: 10 },
-  ability: { color: Colors.textMuted, fontSize: 10, lineHeight: 14 },
+  goal: { color: c.textMuted, fontSize: 10 },
+  ability: { color: c.textMuted, fontSize: 10, lineHeight: 14 },
   handArea: { flex: 1, minHeight: 130, justifyContent: 'center' },
-});
+}));

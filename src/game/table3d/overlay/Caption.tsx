@@ -3,11 +3,13 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Animated, StyleSheet, Text } from 'react-native';
+import { Animated, Text } from 'react-native';
 import { useStore } from 'zustand';
 
+import { WesternFonts } from '../../ui/menu/western-fonts';
+import { themedStyles } from '../../ui/theme/use-theme';
 import { clearCaption, fxStore, type Caption as CaptionData } from '../core/fx-store';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 
 export function Caption() {
   const caption = useStore(fxStore, (s) => s.caption);
@@ -16,6 +18,7 @@ export function Caption() {
 }
 
 function CaptionCard({ caption }: { caption: CaptionData }) {
+  const styles = useStyles();
   const [opacity] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
@@ -40,7 +43,8 @@ function CaptionCard({ caption }: { caption: CaptionData }) {
   );
 }
 
-const styles = StyleSheet.create({
+// 어두운 판 위에 뜨니 글자를 패널 안에 담는다
+const useStyles = themedStyles((c) => ({
   wrap: {
     position: 'absolute',
     top: '9%',
@@ -50,17 +54,19 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
   },
   text: {
-    color: Colors.paper,
-    backgroundColor: 'rgba(24, 16, 9, 0.9)',
+    color: c.heading,
+    backgroundColor: c.panel,
     borderWidth: 1.5,
-    borderColor: Colors.highlight,
+    borderColor: c.panelBorder,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
     overflow: 'hidden',
     fontSize: 15,
     fontWeight: '800',
+    fontFamily: WesternFonts.label,
     textAlign: 'center',
     maxWidth: 460,
+    boxShadow: `0 4px 14px ${c.shadow}`,
   },
-});
+}));

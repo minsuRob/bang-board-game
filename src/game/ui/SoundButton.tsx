@@ -11,7 +11,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   PanResponder,
   Pressable,
-  StyleSheet,
   Text,
   View,
   type GestureResponderEvent,
@@ -24,7 +23,9 @@ import { useStore } from 'zustand';
 
 import { CAN_HOVER } from './card-peek';
 import { setMuted, setVolume, sfxSettings } from './sfx';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useToolbarStyles } from './theme/toolbar';
+import { themedStyles } from './theme/use-theme';
+import { Radius, Spacing } from '@/constants/theme';
 
 /** 폰에서 탭으로 연 슬라이더를 닫기까지 (ms) */
 const TAP_CLOSE_MS = 3000;
@@ -37,6 +38,8 @@ export function SoundButton({ style }: { style?: StyleProp<ViewStyle> }) {
   const volume = useStore(sfxSettings, (s) => s.volume);
   const [hovered, setHovered] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const toolbar = useToolbarStyles();
+  const styles = useStyles();
 
   // 드래그 시작 시점의 볼륨을 기준으로 이동량을 더한다.
   const startVolume = useRef(volume);
@@ -115,7 +118,13 @@ export function SoundButton({ style }: { style?: StyleProp<ViewStyle> }) {
         </View>
       )}
       <Pressable
-        style={[styles.root, muted && styles.muted, style]}
+        style={({ hovered: over }: { hovered?: boolean }) => [
+          toolbar.pill,
+          styles.root,
+          (over || showSlider) && toolbar.pillHover,
+          muted && styles.muted,
+          style,
+        ]}
         accessibilityRole="button"
         accessibilityState={{ selected: !muted }}
         accessibilityLabel={muted ? '소리 켜기' : '소리 끄기'}
@@ -126,19 +135,13 @@ export function SoundButton({ style }: { style?: StyleProp<ViewStyle> }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   wrap: {
     position: 'relative',
     alignItems: 'center',
   },
-  root: {
-    backgroundColor: Colors.surfaceRaised,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 3,
-  },
+  // 알약 모양은 useToolbarStyles().pill. 이모지라 좌우만 조금 좁힌다.
+  root: { paddingHorizontal: Spacing.two },
   muted: { opacity: 0.7 },
   text: { fontSize: 13 },
 
@@ -151,17 +154,19 @@ const styles = StyleSheet.create({
   },
   sliderPanel: {
     alignItems: 'center',
-    backgroundColor: Colors.surfaceRaised,
+    backgroundColor: c.surface,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: 1.5,
+    borderColor: c.panelBorder,
     paddingHorizontal: Spacing.two,
     paddingTop: Spacing.one,
     paddingBottom: Spacing.two,
+    boxShadow: `0 4px 14px ${c.shadow}`,
   },
   readout: {
-    color: Colors.text,
+    color: c.text,
     fontSize: 11,
+    fontWeight: '800',
     marginBottom: Spacing.one,
     fontVariant: ['tabular-nums'],
   },
@@ -169,13 +174,13 @@ const styles = StyleSheet.create({
     width: 8,
     height: TRACK_HEIGHT,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.border,
+    backgroundColor: c.rule,
     justifyContent: 'flex-end',
   },
   fill: {
     width: '100%',
     borderRadius: Radius.pill,
-    backgroundColor: Colors.highlight,
+    backgroundColor: c.highlight,
   },
   thumb: {
     position: 'absolute',
@@ -184,8 +189,8 @@ const styles = StyleSheet.create({
     height: 16,
     marginBottom: -8,
     borderRadius: 8,
-    backgroundColor: Colors.text,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    backgroundColor: c.surface,
+    borderWidth: 2,
+    borderColor: c.text,
   },
-});
+}));

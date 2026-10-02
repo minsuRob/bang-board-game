@@ -9,10 +9,11 @@
  */
 
 import { useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, Pressable, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useToolbarStyles } from './theme/toolbar';
+import { useColors } from './theme/use-theme';
 
 // Safari(iPad 포함)는 아직 webkit 접두사 API 만 있는 버전이 남아 있다.
 type FsDocument = Document & {
@@ -93,11 +94,18 @@ const EXIT_PATH = 'M8 3v5H3 M18 8h-5V3 M13 18v-5h5 M3 13h5v5';
 
 export function FullscreenButton({ style }: { style?: StyleProp<ViewStyle> }) {
   const { available, active, toggle } = useFullscreen();
+  const toolbar = useToolbarStyles();
+  const c = useColors();
   if (!available) return null;
 
   return (
     <Pressable
-      style={[styles.root, active && styles.active, style]}
+      style={({ hovered }: { hovered?: boolean }) => [
+        toolbar.pill,
+        hovered && !active && toolbar.pillHover,
+        active && toolbar.pillActive,
+        style,
+      ]}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       accessibilityLabel={active ? '전체 화면 끄기' : '전체 화면'}
@@ -105,7 +113,7 @@ export function FullscreenButton({ style }: { style?: StyleProp<ViewStyle> }) {
       <Svg width={14} height={14} viewBox="0 0 21 21">
         <Path
           d={active ? EXIT_PATH : ENTER_PATH}
-          stroke={active ? Colors.paper : Colors.text}
+          stroke={active ? c.onSelected : c.text}
           strokeWidth={2.4}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -115,17 +123,3 @@ export function FullscreenButton({ style }: { style?: StyleProp<ViewStyle> }) {
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    backgroundColor: Colors.surfaceRaised,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  active: { backgroundColor: Colors.cardBrown, borderColor: Colors.highlight },
-});

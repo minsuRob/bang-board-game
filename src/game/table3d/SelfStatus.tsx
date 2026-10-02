@@ -6,7 +6,7 @@
  * 좁은 화면(compact)은 바 위쪽에 두 줄로 얹는다. 폰엔 hover 가 없으니 목표·능력을 한 줄 붙인다.
  */
 
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../data/cards.base';
 import { CHARACTERS } from '../data/characters';
@@ -15,7 +15,8 @@ import { kindOf, type Player } from '../engine';
 import { usePresence } from '../store/presence';
 import { PRESENCE_LABEL, PresenceDot } from '../ui/PresenceDot';
 import { ROLE_COLOR } from './overlay/SeatLabel';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { themedStyles } from '../ui/theme/use-theme';
+import { Radius, Spacing } from '@/constants/theme';
 
 export function SelfStatus({
   player,
@@ -31,6 +32,7 @@ export function SelfStatus({
   /** 좁은 화면: 이름·목숨 한 줄, 장비·능력 한 줄 */
   compact?: boolean;
 }) {
+  const styles = useStyles();
   const dead = !player.alive && !player.ghost;
   const character = CHARACTERS[player.character];
   const hp = Math.max(0, player.hp);
@@ -107,7 +109,7 @@ export function SelfStatus({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   wrap: {
     gap: 3,
     paddingHorizontal: Spacing.two,
@@ -116,12 +118,13 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
-  active: { borderColor: Colors.sheriff },
-  targetable: { borderColor: Colors.highlight, boxShadow: `0 0 10px ${Colors.highlight}` },
+  active: { borderColor: c.sheriff },
+  targetable: { borderColor: c.highlight, boxShadow: `0 0 10px ${c.highlight}` },
   dead: { opacity: 0.45 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  name: { color: Colors.text, fontSize: 16, fontWeight: '900' },
-  character: { color: Colors.text, fontSize: 14, fontWeight: '700', flexShrink: 1 },
+  name: { color: c.text, fontSize: 16, fontWeight: '900' },
+  character: { color: c.text, fontSize: 14, fontWeight: '700', flexShrink: 1 },
+  // 직업 칩은 판의 이름표와 같은 고정 직업색에 짙은 글자 (테마와 무관)
   roleChip: {
     color: '#1A120A',
     fontSize: 11,
@@ -131,10 +134,10 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
     overflow: 'hidden',
   },
-  hp: { color: Colors.hp, fontSize: 15, letterSpacing: 2 },
-  hpEmpty: { color: Colors.border },
-  hpNumber: { color: Colors.text, fontSize: 13, fontWeight: '800', letterSpacing: 0 },
-  equipment: { color: Colors.deputy, fontSize: 12, flexShrink: 1 },
+  hp: { color: c.hp, fontSize: 15, letterSpacing: 2 },
+  hpEmpty: { color: c.border },
+  hpNumber: { color: c.text, fontSize: 13, fontWeight: '800', letterSpacing: 0 },
+  equipment: { color: c.deputy, fontSize: 12, flexShrink: 1 },
   // 좁은 화면
   wrapCompact: { gap: 1, paddingHorizontal: Spacing.one },
   nameCompact: { fontSize: 14 },
@@ -142,6 +145,6 @@ const styles = StyleSheet.create({
   roleChipCompact: { fontSize: 10, paddingHorizontal: 6 },
   hpCompact: { fontSize: 12, letterSpacing: 1, marginLeft: 'auto' },
   hpNumberCompact: { fontSize: 11 },
-  detail: { color: Colors.textMuted, fontSize: 10, lineHeight: 13 },
-  equipmentInline: { color: Colors.deputy },
-});
+  detail: { color: c.textMuted, fontSize: 10, lineHeight: 13 },
+  equipmentInline: { color: c.deputy },
+}));

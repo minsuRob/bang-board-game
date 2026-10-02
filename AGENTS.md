@@ -57,6 +57,12 @@ Skia 캔버스는 판마다 하나만 띄운다 (WebGL 컨텍스트가 넘치면
 첫 화면은 정오의 큰길 수채 바탕 위에 메뉴를 카드 부채로 펼친다. 바탕 그림은 시안 HTML 에서
 그려 뽑은 `assets/board/menu-high-noon.jpg` 다. 고치기 전에 `docs/menu-design.md` 를 본다.
 
+## 화면 테마
+
+라이트·다크 테마가 있다. UI 색은 `useColors()` / `themedStyles()`(`src/game/ui/theme/use-theme.ts`)로 읽는다.
+`Colors` 는 판(텍스처·카드 앞면·좌석) 전용 고정 팔레트다. UI 에서 `Colors` 를 쓰면 테마를 바꿔도 안 바뀐다.
+자세한 것은 `docs/menu-design.md` 의 "화면 테마와 설정".
+
 ## 확장판
 
 새 확장판(캐릭터·이벤트·카드)을 붙일 때는 `docs/expansion-playbook.md` 의 순서를 따른다.

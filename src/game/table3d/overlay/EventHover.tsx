@@ -19,7 +19,8 @@ import { eventArt } from '../../ui/card-art';
 import { CAN_HOVER } from '../../ui/card-peek';
 import { eventProgress } from '../../ui/event-progress';
 import { ANCHOR_EVENT, anchorsStore } from '../core/anchors-store';
-import { previewStyles, type PreviewSlot } from './CharacterHover';
+import { usePreviewStyles, type PreviewSlot } from './CharacterHover';
+import { themedStyles } from '../../ui/theme/use-theme';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 const TIP_W = 240;
@@ -38,6 +39,8 @@ export function EventHover({
   onHoverChange: (on: boolean) => void;
   slot: PreviewSlot | null;
 }) {
+  const styles = useStyles();
+  const previewStyles = usePreviewStyles();
   const anchors = useStore(anchorsStore);
   const current = view.event?.current ?? null;
   if (view.draft || !current || !view.event) return null;
@@ -82,6 +85,8 @@ export function EventHover({
 }
 
 function EventPanel({ view, id, slot }: { view: GameState; id: EventCardId; slot: PreviewSlot }) {
+  const styles = useStyles();
+  const previewStyles = usePreviewStyles();
   const def = EVENTS[id];
   const art = eventArt(id);
   const { past, remaining } = eventProgress(view.event!, view.config.expansions);
@@ -130,9 +135,10 @@ function EventPanel({ view, id, slot }: { view: GameState; id: EventCardId; slot
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   hit: { position: 'absolute' },
   art: { width: ART_W, height: ART_W / ART_RATIO, borderRadius: Radius.sm },
+  // 그림이 없을 때 대신 놓는 카드 앞면이라 종이색은 고정이다
   artFallback: {
     backgroundColor: Colors.paper,
     borderWidth: 2,
@@ -142,25 +148,25 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   artFallbackText: { color: Colors.textOnPaper, fontSize: 12, fontWeight: '900', textAlign: 'center' },
-  kicker: { color: Colors.renegade, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  kicker: { color: c.renegade, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
   effect: { marginTop: 2 },
   section: {
     gap: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.border,
+    borderTopColor: c.rule,
     paddingTop: Spacing.one,
   },
-  sectionTitle: { color: Colors.text, fontSize: 11, fontWeight: '800' },
+  sectionTitle: { color: c.heading, fontSize: 11, fontWeight: '800' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   chip: {
-    color: Colors.paperEdge,
+    color: c.text,
     fontSize: 10,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: Colors.border,
+    backgroundColor: c.chip,
+    borderColor: c.chipBorder,
     borderWidth: 1,
     borderRadius: 4,
     paddingHorizontal: 5,
     paddingVertical: 1,
     overflow: 'hidden',
   },
-});
+}));

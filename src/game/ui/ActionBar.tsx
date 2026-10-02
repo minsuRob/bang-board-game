@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../data/cards.base';
 import { SUIT_GLYPH, type Suit } from '../data/types';
@@ -14,7 +14,9 @@ import { kindOf, type Choice } from '../engine';
 import { waitClock } from '../store/wait-clock';
 import { CardView } from './CardView';
 import type { Prompt } from './use-table';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { WesternFonts } from './menu/western-fonts';
+import { themedStyles } from './theme/use-theme';
+import { Radius, Spacing } from '@/constants/theme';
 
 export type ActionBarProps = {
   prompt: Prompt | null;
@@ -51,6 +53,7 @@ export function ActionBar({
   aside,
   stacked,
 }: ActionBarProps) {
+  const styles = useStyles();
   const content = !prompt ? (
     <>
       <View style={styles.statusRow}>
@@ -154,6 +157,7 @@ export function ActionBar({
 
 /** 지금 기다리는 차례의 남은 초. 기다리는 게 없으면 아무것도 그리지 않는다 */
 function WaitSeconds() {
+  const styles = useStyles();
   const deadline = useSyncExternalStore(
     waitClock.subscribe,
     () => waitClock.getState().deadline,
@@ -180,18 +184,33 @@ function Button({
   onPress: () => void;
   primary?: boolean;
 }) {
+  const styles = useStyles();
+  // 주 행동은 빨간 도장, 나머지는 칩
+  if (primary) {
+    return (
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        style={({ pressed }) => [styles.stamp, pressed && styles.stampPressed]}>
+        <View style={styles.stampInner}>
+          <Text style={styles.stampText}>{label}</Text>
+        </View>
+      </Pressable>
+    );
+  }
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={[styles.button, primary && styles.buttonPrimary]}>
-      <Text style={[styles.buttonText, primary && styles.buttonTextPrimary]}>{label}</Text>
+      style={({ hovered }: { hovered?: boolean }) => [styles.button, hovered && styles.buttonHover]}>
+      <Text style={styles.buttonText}>{label}</Text>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -199,17 +218,18 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
-    backgroundColor: Colors.surface,
-    borderTopWidth: 1,
+    backgroundColor: c.surface,
+    borderTopWidth: 1.5,
     borderBottomWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.panelBorder,
     minHeight: 62,
   },
-  barActive: { backgroundColor: Colors.surfaceRaised, borderColor: Colors.highlight },
+  // 반응을 기다릴 때는 바 위 테두리가 금(다크) / 잉크(라이트)로 선다
+  barActive: { backgroundColor: c.surfaceRaised, borderColor: c.selectedBorder },
   // 왼쪽 절반 내 정보 | 오른쪽 절반 안내·프롬프트
   split: { justifyContent: 'flex-start', alignItems: 'stretch' },
   aside: { flex: 1, minWidth: 0, justifyContent: 'center' },
-  divider: { width: 1, backgroundColor: Colors.border },
+  divider: { width: 0, borderLeftWidth: 1, borderStyle: 'dashed', borderColor: c.rule },
   half: {
     flex: 1,
     minWidth: 0,
@@ -227,7 +247,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.one,
   },
-  hDivider: { height: 1, backgroundColor: Colors.border },
+  hDivider: { height: 0, borderTopWidth: 1, borderStyle: 'dashed', borderColor: c.rule },
   full: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -237,24 +257,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.one,
   },
   textBlock: { gap: 2, flexShrink: 1 },
-  title: { color: Colors.text, fontWeight: '800', fontSize: 14 },
-  hint: { color: Colors.textMuted, fontSize: 11 },
-  status: { color: Colors.textMuted, fontSize: 13, flexShrink: 1 },
+  title: { color: c.heading, fontWeight: '800', fontSize: 14, fontFamily: WesternFonts.label },
+  hint: { color: c.textMuted, fontSize: 11 },
+  status: { color: c.textMuted, fontSize: 13, flexShrink: 1 },
   statusRow: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.two, flexShrink: 1 },
-  seconds: { color: Colors.highlight, fontSize: 14, fontWeight: '900', fontVariant: ['tabular-nums'] },
-  secondsUrgent: { color: Colors.danger },
+  seconds: {
+    color: c.highlight,
+    fontSize: 14,
+    fontWeight: '900',
+    fontFamily: WesternFonts.type,
+    fontVariant: ['tabular-nums'],
+  },
+  secondsUrgent: { color: c.danger },
   buttons: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   cardOption: { alignItems: 'center', gap: 2 },
-  cardLabel: { color: Colors.textMuted, fontSize: 9 },
+  cardLabel: { color: c.textMuted, fontSize: 9 },
   button: {
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: c.chipBorder,
+    backgroundColor: c.chip,
   },
-  buttonPrimary: { backgroundColor: Colors.cardBrown, borderColor: Colors.highlight },
-  buttonText: { color: Colors.text, fontSize: 12, fontWeight: '700' },
-  buttonTextPrimary: { color: Colors.paper },
-});
+  buttonHover: { backgroundColor: c.hover },
+  buttonText: { color: c.text, fontSize: 12, fontWeight: '700', fontFamily: WesternFonts.label },
+  // 빨간 도장: 안쪽 점선 테두리, 아래로 떨어지는 짙은 그림자
+  stamp: {
+    backgroundColor: c.accent,
+    borderRadius: Radius.sm + 2,
+    padding: 3,
+    boxShadow: `0 3px 0 ${c.accentShadow}, 0 6px 12px ${c.shadow}`,
+  },
+  stampPressed: { transform: [{ translateY: 2 }], boxShadow: `0 1px 0 ${c.accentShadow}, 0 3px 6px ${c.shadow}` },
+  stampInner: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(251,246,234,0.6)',
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.three - 3,
+    paddingVertical: Spacing.two - 3,
+    alignItems: 'center',
+  },
+  stampText: { color: c.onAccent, fontSize: 12, fontWeight: '900', letterSpacing: 1, fontFamily: WesternFonts.label },
+}));

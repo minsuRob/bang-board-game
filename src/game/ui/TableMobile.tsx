@@ -12,7 +12,6 @@ import {
   ImageBackground,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
   useWindowDimensions,
@@ -43,6 +42,9 @@ import { Hand } from './Hand';
 import { HandFlights, useDeckAnchor } from './HandFlights';
 import { useChatUnread } from './ChatPanel';
 import { SidePanel } from './SidePanel';
+import { WesternFonts } from './menu/western-fonts';
+import { useToolbarStyles } from './theme/toolbar';
+import { themedStyles } from './theme/use-theme';
 import type { TableApi } from './use-table';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
@@ -77,6 +79,8 @@ export function TableMobile({
   onCardPress,
   clock,
 }: TableMobileProps) {
+  const styles = useStyles();
+  const tb = useToolbarStyles();
   const [logOpen, setLogOpen] = useState(false);
   // 탭해서 띄운 캐릭터 카드와 상세 설명
   const [detail, setDetail] = useState<PlayerId | null>(null);
@@ -127,8 +131,8 @@ export function TableMobile({
             accessibilityRole="button"
             accessibilityLabel={unread ? '진행 기록과 채팅, 새 글 있음' : '진행 기록과 채팅'}
             onPress={() => setLogOpen((v) => !v)}
-            style={styles.logButton}>
-            <Text style={styles.logButtonText}>{logOpen ? '닫기' : '기록·채팅'}</Text>
+            style={[tb.pill, logOpen && tb.pillActive]}>
+            <Text style={[tb.text, logOpen && tb.textActive]}>{logOpen ? '닫기' : '기록·채팅'}</Text>
             {unread && <View style={styles.unreadDot} />}
           </Pressable>
         </View>
@@ -255,9 +259,9 @@ export function TableMobile({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="기록 닫기"
-            style={styles.logClose}
+            style={[tb.pill, styles.logClose]}
             onPress={() => setLogOpen(false)}>
-            <Text style={styles.logCloseText}>닫기</Text>
+            <Text style={tb.text}>닫기</Text>
           </Pressable>
         </View>
       )}
@@ -303,6 +307,7 @@ function CompactSeat({
   wide,
   basis,
 }: CompactSeatProps) {
+  const styles = useStyles();
   const isSelf = player.id === viewer;
   const dead = !player.alive && !player.ghost;
   const dist = !isSelf && !dead ? safeDistance(view, viewer, player.id) : null;
@@ -403,6 +408,7 @@ function safeDistance(view: GameState, from: PlayerId, to: PlayerId): number | n
 }
 
 function Pile({ label, children }: { label: string; children: React.ReactNode }) {
+  const styles = useStyles();
   return (
     <View style={styles.pile}>
       {children}
@@ -411,7 +417,8 @@ function Pile({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-const styles = StyleSheet.create({
+// 좌석·더미·나무 바탕은 판이라 고정 Colors. 위 막대, 아래 내 자리 막대, 기록 창은 테마 팔레트를 따른다
+const useStyles = themedStyles((c) => ({
   scrollArea: { flex: 1 },
   root: { flex: 1, backgroundColor: Colors.background },
   woodBackdrop: {
@@ -438,23 +445,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
+    borderBottomWidth: 1.5,
+    borderBottomColor: c.panelBorder,
+    boxShadow: `0 4px 14px ${c.shadow}`,
     gap: Spacing.two,
+    zIndex: 1,
   },
-  headline: { color: Colors.text, fontSize: 13, fontWeight: '700', flexShrink: 1 },
+  headline: { color: c.heading, fontSize: 13, fontWeight: '700', flexShrink: 1, fontFamily: WesternFonts.label },
   topRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  logButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.highlight },
-  logButtonText: { color: Colors.textMuted, fontSize: 11, fontWeight: '700' },
+  unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.accent },
 
   body: { padding: Spacing.two, gap: Spacing.two },
   seatGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
@@ -545,7 +545,10 @@ const styles = StyleSheet.create({
 
   mineRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   mine: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
+    borderTopWidth: 1.5,
+    borderTopColor: c.panelBorder,
+    boxShadow: `0 -4px 14px ${c.shadow}`,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.two,
     paddingHorizontal: Spacing.two,
@@ -564,13 +567,11 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   logPanel: { flex: 1 },
-  logPanelInner: { backgroundColor: Colors.background, borderColor: Colors.highlight },
-  logClose: {
-    alignSelf: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.cardBrown,
+  logPanelInner: {
+    backgroundColor: c.surface,
+    borderWidth: 1.5,
+    borderColor: c.panelBorder,
+    boxShadow: `0 4px 14px ${c.shadow}`,
   },
-  logCloseText: { color: Colors.paper, fontSize: 12, fontWeight: '800' },
-});
+  logClose: { alignSelf: 'center', paddingHorizontal: Spacing.four, minHeight: 34 },
+}));

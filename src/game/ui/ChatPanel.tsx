@@ -11,7 +11,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -25,20 +24,22 @@ import { lastOtherId, useChatStore } from '../store/chat-store';
 import { useGameStore } from '../store/game-store';
 import { chatSilenced } from '../engine/hooks';
 import { chatBlockReason, chatSpeaker } from './chat-text';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { WesternFonts } from './menu/western-fonts';
+import { themedStyles, useColors } from './theme/use-theme';
+import { Radius, Spacing, type ThemeColors } from '@/constants/theme';
 
-const ROLE_COLOR: Record<Role, string> = {
-  sheriff: Colors.sheriff,
-  deputy: Colors.deputy,
-  outlaw: Colors.outlaw,
-  renegade: Colors.renegade,
-};
+/** 말한 사람 이름 색. 라이트는 종이 위에서 읽히게 짙은 직업색을 쓴다 */
+function roleColor(c: ThemeColors, role: Role): string {
+  return c[role];
+}
 
 /** 맨 아래에서 이만큼 안쪽이면 새 글이 올 때 따라 내려간다 */
 const STICK_PX = 24;
 const NOTICE_MS = 3_000;
 
 export function ChatPanel({ style }: { style?: object }) {
+  const styles = useStyles();
+  const c = useColors();
   // 직업 공개 여부는 가리지 않은 상태로 직접 판단한다 (가린 상태는 모르는 직업을 무법자로 채운다)
   const state = useGameStore((s) => s.state);
   const viewer = useGameStore((s) => s.viewer);
@@ -101,7 +102,7 @@ export function ChatPanel({ style }: { style?: object }) {
             const mine = m.uid === myUid;
             return (
               <Text key={m.id} style={[styles.line, mine && styles.mine]}>
-                <Text style={[styles.speaker, { color: who.role ? ROLE_COLOR[who.role] : Colors.textMuted }]}>
+                <Text style={[styles.speaker, { color: who.role ? roleColor(c, who.role) : c.textMuted }]}>
                   {who.label}
                 </Text>
                 <Text style={styles.colon}>: </Text>
@@ -129,7 +130,7 @@ export function ChatPanel({ style }: { style?: object }) {
             onChangeText={setDraft}
             editable={canSend}
             placeholder={blocked ?? '할 말을 적는다'}
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={c.textMuted}
             maxLength={CHAT_MAX_LENGTH}
             onSubmitEditing={submit}
             // 보낸 뒤에도 입력창을 붙잡아 둔다 (네이티브는 submitBehavior, 웹은 blurOnSubmit)
@@ -196,49 +197,52 @@ function useKeyboardLift(anchor: RefObject<View | null>): number {
   return lift;
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   panel: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    backgroundColor: c.panel,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: c.panelBorder,
     padding: Spacing.two,
     gap: Spacing.one,
+    boxShadow: `0 4px 14px ${c.shadow}`,
   },
-  heading: { color: Colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  heading: { color: c.heading, fontSize: 13, fontWeight: '800', letterSpacing: 1, fontFamily: WesternFonts.label },
   list: { flex: 1 },
-  line: { color: Colors.text, fontSize: 12, lineHeight: 18, marginBottom: 2 },
-  mine: { backgroundColor: 'rgba(242, 193, 78, 0.08)', borderRadius: Radius.sm },
+  line: { color: c.text, fontSize: 12, lineHeight: 18, marginBottom: 2 },
+  mine: { backgroundColor: c.hover, borderRadius: Radius.sm },
   speaker: { fontWeight: '800' },
-  colon: { color: Colors.textMuted },
-  empty: { color: Colors.textMuted, fontSize: 11, fontStyle: 'italic' },
-  error: { color: Colors.danger, fontSize: 10 },
+  colon: { color: c.textMuted },
+  empty: { color: c.textMuted, fontSize: 11, fontStyle: 'italic' },
+  error: { color: c.danger, fontSize: 10 },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: Radius.md,
   },
   input: {
     flex: 1,
     minWidth: 0,
-    color: Colors.text,
+    color: c.text,
     fontSize: 12,
     paddingHorizontal: Spacing.two,
     paddingVertical: 6,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.background,
+    borderWidth: 1.5,
+    borderColor: c.chipBorder,
+    backgroundColor: c.field,
   },
   inputLocked: { opacity: 0.6 },
+  // 보내기: 작은 빨간 도장
   send: {
     paddingHorizontal: Spacing.two,
     paddingVertical: 6,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.cardBrown,
+    borderRadius: Radius.sm,
+    backgroundColor: c.accent,
+    boxShadow: `0 2px 0 ${c.accentShadow}`,
   },
   sendOff: { opacity: 0.4 },
-  sendText: { color: Colors.paper, fontSize: 11, fontWeight: '800' },
-});
+  sendText: { color: c.onAccent, fontSize: 11, fontWeight: '800', fontFamily: WesternFonts.label },
+}));

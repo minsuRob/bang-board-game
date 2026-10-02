@@ -8,7 +8,8 @@
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { AI_SPEEDS, speedLabel, type LocalAiSpeed } from '../ai/types';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useToolbarStyles } from './theme/toolbar';
+import { Radius, Spacing } from '@/constants/theme';
 
 type Props = {
   speed: LocalAiSpeed;
@@ -20,29 +21,34 @@ type Props = {
 };
 
 export function SpeedControl({ speed, onChange, speeds = AI_SPEEDS, style }: Props) {
+  const toolbar = useToolbarStyles();
   if (!onChange) {
     return (
-      <View style={[styles.root, style]} accessibilityLabel={`AI 속도 ${speed}배`}>
-        <Text style={styles.label}>AI 속도</Text>
-        <Text style={styles.readonly}>{speedLabel(speed)}</Text>
+      <View style={[toolbar.pill, styles.root, style]} accessibilityLabel={`AI 속도 ${speed}배`}>
+        <Text style={[toolbar.textMuted, styles.label]}>AI 속도</Text>
+        <Text style={[toolbar.text, styles.readonly]}>{speedLabel(speed)}</Text>
       </View>
     );
   }
 
   return (
-    <View style={[styles.root, style]}>
-      <Text style={styles.label}>AI 속도</Text>
+    <View style={[toolbar.pill, styles.root, style]}>
+      <Text style={[toolbar.textMuted, styles.label]}>AI 속도</Text>
       {speeds.map((s) => {
         const active = s === speed;
         return (
           <Pressable
             key={s}
-            style={[styles.chip, active && styles.chipActive]}
+            style={({ hovered }: { hovered?: boolean }) => [
+              styles.chip,
+              hovered && !active && toolbar.pillHover,
+              active && toolbar.pillActive,
+            ]}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             accessibilityLabel={s >= 100 ? 'AI 속도 최대' : `AI 속도 ${s}배`}
             onPress={() => onChange(s)}>
-            <Text style={[styles.chipText, active && styles.chipTextActive]}>{speedLabel(s)}</Text>
+            <Text style={[toolbar.textMuted, active && toolbar.textActive]}>{speedLabel(s)}</Text>
           </Pressable>
         );
       })}
@@ -50,21 +56,16 @@ export function SpeedControl({ speed, onChange, speeds = AI_SPEEDS, style }: Pro
   );
 }
 
+// 알약 모양·글자색은 위쪽 버튼 줄과 같이 쓰는 useToolbarStyles 에서 온다. 여기는 간격만.
 const styles = StyleSheet.create({
   root: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: Spacing.one,
-    backgroundColor: Colors.surfaceRaised,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
     paddingLeft: Spacing.two,
-    paddingRight: Spacing.one,
+    paddingRight: 3,
     paddingVertical: 3,
   },
-  label: { color: Colors.textMuted, fontSize: 11, fontWeight: '700', marginRight: 2 },
-  readonly: { color: Colors.paper, fontSize: 12, fontWeight: '800', paddingHorizontal: Spacing.one },
+  label: { fontSize: 11, marginRight: 2 },
+  readonly: { paddingHorizontal: Spacing.one },
   chip: {
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -72,7 +73,4 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  chipActive: { backgroundColor: Colors.cardBrown, borderColor: Colors.highlight },
-  chipText: { color: Colors.textMuted, fontSize: 12, fontWeight: '800' },
-  chipTextActive: { color: Colors.paper },
 });

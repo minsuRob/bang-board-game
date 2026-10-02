@@ -17,8 +17,10 @@ import { useStore } from 'zustand';
 import { CHARACTERS } from '../../data/characters';
 import type { GameState, Player, PlayerId } from '../../engine';
 import { CharacterDetail } from '../../ui/CharacterDetail';
+import { WesternFonts } from '../../ui/menu/western-fonts';
+import { themedStyles } from '../../ui/theme/use-theme';
 import { anchorsStore, characterKey } from '../core/anchors-store';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, type ThemeColors } from '@/constants/theme';
 
 const TIP_W = 240;
 
@@ -47,6 +49,7 @@ export function CharacterHover({
   hovered: PlayerId | null;
   onHoverChange: (pid: PlayerId, on: boolean) => void;
 }) {
+  const previewStyles = usePreviewStyles();
   const anchors = useStore(anchorsStore);
 
   // 드래프트 중에는 캐릭터가 아직 정해지지 않았다
@@ -114,6 +117,7 @@ function PreviewPanel({
   player: Player;
   slot: PreviewSlot;
 }) {
+  const previewStyles = usePreviewStyles();
   return (
     <View style={[previewStyles.tip, previewStyles.panel, { left: slot.left, bottom: slot.bottom, width: slot.width }]}>
       <CharacterDetail view={view} viewer={viewer} player={player} />
@@ -140,6 +144,7 @@ function Tooltip({
   width: number;
   height: number;
 }) {
+  const previewStyles = usePreviewStyles();
   const left = Math.max(4, Math.min(width - TIP_W - 4, cx - TIP_W / 2));
   // 화면 위쪽 카드는 아래로, 아래쪽 카드는 위로 띄운다
   const place = (top + bottom) / 2 < height * 0.5 ? { top: bottom + 6 } : { bottom: height - top + 6 };
@@ -154,7 +159,42 @@ function Tooltip({
   );
 }
 
-/** 이벤트 hover 패널도 같은 모양을 쓴다 */
+/** hover 말풍선·패널 모양. 판 위에 얹는 패널이라 테마의 panel 색을 쓴다 */
+function previewSheet(c: ThemeColors) {
+  return {
+    hit: { position: 'absolute' },
+    tip: {
+      position: 'absolute',
+      pointerEvents: 'none',
+      backgroundColor: c.panel,
+      borderRadius: Radius.md,
+      borderWidth: 1.5,
+      borderColor: c.panelBorder,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: Spacing.one,
+      gap: 2,
+      boxShadow: `0 4px 14px ${c.shadow}`,
+    },
+    tipHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.one },
+    tipName: { color: c.heading, fontSize: 13, fontWeight: '800', fontFamily: WesternFonts.label },
+    tipHp: { color: c.hp, fontSize: 10, letterSpacing: 1 },
+    tipAbility: { color: c.text, fontSize: 11, lineHeight: 15, fontFamily: WesternFonts.body },
+    panel: { padding: Spacing.two, gap: Spacing.two },
+    panelTop: { flexDirection: 'row', gap: Spacing.two },
+    panelInfo: { flex: 1, minWidth: 0, gap: 3 },
+    panelName: { color: c.heading, fontSize: 16, fontWeight: '900', flexShrink: 1, fontFamily: WesternFonts.label },
+    panelMeta: { color: c.textMuted, fontSize: 11 },
+    panelAbility: { color: c.text, fontSize: 12, lineHeight: 17, fontFamily: WesternFonts.body },
+  } as const;
+}
+
+/** 이벤트·카드 hover 패널도 같은 모양을 쓴다 */
+export const usePreviewStyles = themedStyles(previewSheet);
+
+/**
+ * 테마를 모르는 옛 고정 모양 (밤 살롱). 아직 훅으로 옮기지 않은 곳(CardHover)이 쓴다.
+ * 옮기고 나면 지운다.
+ */
 export const previewStyles = StyleSheet.create({
   hit: { position: 'absolute' },
   tip: {

@@ -91,6 +91,8 @@ export type ThemeColors = { [K in ThemeColor]: string } & {
   shadow: string;
   /** 첫 화면 수채 그림 위에 덮는 색 */
   veil: string;
+  /** 기록 문장 속 파랑 카드 이름 */
+  blueName: string;
 };
 
 const dark: ThemeColors = {
@@ -112,6 +114,7 @@ const dark: ThemeColors = {
   field: 'rgba(20, 12, 6, 0.6)',
   shadow: 'rgba(0, 0, 0, 0.5)',
   veil: '#140C06',
+  blueName: '#7FB6EC',
 };
 
 const light: ThemeColors = {
@@ -152,6 +155,7 @@ const light: ThemeColors = {
   field: 'rgba(251, 246, 234, 0.85)',
   shadow: 'rgba(60, 40, 20, 0.22)',
   veil: '#F3EAD6',
+  blueName: Colors.cardBlue,
 };
 
 export type Scheme = 'light' | 'dark';

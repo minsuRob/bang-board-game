@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import type { CardId } from '../../data/types';
@@ -17,7 +17,8 @@ import { CardView } from '../../ui/CardView';
 import { HandArrival } from '../../ui/HandArrival';
 import { useHandArrivals } from '../../ui/hand-arrival';
 import { beginDrag, dragStore, endDrag, moveDrag } from '../core/drag-store';
-import { Colors, Spacing } from '@/constants/theme';
+import { themedStyles } from '../../ui/theme/use-theme';
+import { Spacing } from '@/constants/theme';
 
 export type DragHandProps = {
   cards: CardId[];
@@ -48,6 +49,7 @@ export function DragHand({
   owner,
   resetKey,
 }: DragHandProps) {
+  const styles = useStyles();
   const [dragging, setDragging] = useState<CardId | null>(null);
   const arrivals = useHandArrivals(cards, { waitFor3d: true, owner, resetKey });
 
@@ -129,6 +131,7 @@ function DraggableCard({
   onDrop: (x: number, y: number) => boolean;
   children: React.ReactNode;
 }) {
+  const styles = useStyles();
   const toCanvas = useCallback((ax: number, ay: number) => {
     const o = dragStore.getState().origin;
     return { x: ax - o.x, y: ay - o.y };
@@ -163,11 +166,11 @@ function DraggableCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   row: { gap: Spacing.two, paddingHorizontal: Spacing.three, paddingTop: 10, alignItems: 'flex-end' },
   slot: { alignItems: 'center', gap: 2 },
-  index: { color: Colors.textMuted, fontSize: 10 },
+  index: { color: c.textMuted, fontSize: 10 },
   hidden: { opacity: 0 },
   empty: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.four },
-  emptyText: { color: Colors.textMuted, fontSize: 12 },
-});
+  emptyText: { color: c.textMuted, fontSize: 12 },
+}));

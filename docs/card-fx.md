@@ -38,7 +38,7 @@
 src/game/ui/PlayedCardSpotlight.tsx   로그를 읽어 가운데에 카드를 띄우고 연출을 발사한다
 src/game/ui/fx/card-fx.ts             카드 종류 → 연출 표 (여기 한 줄 더하면 새 카드)
 src/game/ui/fx/GunshotFx.tsx          일반 화질 총격 (RN Animated)
-src/game/ui/fx/quality.ts             고화질/일반 설정 (첫 메뉴 QualityPicker, 기기마다 기억)
+src/game/ui/fx/quality.ts             고화질/일반 설정 (설정 팝업 SettingsSheet, 기기마다 기억)
 src/game/ui/fx/skia/load.ts           Skia 늦게 불러오기 (웹은 CanvasKit 먼저)
 src/game/ui/fx/skia/timeline.ts       시간표 워클릿. 진행도(0→1) → 그 순간의 모든 값
 src/game/ui/fx/skia/CardFxSkia.tsx    고화질 캔버스 (판마다 하나). 총격을 그리고 빗나감 무리를 품는다

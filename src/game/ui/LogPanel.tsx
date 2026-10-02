@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, type TextProps } from 'react-native';
+import { Pressable, ScrollView, Text, View, type TextProps } from 'react-native';
 import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 
@@ -20,31 +20,43 @@ import { CAN_HOVER } from './card-peek';
 import { CardView } from './CardView';
 import { splitLogText, type LogSegment } from './log-text';
 import { PaperPlaque, plaque } from './PaperPlaque';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { WesternFonts } from './menu/western-fonts';
+import { themedStyles, useColors } from './theme/use-theme';
+import { Radius, Spacing, type ThemeColors } from '@/constants/theme';
 
 /** 진행 기록에서 살펴보는 카드. 화면 전용이라 GameState 에 넣지 않는다 */
 const logPeek = createStore<{ card: CardId | null }>(() => ({ card: null }));
 const setPeek = (card: CardId | null) => logPeek.setState({ card });
 
-/** 어두운 패널 위에서 읽히는 파랑 카드 이름 색 */
-const BLUE_NAME = '#7FB6EC';
-
-const TONE: Record<string, string> = {
-  damage: Colors.danger,
-  eliminate: Colors.danger,
-  heal: Colors.success,
-  beerSurvive: Colors.success,
-  bounty: Colors.sheriff,
-  penalty: Colors.sheriff,
-  turnStart: Colors.textMuted,
-  event: Colors.renegade,
-  gameEnd: Colors.highlight,
-  judgement: Colors.deputy,
-  rejected: Colors.textMuted,
-};
+function toneOf(c: ThemeColors, t: string): string {
+  switch (t) {
+    case 'damage':
+    case 'eliminate':
+      return c.danger;
+    case 'heal':
+    case 'beerSurvive':
+      return c.success;
+    case 'bounty':
+    case 'penalty':
+      return c.sheriff;
+    case 'turnStart':
+    case 'rejected':
+      return c.textMuted;
+    case 'event':
+      return c.renegade;
+    case 'gameEnd':
+      return c.highlight;
+    case 'judgement':
+      return c.deputy;
+    default:
+      return c.text;
+  }
+}
 
 export function LogPanel({ log, style }: { log: GameEvent[]; style?: object }) {
   const ref = useRef<ScrollView>(null);
+  const styles = useStyles();
+  const c = useColors();
   const recent = log.slice(-120);
 
   useEffect(() => {
@@ -56,7 +68,7 @@ export function LogPanel({ log, style }: { log: GameEvent[]; style?: object }) {
       <Text style={styles.heading}>진행 기록</Text>
       <ScrollView ref={ref} style={styles.list} showsVerticalScrollIndicator={false}>
         {recent.map((e, i) => (
-          <Text key={`${e.seq}-${i}`} style={[styles.line, { color: TONE[e.t] ?? Colors.text }]}>
+          <Text key={`${e.seq}-${i}`} style={[styles.line, { color: toneOf(c, e.t) }]}>
             {splitLogText(e).map((seg, j) => (seg.card ? <CardName key={j} seg={seg} onPeek={setPeek} /> : seg.text))}
           </Text>
         ))}
@@ -67,6 +79,7 @@ export function LogPanel({ log, style }: { log: GameEvent[]; style?: object }) {
 
 /** 문장 속 카드 이름. 웹은 올리면, 폰은 탭하면 상세를 띄운다 */
 function CardName({ seg, onPeek }: { seg: Extract<LogSegment, { card: string }>; onPeek: (c: CardId | null) => void }) {
+  const styles = useStyles();
   // react-native-web 에서만 있는 hover 이벤트. RN 네이티브 타입엔 없어 따로 얹는다.
   const hover = (CAN_HOVER
     ? { onMouseEnter: () => onPeek(seg.card), onMouseLeave: () => onPeek(null) }
@@ -83,6 +96,7 @@ function CardName({ seg, onPeek }: { seg: Extract<LogSegment, { card: string }>;
  * 폰은 눌러서 닫는다
  */
 export function LogCardPeek() {
+  const styles = useStyles();
   const card = useStore(logPeek, (s) => s.card);
   // 판을 떠나면 닫는다
   useEffect(() => () => setPeek(null), []);
@@ -108,21 +122,21 @@ export function LogCardPeek() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   panel: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.panel,
     borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: 1.5,
+    borderColor: c.panelBorder,
     padding: Spacing.two,
     gap: Spacing.one,
   },
-  heading: { color: Colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  heading: { color: c.heading, fontSize: 13, fontWeight: '900', fontFamily: WesternFonts.label },
   // 채팅과 칸을 나눠 쓰므로 주어진 높이 안에서만 스크롤한다
   list: { flex: 1 },
   line: { fontSize: 11, lineHeight: 17, marginBottom: 2 },
-  blueName: { color: BLUE_NAME, fontWeight: '800' },
-  brownName: { color: '#FFFFFF', fontWeight: '800' },
+  blueName: { color: c.blueName, fontWeight: '800' },
+  brownName: { color: c.heading, fontWeight: '800' },
   detail: {
     position: 'absolute',
     left: Spacing.three,
@@ -135,4 +149,4 @@ const styles = StyleSheet.create({
   passThrough: { pointerEvents: 'none' },
   detailShadow: { borderRadius: 8, boxShadow: '0 12px 28px rgba(0,0,0,0.6)' },
   detailPlaque: { width: 240 },
-});
+}));

@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
 
 import { LOCAL_AI_SPEEDS, type AiSpeed, type AiTier, type LocalAiSpeed } from '@/game/ai/types';
 import { setAiSpeed } from '@/firebase/rooms';
@@ -28,11 +28,15 @@ import { LogCardPeek } from '@/game/ui/LogPanel';
 import { FullscreenButton } from '@/game/ui/FullscreenButton';
 import { PauseButton } from '@/game/ui/PauseButton';
 import { SaveButton, SaveNotice, type SaveStatus } from '@/game/ui/SaveButton';
+import { SettingsButton } from '@/game/ui/SettingsButton';
+import { SettingsSheet } from '@/game/ui/settings/SettingsSheet';
 import { SoundButton } from '@/game/ui/SoundButton';
 import { SpeedControl } from '@/game/ui/SpeedControl';
 import { Table } from '@/game/ui/Table';
 import { useHotkeys } from '@/game/ui/use-hotkeys';
 import { useTable } from '@/game/ui/use-table';
+import { WesternFonts } from '@/game/ui/menu/western-fonts';
+import { themedStyles, useColors } from '@/game/ui/theme/use-theme';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 const AI_NAMES = ['보안관보', '건슬링어', '떠돌이', '광부', '바텐더', '현상금꾼', '무법자'];
@@ -69,6 +73,10 @@ export default function GameScreen() {
     notimer?: string;
   }>();
   const router = useRouter();
+  const styles = useStyles();
+  const c = useColors();
+  // 설정 팝업. 열어도 판은 멈추지 않는다 (온라인 판과 같게)
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // id 가 'local' 이면 혼자 하는 판, 아니면 그 값이 곧 방 코드다.
   const online = Boolean(params.id && params.id !== 'local');
@@ -306,11 +314,11 @@ export default function GameScreen() {
       <View style={styles.loading}>
         <Text style={styles.loadingText}>{resumeError}</Text>
         <Pressable
-          style={styles.resultButton}
+          style={({ pressed }) => [styles.secondary, pressed && styles.secondaryPressed]}
           accessibilityRole="button"
           accessibilityLabel="돌아가기"
           onPress={() => router.replace('/local')}>
-          <Text style={styles.resultButtonText}>돌아가기</Text>
+          <Text style={styles.secondaryText}>돌아가기</Text>
         </Pressable>
       </View>
     );
@@ -319,7 +327,7 @@ export default function GameScreen() {
   if (!artReady || !state || !view || !viewer) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={Colors.highlight} />
+        <ActivityIndicator color={c.highlight} />
         <Text style={styles.loadingText}>
           {conn.error ??
             (!artReady
@@ -351,6 +359,7 @@ export default function GameScreen() {
           {canPause && <PauseButton paused={paused} onToggle={() => setPaused((v) => !v)} />}
           {canSave && <SaveButton status={saveStatus} onSave={onSave} />}
           <SoundButton />
+          <SettingsButton onPress={() => setSettingsOpen(true)} />
           <FullscreenButton />
         </View>
       )}
@@ -397,30 +406,35 @@ export default function GameScreen() {
             </Text>
             <View style={styles.resultButtons}>
               <Pressable
-                style={styles.resultButton}
+                style={({ pressed }) => [styles.secondary, pressed && styles.secondaryPressed]}
                 accessibilityRole="button"
                 accessibilityLabel="판 보기"
                 onPress={() => setResultHidden(true)}>
-                <Text style={styles.resultButtonText}>판 보기</Text>
+                <Text style={styles.secondaryText}>판 보기</Text>
               </Pressable>
+              {/* 주 행동은 빨간 도장 */}
               <Pressable
-                style={styles.resultButton}
+                style={({ pressed }) => [styles.stamp, pressed && styles.stampPressed]}
                 accessibilityRole="button"
                 accessibilityLabel="다시 하기"
                 onPress={() => router.replace('/local')}>
-                <Text style={styles.resultButtonText}>다시 하기</Text>
+                <View style={styles.stampInner}>
+                  <Text style={styles.stampText}>다시 하기</Text>
+                </View>
               </Pressable>
               <Pressable
-                style={styles.resultButton}
+                style={({ pressed }) => [styles.secondary, pressed && styles.secondaryPressed]}
                 accessibilityRole="button"
                 accessibilityLabel="처음으로"
                 onPress={() => router.replace('/')}>
-                <Text style={styles.resultButtonText}>처음으로</Text>
+                <Text style={styles.secondaryText}>처음으로</Text>
               </Pressable>
             </View>
           </View>
         </View>
       )}
+
+      {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
     </View>
   );
 }
@@ -429,16 +443,17 @@ function clamp(v: number, lo: number, hi: number): number {
   return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : lo;
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
+  // 판 바탕은 테마와 상관없이 늘 어두운 살롱이다
   root: { flex: 1, backgroundColor: Colors.background },
   loading: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.background,
+    backgroundColor: c.background,
   },
-  loadingText: { color: Colors.textMuted, fontSize: 13 },
+  loadingText: { color: c.textMuted, fontSize: 13.5, fontFamily: WesternFonts.body },
   topLeft: {
     position: 'absolute',
     top: Spacing.two,
@@ -449,7 +464,7 @@ const styles = StyleSheet.create({
   },
   saveNotice: {
     position: 'absolute',
-    top: Spacing.two + 34,
+    top: Spacing.two + 38,
     left: Spacing.two,
     maxWidth: 360,
   },
@@ -458,72 +473,110 @@ const styles = StyleSheet.create({
     top: '40%',
     alignSelf: 'center',
     pointerEvents: 'none',
-    backgroundColor: Colors.overlay,
+    backgroundColor: c.panel,
     borderRadius: Radius.md,
     borderWidth: 1.5,
-    borderColor: Colors.highlight,
+    borderColor: c.highlight,
     paddingHorizontal: Spacing.five,
     paddingVertical: Spacing.two,
+    boxShadow: `0 4px 14px ${c.shadow}`,
   },
-  pausedText: { color: Colors.paper, fontSize: 18, fontWeight: '900', letterSpacing: 2 },
+  pausedText: { color: c.heading, fontSize: 20, fontWeight: '900', letterSpacing: 3, fontFamily: WesternFonts.title },
   connection: {
     position: 'absolute',
     top: Spacing.two,
     alignSelf: 'center',
-    backgroundColor: Colors.surfaceRaised,
+    backgroundColor: c.panel,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.one,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: 1.5,
+    borderColor: c.panelBorder,
+    boxShadow: `0 2px 6px ${c.shadow}`,
   },
-  connectionText: { color: Colors.textMuted, fontSize: 11 },
+  connectionText: { color: c.textMuted, fontSize: 11.5, fontWeight: '700', fontFamily: WesternFonts.body },
   overlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: Colors.overlay,
+    backgroundColor: c.scrim,
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.four,
   },
   resultCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 2,
-    borderColor: Colors.highlight,
+    backgroundColor: c.surface,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: c.panelBorder,
     padding: Spacing.four,
     gap: Spacing.two,
     maxWidth: 560,
+    boxShadow: `0 10px 30px ${c.shadow}`,
   },
-  resultTitle: { color: Colors.highlight, fontSize: 26, fontWeight: '900', textAlign: 'center' },
-  resultReason: { color: Colors.text, fontSize: 14, textAlign: 'center' },
-  resultRoles: { color: Colors.textMuted, fontSize: 11, textAlign: 'center', lineHeight: 18 },
+  resultTitle: {
+    color: c.heading,
+    fontSize: 28,
+    fontWeight: '900',
+    textAlign: 'center',
+    fontFamily: WesternFonts.label,
+    // 제목 밑 두 줄 괘선 (종이 메뉴의 PaperHeading 과 같은 모양)
+    paddingBottom: Spacing.two,
+    borderBottomWidth: 3,
+    borderBottomColor: c.rule,
+  },
+  resultReason: { color: c.text, fontSize: 14.5, textAlign: 'center', fontFamily: WesternFonts.body },
+  resultRoles: { color: c.textMuted, fontSize: 11.5, textAlign: 'center', lineHeight: 18, fontFamily: WesternFonts.body },
   resultButtons: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.two,
     justifyContent: 'center',
+    alignItems: 'center',
     marginTop: Spacing.two,
   },
-  resultButton: {
+  // 빨간 도장 (PaperUi 의 StampButton 을 작게)
+  stamp: {
+    backgroundColor: c.accent,
+    borderRadius: 6,
+    padding: 3,
+    boxShadow: `0 4px 0 ${c.accentShadow}, 0 8px 14px ${c.shadow}`,
+  },
+  stampPressed: { transform: [{ translateY: 2 }], boxShadow: `0 2px 0 ${c.accentShadow}, 0 4px 8px ${c.shadow}` },
+  stampInner: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(251,246,234,0.6)',
+    borderRadius: 4,
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.cardBrown,
+    alignItems: 'center',
   },
-  resultButtonText: { color: Colors.paper, fontWeight: '800', fontSize: 13 },
+  stampText: { color: c.onAccent, fontSize: 15, fontWeight: '900', letterSpacing: 2, fontFamily: WesternFonts.label },
+  // 보조 버튼: 고르지 않은 칩 모양
+  secondary: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: c.chipBorder,
+    backgroundColor: c.chip,
+  },
+  secondaryPressed: { backgroundColor: c.hover },
+  secondaryText: { color: c.text, fontWeight: '800', fontSize: 13, fontFamily: WesternFonts.label },
   resultPill: {
     position: 'absolute',
     top: Spacing.two,
     alignSelf: 'center',
-    backgroundColor: Colors.cardBrown,
+    backgroundColor: c.panel,
     borderRadius: Radius.pill,
     borderWidth: 1.5,
-    borderColor: Colors.highlight,
+    borderColor: c.highlight,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
+    paddingVertical: Spacing.one + 1,
+    boxShadow: `0 2px 6px ${c.shadow}`,
   },
-  resultPillText: { color: Colors.paper, fontSize: 12, fontWeight: '800' },
-});
+  resultPillText: { color: c.text, fontSize: 12.5, fontWeight: '800', fontFamily: WesternFonts.label },
+}));

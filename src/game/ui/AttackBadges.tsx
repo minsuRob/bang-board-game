@@ -5,12 +5,13 @@
  */
 
 import { memo, useMemo } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../data/cards.base';
 import type { GameState, PlayerId } from '../engine';
 import { ATTACK_KINDS, attacksBy } from './attacks';
 import { playingCardArt } from './card-art';
+import { themedStyles } from './theme/use-theme';
 import { Colors } from '@/constants/theme';
 
 const SIZES = {
@@ -29,6 +30,7 @@ type Props = {
 
 export const AttackBadges = memo(function AttackBadges({ view, from, viewer, size = 'xs' }: Props) {
   const counts = useMemo(() => attacksBy(view.log, from, viewer), [view.log, from, viewer]);
+  const styles = useStyles();
   const kinds = ATTACK_KINDS.filter((k) => counts[k]);
   if (kinds.length === 0) return null;
   const s = SIZES[size];
@@ -40,6 +42,7 @@ export const AttackBadges = memo(function AttackBadges({ view, from, viewer, siz
       {kinds.map((kind) => {
         const def = CARD_DEFS[kind];
         const art = playingCardArt(kind);
+        // 작은 카드는 카드 앞면이라 판 팔레트(종이·갈색·파랑)를 그대로 쓴다
         const border = def.category === 'blue' ? Colors.cardBlue : Colors.cardBrown;
         return (
           <View key={kind} style={styles.badge}>
@@ -58,7 +61,7 @@ export const AttackBadges = memo(function AttackBadges({ view, from, viewer, siz
   );
 });
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   wrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -80,5 +83,13 @@ const styles = StyleSheet.create({
   },
   art: { width: '100%', height: '100%' },
   glyph: { color: Colors.textOnPaper, fontWeight: '900' },
-  count: { color: Colors.text, fontWeight: '900' },
-});
+  // 횟수는 작은 알약에 담아 밝은 패널·어두운 좌석 어느 쪽에 붙어도 읽히게 한다
+  count: {
+    color: c.text,
+    fontWeight: '900',
+    backgroundColor: c.chip,
+    borderRadius: 999,
+    paddingHorizontal: 3,
+    overflow: 'hidden',
+  },
+}));

@@ -6,11 +6,12 @@
  */
 
 import { useSyncExternalStore } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { draftOfferCount, type GameState, type PlayerId } from '../engine';
 import { draftUi } from '../store/draft-ui';
-import { Colors, Spacing } from '@/constants/theme';
+import { themedStyles } from './theme/use-theme';
+import { Colors, Spacing, type ThemeColors } from '@/constants/theme';
 
 export function DraftSeatStatus({ view, pid, isSelf }: { view: GameState; pid: PlayerId; isSelf: boolean }) {
   const hover = useSyncExternalStore(
@@ -18,6 +19,7 @@ export function DraftSeatStatus({ view, pid, isSelf }: { view: GameState; pid: P
     () => draftUi.getState().hover[pid] ?? null,
     () => null,
   );
+  const styles = useStyles();
   const draft = view.draft;
   if (!draft) return null;
   const done = draft.picked[pid] !== null;
@@ -46,7 +48,8 @@ export function DraftSeatStatus({ view, pid, isSelf }: { view: GameState; pid: P
   );
 }
 
-const styles = StyleSheet.create({
+// 후보 타일은 카드 뒷면이라 판 팔레트 그대로. 글자는 작은 알약에 담아 어느 바탕에서도 읽히게 한다.
+const useStyles = themedStyles((c) => ({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, minHeight: 26 },
   tiles: { flexDirection: 'row', gap: 3, alignItems: 'flex-end', height: 24 },
   tile: {
@@ -64,11 +67,15 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: Colors.success,
+    backgroundColor: c.success,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkText: { color: '#fff', fontSize: 11, fontWeight: '900', lineHeight: 13 },
-  done: { color: Colors.success, fontSize: 11, fontWeight: '800' },
-  picking: { color: Colors.textMuted, fontSize: 11 },
-});
+  checkText: { color: c.onAccent, fontSize: 11, fontWeight: '900', lineHeight: 13 },
+  done: { color: c.success, fontSize: 11, fontWeight: '800', ...label(c) },
+  picking: { color: c.textMuted, fontSize: 11, ...label(c) },
+}));
+
+function label(c: ThemeColors) {
+  return { backgroundColor: c.chip, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1, overflow: 'hidden' } as const;
+}

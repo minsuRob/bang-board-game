@@ -9,7 +9,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useToolbarStyles } from './theme/toolbar';
+import { useColors } from './theme/use-theme';
 
 export type Stopwatch = {
   /** 흐른 밀리초. 멈춘 동안은 늘지 않는다 */
@@ -61,6 +62,8 @@ type Props = {
 };
 
 export function GameClock({ stopwatch, style }: Props) {
+  const toolbar = useToolbarStyles();
+  const c = useColors();
   const read = () => ({ ms: stopwatch.elapsed(), running: stopwatch.running() });
   const [now, setNow] = useState(read);
 
@@ -73,30 +76,16 @@ export function GameClock({ stopwatch, style }: Props) {
   const label = formatElapsed(now.ms);
   return (
     <View
-      style={[styles.root, !now.running && styles.stopped, style]}
+      style={[toolbar.pill, styles.root, !now.running && { borderColor: c.highlight }, style]}
       accessibilityRole="timer"
       accessibilityLabel={`흐른 시간 ${label}${now.running ? '' : ', 멈춤'}`}>
-      <Text style={[styles.text, !now.running && styles.textStopped]}>⏱ {label}</Text>
+      <Text style={[toolbar.text, styles.text, !now.running && { color: c.highlight }]}>⏱ {label}</Text>
     </View>
   );
 }
 
+// 알약 모양은 위쪽 버튼 줄과 같다. 멈추면 테두리와 글자가 금빛(라이트는 짙은 황토)이 된다.
 const styles = StyleSheet.create({
-  root: {
-    backgroundColor: 'rgba(24, 16, 9, 0.75)',
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 4,
-    pointerEvents: 'none',
-  },
-  stopped: { borderColor: Colors.highlight },
-  text: {
-    color: Colors.text,
-    fontSize: 12,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-  },
-  textStopped: { color: Colors.highlight },
+  root: { pointerEvents: 'none' },
+  text: { fontVariant: ['tabular-nums'] },
 });

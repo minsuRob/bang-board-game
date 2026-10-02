@@ -16,7 +16,7 @@
   | AI와 대전 | A♠ | 뱅! | `/local` |
   | 방 만들기 (Firebase 없으면 잠긴 "온라인 대전") | K♥ | 살롱 | `/room/new` |
   | 카드 도감 | Q♦ | 바트 캐시디 초상 | `/cards` |
-  | 연출 화질 | J♣ | 그림 칸 대신 고화질/일반 토글 | — |
+  | 설정 | J♣ | 톱니바퀴. 누르면 설정 팝업 (연출 화질·화면 테마) | — |
 
 - **배치:** 폭 640px 이상이면 부채꼴(기울기 -13° -4° 6° 14°), 좁으면 2×2. 마우스를 올리거나 누르면
   카드가 똑바로 서며 떠오른다 (Reanimated CSS transition)
@@ -30,9 +30,10 @@
 | `src/game/ui/menu/MenuCard.tsx` | 카드 한 장 (테두리·제목·그림 칸·설명·귀퉁이, 떠오르기). `CroppedArt` 로 스캔에서 그림 칸만 자른다 |
 | `src/game/ui/menu/MenuBackdrop.tsx` | 바탕 그림. 창 크기에 맞춰 cover 로 깐다. 그림이 없으면 종이색만 |
 | `src/game/ui/menu/western-fonts.ts` | 웹 글꼴 스타일시트 주입, 글꼴 이름 |
-| `src/game/ui/QualityPicker.tsx` | `QualityToggle` (카드 안 두 칸 토글), `useFxQuality`, `qualityHint` |
+| `src/game/ui/QualityPicker.tsx` | `InkSegmented` (잉크 칸 고르기), `useFxQuality`, `qualityHint` |
+| `src/game/ui/settings/SettingsSheet.tsx` | 설정 팝업 (연출 화질·화면 테마) |
 | `src/game/ui/card-art.ts` | `menuBackdropArt()` |
-| `src/game/ui/menu/PaperUi.tsx` | 메뉴 화면 공통 종이 장식: `PaperInk` 색, `PaperSheet`, `PaperHeading`, `PaperSection`, `StampButton`, `InkLink` |
+| `src/game/ui/menu/PaperUi.tsx` | 메뉴 화면 공통 종이 장식 (테마 팔레트를 따른다): `usePaperText`, `PaperSheet`, `PaperHeading`, `PaperSection`, `StampButton`, `InkLink` |
 
 ### 판 설정 · 카드 도감
 
@@ -67,7 +68,7 @@ HTML 한 장씩, 빌드 없이 연다.
 ### 2. D + 석양 황야 → 앱에 첫 적용
 
 D의 카드 부채에 C의 석양(SVG 그라데이션 하늘, 줄무늬 해, 메사·선인장 실루엣)을 깔아 앱에 넣었다.
-이때 생긴 것이 지금도 쓰는 `MenuCard`, `QualityToggle`, 부채꼴/2×2 전환이다.
+이때 생긴 것이 지금도 쓰는 `MenuCard`, 부채꼴/2×2 전환이다. (화질 토글 카드는 뒤에 설정 팝업으로 바뀌었다.)
 
 - 화질 고르기 카드는 안에 버튼이 따로 있어서, 카드 전체를 `button` 으로 감싸면 웹에서
   `<button> cannot contain a nested <button>` 경고가 났다. 누를 곳이 없는 카드는 역할을 주지 않는다
@@ -135,6 +136,28 @@ python3 -c "from PIL import Image; Image.open('/tmp/bare.png').convert('RGB').sa
 - `&bare=1` 은 제목·카드를 빼고 배경만 그린다
 - 난수는 시드를 고정해서 같은 주소면 같은 그림이 나온다. 그림을 바꾸려면 장면 함수를 고치거나 시드를 바꾼다
 - 새 그림 파일을 넣으면 Metro 를 다시 시작해야 `require.context` 에 잡힌다 (`docs/assets.md`)
+
+## 화면 테마와 설정
+
+설정 팝업(`src/game/ui/settings/SettingsSheet.tsx`)에 **연출 화질**과 **화면 테마**가 있다.
+첫 화면 넷째 카드(J♣ 설정)와 게임 중 위쪽 버튼 줄의 ⚙ 가 연다. 고르면 바로 저장되고 바로 바뀐다.
+
+- **테마:** 시스템 · 라이트 · 다크. 처음은 시스템 (기기 설정을 따른다)
+  - 라이트: 메뉴와 같은 크림 종이에 잉크. 게임 중 기록·채팅·아래 막대·이름표도 종이 패널이 된다
+  - 다크: 밤 살롱. 같은 수채 바탕에 밤빛을 덮고, 패널은 어두운 나무 톤이다
+- **저장:** `bang.ui.theme` (웹 localStorage, 앱 AsyncStorage). `src/game/ui/theme/theme-store.ts`
+- **웹 첫 화면 깜빡임:** 정적 출력은 JS 가 돌기 전에 그려진다. `src/app/+html.tsx` 의 작은 스크립트가
+  저장값이나 기기 설정을 읽어 바탕색을 먼저 칠한다
+- **앱:** `app.json` 의 `userInterfaceStyle: "automatic"`. 바꾸면 네이티브를 다시 빌드해야 한다
+
+### 색을 쓰는 법
+
+- `Colors`(`src/constants/theme.ts`)는 **판 전용 고정 팔레트**다. 3D 텍스처, 카드 앞면, 좌석, 펠트처럼 판에 그려지는 것만 쓴다
+- 그 밖의 UI 는 `useColors()` 나 `themedStyles((c) => ({...}))` 로 `Palettes.light/dark` 를 읽는다.
+  `themedStyles` 는 테마마다 StyleSheet 를 한 번만 만들어 둔다
+- 게임 위쪽 버튼(속도·계속·저장·소리·설정·전체 화면)은 `theme/toolbar.ts` 의 알약 모양을 같이 쓴다
+- 새 색이 필요하면 `ThemeColors` 에 이름을 더하고 라이트·다크 값을 둘 다 넣는다. 둘 중 하나를 빠뜨리면 typecheck 가 잡는다
+- `src/game/ui/__tests__/theme-usage.test.ts` 가 판이 아닌 UI 에서 `Colors` 를 읽는지 본다. 판 파일을 새로 만들면 거기 목록에 넣는다
 
 ## 다시 손볼 때
 

@@ -7,7 +7,7 @@
 
 import { useLocalSearchParams } from 'expo-router';
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { GameState, PlayerId } from '../engine';
@@ -34,6 +34,8 @@ import { markGlFailed } from './mode';
 import { Overlay3D } from './overlay/Overlay3D';
 import { Scene } from './Scene';
 import { SelfStatus } from './SelfStatus';
+import { WesternFonts } from '../ui/menu/western-fonts';
+import { themedStyles } from '../ui/theme/use-theme';
 import { Colors, MobileBreakpoint, Radius, Spacing } from '@/constants/theme';
 
 const LOG_WIDTH = 268;
@@ -53,6 +55,7 @@ export type Table3DProps = {
 };
 
 export function Table3D({ view, viewer, api, clock }: Table3DProps) {
+  const styles = useStyles();
   const { width } = useWindowDimensions();
   const wide = width >= MobileBreakpoint;
   // 폰의 노치·홈 바를 피한다
@@ -297,15 +300,28 @@ class GlBoundary extends Component<{ children: ReactNode }, { failed: boolean }>
   }
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.background },
+// 판(캔버스 바탕색)은 고정 Colors, 둘레의 막대·패널·알약은 테마를 따른다
+const useStyles = themedStyles((c) => ({
+  root: { flex: 1, backgroundColor: c.background },
   main: { flex: 1, flexDirection: 'row', gap: Spacing.two, padding: Spacing.one },
   tableArea: { flex: 1, position: 'relative', overflow: 'hidden', borderRadius: Radius.lg },
   // 터치는 전부 위의 RN 층이 받는다. 씬은 보기만
   canvasLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' },
   side: { width: LOG_WIDTH },
-  sidePanel: { backgroundColor: 'rgba(28, 19, 11, 0.92)' },
-  bottom: { backgroundColor: Colors.surface },
+  sidePanel: {
+    backgroundColor: c.panel,
+    borderWidth: 1.5,
+    borderColor: c.panelBorder,
+    borderRadius: Radius.md,
+    boxShadow: `0 4px 14px ${c.shadow}`,
+  },
+  // 아래 막대: 손패·행동 버튼이 놓이는 종이(라이트) / 밤 나무(다크) 판
+  bottom: {
+    backgroundColor: c.surface,
+    borderTopWidth: 1.5,
+    borderTopColor: c.panelBorder,
+    boxShadow: `0 -4px 14px ${c.shadow}`,
+  },
   handArea: { height: 132, justifyContent: 'center' },
   topBar: {
     position: 'absolute',
@@ -320,16 +336,21 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
     gap: Spacing.two,
   },
+  // 어두운 테이블 위에 바로 뜨므로 패널 알약에 담는다 (라이트에서도 읽히게)
   headline: {
-    color: Colors.text,
+    color: c.text,
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: WesternFonts.label,
     flexShrink: 1,
-    backgroundColor: 'rgba(24, 16, 9, 0.75)',
+    backgroundColor: c.panel,
+    borderWidth: 1.5,
+    borderColor: c.panelBorder,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 3,
     overflow: 'hidden',
+    boxShadow: `0 2px 6px ${c.shadow}`,
   },
   logButton: {
     flexDirection: 'row',
@@ -338,9 +359,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.one,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: 'rgba(24, 16, 9, 0.75)',
+    borderWidth: 1.5,
+    borderColor: c.panelBorder,
+    backgroundColor: c.panel,
+    boxShadow: `0 2px 6px ${c.shadow}`,
   },
   topRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   // 넓은 화면: 테이블 오른쪽 위 = 옆 칸(진행 기록) 바로 왼쪽. 차례 안내는 시계 왼쪽에 붙는다
@@ -355,8 +377,8 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
     pointerEvents: 'none',
   },
-  logButtonText: { color: Colors.textMuted, fontSize: 11, fontWeight: '700' },
-  unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.highlight },
+  logButtonText: { color: c.text, fontSize: 11, fontWeight: '700', fontFamily: WesternFonts.label },
+  unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.accent },
   logOverlay: {
     position: 'absolute',
     top: 44,
@@ -366,13 +388,22 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   logPanel: { flex: 1 },
-  logPanelInner: { backgroundColor: Colors.background, borderColor: Colors.highlight },
+  logPanelInner: {
+    backgroundColor: c.surface,
+    borderWidth: 1.5,
+    borderColor: c.selectedBorder,
+    borderRadius: Radius.md,
+    boxShadow: `0 4px 14px ${c.shadow}`,
+  },
   logClose: {
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.cardBrown,
+    borderWidth: 1.5,
+    borderColor: c.selectedBorder,
+    backgroundColor: c.selected,
+    boxShadow: `0 2px 6px ${c.shadow}`,
   },
-  logCloseText: { color: Colors.paper, fontSize: 12, fontWeight: '800' },
-});
+  logCloseText: { color: c.onSelected, fontSize: 12, fontWeight: '800', fontFamily: WesternFonts.label },
+}));
