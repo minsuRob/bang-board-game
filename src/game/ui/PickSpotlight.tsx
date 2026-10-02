@@ -4,6 +4,8 @@
  * 낸 카드가 뜨는 자리(PlayedCardSpotlight)에 같은 명판 모양으로 뜬다.
  * 앞면 카드는 웹이면 hover, 폰이면 첫 탭에 크게 보여 주고, 누르면(폰은 한 번 더) 고른다.
  * 남의 손패처럼 안 보이는 카드는 뒷면으로 깔고 바로 고른다.
+ *
+ * onRespond 가 없으면 구경만 한다 (남이 잡화점에서 고르는 동안). 설명은 똑같이 볼 수 있다.
  */
 
 import { useEffect, useState } from 'react';
@@ -14,17 +16,19 @@ import { defOf, type Choice } from '../engine';
 import { CAN_HOVER } from './card-peek';
 import { CardBack, CardView, type CardSize } from './CardView';
 import { PaperPlaque, plaque } from './PaperPlaque';
-import type { Prompt } from './use-table';
+import type { CenterPick } from './use-table';
 import { Spacing } from '@/constants/theme';
 
 export type PickSpotlightProps = {
-  prompt: Prompt;
-  onRespond: (choice: Choice) => void;
+  title: string;
+  hint: string;
+  center: CenterPick;
+  /** 없으면 구경만 한다 */
+  onRespond?: (choice: Choice) => void;
   compact?: boolean;
 };
 
-export function PickSpotlight({ prompt, onRespond, compact }: PickSpotlightProps) {
-  const center = prompt.center!;
+export function PickSpotlight({ title, hint, center, onRespond, compact }: PickSpotlightProps) {
   const [focus, setFocus] = useState<CardId | null>(null);
   // 고를 카드가 바뀌면 (잡화점에서 한 장씩 빠진다) 살펴보던 카드를 놓는다
   useEffect(() => {
@@ -33,10 +37,10 @@ export function PickSpotlight({ prompt, onRespond, compact }: PickSpotlightProps
 
   const size: CardSize = compact ? 'md' : 'lg';
   const pickCard = (card: CardId) =>
-    onRespond(center.zone === 'option' ? { c: 'card', card } : { c: 'pick', pick: { zone: 'equipment', card } });
+    onRespond?.(center.zone === 'option' ? { c: 'card', card } : { c: 'pick', pick: { zone: 'equipment', card } });
   const pressCard = (card: CardId) => {
     // 폰: 첫 탭은 살펴보기, 같은 카드를 한 번 더 누르면 고른다
-    if (!CAN_HOVER && focus !== card) return setFocus(card);
+    if (!onRespond || (!CAN_HOVER && focus !== card)) return setFocus(card);
     pickCard(card);
   };
 
@@ -46,7 +50,8 @@ export function PickSpotlight({ prompt, onRespond, compact }: PickSpotlightProps
       {Array.from({ length: center.handCount }, (_, index) => (
         <Pressable
           key={`hand:${index}`}
-          onPress={() => onRespond({ c: 'pick', pick: { zone: 'hand', index } })}
+          onPress={() => onRespond?.({ c: 'pick', pick: { zone: 'hand', index } })}
+          disabled={!onRespond}
           accessibilityRole="button"
           accessibilityLabel={`손패 ${index + 1}번째 카드`}
           style={({ hovered }: { hovered?: boolean }) => [styles.card, hovered && styles.lifted]}>
@@ -58,7 +63,7 @@ export function PickSpotlight({ prompt, onRespond, compact }: PickSpotlightProps
           <CardView
             card={card}
             size={size}
-            highlighted
+            highlighted={Boolean(onRespond)}
             onPress={() => pressCard(card)}
             onHoverIn={() => setFocus(card)}
             onHoverOut={() => setFocus((cur) => (cur === card ? null : cur))}
@@ -83,7 +88,7 @@ export function PickSpotlight({ prompt, onRespond, compact }: PickSpotlightProps
       )}
       <PaperPlaque compact={compact} style={compact ? styles.plaqueCompact : styles.plaque}>
         <Text style={[plaque.meta, plaque.hint]} numberOfLines={1}>
-          {prompt.title} — {focus && !CAN_HOVER ? '한 번 더 누르면 고른다' : prompt.hint}
+          {title} — {focus && !CAN_HOVER && onRespond ? '한 번 더 누르면 고른다' : hint}
         </Text>
         <Text style={[plaque.text, compact && plaque.textCompact]} numberOfLines={3}>
           {def ? (

@@ -37,6 +37,7 @@ import {
   type JudgementPurpose,
   type PlayerId,
 } from '../engine';
+import { ga } from '../engine/josa';
 import { fxPacing } from '../store/fx-pacing';
 import { roleArt } from './card-art';
 import { CAN_HOVER, cardPeek, setPeek } from './card-peek';
@@ -62,7 +63,7 @@ import { PaperPlaque, plaque } from './PaperPlaque';
 import { PickSpotlight } from './PickSpotlight';
 import { playSfx, preloadSfx } from './sfx';
 import { isFollowUp, isRevealEvent, isTakeEvent, pickSpotlights, revealedEventOf, takenCardOf } from './spotlight-pick';
-import type { TableApi } from './use-table';
+import type { CenterPick, TableApi } from './use-table';
 import { Colors, Spacing } from '@/constants/theme';
 
 const NATIVE_DRIVER = Platform.OS !== 'web';
@@ -134,6 +135,8 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
   const peeking = peek !== null && hand.includes(peek) ? peek : null;
   // 잡화점·강탈·캣 발루로 고르는 중이면 가운데 창이 가장 앞이다
   const picking = api.prompt?.center ? api.prompt : null;
+  // 남이 잡화점에서 고르는 동안에도 펼친 카드를 가운데 창에 띄워 둔다 (설명은 hover·탭)
+  const watching = picking ? null : storeWatch(view);
 
   const { hqLayer, progress, geom, layer, stage } = useFxStage();
 
@@ -248,7 +251,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
   return (
     <View ref={layer} style={styles.root}>
       {shown && (
-        <View style={[styles.layer, styles.passThrough, (peeking || picking) && styles.hidden]}>
+        <View style={[styles.layer, styles.passThrough, (peeking || picking || watching) && styles.hidden]}>
           {shownEvent ? (
             <EventSpot key={`${shown.seq}:${shown.card}`} def={shownEvent} compact={compact} onDone={() => clear(shown)} />
           ) : isRevealEvent(shown) ? (
@@ -281,7 +284,18 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
       )}
       {picking && (
         <View style={styles.layer}>
-          <PickSpotlight prompt={picking} onRespond={api.respond} compact={compact} />
+          <PickSpotlight
+            title={picking.title}
+            hint={picking.hint}
+            center={picking.center!}
+            onRespond={api.respond}
+            compact={compact}
+          />
+        </View>
+      )}
+      {watching && !peeking && (
+        <View style={styles.layer}>
+          <PickSpotlight title="잡화점" hint={watching.hint} center={watching.center} compact={compact} />
         </View>
       )}
       {peeking && !picking && (
@@ -293,6 +307,17 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
       {hqLayer && <hqLayer.Layer progress={progress} geom={geom} />}
     </View>
   );
+}
+
+/** 남이 잡화점에서 고르는 중이면 그 사람과 펼친 카드 */
+function storeWatch(view: GameState): { hint: string; center: CenterPick } | null {
+  const a = view.awaiting;
+  if (a?.k !== 'generalStore' || a.options.length === 0) return null;
+  const name = view.players.find((p) => p.id === a.pid)?.name;
+  return {
+    hint: name ? `${ga(name)} 고르는 중` : '고르는 중',
+    center: { cards: a.options, zone: 'option', handCount: 0 },
+  };
 }
 
 /**

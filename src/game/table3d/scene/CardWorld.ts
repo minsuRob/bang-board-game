@@ -162,9 +162,7 @@ export class CardWorld {
     const top = state.discard[state.discard.length - 1];
     if (top) place(top, this.discardPose(state.discard.length - 1));
 
-    // 잡화점처럼 가운데 펼친 카드 (공개)
-    const revealed = revealedCards(state);
-    revealed.forEach((card, i) => place(card, this.storePose(i, revealed.length)));
+    // 잡화점 카드는 바닥에 펼치지 않는다. 화면 가운데 창(PickSpotlight)에 크게 뜬다
 
     // 자리를 못 받은 카드는 치운다 (연출 중인 카드는 예외)
     for (const [card, h] of [...this.handles]) {
@@ -268,6 +266,11 @@ export class CardWorld {
     return { ...IDLE_POSE, pos: [at[0], 0.004 + (n + 1) * T, at[2]], flip: Math.PI };
   }
 
+  /** 잡화점 카드가 있는 셈 치는 자리. 가운데 창 바로 아래 공중이라, 고른 카드가 거기서 손으로 날아간다 */
+  storeLiftPose(): Pose {
+    return this.centerPose(0.9);
+  }
+
   storePose(i: number, count: number): Pose {
     const at = storeSlot(this.layout!, i, count);
     return { ...IDLE_POSE, pos: [at[0], 0.012, at[2]], scale: 0.9 };
@@ -313,7 +316,8 @@ export class CardWorld {
         return i < 0 ? this.centerPose() : this.equipmentPose(i, ordinal, count, card);
       }
       case 'limbo':
-        return zone.kind === 'store' || zone.kind === 'poker'
+        if (zone.kind === 'store') return this.storeLiftPose();
+        return zone.kind === 'poker'
           ? this.storePose(ordinal, count)
           : this.centerPose(0.05);
     }
@@ -337,13 +341,4 @@ export class CardWorld {
 
 function isWeapon(card: CardId): boolean {
   return CARD_DEFS[kindOf(card)].equip === 'weapon';
-}
-
-/** 지금 가운데 펼쳐져 있는 공개 카드 */
-export function revealedCards(state: GameState): CardId[] {
-  for (let i = state.stack.length - 1; i >= 0; i--) {
-    const f = state.stack[i];
-    if (f.k === 'generalStore') return f.revealed;
-  }
-  return [];
 }
