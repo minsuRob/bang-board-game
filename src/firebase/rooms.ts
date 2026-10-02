@@ -18,12 +18,19 @@ import {
 } from 'firebase/firestore';
 
 import type { AiSpeed, AiTier } from '../game/ai/types';
+import type { EventExpansion } from '../game/data/types';
 import { MAX_PLAYERS, MIN_PLAYERS } from '../game/data/roles';
 import { getDb } from './config';
 import type { Identity } from './auth';
 import type { Presence, RoomDoc, RoomMember, RoomSeat } from './room-model';
 
-export { AWAY_TIMEOUT_MS, PRESENCE_TIMEOUT_MS, pickDriver, presenceOf } from './room-model';
+export {
+  AWAY_TIMEOUT_MS,
+  PRESENCE_TIMEOUT_MS,
+  pickDriver,
+  presenceOf,
+  roomEventExpansion,
+} from './room-model';
 export type { Presence, RoomDoc, RoomMember, RoomSeat } from './room-model';
 
 /** 헷갈리는 글자(0/O, 1/I)는 뺐다 */
@@ -48,8 +55,7 @@ function emptySeats(count: number, host: Identity): RoomSeat[] {
 
 export type CreateRoomOptions = {
   playerCount: number;
-  highnoon: boolean;
-  wildwestshow?: boolean;
+  eventExpansion?: EventExpansion | null;
   valley?: boolean;
   tier: AiTier;
 };
@@ -69,8 +75,7 @@ export async function createRoom(host: Identity, options: CreateRoomOptions): Pr
       hostUid: host.uid,
       status: 'lobby',
       playerCount: count,
-      highnoon: options.highnoon,
-      wildwestshow: options.wildwestshow ?? false,
+      eventExpansion: options.eventExpansion ?? null,
       valley: options.valley ?? false,
       tier: options.tier,
       seats: emptySeats(count, host),
@@ -136,7 +141,7 @@ export async function leaveRoom(code: string, uid: string): Promise<void> {
 /** 호스트만 설정을 바꾼다. */
 export async function updateRoomSettings(
   code: string,
-  patch: Partial<Pick<RoomDoc, 'playerCount' | 'highnoon' | 'wildwestshow' | 'valley' | 'tier' | 'seed' | 'deadChat'>>,
+  patch: Partial<Pick<RoomDoc, 'playerCount' | 'eventExpansion' | 'valley' | 'tier' | 'seed' | 'deadChat'>>,
 ): Promise<void> {
   const db = getDb();
   const ref = doc(db, 'rooms', code.toUpperCase());

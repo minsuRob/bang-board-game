@@ -5,6 +5,7 @@ import {
   pickDriver,
   PRESENCE_TIMEOUT_MS,
   presenceOf,
+  roomEventExpansion,
   seatPresence,
   type Presence,
   type RoomDoc,
@@ -166,13 +167,31 @@ describe('저장본에서 이어 보기', () => {
   });
 });
 
+describe('방의 상황 카드 확장판', () => {
+  it('eventExpansion 을 그대로 쓴다', () => {
+    expect(roomEventExpansion({ eventExpansion: 'fistful' })).toBe('fistful');
+    expect(roomEventExpansion({ eventExpansion: null })).toBeNull();
+  });
+
+  it('예전 방은 켜기 값에서 읽는다', () => {
+    expect(roomEventExpansion({ highnoon: true })).toBe('highnoon');
+    expect(roomEventExpansion({ highnoon: false, wildwestshow: true })).toBe('wildwestshow');
+    expect(roomEventExpansion({ highnoon: false })).toBeNull();
+  });
+
+  it('새 값이 있으면 예전 켜기 값은 무시한다', () => {
+    expect(roomEventExpansion({ eventExpansion: 'fistful', highnoon: true })).toBe('fistful');
+    expect(roomEventExpansion({ eventExpansion: null, highnoon: true })).toBeNull();
+  });
+});
+
 describe('드라이버 선출', () => {
   const room = (uids: (string | null)[]): RoomDoc => ({
     code: 'ABC123',
     hostUid: 'u0',
     status: 'playing',
     playerCount: uids.length,
-    highnoon: false,
+    eventExpansion: null,
     tier: 'medium',
     seats: uids.map((uid) => ({ uid, nick: uid ?? '', ai: uid === null })),
     seed: 1,

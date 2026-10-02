@@ -6,6 +6,8 @@
  */
 
 import type { AiSpeed, AiTier } from '../game/ai/types';
+import { isEventExpansion } from '../game/data/events';
+import type { EventExpansion } from '../game/data/types';
 
 /** 이 시간 안에 소식이 없으면 나간 것으로 본다 */
 export const PRESENCE_TIMEOUT_MS = 30_000;
@@ -37,8 +39,11 @@ export type RoomDoc = {
   hostUid: string;
   status: 'lobby' | 'playing' | 'ended';
   playerCount: number;
-  highnoon: boolean;
-  /** 와일드 웨스트 쇼. 이 필드가 생기기 전에 만든 방에는 없다 */
+  /** 상황 카드 확장판 하나. null 이면 끈다. 이 필드가 생기기 전에 만든 방에는 없다 */
+  eventExpansion?: EventExpansion | null;
+  /** 예전 방의 하이 눈 켜기. eventExpansion 이 없을 때만 본다 (roomEventExpansion) */
+  highnoon?: boolean;
+  /** 예전 방의 와일드 웨스트 쇼 켜기. eventExpansion 이 없을 때만 본다 */
   wildwestshow?: boolean;
   /** 그림자의 계곡. 이 필드가 생기기 전에 만든 방에는 없다 */
   valley?: boolean;
@@ -66,6 +71,18 @@ export type RoomMember = {
  * 남이 보는 접속 상태. 스스로 알린 값을 믿되, 소식이 끊긴 지 오래면 나간 것으로 본다.
  * 탭을 닫으면서 보낸 '나감' 은 닿지 못할 수 있다. 그때는 시간이 대신 알려 준다.
  */
+/** 이 방의 상황 카드 확장판. 예전 방은 highnoon · wildwestshow 켜기 값에서 읽는다 */
+export function roomEventExpansion(
+  room: Pick<RoomDoc, 'eventExpansion' | 'highnoon' | 'wildwestshow'>,
+): EventExpansion | null {
+  if (room.eventExpansion !== undefined) {
+    return isEventExpansion(room.eventExpansion) ? room.eventExpansion : null;
+  }
+  if (room.highnoon) return 'highnoon';
+  if (room.wildwestshow) return 'wildwestshow';
+  return null;
+}
+
 export function presenceOf(member: RoomMember | undefined, now = Date.now()): Presence {
   if (!member || member.presence === 'left') return 'left';
   const away = member.presence === 'away';

@@ -12,8 +12,11 @@ import {
   leaveRoom,
   markStarted,
   presenceOf,
+  roomEventExpansion,
   updateRoomSettings,
 } from '@/firebase/rooms';
+import { EVENT_EXPANSIONS } from '@/game/data/events';
+import { EXPANSION_LABEL } from '@/game/data/types';
 import { useRoomConnection } from '@/game/store/use-online-game';
 import { PRESENCE_COLOR, PRESENCE_LABEL, PresenceDot } from '@/game/ui/PresenceDot';
 import { Colors, Radius, Spacing } from '@/constants/theme';
@@ -35,7 +38,7 @@ export default function RoomScreen() {
   useEffect(() => {
     if (id !== 'new' || code || !identity) return;
     let alive = true;
-    createRoom(identity, { playerCount: 5, highnoon: false, wildwestshow: false, tier: 'medium' })
+    createRoom(identity, { playerCount: 5, eventExpansion: null, tier: 'medium' })
       .then((made) => {
         if (!alive) return;
         setCode(made);
@@ -155,19 +158,17 @@ export default function RoomScreen() {
           <Setting title="상황 카드 확장판">
             <Chip
               label="기본"
-              active={!room.highnoon}
-              onPress={() => updateRoomSettings(room.code, { highnoon: false })}
+              active={roomEventExpansion(room) === null}
+              onPress={() => updateRoomSettings(room.code, { eventExpansion: null })}
             />
-            <Chip
-              label="하이 눈"
-              active={room.highnoon}
-              onPress={() => updateRoomSettings(room.code, { highnoon: true, wildwestshow: false })}
-            />
-            <Chip
-              label="와일드 웨스트 쇼"
-              active={Boolean(room.wildwestshow)}
-              onPress={() => updateRoomSettings(room.code, { highnoon: false, wildwestshow: true })}
-            />
+            {EVENT_EXPANSIONS.map((x) => (
+              <Chip
+                key={x}
+                label={EXPANSION_LABEL[x]}
+                active={roomEventExpansion(room) === x}
+                onPress={() => updateRoomSettings(room.code, { eventExpansion: x })}
+              />
+            ))}
           </Setting>
 
           <Setting title="카드·캐릭터 확장판">

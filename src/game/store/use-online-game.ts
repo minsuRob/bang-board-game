@@ -10,12 +10,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getIdentity, type Identity } from '../../firebase/auth';
 import {
   markStarted,
+  roomEventExpansion,
   setDraftHoverRemote,
   watchMembers,
   watchRoom,
   type RoomDoc,
   type RoomMember,
 } from '../../firebase/rooms';
+import { expansionsFor } from '../data/events';
 import { draftUi, setDraftHover } from './draft-ui';
 import { createFirebaseTransport } from './firebase-transport';
 import { useGameStore, type SeatSetup } from './game-store';
@@ -103,8 +105,7 @@ export function useOnlineGameSession(code: string | null, conn: OnlineGame) {
       ? JSON.stringify({
           seed: room.seed,
           playerCount: room.playerCount,
-          highnoon: room.highnoon,
-          wildwestshow: room.wildwestshow ?? false,
+          eventExpansion: roomEventExpansion(room),
           valley: room.valley ?? false,
           tier: room.tier,
           seats: room.seats.map((s) => ({ uid: s.uid, nick: s.nick, ai: s.ai })),
@@ -123,7 +124,7 @@ export function useOnlineGameSession(code: string | null, conn: OnlineGame) {
     if (!sessionKey || !code || !uid) return;
     const session = JSON.parse(sessionKey) as Pick<
       RoomDoc,
-      'seed' | 'playerCount' | 'highnoon' | 'wildwestshow' | 'valley' | 'tier' | 'seats'
+      'seed' | 'playerCount' | 'eventExpansion' | 'valley' | 'tier' | 'seats'
     >;
 
     const seats: SeatSetup[] = session.seats.map((s, i) => ({
@@ -137,11 +138,10 @@ export function useOnlineGameSession(code: string | null, conn: OnlineGame) {
       seed: session.seed,
       config: {
         playerCount: session.playerCount,
-        expansions: [
-          ...(session.highnoon ? (['highnoon'] as const) : []),
-          ...(session.wildwestshow ? (['wildwestshow'] as const) : []),
-          ...(session.valley ? (['valley'] as const) : []),
-        ],
+        expansions: expansionsFor({
+          event: session.eventExpansion ?? null,
+          valley: session.valley,
+        }),
       },
       seats,
       controlled: mySeat === null ? [] : [`p${mySeat}`],

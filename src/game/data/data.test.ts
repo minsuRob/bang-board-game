@@ -9,7 +9,14 @@ import {
   WILDWESTSHOW_SHUFFLED_IDS,
 } from './cards.wildwestshow';
 import { FISTFUL_EVENTS, FISTFUL_FINAL_ID, FISTFUL_SHUFFLED_IDS } from './cards.fistful';
-import { EVENTS, eventDeckFor, eventDeckSize } from './events';
+import {
+  EVENT_EXPANSIONS,
+  EVENTS,
+  eventDeckFor,
+  eventDeckSize,
+  eventExpansionOf,
+  expansionsFor,
+} from './events';
 import { CHARACTER_IDS, CHARACTERS } from './characters';
 import { MAX_PLAYERS, MIN_PLAYERS, ROLE_DISTRIBUTION } from './roles';
 import { RANK_VALUE, type CardKind, type Role } from './types';
@@ -220,18 +227,6 @@ describe('와일드 웨스트 쇼 이벤트', () => {
     expect(WILDWESTSHOW_SHUFFLED_IDS).toHaveLength(9);
   });
 
-  it('합본 EVENTS 는 40종이고 id 가 키와 같다', () => {
-    expect(Object.keys(EVENTS)).toHaveLength(40);
-    for (const [id, def] of Object.entries(EVENTS)) expect(def.id).toBe(id);
-  });
-
-  it('한 판에 이벤트 덱은 하나다. 둘 다 켜면 하이 눈을 쓴다', () => {
-    expect(eventDeckFor([])).toBeNull();
-    expect(eventDeckFor(['wildwestshow'])?.final).toBe('wildWestShow');
-    expect(eventDeckFor(['highnoon', 'wildwestshow'])?.final).toBe('highNoon');
-    expect(eventDeckSize('gag')).toBe(10);
-    expect(eventDeckSize('curse')).toBe(15);
-  });
 });
 
 describe('한줌의 카드 이벤트', () => {
@@ -240,5 +235,39 @@ describe('한줌의 카드 이벤트', () => {
     const finals = Object.values(FISTFUL_EVENTS).filter((e) => e.isFinal);
     expect(finals.map((e) => e.id)).toEqual([FISTFUL_FINAL_ID]);
     expect(FISTFUL_SHUFFLED_IDS).toHaveLength(14);
+  });
+});
+
+describe('상황 카드 확장판 고르기', () => {
+  it('합본 EVENTS 는 40종이고 id 가 키와 같다', () => {
+    expect(Object.keys(EVENTS)).toHaveLength(40);
+    for (const [id, def] of Object.entries(EVENTS)) expect(def.id).toBe(id);
+  });
+
+  it('세 확장판 모두 덱을 하나씩 가진다', () => {
+    expect(EVENT_EXPANSIONS).toEqual(['highnoon', 'wildwestshow', 'fistful']);
+    expect(eventDeckFor(['highnoon'])?.final).toBe('highNoon');
+    expect(eventDeckFor(['wildwestshow'])?.final).toBe('wildWestShow');
+    expect(eventDeckFor(['fistful'])?.final).toBe('fistfulOfCards');
+    expect(eventDeckSize('curse')).toBe(15);
+    expect(eventDeckSize('gag')).toBe(10);
+    expect(eventDeckSize('ambush')).toBe(15);
+  });
+
+  it('한 판에 이벤트 덱은 하나다. 둘 이상 들어오면 앞의 확장판을 쓴다', () => {
+    expect(eventDeckFor([])).toBeNull();
+    expect(eventDeckFor(['valley', 'goldrush'])).toBeNull();
+    expect(eventDeckFor(['highnoon', 'wildwestshow'])?.final).toBe('highNoon');
+    expect(eventDeckFor(['fistful', 'wildwestshow'])?.final).toBe('wildWestShow');
+    expect(eventExpansionOf(['valley', 'fistful'])).toBe('fistful');
+  });
+
+  it('로비 설정은 상황 카드 하나만 확장판 목록에 넣는다', () => {
+    expect(expansionsFor({ event: null })).toEqual([]);
+    expect(expansionsFor({ event: 'fistful', valley: true, goldrush: true })).toEqual([
+      'fistful',
+      'valley',
+      'goldrush',
+    ]);
   });
 });

@@ -173,6 +173,17 @@ export type Role = 'sheriff' | 'deputy' | 'outlaw' | 'renegade';
 
 export type Expansion = 'highnoon' | 'valley' | 'goldrush' | 'wildwestshow' | 'fistful';
 
+/** 상황(이벤트) 카드 덱을 들여오는 확장판. 한 판에 하나만 쓴다 */
+export type EventExpansion = Extract<Expansion, 'highnoon' | 'wildwestshow' | 'fistful'>;
+
+export const EXPANSION_LABEL: Record<Expansion, string> = {
+  highnoon: '하이 눈',
+  valley: '그림자의 계곡',
+  goldrush: '골드 러시',
+  wildwestshow: '와일드 웨스트 쇼',
+  fistful: '한줌의 카드',
+};
+
 export type HighNoonEventId =
   | 'blessing' | 'curse' | 'ghostTown' | 'goldRush' | 'hangover'
   | 'shootout' | 'theDaltons' | 'theDoctor' | 'theReverend' | 'theSermon'
