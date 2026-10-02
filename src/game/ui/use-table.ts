@@ -501,7 +501,7 @@ function empty(): Prompt {
   };
 }
 
-function buildPrompt(view: GameState): Prompt | null {
+export function buildPrompt(view: GameState): Prompt | null {
   const a = view.awaiting;
   if (!a) return null;
   const base = empty();
