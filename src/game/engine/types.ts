@@ -402,7 +402,7 @@ export type Action =
       pid: PlayerId;
       card: CardId;
       target?: PlayerId;
-      /** 강탈·캣 발루가 가져갈 카드 */
+      /** 강탈·캣 발루가 가져갈 카드. 뱅!에 붙으면 리코체(한줌의 카드)로 노릴 앞의 카드 */
       pick?: StealPick;
       /** 칼라미티 자넷처럼 다른 카드로 취급해 사용할 때 */
       as?: CardKind;

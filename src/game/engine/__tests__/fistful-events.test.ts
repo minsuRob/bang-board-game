@@ -279,3 +279,33 @@ describe('저격수', () => {
     expect(legalActions(s, 'a').some((x) => x.type === 'playCard' && x.also)).toBe(false);
   });
 });
+
+describe('리코체', () => {
+  it('뱅! 횟수가 없어도, 거리가 멀어도 앞의 카드를 노리는 수가 열린다', () => {
+    const s0 = scenario({
+      event: 'ricochet',
+      players: [
+        // 윌리 더 키드는 뱅! 횟수 제한이 없으니 기본 캐릭터(블랙 잭)로 둔다
+        { id: 'a', role: 'sheriff', hand: ['bang'] },
+        { id: 'b' },
+        { id: 'c', equipment: ['mustang'] },
+        { id: 'd' },
+      ],
+    });
+    const s = { ...s0, turn: { ...s0.turn, bangsPlayed: 1 } };
+    const shots = legalActions(s, 'a').filter((x) => x.type === 'playCard');
+    expect(shots).toEqual([
+      expect.objectContaining({ target: 'c', pick: { zone: 'equipment', card: p(s, 'c').equipment[0] } }),
+    ]);
+  });
+
+  it('맞으면 카드가 버려지고 뱅! 횟수를 쓰지 않는다', () => {
+    let s = table('ricochet', { hand: ['bang'] }, { equipment: ['barrel'] })();
+    const barrel = p(s, 'b').equipment[0];
+    s = reduce(s, { type: 'playCard', pid: 'a', card: handCard(s, 'a', 'bang'), target: 'b', pick: { zone: 'equipment', card: barrel } });
+    expect(p(s, 'b').equipment).toHaveLength(0);
+    expect(s.discard).toContain(barrel);
+    expect(s.turn.bangsPlayed).toBe(0);
+    expect(p(s, 'b').hp).toBe(p(s, 'b').maxHp);
+  });
+});

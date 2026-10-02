@@ -9,8 +9,6 @@ import { CARD_DEFS } from '../../data/cards.base';
 import type { FistfulEventId } from '../../data/types';
 import type { Modifier } from '../../engine/modifier';
 
-const ev = (id: FistfulEventId): Modifier => ({ id: `event:${id}`, from: 'event' });
-
 /** 차례 시작 이벤트는 장비(다이너마이트·감옥)보다 먼저 온다. 하이 눈과 같다 */
 const EVENT_TURN_ORDER = 5;
 /** 카드 가져오기 단계를 대신하는 이벤트는 캐릭터 능력보다 먼저 본다 */
@@ -116,6 +114,9 @@ const lasso: Modifier = { id: 'event:lasso', from: 'event', disablesEquipment: t
 /** 저격수 — 뱅! 2장을 함께 버려 한 사람을 쏜다. 뱅! 1회이고, 빗나감! 2장으로만 막는다 */
 const sniper: Modifier = { id: 'event:sniper', from: 'event', allowsDoubleBang: true };
 
+/** 리코체 — 뱅!을 버려 누군가의 앞에 놓인 카드 1장을 노린다 */
+const ricochet: Modifier = { id: 'event:ricochet', from: 'event', allowsRicochet: true };
+
 /** 판사 — 앞에 내려놓는 카드(파랑)를 낼 수 없다 */
 const theJudge: Modifier = {
   id: 'event:theJudge',
@@ -141,7 +142,7 @@ export const FISTFUL_EVENT_MODIFIERS: Record<FistfulEventId, Modifier> = {
   lawOfTheWest,
   peyote,
   ranch,
-  ricochet: ev('ricochet'),
+  ricochet,
   russianRoulette,
   sniper,
   theJudge,

@@ -171,6 +171,8 @@ function scorePlay(
   switch (kind) {
     case 'bang': {
       if (!target) return -10;
+      // 리코체: 뱅!을 버려 앞에 놓인 카드 한 장을 노린다
+      if (action.pick?.zone === 'equipment') return scoreRicochet(action.pick.card, friend, enemy);
       if (friend) return -12;
       let s = 12 * enemy;
       // 마지막 한 대면 크게 오른다
@@ -524,6 +526,16 @@ function scoreRespond(
     default:
       return 0;
   }
+}
+
+/** 리코체로 앞의 카드를 노리는 수. 상대가 빗나감!으로 막을 수 있으니 확실하지 않다 */
+function scoreRicochet(card: CardId, friend: boolean, enemy: number): number {
+  const kind = safeKind(card);
+  if (!kind) return -5;
+  const cost = cardValue('bang') * 0.6;
+  if (kind === 'jail' || kind === 'dynamite') return friend ? 9 - cost : -10;
+  if (friend) return -12;
+  return (4 + cardValue(kind)) * enemy - cost - 2;
 }
 
 /** 아직 보지 못한 기본 카드 중 그 색 장수. 피요테에서 더 많은 쪽을 부른다 */

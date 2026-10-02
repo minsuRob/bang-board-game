@@ -31,7 +31,7 @@ import {
   onPlayBangFrames,
   withEvade,
 } from './hooks';
-import type { Frame, GameState, PlayerId } from './types';
+import type { Frame, GameState, PlayerId, StealPick } from './types';
 import { eul, ga, ro } from './josa';
 
 /** 대상 한 명을 지목하는 갈색 효과 중 탈출로 피할 수 있는 것 */
@@ -43,6 +43,8 @@ export type PlayOptions = {
   ability?: string;
   /** 저격수: 함께 버리는 두 번째 뱅! */
   also?: CardId;
+  /** 리코체: 뱅!으로 노리는 앞의 카드 */
+  pick?: StealPick;
 };
 
 /** 이 능력 key 가 뱅! 횟수를 쓰지 않는 추가 뱅!인가 (블랙 플라워) */
@@ -104,6 +106,9 @@ export function applyPlayCard(
     cur = toDiscard(cur, [card]);
   }
 
+  // 리코체(한줌의 카드): 뱅!에 앞의 카드가 붙으면 사람이 아니라 그 카드를 노린다.
+  const ricochet = as === 'bang' && target && opts.pick?.zone === 'equipment' ? opts.pick.card : null;
+
   const played =
     as === own
       ? eul(def.nameKo)
@@ -115,9 +120,14 @@ export function applyPlayCard(
     as: as === own ? undefined : as,
     target,
     text:
-      `${ga(nameOf(cur, pid))} ${played} 냈다` +
+      `${ga(nameOf(cur, pid))}${ricochet ? ' 리코체로' : ''} ${played} 냈다` +
       (target ? ` → ${nameOf(cur, target)}.` : '.'),
   });
+
+  if (ricochet && target) {
+    // 버림이지 사용이 아니다. 뱅! 횟수를 쓰지 않고, 뱅!에 반응하는 능력도 울리지 않는다.
+    return pushSeq(cur, [{ k: 'ricochet', source: pid, target, card: ricochet }]);
+  }
 
   // 조준: 뱅!과 함께 낸 카드도 손을 떠난다.
   if (opts.extra) {

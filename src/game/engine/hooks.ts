@@ -60,6 +60,11 @@ export function allowsDoubleBang(state: GameState): boolean {
   return eventModifier(state)?.allowsDoubleBang === true;
 }
 
+/** 뱅!으로 앞에 놓인 카드를 노리는 리코체가 열려 있는가 */
+export function allowsRicochet(state: GameState): boolean {
+  return eventModifier(state)?.allowsRicochet === true;
+}
+
 /** 숙취처럼 캐릭터 능력을 통째로 죽이는 효과가 걸려 있는가 */
 export function characterAbilitiesDisabled(state: GameState): boolean {
   return eventModifier(state)?.disablesCharacterAbilities === true;

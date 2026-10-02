@@ -184,4 +184,6 @@ export type Modifier = {
   revivesFirstOut?: { hp: number; cards: number };
   /** 뱅! 2장을 함께 버려 빗나감! 2장이 필요한 뱅! 1회로 쓸 수 있다 (저격수) */
   allowsDoubleBang?: boolean;
+  /** 뱅!을 버려 남의 앞에 놓인 카드를 노릴 수 있다 (리코체) */
+  allowsRicochet?: boolean;
 };

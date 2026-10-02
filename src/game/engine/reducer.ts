@@ -81,6 +81,7 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
         extra: action.extra,
         ability: action.ability,
         also: action.also,
+        pick: action.pick,
       });
       break;
     }

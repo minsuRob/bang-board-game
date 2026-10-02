@@ -21,6 +21,7 @@ import {
 import { canReachAtRange, canReachWithBang, distance } from './distance';
 import {
   allowsDoubleBang,
+  allowsRicochet,
   anytimeAbilitiesOf,
   bangLimitOf,
   canPlayCard,
@@ -319,6 +320,18 @@ function playPhaseActions(state: GameState, pid: PlayerId): Action[] {
 
       switch (as) {
         case 'bang': {
+          // 리코체: 뱅!을 버려 앞에 놓인 카드를 노린다. 사용이 아니라 버림이라 횟수·거리를 보지 않는다.
+          if (allowsRicochet(state)) {
+            for (const t of seatedPlayers(state)) {
+              if (t.id === pid) continue;
+              for (const e of unique(t.equipment)) {
+                out.push({
+                  type: 'playCard', pid, card, as: explicit, target: t.id,
+                  pick: { zone: 'equipment', card: e },
+                });
+              }
+            }
+          }
           if (!bangsLeft) break;
           // 조준: 뱅!과 함께 낼 수 있는 카드
           const aims = unique(me.hand).filter(
