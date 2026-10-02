@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>인디언! 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389):
+  - 그림 칸 x 40~215, y 85~265. 주황·붉은 색이 많은 수채
+  - 뒤쪽에 머리띠 두른 얼굴 둘: (88,128), (130,125). 깃털 (145,100)
+  - 앞쪽 오른편에 크게 외치는 얼굴: 머리 (170,210), 붉은 머리띠 (165,185), 크게 벌린 입 (150,238)
+  - 왼쪽에 활/창 자루가 비스듬히 (62,150)→(85,262)
+  - 아래 기호: 뱅! + 모두 표적
+  노린 것: 그림의 핵심은 "함성". 입에서 소리 물결이 판 전체로 퍼지게 하고(A),
+  인디언! = 화살 빗발로 모든 자리에 꽂히게(B, C), 판 둘레를 말 탄 무리가 도는 그림자극(D).
+  소리 아이디어: 낮은 북 세 번(둥·둥·둥) 위로 함성 한 번, 화살 쉬익 여러 겹 + 판에 꽂히는 툭.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const S = card.w / 250;
+const CX = card.x + card.w / 2, CY = card.y + card.h / 2;
+const TAU = Math.PI * 2;
+const MO = art(150, 238); // 외치는 입
+
+const SEAT_DEG = [130, 186, 242, 298, 354, 410];
+const seatAt = (deg) => { const a = deg * Math.PI / 180; return { x: 150 + Math.cos(a) * 132, y: 105 + Math.sin(a) * 88 }; };
+const SEATS = SEAT_DEG.map(seatAt);
+
+function head(g, px, py, r, band) {
+  const p = art(px, py);
+  g.fillStyle = '#b5764f'; g.beginPath(); g.arc(p.x, p.y, r * S, 0, TAU); g.fill();
+  g.fillStyle = '#2b211b'; g.beginPath(); g.arc(p.x, p.y - r * S * 0.25, r * S, Math.PI, TAU); g.fill();
+  g.fillStyle = band; g.fillRect(p.x - r * S, p.y - r * S * 0.35, r * S * 2, r * S * 0.3);
+}
+function scene(g, mouth) {
+  g.fillStyle = '#f0c9a0'; const t0 = art(40, 150); g.fillRect(card.x, t0.y, card.w, card.h);
+  const s0 = art(62, 150), s1 = art(88, 262); g.strokeStyle = '#3b3533'; g.lineWidth = 3; g.beginPath(); g.moveTo(s0.x, s0.y); g.lineTo(s1.x, s1.y); g.stroke();
+  const fe = art(145, 100); g.fillStyle = '#e9e1d2'; g.beginPath(); g.ellipse(fe.x, fe.y, 2, 6, 0.4, 0, TAU); g.fill();
+  head(g, 88, 128, 16, '#d8452b'); head(g, 130, 125, 16, '#d8452b');
+  g.fillStyle = '#d9772e'; const b = art(70, 160); g.fillRect(b.x, b.y, 40 * S, 30 * S);
+  head(g, 172, 212, 38, '#c9361f');
+  const m = mouth || 0; g.fillStyle = '#3a1a14'; g.beginPath(); g.ellipse(MO.x, MO.y, (5 + m * 3) * S * 1.4, (4 + m * 9) * S * 1.4, -0.3, 0, TAU); g.fill();
+}
+const draw = (g, mouth) => drawCard(g, '인디언!', (c) => scene(c, mouth));
+
+function arrow(g, x, y, a, len, col) { // 촉이 (x,y)
+  g.save(); g.translate(x, y); g.rotate(a);
+  g.strokeStyle = col || '#4a3420'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(0, 0); g.lineTo(-len, 0); g.stroke();
+  g.fillStyle = '#2a2420'; g.beginPath(); g.moveTo(2.5, 0); g.lineTo(-2, -2.2); g.lineTo(-2, 2.2); g.closePath(); g.fill();
+  g.fillStyle = '#d8452b'; g.beginPath(); g.moveTo(-len, 0); g.lineTo(-len - 4, -2.6); g.lineTo(-len + 2, 0); g.lineTo(-len - 4, 2.6); g.closePath(); g.fill();
+  g.restore();
+}
+
+// ---------- A: 그림 장면 — 함성이 소리 물결로 판 전체에 ----------
+const A_FEATH = (() => { const r = rng(31); return Array.from({ length: 18 }, () => ({ a: r() * TAU, sp: 60 + r() * 90, d: r() * 0.25, spin: (r() - 0.5) * 8 })); })();
+function A(g, t, q) {
+  const beats = [0.06, 0.28, 0.5];
+  const mouth = Math.max(...beats.map((b) => { const k = seg(t, b - 0.04, b + 0.14); return Math.sin(k * Math.PI); }));
+  g.save(); if (q.on(2)) beats.forEach((b) => { const k = seg(t, b, b + 0.06); if (k > 0 && k < 1) shake(g, (1 - k) * 2, t); });
+  bg(g); draw(g, mouth);
+  // 소리 물결: 입에서 사방으로 번지는 타원 고리. 박자마다 3겹
+  beats.forEach((b, bi) => {
+    for (let j = 0; j < 3; j++) {
+      const k = seg(t, b + j * 0.035, b + j * 0.035 + 0.38); if (k <= 0 || k >= 1) continue;
+      const R = 10 + ease.out(k) * 175; const a = (1 - k) * (bi === 2 ? 1 : 0.8);
+      g.strokeStyle = `rgba(216,69,43,${a})`; g.lineWidth = (3.5 - j) * (1 - k * 0.6);
+      if (q.on(1)) g.setLineDash([10 - j * 2, 4 + j * 2]);
+      g.beginPath(); g.ellipse(MO.x, MO.y, R, R * 0.7, 0, 0, TAU); g.stroke(); g.setLineDash([]);
+    }
+  });
+  // 물결이 닿은 자리가 흔들린다
+  const seatA = Math.min(seg(t, 0, 0.08), 1 - seg(t, 0.85, 1));
+  SEATS.forEach((p) => {
+    const d = Math.hypot((p.x - MO.x), (p.y - MO.y) / 0.7);
+    let jolt = 0; beats.forEach((b) => { const hit = b + Math.max(0, (d - 10) / 175) * 0.2; const k = seg(t, hit, hit + 0.08); if (k > 0 && k < 1) jolt = Math.max(jolt, Math.sin(k * Math.PI)); });
+    g.globalAlpha = seatA; g.fillStyle = jolt > 0.1 ? '#d8452b' : 'rgba(30,20,11,0.55)'; g.strokeStyle = '#c8902f'; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(p.x + jolt * 2, p.y - jolt * 3, 7 + jolt * 2, 0, TAU); g.fill(); g.stroke();
+  });
+  g.globalAlpha = 1;
+  // 깃털이 흩날린다
+  A_FEATH.slice(0, q.n(A_FEATH.length)).forEach((p) => {
+    const k = seg(t, 0.08 + p.d, 0.7 + p.d); if (k <= 0 || k >= 1) return;
+    const fe = art(145, 100); const x = fe.x + Math.cos(p.a) * p.sp * ease.out(k), y = fe.y + Math.sin(p.a) * p.sp * ease.out(k) * 0.7 + k * 20;
+    g.save(); g.translate(x, y); g.rotate(p.spin * k + Math.sin(k * 12) * 0.5); g.globalAlpha = 1 - k;
+    g.fillStyle = '#f3ead6'; g.beginPath(); g.ellipse(0, 0, 1.8, 6, 0, 0, TAU); g.fill();
+    g.fillStyle = '#1e140b'; g.fillRect(-1.8, -6, 3.6, 2);
+    g.restore();
+  });
+  g.restore();
+}
+
+// ---------- B: 3D 화살 빗발 — 하늘에서 원근으로 떨어져 판에 꽂힌다 ----------
+const B_ARR = (() => {
+  const r = rng(77); const out = [];
+  for (let i = 0; i < 42; i++) {
+    const s = SEATS[i % 6]; const near = i < 24; // 앞 24개는 자리 둘레, 나머지는 판 여기저기
+    const tx = near ? s.x + (r() - 0.5) * 26 : 20 + r() * 260, ty = near ? s.y + (r() - 0.5) * 18 : 15 + r() * 180;
+    if (!near && tx > card.x - 6 && tx < card.x + card.w + 6 && ty > card.y - 6 && ty < card.y + card.h + 6) { i--; continue; }
+    out.push({ tx, ty, t0: 0.05 + r() * 0.42, lean: -0.5 + r() * 0.3, drift: 40 + r() * 30 });
+  }
+  return out;
+})();
+function B(g, t, q) {
+  bg(g);
+  const tilt = Math.sin(seg(t, 0.05, 0.8) * Math.PI); // 카드가 뒤로 젖혀졌다 돌아온다
+  const seatA = Math.min(seg(t, 0, 0.08), 1 - seg(t, 0.85, 1));
+  SEATS.forEach((p) => { g.globalAlpha = seatA; g.fillStyle = 'rgba(30,20,11,0.55)'; g.strokeStyle = '#c8902f'; g.lineWidth = 1.5; g.beginPath(); g.arc(p.x, p.y, 7, 0, TAU); g.fill(); g.stroke(); });
+  g.globalAlpha = 1;
+  const arr = B_ARR.slice(0, q.n(B_ARR.length));
+  const fade = 1 - seg(t, 0.82, 1);
+  // 1) 그림자 (판 위)
+  arr.forEach((a) => {
+    const k = seg(t, a.t0, a.t0 + 0.2); if (k <= 0) return;
+    const z = (1 - ease.in(k)) * 110; const sx = a.tx + a.drift * (1 - k) * 0.4, sy = a.ty;
+    const r = 2 + z * 0.06;
+    g.fillStyle = `rgba(0,0,0,${(0.12 + (1 - z / 110) * 0.3) * fade})`;
+    g.beginPath(); g.ellipse(sx, sy, k < 1 ? r * 1.6 : 4, k < 1 ? r * 0.6 : 1.2, 0, 0, TAU); g.fill();
+  });
+  // 2) 카드 (젖혀짐: 위는 좁고 아래는 넓은 사다리꼴을 세로 축소 + 기울임으로 흉내)
+  g.save(); g.translate(CX, card.y + card.h); g.transform(1, 0, -0.12 * tilt, 1 - 0.14 * tilt, 0, 0); g.translate(-CX, -(card.y + card.h));
+  draw(g, 0.3 * tilt);
+  g.restore();
+  // 3) 화살: 높이 z 만큼 위에서, 멀수록 작게 · 꽂힌 뒤 부르르 떤다
+  arr.forEach((a) => {
+    const k = seg(t, a.t0, a.t0 + 0.2); if (k <= 0) return;
+    const z = (1 - ease.in(k)) * 110; const sc = 0.7 + z / 110 * 0.9;
+    const x = a.tx + a.drift * (1 - k) * 0.4, y = a.ty - z;
+    g.globalAlpha = fade;
+    if (k < 1) {
+      arrow(g, x, y, Math.PI / 2 + a.lean * (1 - k) - 0.25, 16 * sc, '#efe2c6');
+    } else {
+      const since = t - (a.t0 + 0.2); const wob = Math.sin(since * 160) * Math.exp(-since * 18) * 0.25;
+      arrow(g, a.tx, a.ty, Math.PI / 2 - 0.35 + a.lean * 0.3 + wob, 12, '#efe2c6');
+      if (q.on(1) && since < 0.08) { g.strokeStyle = `rgba(240,220,180,${1 - since / 0.08})`; g.lineWidth = 1; g.beginPath(); g.ellipse(a.tx, a.ty, 3 + since * 120, 1.5 + since * 50, 0, 0, TAU); g.stroke(); }
+    }
+  });
+  g.globalAlpha = 1;
+}
+
+// ---------- C: 만화 잉크 — 양쪽에서 화살 일제 사격, 와아아! ----------
+const C_VOL = (() => { const r = rng(9); return Array.from({ length: 30 }, (_, i) => ({ side: i % 2 ? 1 : -1, y0: 20 + r() * 170, y1: 20 + r() * 170, h: 30 + r() * 50, t0: 0.05 + Math.floor(i / 10) * 0.18 + r() * 0.06 })); })();
+function C(g, t, q, f) {
+  bg(g, '#f3ead6'); draw(g, Math.sin(seg(t, 0.05, 0.75) * Math.PI));
+  // 일제 사격: 왼쪽·오른쪽에서 포물선으로 반대편을 향한다
+  C_VOL.slice(0, q.n(C_VOL.length)).forEach((v) => {
+    const k = seg(t, v.t0, v.t0 + 0.3); if (k <= 0 || k >= 1) return;
+    const x0 = v.side < 0 ? -10 : W + 10, x1 = v.side < 0 ? W + 10 : -10;
+    const x = lerp(x0, x1, k), y = lerp(v.y0, v.y1, k) - Math.sin(k * Math.PI) * v.h;
+    const dx = x1 - x0, dy = (v.y1 - v.y0) - Math.cos(k * Math.PI) * Math.PI * v.h;
+    const a = Math.atan2(dy, dx);
+    g.strokeStyle = 'rgba(30,20,11,0.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x - Math.cos(a) * 34, y - Math.sin(a) * 34); g.lineTo(x - Math.cos(a) * 18, y - Math.sin(a) * 18); g.stroke();
+    arrow(g, x, y, a, 16, '#1e140b');
+  });
+  // 와아아! 들쭉날쭉 글자
+  const k = seg(t, 0.08, 0.2), out = seg(t, 0.72, 0.9);
+  if (k > 0 && out < 1) {
+    g.save(); g.translate(MO.x + 40, MO.y + 30); g.rotate(-0.18); const s = ease.back(k) * (1 - out) * (1 + Math.sin(t * 60) * 0.03); g.scale(s, s);
+    if (q.on(1)) { g.fillStyle = '#1e140b'; g.beginPath(); for (let i = 0; i < 20; i++) { const a = i * Math.PI / 10; const rr = i % 2 ? 26 : 40 + ((i * 13) % 7); g.lineTo(Math.cos(a) * rr * 1.6, Math.sin(a) * rr * 0.75); } g.closePath(); g.fill(); }
+    g.font = '800 22px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    ['와', '아', '아', '!'].forEach((ch, i) => { const dy = (i % 2 ? -4 : 3) + ((f + i) % 4 < 2 ? 1 : -1); g.lineWidth = 5; g.strokeStyle = '#1e140b'; g.strokeText(ch, -27 + i * 18, dy); g.fillStyle = '#d8452b'; g.fillText(ch, -27 + i * 18, dy); });
+    g.restore();
+  }
+}
+
+// ---------- D: 그림자극 — 말 탄 무리가 판 둘레를 돈다 ----------
+function rider(g, x, y, s, dir, gait) {
+  g.save(); g.translate(x, y); g.scale(s * dir, s);
+  g.fillStyle = '#0d0907';
+  g.beginPath(); g.ellipse(0, 0, 11, 4.5, 0, 0, TAU); g.fill(); // 말 몸
+  g.beginPath(); g.moveTo(8, -2); g.lineTo(15, -9); g.lineTo(18, -8); g.lineTo(11, 1); g.fill(); // 목·머리
+  g.lineWidth = 1.6; g.strokeStyle = '#0d0907';
+  [[-7, 1], [-4, -1], [5, 1], [8, -1]].forEach(([lx, ph]) => { const sw = Math.sin(gait + ph * 1.5) * 3; g.beginPath(); g.moveTo(lx, 3); g.lineTo(lx + sw, 10); g.stroke(); });
+  g.beginPath(); g.moveTo(-11, -1); g.lineTo(-16, 3 + Math.sin(gait) * 2); g.stroke(); // 꼬리
+  g.beginPath(); g.ellipse(1, -8, 2.6, 4.5, -0.2, 0, TAU); g.fill(); // 사람
+  g.beginPath(); g.arc(1.5, -14, 2.4, 0, TAU); g.fill();
+  g.beginPath(); g.moveTo(0, -16); g.lineTo(-2, -23); g.lineTo(0.5, -16.5); g.fill(); // 깃털
+  g.restore();
+}
+function D(g, t, q, f) {
+  const beat = [0.12, 0.34, 0.56].reduce((m, b) => { const k = seg(t, b, b + 0.1); return k > 0 && k < 1 ? Math.max(m, 1 - k) : m; }, 0);
+  const night = Math.sin(seg(t, 0, 1) * Math.PI); // 어둠이 내려왔다 걷힌다
+  bg(g);
+  if (night > 0.01) {
+    g.fillStyle = `rgba(10,6,4,${night * 0.8})`; g.fillRect(0, 0, W, H);
+    if (q.on(1)) { const gr = g.createRadialGradient(CX, CY + 10, 10, CX, CY + 10, 120); gr.addColorStop(0, `rgba(255,150,60,${night * 0.45})`); gr.addColorStop(1, 'rgba(255,120,40,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H); }
+  }
+  // 모닥불빛을 받은 흙길 고리: 그림자가 이 위에 또렷이 선다
+  if (night > 0.01) { g.strokeStyle = `rgba(214,150,80,${night * 0.55})`; g.lineWidth = 34; g.beginPath(); g.ellipse(CX, CY + 14, 118, 74, 0, 0, TAU); g.stroke(); }
+  const n = q.n(8) < 3 ? 3 : q.n(8);
+  const orbit = ease.inOut(seg(t, 0.05, 0.9)) * TAU * 1.2;
+  const vis = Math.min(seg(t, 0.02, 0.15), 1 - seg(t, 0.78, 0.95));
+  const pos = Array.from({ length: n }, (_, i) => { const a = orbit + i / n * TAU; return { a, x: CX + Math.cos(a) * 118, y: CY + 8 + Math.sin(a) * 74, z: Math.sin(a) }; });
+  // 먼 쪽(위) 무리 → 카드 → 가까운 쪽(아래) 무리. 가까울수록 크게
+  const drawR = (p) => {
+    if (vis <= 0) return;
+    g.globalAlpha = vis * (0.75 + p.z * 0.25);
+    if (q.on(1)) { g.fillStyle = 'rgba(120,80,40,0.25)'; g.beginPath(); g.ellipse(p.x - Math.cos(p.a + 1.57) * 6, p.y + 8, 10, 3, 0, 0, TAU); g.fill(); }
+    rider(g, p.x, p.y, 1.15 + p.z * 0.35, -Math.sin(p.a) >= 0 ? 1 : -1, f * 0.6 + p.a * 5);
+    g.globalAlpha = 1;
+  };
+  pos.filter((p) => p.z < 0).forEach(drawR);
+  g.save(); const s = 1 + beat * 0.05; g.translate(CX, CY); g.scale(s, s); g.translate(-CX, -CY); draw(g, beat); g.restore();
+  pos.filter((p) => p.z >= 0).forEach(drawR);
+  // 북소리 박자에 맞춰 판 가장자리 맥박
+  if (beat > 0) { g.strokeStyle = `rgba(216,69,43,${beat * 0.7})`; g.lineWidth = 3 * beat; g.beginPath(); g.ellipse(CX, CY + 8, 140 - beat * 10, 96 - beat * 7, 0, 0, TAU); g.stroke(); }
+}
+
+FxKit.mount({
+  kind: 'indians', title: '인디언! 연출 시안',
+  lead: '그림 속 크게 외치는 얼굴(오른쪽 아래 입)과 화살·말 탄 무리로 "모두가 당한다"를 보인다. 칸을 누르면 다시.',
+  concepts: [
+    { id: 'A', name: 'A. 그림 장면 · 함성 물결', cost: 2, dur: 1800, draw: A,
+      desc: '외치는 입이 세 번 크게 벌어지며 붉은 소리 고리가 판 전체로 번지고, 고리가 닿는 자리마다 들썩이며 깃털이 흩날린다 · 저: 깃털 수 줄고 고리 점선·흔들림 없음' },
+    { id: 'B', name: 'B. 3D 화살 빗발 · 하늘에서 꽂힘', cost: 3, dur: 2000, draw: B,
+      desc: '화살이 높은 데서 원근으로 작아졌다 커지며 떨어지고, 그림자가 다가와 만나는 순간 자리 둘레에 꽂혀 부르르 떤다. 카드는 뒤로 젖혀졌다 돌아옴 · 저: 화살 수 줄고 꽂힐 때 흙먼지 고리 없음' },
+    { id: 'C', name: 'C. 만화 잉크 · 일제 사격', cost: 1, dur: 1600, draw: C,
+      desc: '양쪽 가장자리에서 검은 화살이 포물선으로 세 물결 엇갈려 날고, 입 옆에 들쭉날쭉한 "와아아!"가 튄다 · 저: 화살 수 줄고 말풍선 별 바탕 없음' },
+    { id: 'D', name: 'D. 그림자극 · 판을 도는 무리', cost: 2, dur: 2200, draw: D,
+      desc: '판이 어두워지고 모닥불빛 속에 말 탄 그림자들이 카드 둘레를 원근 순서(뒤는 작게·카드 뒤로)로 돌며, 북 세 번에 카드와 판 가장자리가 맥박 친다 · 저: 불빛·말 그림자 없음, 무리 3기' },
+  ],
+});
+</script></body></html>

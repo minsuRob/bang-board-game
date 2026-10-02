@@ -72,6 +72,18 @@
         "8090"
       ],
       "port": 8090
+    },
+    {
+      "name": "fx-prototypes",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8095",
+        "--directory",
+        "docs/card-fx-prototypes"
+      ],
+      "port": 8095
     }
   ]
 }

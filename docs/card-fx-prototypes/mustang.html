@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>야생마 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389): 그림 칸 (40~210, 95~275). 흰 말이 오른쪽으로 내달리고 사내가 올라탔다.
+  말 몸통 중심 (115,200) 가로 100, 목 (150,185)→(175,140), 머리 (182,140),
+  앞다리 (160~190, 225~258), 뒷다리 (55~95, 225~262), 꼬리 (60,185) 왼쪽.
+  사내 몸 (115~145, 140~190), 모자 (108~152, 102~118). 오른쪽 아래 (180~210, 250~270)에 먼지,
+  위쪽 하늘 (60~200, 100~130)에 바람 줄. 그래서 말이 달려 나가며 멀어지고(거리 +1)
+  발굽에서 먼지가 이는 장면을 노렸다. 장착 카드라 끝에 자리에 붙는다.
+  소리: 다그닥 3박 반복(낮은 나무 두드림) + 짧은 히힝, 끝에 흙 털썩.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const CX = card.x + card.w / 2, CY = card.y + card.h / 2;
+
+// 말 실루엣: 원점은 몸통 중심, 1 = 원본 그림 1px 상당(카드 안에서는 art 비율로 축소)
+function horse(g, x, y, s, ph, col) {
+  g.save(); g.translate(x, y); g.scale(s, s); g.fillStyle = col || '#efe9de'; g.strokeStyle = 'rgba(60,45,30,0.7)'; g.lineWidth = 1.5 / s;
+  const leg = (bx, by, a) => { g.save(); g.translate(bx, by); g.rotate(a); g.fillRect(-3, 0, 6, 34); g.restore(); };
+  const sw = Math.sin(ph) * 0.6;
+  leg(30, 10, -0.5 + sw); leg(40, 8, -0.2 - sw); leg(-30, 10, 0.5 - sw); leg(-40, 8, 0.2 + sw);
+  g.beginPath(); g.ellipse(0, 0, 50, 20, -0.05, 0, 7); g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(32, -8); g.lineTo(58, -56); g.lineTo(74, -50); g.lineTo(50, 4); g.closePath(); g.fill(); g.stroke();
+  g.beginPath(); g.ellipse(70, -58, 14, 7, 0.5, 0, 7); g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(-48, -6); g.quadraticCurveTo(-75, -10 + sw * 10, -80, 20); g.lineWidth = 6 / s; g.strokeStyle = col || '#efe9de'; g.stroke();
+  g.fillStyle = '#7a5a3a'; g.fillRect(2, -52, 22, 40);
+  g.fillStyle = '#5a3d22'; g.fillRect(-6, -60, 38, 5); g.fillRect(4, -72, 18, 12);
+  g.restore();
+}
+function settle(g, k) {
+  if (k <= 0 || k >= 1) return; const p = 3 + ease.out(k) * 14;
+  g.strokeStyle = `rgba(242,193,78,${(1 - k) * 0.85})`; g.lineWidth = 2 * (1 - k) + 0.5;
+  g.beginPath(); g.roundRect(card.x - p, card.y - p, card.w + p * 2, card.h + p * 2, 8 + p); g.stroke();
+}
+const AS = 92 / 250; // 원본 → 시안 배율
+const HB = art(115, 200);
+function inCard(g, ph, alpha) { g.globalAlpha = alpha; horse(g, HB.x, HB.y + Math.abs(Math.sin(ph)) * -2, AS, ph); g.globalAlpha = 1; const d = art(195, 262); g.fillStyle = 'rgba(180,150,110,0.5)'; g.beginPath(); g.arc(d.x, d.y, 5, 0, 7); g.fill(); }
+const DUST = (() => { const r = rng(31); return Array.from({ length: 22 }, () => ({ at: r(), dx: -10 - r() * 20, dy: -4 - r() * 10, r0: 2 + r() * 2, r1: 6 + r() * 8, life: 0.18 + r() * 0.14, tone: r() })); })();
+const STREAK = (() => { const r = rng(3); return Array.from({ length: 16 }, () => ({ y: 20 + r() * 170, l: 30 + r() * 80, v: 1 + r(), d: r() })); })();
+
+FxKit.mount({
+  kind: 'mustang', title: '야생마 연출 시안',
+  lead: '다른 사람이 볼 때 거리 1 멀어짐. 말이 달려 나가며 멀어지고 먼지가 인다. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 그림 밖으로 내달리기', cost: 2, dur: 1900,
+      desc: '카드 속 말이 그림 밖으로 뛰쳐나가 오른쪽 위 지평선으로 작아지며 멀어지고, 발굽 자리마다 흙먼지가 인다. 다시 그림 속으로 돌아와 착 · 저: 먼지 25%, 단색 먼지',
+      draw(g, t, q) {
+        bg(g);
+        const out = seg(t, 0.1, 0.62), back = seg(t, 0.62, 0.86);
+        const ph = t * 40;
+        drawCard(g, '야생마', (g) => inCard(g, ph, out <= 0 ? 1 : back > 0 ? ease.out(back) : 0.15));
+        if (out > 0 && back < 1) {
+          const e = ease.in(out);
+          const x = lerp(HB.x, 290, e), y = lerp(HB.y, 40, e) - Math.abs(Math.sin(ph)) * 4 * (1 - e), s = lerp(AS * 1.1, AS * 0.25, e);
+          const n = q.n(DUST.length);
+          for (let i = 0; i < n; i++) {
+            const p = DUST[i], st = 0.1 + p.at * 0.52, k = seg(t, st, st + p.life); if (k <= 0 || k >= 1) continue;
+            const e0 = ease.in(seg(st, 0.1, 0.62)), bx = lerp(HB.x, 290, e0), by = lerp(HB.y, 40, e0) + 12 * lerp(1, 0.25, e0);
+            const ss = lerp(1, 0.3, e0), dx = bx + p.dx * ease.out(k) * ss, dy = by + p.dy * ease.out(k) * ss, r = lerp(p.r0, p.r1, ease.out(k)) * ss;
+            if (q.on(1)) { const gr = g.createRadialGradient(dx, dy, 0, dx, dy, r); const c = p.tone > 0.5 ? '200,170,125' : '160,130,95'; gr.addColorStop(0, `rgba(${c},${(1 - k) * 0.6})`); gr.addColorStop(1, `rgba(${c},0)`); g.fillStyle = gr; }
+            else g.fillStyle = `rgba(190,160,115,${(1 - k) * 0.5})`;
+            g.beginPath(); g.arc(dx, dy, r, 0, 7); g.fill();
+          }
+          if (back <= 0) horse(g, x, y, s, ph);
+          else { g.globalAlpha = 1 - back; horse(g, x, y, s, ph); g.globalAlpha = 1; }
+          if (out > 0.3 && back <= 0) { g.globalAlpha = seg(out, 0.3, 0.5) * (1 - seg(out, 0.85, 1)); g.fillStyle = '#f2c14e'; g.font = '700 16px sans-serif'; g.textAlign = 'center'; g.fillText('+1', x - 4, y - 30 * s / AS); g.globalAlpha = 1; }
+        }
+        settle(g, seg(t, 0.84, 1));
+      },
+    },
+    {
+      id: 'B', name: 'B. 3D 멀어졌다 돌아오기', cost: 2, dur: 2000,
+      desc: '카드가 테이블에서 들려 원근 길을 따라 지평선 쪽으로 작아지며 멀어지고, 길에 말발굽 자국이 찍힌다. 한 칸 자리를 표시하고 돌아와 쿵 착지 · 저: 발굽 자국 줄임, 착지 먼지 없음',
+      draw(g, t, q) {
+        bg(g);
+        const go = ease.inOut(seg(t, 0.05, 0.42)), ret = ease.in(seg(t, 0.58, 0.86));
+        const d = go * (1 - ret);
+        const road = Math.min(1, d * 3);
+        if (road > 0.01) {
+          g.strokeStyle = `rgba(200,160,100,${0.4 * road})`; g.lineWidth = 1; const hx = 150, hy = 14;
+          [[60, 210], [240, 210], [10, 210], [290, 210]].forEach(([x, y]) => { g.beginPath(); g.moveTo(hx + (x - hx) * 0.05, hy); g.lineTo(x, y); g.stroke(); });
+          const nh = q.on(1) ? 8 : 4;
+          for (let i = 0; i < nh; i++) {
+            const z = i / nh; if (z > d) continue; const y = lerp(195, 30, Math.pow(z, 0.7)), s = lerp(1, 0.3, z), x = 150 + (i % 2 ? 6 : -6) * s;
+            g.fillStyle = `rgba(30,20,11,${0.6 * road})`; g.beginPath(); g.arc(x, y, 3 * s, Math.PI * 0.15, Math.PI * 1.85); g.lineWidth = 1.5 * s; g.strokeStyle = g.fillStyle; g.stroke();
+          }
+          g.setLineDash([3, 3]); g.strokeStyle = `rgba(242,193,78,${0.7 * road})`; g.beginPath(); g.roundRect(card.x, card.y, card.w, card.h, 8); g.stroke(); g.setLineDash([]);
+        }
+        const s = lerp(1, 0.5, d), y = lerp(0, -44, d), bob = Math.abs(Math.sin(t * 30)) * 3 * Math.sin(Math.PI * seg(t, 0.05, 0.86));
+        const lift = 12 * Math.sin(Math.PI * seg(t, 0, 0.9));
+        g.fillStyle = `rgba(0,0,0,${0.3 * (1 - d * 0.5)})`; g.beginPath(); g.ellipse(CX, card.y + card.h + 2 + y * 1.2 + (s - 1) * card.h * 0.3, card.w * 0.5 * s + lift * 0.5, 5 * s, 0, 0, 7); g.fill();
+        g.save(); g.translate(CX, CY + y - lift * s - bob); g.scale(s, s); g.transform(1, 0, 0, 1 - d * 0.15, 0, 0); g.translate(-CX, -CY);
+        drawCard(g, '야생마', (g) => inCard(g, t * 40, 1)); g.restore();
+        if (d > 0.4) { g.globalAlpha = seg(d, 0.4, 0.8); g.fillStyle = '#f2c14e'; g.font = '700 18px sans-serif'; g.textAlign = 'center'; g.fillText('거리 +1', CX, 196); g.globalAlpha = 1; }
+        const lk = seg(t, 0.86, 1);
+        if (lk > 0 && lk < 1) {
+          if (q.on(1)) for (let i = 0; i < 6; i++) { const a = Math.PI + (i / 5) * Math.PI * -1 + Math.PI; const r = 3 + lk * 8; g.fillStyle = `rgba(200,170,125,${(1 - lk) * 0.55})`; g.beginPath(); g.arc(CX + Math.cos(a) * (card.w * 0.5 + lk * 14), card.y + card.h - 2 + Math.sin(a) * 4, r, 0, 7); g.fill(); }
+          settle(g, lk);
+        }
+      },
+    },
+    {
+      id: 'C', name: 'C. 무성영화 질주 필름', cost: 2, dur: 2200,
+      desc: '세피아 화면에 연속 사진처럼 말 실루엣 필름 띠가 가로로 흘러가고, 필름 입자·긁힘이 지나간 뒤 "거리 +1" 자막 카드 · 저: 입자·비네트 없음',
+      draw(g, t, q, f) {
+        const jy = q.on(1) && f % 7 === 0 ? 1.5 : 0; g.save(); g.translate(0, jy);
+        bg(g, '#3a3128');
+        drawCard(g, '야생마', (g) => inCard(g, f * 0.6, 1), { face: '#d9c7a3' });
+        const sk = seg(t, 0.05, 0.62), a = Math.min(1, sk * 5) * (1 - seg(sk, 0.85, 1));
+        if (a > 0) {
+          const y0 = 150, fh = 46, fw = 58, off = -sk * fw * 6;
+          g.globalAlpha = a; g.fillStyle = '#14100c'; g.fillRect(0, y0, W, fh);
+          g.fillStyle = '#d9c7a3'; for (let x = (off % 12) - 12; x < W; x += 12) { g.fillRect(x, y0 + 3, 6, 4); g.fillRect(x, y0 + fh - 7, 6, 4); }
+          for (let i = 0; i < 12; i++) {
+            const x = off + i * fw + W * 0.9; if (x < -fw || x > W) continue;
+            g.fillStyle = '#c4b08a'; g.fillRect(x + 3, y0 + 9, fw - 6, fh - 18);
+            horse(g, x + fw / 2 - 2, y0 + fh / 2, 0.18, i * 1.05, '#2a2018');
+          }
+          g.globalAlpha = 1;
+        }
+        const ck = seg(t, 0.64, 0.95);
+        if (ck > 0 && ck < 1) {
+          const ca = Math.min(1, ck * 4) * (ck > 0.8 ? (1 - ck) / 0.2 : 1);
+          g.fillStyle = `rgba(12,10,8,${ca * 0.92})`; g.fillRect(50, 70, 200, 72); g.strokeStyle = `rgba(230,220,200,${ca})`; g.lineWidth = 1.5; g.strokeRect(57, 77, 186, 58);
+          g.fillStyle = `rgba(240,232,214,${ca})`; g.font = '500 22px serif'; g.textAlign = 'center'; g.fillText('멀리, 더 멀리', 150, 104); g.font = '500 13px serif'; g.fillText('거리 +1', 150, 124);
+        }
+        g.restore();
+        const life = 1 - seg(t, 0.92, 1);
+        if (q.on(1) && life > 0) {
+          const r = rng(f * 13 + 1), n = q.n(260); g.fillStyle = `rgba(20,16,12,${0.5 * life})`; for (let i = 0; i < n; i++) g.fillRect(r() * W, r() * H, 1, 1);
+          g.fillStyle = `rgba(255,250,240,${0.25 * life})`; for (let i = 0; i < n / 3; i++) g.fillRect(r() * W, r() * H, 1, 1);
+          if (r() > 0.5) { g.strokeStyle = `rgba(240,230,210,${0.35 * life})`; g.lineWidth = 1; const x = r() * W; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + r() * 4 - 2, H); g.stroke(); }
+          if (q.on(2)) { const v = g.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.7); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(0,0,0,${0.6 * life})`); g.fillStyle = v; g.fillRect(0, 0, W, H); }
+        }
+      },
+    },
+    {
+      id: 'D', name: 'D. 만화 잉크 다그닥', cost: 1, dur: 1500,
+      desc: '종이 톤에 가로 속도선이 쏟아지고 카드가 말처럼 껑충껑충 흔들린다. 뒤로 잉크 테두리 흙구름, "다그닥!" 글씨, 양옆으로 밀어내는 화살표 · 저: 속도선 줄임',
+      draw(g, t, q) {
+        bg(g, '#f3ead6');
+        const run = Math.sin(Math.PI * seg(t, 0, 0.85));
+        const n = q.n(STREAK.length);
+        g.strokeStyle = '#1e140b'; g.lineWidth = 1.5;
+        for (let i = 0; i < n; i++) {
+          const s = STREAK[i], k = seg(t, s.d * 0.3, 0.85); if (k <= 0 || k >= 1) continue;
+          const x = W - ((k * s.v * 600) % (W + s.l)); g.globalAlpha = run; g.beginPath(); g.moveTo(x, s.y); g.lineTo(x + s.l, s.y); g.stroke();
+        }
+        g.globalAlpha = 1;
+        [[60, 168, 16, 0.1], [36, 150, 12, 0.22], [72, 140, 10, 0.34], [30, 175, 14, 0.46]].forEach(([x, y, r, d]) => {
+          const k = seg(t, d, d + 0.4); if (k <= 0 || k >= 1) return; const e = ease.out(k);
+          g.globalAlpha = 1 - k * k; g.fillStyle = '#fffaf0'; g.strokeStyle = '#1e140b'; g.lineWidth = 2;
+          g.beginPath(); g.arc(x - e * 20, y - e * 6, r * (0.4 + e), 0, 7); g.fill(); g.stroke();
+        });
+        g.globalAlpha = 1;
+        const hop = Math.abs(Math.sin(t * 22)) * 7 * run, tilt = Math.sin(t * 22) * 0.06 * run;
+        g.save(); g.translate(CX, card.y + card.h); g.rotate(tilt); g.translate(-CX, -(card.y + card.h) - hop);
+        drawCard(g, '야생마', (g) => inCard(g, t * 40, 1)); g.restore();
+        const tk = seg(t, 0.08, 0.7);
+        if (tk > 0 && tk < 1) {
+          g.save(); g.translate(236, 44 + Math.sin(t * 44) * 2); g.rotate(0.12); const s = tk < 0.12 ? 1.6 - tk * 5 : 1; g.scale(s, s); g.globalAlpha = tk > 0.8 ? (1 - tk) / 0.2 : 1;
+          g.font = '800 22px sans-serif'; g.textAlign = 'center'; g.lineJoin = 'round'; g.lineWidth = 6; g.strokeStyle = '#1e140b'; g.strokeText('다그닥!', 0, 0); g.fillStyle = '#f2c14e'; g.fillText('다그닥!', 0, 0); g.restore();
+        }
+        const ak = seg(t, 0.55, 0.92);
+        if (ak > 0 && ak < 1) {
+          const e = ease.out(ak), a = Math.sin(ak * Math.PI); g.fillStyle = `rgba(179,38,30,${a})`; g.strokeStyle = `rgba(30,20,11,${a})`; g.lineWidth = 2;
+          [-1, 1].forEach((sd) => { const x = CX + sd * (card.w / 2 + 10 + e * 26); g.beginPath(); g.moveTo(x + sd * 12, CY); g.lineTo(x, CY - 9); g.lineTo(x, CY - 4); g.lineTo(x - sd * 10, CY - 4); g.lineTo(x - sd * 10, CY + 4); g.lineTo(x, CY + 4); g.lineTo(x, CY + 9); g.closePath(); g.fill(); g.stroke(); });
+          g.fillStyle = `rgba(30,20,11,${a})`; g.font = '700 14px sans-serif'; g.textAlign = 'center'; g.fillText('+1', CX + card.w / 2 + 22 + e * 26, CY - 14);
+        }
+      },
+    },
+  ],
+});
+</script></body></html>

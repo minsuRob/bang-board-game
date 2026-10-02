@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>토마호크 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389)
+  - 그림 칸은 대략 y 88~268. 바탕 전체가 붉은 역마차 옆판(진한 줄무늬 판자)
+  - 왼쪽 위 창문 x 28~132, y 92~152 에서 모자 쓴 사내가 놀라 내다본다 (얼굴 x 80, y 126)
+  - 토마호크 머리(날 붙은 쪽)가 x 98, y 146. 회색 날이 왼쪽 아래 x 60~105, y 150~215 로 늘어진다
+  - 자루는 거기서 오른쪽 아래 x 206, y 250 까지 비스듬히 박혀 있다. 자루 중간에 파란 띠, 깃털 장식
+  - 오른쪽 아래 x 190~240, y 220~268 에 마차 바퀴 일부. 아래 기호 칸: 뱅! 횟수 안 씀, 거리 2
+  노린 것: 그림 속 박힌 도끼가 빠져나와 빙글빙글 돌며 표적 한 명에게 날아가 '탁' 박히는 것.
+  소리 아이디어: 휘-휘-휘 도는 바람 소리(주기 짧아짐) → 나무에 박히는 '탁' + 짧은 진동음.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const TX = 266, TY = 44; // 거리 2 안의 표적
+const env = (t, a, b, c, d) => seg(t, a, b) * (1 - seg(t, c, d));
+
+function P(g, pts, fill) { g.fillStyle = fill; g.beginPath(); pts.forEach(([px, py], i) => { const p = art(px, py); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); g.fill(); }
+function seat(g, x, y, a, label) {
+  if (a <= 0.01) return;
+  g.save(); g.globalAlpha = Math.min(1, a);
+  g.fillStyle = '#2a1d12'; g.strokeStyle = '#c8902f'; g.lineWidth = 1.5;
+  g.beginPath(); g.arc(x, y, 12, 0, 7); g.fill(); g.stroke();
+  g.fillStyle = '#c8902f';
+  g.beginPath(); g.arc(x, y - 3, 3.4, 0, 7); g.fill();
+  g.beginPath(); g.ellipse(x, y + 7, 6.5, 5, 0, Math.PI, Math.PI * 2); g.fill();
+  if (label) { g.font = '500 9px sans-serif'; g.textAlign = 'center'; g.fillStyle = '#e8d6b0'; g.fillText(label, x, y + 24); }
+  g.restore();
+}
+
+// 도끼 한 자루: 지역 좌표에서 자루는 +x 로 0~53, 날은 머리에서 +y 로 늘어진다. (12,6) 이 무게중심
+function axeLocal(g, style) {
+  const ink = style === 'ink', flat = style === 'flat';
+  g.lineCap = 'round';
+  if (ink) { g.strokeStyle = '#1e140b'; g.lineWidth = 5.5; g.beginPath(); g.moveTo(-2, 0); g.lineTo(53, 0); g.stroke(); }
+  g.strokeStyle = flat ? '#efe2c6' : '#7a4b2a'; g.lineWidth = 3.2; g.beginPath(); g.moveTo(-2, 0); g.lineTo(53, 0); g.stroke();
+  if (!flat) { g.strokeStyle = '#3d7fb3'; g.lineWidth = 3.4; g.beginPath(); g.moveTo(16, 0); g.lineTo(20, 0); g.stroke(); }
+  g.beginPath(); g.moveTo(-3, -2.5); g.lineTo(6, -2.5); g.lineTo(11, 17); g.quadraticCurveTo(1, 22, -9, 19); g.closePath();
+  g.fillStyle = flat ? '#efe2c6' : '#a9b0b5'; g.fill();
+  g.strokeStyle = ink ? '#1e140b' : '#5d646a'; g.lineWidth = ink ? 2 : 1; g.stroke();
+  if (!flat) { g.fillStyle = '#efe2c6'; g.beginPath(); g.ellipse(34, 5, 1.6, 4.5, 0.2, 0, 7); g.fill(); g.fillStyle = '#b3261e'; g.beginPath(); g.ellipse(38, 5, 1.4, 4, 0.1, 0, 7); g.fill(); }
+}
+function drawAxe(g, x, y, rot, s, style, flipY) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(s, s * (flipY == null ? 1 : flipY)); g.translate(-12, -6); axeLocal(g, style); g.restore();
+}
+const HEAD = art(98, 146), TAIL = art(206, 250);
+const ANG0 = Math.atan2(TAIL.y - HEAD.y, TAIL.x - HEAD.x);
+const HOME = { x: HEAD.x + Math.cos(ANG0) * 12 - Math.sin(ANG0) * 6, y: HEAD.y + Math.sin(ANG0) * 12 + Math.cos(ANG0) * 6 };
+
+function body(g, o) {
+  o = o || {};
+  const a = art(0, 88), b = art(250, 268);
+  g.fillStyle = '#b8473b'; g.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+  g.strokeStyle = '#94352b'; g.lineWidth = 1;
+  for (let py = 160; py < 268; py += 22) { const p = art(0, py); g.beginPath(); g.moveTo(a.x, p.y); g.lineTo(b.x, p.y); g.stroke(); }
+  P(g, [[28, 92], [132, 92], [132, 152], [28, 152]], '#3a2418');
+  const fc = art(80, 128); g.fillStyle = '#e6b98f'; g.beginPath(); g.arc(fc.x, fc.y, 8, 0, 7); g.fill();
+  P(g, [[50, 112], [62, 100], [100, 100], [112, 112]], '#7a5a3a');
+  const w = art(215, 250); g.strokeStyle = '#6b4a2e'; g.lineWidth = 3; g.beginPath(); g.arc(w.x, w.y, 11, Math.PI * 1.05, Math.PI * 1.8); g.stroke();
+  const al = o.axeAlpha == null ? 1 : o.axeAlpha;
+  if (al < 1) { g.save(); g.globalAlpha = 0.35 * (1 - al); g.setLineDash([2, 2]); g.strokeStyle = '#efe2c6'; g.lineWidth = 1; g.beginPath(); g.moveTo(HEAD.x, HEAD.y); g.lineTo(TAIL.x, TAIL.y); g.stroke(); g.restore(); }
+  if (al > 0) { g.save(); g.globalAlpha = al; drawAxe(g, HOME.x, HOME.y, ANG0, 1, 'real'); g.restore(); }
+}
+const cardDraw = (g, o) => drawCard(g, '토마호크', (gg) => body(gg, o));
+const quad = (p0, c, p1, k) => ({ x: (1 - k) * (1 - k) * p0.x + 2 * (1 - k) * k * c.x + k * k * p1.x, y: (1 - k) * (1 - k) * p0.y + 2 * (1 - k) * k * c.y + k * k * p1.y });
+
+const CHIPS = (() => { const r = rng(17); return Array.from({ length: 14 }, () => { const a = Math.PI * (0.6 + r() * 1.1); const s = 30 + r() * 50; return { vx: Math.cos(a) * s, vy: Math.sin(a) * s, rot: r() * 6, w: 2 + r() * 3 }; }); })();
+const FEATHERS = [{ dx: -10, sway: 1.0, ph: 0, fall: 70, col: '#efe2c6' }, { dx: 6, sway: 0.8, ph: 2, fall: 58, col: '#b3261e' }, { dx: -2, sway: 1.2, ph: 4, fall: 82, col: '#efe2c6' }];
+
+FxKit.mount({
+  kind: 'tomahawk',
+  title: '토마호크 연출 시안',
+  lead: '거리 2 안의 한 명에게 던지는 뱅!. 그림 속 박힌 도끼가 빠져나와 회전하며 표적에게 날아간다. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 그림 속 도끼가 빠져나감', cost: 2, dur: 1900,
+      desc: '마차 판자에 박힌 도끼가 뒤로 젖혀졌다가 빙글빙글 돌며 포물선으로 표적에 날아가 탁 박힌다. 나무 부스러기가 튀고, 끝에 카드 속 도끼가 제자리로 돌아온다 · 저: 잔상 1개, 부스러기 1/4, 흔들림 없음',
+      draw(g, t, q) {
+        bg(g);
+        const hitK = seg(t, 0.56, 0.66);
+        g.save();
+        if (q.on(2) && hitK > 0 && hitK < 1) shake(g, (1 - hitK) * 2.5, t);
+        const back = ease.out(seg(t, 0.72, 0.92));
+        cardDraw(g, { axeAlpha: t < 0.1 ? 0 : back });
+        // 젖히기 (0~0.12) → 비행 (0.12~0.56) → 박힘 (0.56~0.78) → 사라짐
+        const C = { x: 220, y: -20 }, T = { x: TX - 8, y: TY + 4 };
+        const pose = (tt) => {
+          if (tt < 0.12) { const k = ease.out(seg(tt, 0, 0.12)); return { x: HOME.x - 4 * k, y: HOME.y - 6 * k, r: ANG0 - 0.6 * k, s: 1 + 0.15 * k }; }
+          if (tt < 0.56) { const k = seg(tt, 0.12, 0.56); const p = quad(HOME, C, T, ease.inOut(k) * 0.4 + k * 0.6); return { x: p.x, y: p.y, r: ANG0 - 0.6 - k * Math.PI * 2 * 4.5, s: lerp(1.15, 0.8, k) }; }
+          return { x: T.x, y: T.y, r: ANG0 - 0.6 - Math.PI * 9, s: 0.8 };
+        };
+        seat(g, TX, TY, env(t, 0.05, 0.2, 0.78, 0.92), '표적');
+        const fa = 1 - seg(t, 0.74, 0.86);
+        if (fa > 0) {
+          if (t > 0.12 && t < 0.56) {
+            const n = q.on(1) ? 4 : 1;
+            for (let i = n; i >= 1; i--) { const p = pose(t - i * 0.018); g.save(); g.globalAlpha = 0.18 * (1 - i / (n + 1)); drawAxe(g, p.x, p.y, p.r, p.s, 'real'); g.restore(); }
+          }
+          const p = pose(t);
+          const wob = hitK > 0 && hitK < 1 ? Math.sin(hitK * 30) * 0.12 * (1 - hitK) : 0;
+          g.save(); g.globalAlpha = fa; drawAxe(g, p.x, p.y, p.r + wob, p.s, 'real'); g.restore();
+        }
+        if (hitK > 0 && hitK < 1) {
+          CHIPS.slice(0, q.n(14)).forEach((c) => {
+            const k = ease.out(hitK);
+            g.save(); g.translate(T.x + c.vx * k * 0.6, T.y + c.vy * k * 0.6 + 30 * hitK * hitK); g.rotate(c.rot + hitK * 8);
+            g.fillStyle = `rgba(214,170,110,${1 - hitK})`; g.fillRect(-c.w / 2, -1, c.w, 2); g.restore();
+          });
+          g.strokeStyle = `rgba(255,236,190,${1 - hitK})`; g.lineWidth = 1.5;
+          for (let i = 0; i < 6; i++) { const an = i * 1.05 + 0.3, r0 = 8 + hitK * 6, r1 = r0 + 7; g.beginPath(); g.moveTo(T.x + Math.cos(an) * r0, T.y + Math.sin(an) * r0); g.lineTo(T.x + Math.cos(an) * r1, T.y + Math.sin(an) * r1); g.stroke(); }
+        }
+        g.restore();
+      },
+    },
+    {
+      id: 'B', name: 'B. 깊이로 날아가는 도끼 (3D)', cost: 3, dur: 2100,
+      desc: '카드가 들리고 도끼가 먼저 화면 쪽으로 크게 휘둘러졌다가, 원근 바닥 위를 앞뒤로 공중제비 돌며 소실점(표적)으로 작아져 간다. 바닥에 그림자가 따라가고 먼 곳에서 먼지가 퍽 · 저: 원근 격자·그림자 흐림 없음',
+      draw(g, t, q) {
+        bg(g);
+        const VP = { x: TX, y: TY };
+        const lift = ease.out(seg(t, 0, 0.16)) * (1 - ease.inOut(seg(t, 0.8, 1)));
+        const fl = env(t, 0.05, 0.2, 0.75, 0.92);
+        if (q.on(1) && fl > 0) {
+          g.strokeStyle = `rgba(232,214,176,${0.16 * fl})`; g.lineWidth = 1;
+          for (let i = -4; i <= 4; i++) { g.beginPath(); g.moveTo(VP.x, VP.y + 6); g.lineTo(150 + i * 60, H + 10); g.stroke(); }
+          for (let j = 1; j <= 5; j++) { const z = Math.pow(j / 6, 1.8); const y = lerp(VP.y + 6, H + 10, z); g.beginPath(); g.moveTo(lerp(VP.x, -90, z), y); g.lineTo(lerp(VP.x, 390, z), y); g.stroke(); }
+        }
+        seat(g, VP.x, VP.y - 4, fl, '표적');
+        const cx = card.x + card.w / 2, cy = card.y + card.h / 2;
+        g.save();
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.roundRect(card.x + 4 + 8 * lift, card.y + 5 + 10 * lift, card.w, card.h, 9); g.fill();
+        g.translate(cx, cy); g.transform(1, 0, -0.06 * lift, 1 - 0.08 * lift, 0, 0); g.scale(1 + 0.08 * lift, 1 + 0.08 * lift); g.translate(-cx, -cy);
+        cardDraw(g, { axeAlpha: t < 0.08 ? 1 : ease.out(seg(t, 0.75, 0.92)) });
+        g.restore();
+        // 비행: 0.08~0.2 화면 쪽으로 커짐(z<0) → 0.2~0.62 소실점으로
+        let x, y, s, flip, z;
+        if (t < 0.08) return;
+        if (t < 0.2) { const k = ease.out(seg(t, 0.08, 0.2)); x = lerp(HOME.x, 150, k); y = lerp(HOME.y, 150, k); s = lerp(1, 1.9, k); flip = Math.cos(k * Math.PI); z = 0; }
+        else if (t < 0.62) { const k = seg(t, 0.2, 0.62); z = ease.in(k) * 0.6 + k * 0.4; x = lerp(150, VP.x, z); y = lerp(150, VP.y, z) - Math.sin(z * Math.PI) * 18; s = lerp(1.9, 0.15, Math.sqrt(z)); flip = Math.cos(Math.PI + k * Math.PI * 7); }
+        else z = 1;
+        if (t < 0.62) {
+          // 바닥 그림자: 높이(포물선)만큼 아래
+          const gy = lerp(205, VP.y + 8, z), gx = lerp(150, VP.x, z);
+          g.save(); g.globalAlpha = 0.35 * fl;
+          if (q.on(2)) g.filter = 'blur(2px)';
+          g.fillStyle = '#000'; g.beginPath(); g.ellipse(gx, gy, 22 * s, 4 * s, 0, 0, 7); g.fill();
+          g.restore();
+          drawAxe(g, x, y, -0.4 + t * 2, s, 'real', flip);
+        }
+        const im = seg(t, 0.62, 0.8);
+        if (im > 0 && im < 1) {
+          g.fillStyle = `rgba(232,214,176,${(1 - im) * 0.7})`;
+          for (let i = 0; i < q.n(8); i++) { const an = Math.PI + (i / 7) * Math.PI; g.beginPath(); g.arc(VP.x + Math.cos(an) * 14 * im, VP.y + 8 + Math.sin(an) * 5 * im, 2 + 3 * im, 0, 7); g.fill(); }
+        }
+      },
+    },
+    {
+      id: 'C', name: 'C. 만화 잉크 휙휙', cost: 1, dur: 1500,
+      desc: '잉크 선 도끼가 카드 위에서 두 바퀴 휘두르며 굵은 초승달 바람선을 남기고 "휙휙", 속도선을 끌고 날아가 표적에 별 모양으로 "퍽!" · 저: 그대로(가벼움)',
+      draw(g, t) {
+        bg(g, '#f3ead6'); cardDraw(g);
+        const a = 1 - seg(t, 0.82, 0.95);
+        if (a <= 0) return;
+        const O = { x: 150, y: 30 }, T = { x: TX - 6, y: TY + 2 };
+        const wind = seg(t, 0, 0.3), fly = seg(t, 0.3, 0.55);
+        let x = O.x, y = O.y, r = -wind * Math.PI * 4;
+        if (fly > 0) { const e = ease.in(fly); x = lerp(O.x, T.x, e); y = lerp(O.y, T.y, e) - Math.sin(fly * Math.PI) * 6; r = -Math.PI * 4 - fly * Math.PI * 3; }
+        g.save(); g.globalAlpha = a;
+        if (wind > 0 && wind < 1) {
+          g.strokeStyle = '#1e140b'; g.lineCap = 'round';
+          for (let i = 0; i < 3; i++) { g.lineWidth = 3 - i; g.beginPath(); g.arc(O.x, O.y, 26 + i * 6, r - 0.2 + i * 0.3, r + 1.4 - i * 0.2); g.stroke(); }
+          const tk = Math.min(1, wind * 4);
+          g.font = '800 14px sans-serif'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = '#1e140b'; g.fillStyle = '#f2c14e';
+          g.save(); g.translate(O.x - 50, O.y + 6); g.rotate(-0.2); g.scale(tk, tk); g.strokeText('휙휙', 0, 0); g.fillText('휙휙', 0, 0); g.restore();
+        }
+        if (fly > 0 && fly < 1) {
+          g.strokeStyle = '#1e140b'; g.lineCap = 'round';
+          [-6, 0, 6].forEach((o, i) => { g.lineWidth = i === 1 ? 2 : 1; const k0 = Math.max(0, fly - 0.4); g.beginPath(); g.moveTo(lerp(O.x, T.x, k0), lerp(O.y, T.y, k0) + o); g.lineTo(x - 12, y + o * 0.5); g.stroke(); });
+        }
+        if (t < 0.6) drawAxe(g, x, y, r, 1.1, 'ink');
+        const hit = seg(t, 0.55, 0.8);
+        if (hit > 0) {
+          const s = hit < 0.25 ? 0.4 + hit * 3.2 : 1.2 - (hit - 0.25) * 0.3;
+          g.save(); g.translate(T.x, T.y); g.scale(s, s);
+          g.beginPath(); for (let i = 0; i < 18; i++) { const an = i * Math.PI / 9; const rr = i % 2 ? 9 : 20 + (i % 3) * 3; g.lineTo(Math.cos(an) * rr, Math.sin(an) * rr * 0.8); } g.closePath();
+          g.fillStyle = '#f2c14e'; g.fill(); g.strokeStyle = '#1e140b'; g.lineWidth = 2.5; g.stroke();
+          g.restore();
+          drawAxe(g, T.x - 4, T.y + 4, -Math.PI * 7 + 0.3 + Math.sin(hit * 30) * 0.1 * (1 - hit), 1.1, 'ink');
+          g.save(); g.translate(T.x - 16, T.y + 36); g.rotate(-0.15); g.scale(Math.min(1, hit * 5), Math.min(1, hit * 5));
+          g.font = '800 20px sans-serif'; g.textAlign = 'center'; g.lineWidth = 5; g.strokeStyle = '#1e140b'; g.strokeText('퍽!', 0, 0); g.fillStyle = '#b3261e'; g.fillText('퍽!', 0, 0); g.restore();
+        }
+        g.restore();
+      },
+    },
+    {
+      id: 'D', name: 'D. 점선 궤적과 흩날리는 깃털', cost: 2, dur: 2000,
+      desc: '카드에서 표적까지 점선 포물선이 먼저 그려지고 거리 눈금 1·2 가 켜진다. 흰 실루엣 도끼가 점선을 타고 돌며 날아가고, 자루의 깃털이 떨어져 천천히 흔들리며 내려앉는다 · 저: 깃털 1개, 회전 잔상 없음',
+      draw(g, t, q) {
+        bg(g);
+        cardDraw(g, { axeAlpha: t < 0.2 ? 1 : ease.out(seg(t, 0.72, 0.9)) });
+        const a = 1 - seg(t, 0.8, 0.95);
+        if (a <= 0) return;
+        const O = HOME, C = { x: 214, y: -18 }, T = { x: TX, y: TY };
+        const dk = ease.out(seg(t, 0, 0.2));
+        g.save(); g.globalAlpha = a;
+        g.strokeStyle = 'rgba(239,226,198,0.75)'; g.lineWidth = 1.4; g.setLineDash([3, 4]); g.lineDashOffset = -t * 40;
+        g.beginPath(); for (let i = 0; i <= 40; i++) { const k = (i / 40) * dk; const p = quad(O, C, T, k); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); } g.stroke(); g.setLineDash([]);
+        const fk = seg(t, 0.2, 0.55);
+        [0.5, 1].forEach((m, i) => {
+          const p = quad(O, C, T, m * 0.97); const on = fk >= m * 0.97;
+          const vis = seg(t, 0.08 + i * 0.06, 0.16 + i * 0.06);
+          g.globalAlpha = a * vis;
+          g.fillStyle = on ? '#f2c14e' : '#2a1d12'; g.strokeStyle = '#f2c14e'; g.lineWidth = 1.2;
+          g.beginPath(); g.arc(p.x, p.y - (i ? 20 : 0), 7, 0, 7); g.fill(); g.stroke();
+          g.fillStyle = on ? '#2a1d12' : '#f2c14e'; g.font = '600 9px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(i + 1), p.x, p.y - (i ? 20 : 0) + 0.5);
+        });
+        g.globalAlpha = a; g.textBaseline = 'alphabetic';
+        seat(g, T.x, T.y + 6, a * seg(t, 0.05, 0.2) * (fk >= 1 ? 1 : 0.6), '');
+        if (fk > 0 && fk < 1) {
+          const p = quad(O, C, T, fk);
+          if (q.on(1)) for (let i = 1; i <= 3; i++) { const pp = quad(O, C, T, Math.max(0, fk - i * 0.035)); g.strokeStyle = `rgba(239,226,198,${0.4 / i})`; g.lineWidth = 1.5; g.beginPath(); g.arc(pp.x, pp.y, 14, -fk * 40 - i * 0.6, -fk * 40 - i * 0.6 + 1.2); g.stroke(); }
+          drawAxe(g, p.x, p.y, -fk * 40, 0.85, 'flat');
+        }
+        if (fk >= 1 && t < 0.8) drawAxe(g, T.x - 6, T.y + 2, -0.7, 0.85, 'flat');
+        // 깃털: 출발 순간 자루에서 떨어져 흔들리며 내려온다
+        const fs = art(150, 200);
+        FEATHERS.slice(0, q.on(1) ? 3 : 1).forEach((f) => {
+          const k = seg(t, 0.2, 0.95); if (k <= 0) return;
+          const x = fs.x + f.dx + Math.sin(f.ph + k * 9) * 10 * f.sway, y = fs.y + k * f.fall;
+          g.save(); g.globalAlpha = a * (1 - seg(t, 0.75, 0.95)); g.translate(x, y); g.rotate(Math.sin(f.ph + k * 9) * 0.7);
+          g.fillStyle = f.col; g.beginPath(); g.ellipse(0, 0, 2.2, 7, 0, 0, 7); g.fill();
+          g.strokeStyle = 'rgba(30,20,11,0.5)'; g.lineWidth = 0.6; g.beginPath(); g.moveTo(0, -7); g.lineTo(0, 8); g.stroke();
+          g.restore();
+        });
+        g.restore();
+      },
+    },
+  ],
+});
+</script></body></html>

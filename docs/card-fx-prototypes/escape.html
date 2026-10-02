@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>탈출 연출 시안</title>
+<!--
+  원본 그림 메모 (assets/cards/card/escape.png, 250×389)
+  - 그림 칸: (45,95)~(205,255). 하늘색 바탕, 양옆 건물이 바깥으로 기울어 있다(어안 렌즈 같은 원근)
+    왼쪽 건물 (45~80, 108~240), 오른쪽 건물 (171~205, 104~200)
+  - 가운데 남자가 먼지 구름 위로 뛰어오른다. 머리 (115,118), 모자 (110,98), 팔 벌림 (75,135)~(170,130)
+    다리 (100~150, 180~235). 먼지 구름 (70~185, 150~255)
+  - 오른쪽에서 총알 세 발 (150~175, 125~150), 왼쪽에서 칼 (60~70, 140~150)이 남자를 향해 날아온다
+  노린 것: "날아오던 효과가 빈자리를 지나간다". 그림 속 남자가 구름을 박차고 빠져나가고,
+  총알이 그 자리를 뚫고 지나간 뒤 남자가 돌아오는 장면을 살린다(A). 연기(B)·잔상(C)·창문(D)은 다른 해석.
+  소리: 짧은 휙(밴드패스 노이즈 상승 스윕) + 먼지 퍽(저역 노이즈 버스트). A·B 는 총알이 지나갈 때 먼 휘잉.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const TAU = Math.PI * 2, CX = card.x + card.w / 2, CY = card.y + card.h / 2;
+function circ(g, x, y, r) { g.beginPath(); g.arc(x, y, Math.max(0, r), 0, TAU); }
+function poly(g, pts, fill) { g.beginPath(); pts.forEach(([px, py], i) => { const p = art(px, py); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); g.fillStyle = fill; g.fill(); }
+const CLOUD = [[88, 215, 22], [112, 228, 26], [142, 222, 24], [165, 205, 18], [78, 195, 15], [128, 196, 20], [103, 243, 17], [152, 242, 16]];
+const HOME = art(115, 118);
+
+/** 그림 속 남자. (x,y) = 머리 */
+function man(g, x, y, s, alpha, ink) {
+  g.save(); g.translate(x, y); g.scale(s, s); g.globalAlpha *= alpha; g.lineCap = 'round';
+  g.strokeStyle = ink || '#3d5a85'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, 12); g.lineTo(-4, 29); g.moveTo(1, 12); g.lineTo(8, 26); g.stroke();
+  g.strokeStyle = ink || '#c98a5a'; g.lineWidth = 2; g.beginPath(); g.moveTo(-2, 6); g.lineTo(-12, -1); g.moveTo(2, 6); g.lineTo(11, 3); g.stroke();
+  g.fillStyle = ink || '#c98a5a'; g.beginPath(); g.roundRect(-4, 3.5, 8, 10, 2); g.fill();
+  g.fillStyle = ink || '#f0c9a0'; circ(g, 0, 0, 3.6); g.fill();
+  g.fillStyle = ink || '#8a5a30'; g.beginPath(); g.ellipse(-1, -4.5, 6.5, 1.8, -0.2, 0, TAU); g.fill(); g.beginPath(); g.ellipse(-1, -6, 3.2, 2.6, -0.2, 0, TAU); g.fill();
+  g.restore();
+}
+/** 카드 안 그림 흉내. o.man=false 면 남자를 빼고 그린다 */
+function scene(g, o) {
+  o = o || {};
+  const a = art(45, 95), b = art(205, 255);
+  g.fillStyle = '#d6e7ee'; g.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+  poly(g, [[45, 108], [78, 125], [82, 235], [48, 240]], '#a07a55');
+  poly(g, [[205, 104], [176, 124], [171, 200], [205, 196]], '#a07a55');
+  g.fillStyle = '#ece0c8'; CLOUD.forEach(([px, py, r]) => { const p = art(px, py); circ(g, p.x, p.y, r * 0.36); g.fill(); });
+  if (o.man !== false) man(g, HOME.x, HOME.y, 1, 1);
+}
+function bullet(g, x, y, a, len) {
+  g.save(); g.globalAlpha = a; g.strokeStyle = 'rgba(255,240,200,.85)'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x, y); g.lineTo(x + len, y); g.stroke();
+  g.fillStyle = '#b8862f'; g.beginPath(); g.ellipse(x, y, 3.5, 1.6, 0, 0, TAU); g.fill(); g.restore();
+}
+const face = (g) => scene(g);
+
+// ----- A 표 -----
+const DUST = (() => { const r = rng(7); return Array.from({ length: 24 }, () => ({ a: -Math.PI * (0.05 + 0.9 * r()), s: 16 + r() * 34, r: 1.5 + r() * 3.5 })); })();
+function dustBurst(g, x, y, k, n) {
+  if (k <= 0 || k >= 1) return;
+  const e = ease.out(k);
+  g.fillStyle = `rgba(232,218,190,${(1 - k) * 0.85})`;
+  for (let i = 0; i < n; i++) { const d = DUST[i]; circ(g, x + Math.cos(d.a) * d.s * e, y + Math.sin(d.a) * d.s * e * 0.55, d.r * (1 + k)); g.fill(); }
+}
+// ----- B 표 -----
+const PUFF = (() => { const r = rng(21); return Array.from({ length: 30 }, () => ({ a: r() * TAU, d: 8 + r() * 58, r: 12 + r() * 16, dl: r() * 0.12, spin: (r() - 0.5) * 0.6 })); })();
+// ----- D 표 -----
+const SHARD = (() => { const r = rng(33); return Array.from({ length: 18 }, () => ({ a: r() * TAU, s: 0.4 + r() * 0.8, sz: 2 + r() * 4, rot: r() * 6, dl: r() * 0.08 })); })();
+
+FxKit.mount({
+  kind: 'escape',
+  title: '탈출 연출 시안',
+  lead: '나를 겨눈 갈색 카드 효과를 빠져나간다. 칸을 누르면 다시 본다. 원본 그림: 먼지 구름을 박차고 뛰어오르는 남자, 날아오는 총알과 칼.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 구름 박차고 뛰기', cost: 2, dur: 1700,
+      desc: '그림 속 남자가 먼지 구름을 박차고 카드 위로 솟구치고, 총알 세 발이 빈자리를 뚫고 지나간 뒤 제자리로 떨어진다 · 저: 먼지·속도선 줄임',
+      draw(g, t, q) {
+        bg(g);
+        const up = ease.out(seg(t, 0.1, 0.4)), down = ease.in(seg(t, 0.52, 0.8));
+        const off = up * (1 - down), away = t > 0.1 && t < 0.8;
+        drawCard(g, '탈출', (g) => scene(g, { man: !away }));
+        if (away) { g.save(); g.setLineDash([2, 2]); g.strokeStyle = 'rgba(70,45,20,.55)'; g.lineWidth = 1; g.beginPath(); g.ellipse(HOME.x + 1, HOME.y + 13, 10, 17, 0, 0, TAU); g.stroke(); g.restore(); }
+        const bk = seg(t, 0.2, 0.55);
+        if (bk > 0 && bk < 1) for (let i = 0; i < 3; i++) bullet(g, lerp(W + 20, -40, bk) + i * 18, HOME.y + 5 + i * 7, 1 - seg(bk, 0.85, 1), 26);
+        dustBurst(g, HOME.x, HOME.y + 30, seg(t, 0.1, 0.48), q.n(24));
+        dustBurst(g, HOME.x, HOME.y + 30, seg(t, 0.78, 1), q.n(14));
+        if (away) {
+          const y = HOME.y - off * 60, s = 1 + off * 0.7;
+          if (q.on(1) && t < 0.45) { const v = 1 - seg(t, 0.25, 0.45); g.strokeStyle = `rgba(255,250,235,${v * 0.7})`; g.lineWidth = 1; for (let i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(HOME.x + i * 5, y + 30 * s); g.lineTo(HOME.x + i * 5, y + 30 * s + 22 * v); g.stroke(); } }
+          man(g, HOME.x + off * 5, y, s, 1);
+        }
+      },
+    },
+    {
+      id: 'B', name: 'B. 연막 속으로', cost: 3, dur: 1900,
+      desc: '먼지 연막이 터져 카드를 덮고, 날아든 갈색 카드가 빈 연기만 가르고 지나간다. 연기가 걷히면 카드가 옆에 비켜나 있다가 돌아온다 · 저: 연기 그라데이션 없이 납작한 원, 섬광 없음',
+      draw(g, t, q) {
+        bg(g);
+        const slide = ease.inOut(seg(t, 0.22, 0.38)) * (1 - ease.inOut(seg(t, 0.66, 0.92)));
+        g.save(); g.translate(-62 * slide, 4 * slide); g.rotate(-0.06 * slide); drawCard(g, '탈출', face); g.restore();
+        // 날아든 갈색 카드 (적의 효과)
+        const fk = seg(t, 0.36, 0.62);
+        if (fk > 0 && fk < 1) {
+          g.save(); g.translate(lerp(W + 20, -30, fk), CY - 6 + Math.sin(fk * 6) * 3); g.rotate(fk * 7);
+          g.fillStyle = '#7a4a22'; g.strokeStyle = '#2a1608'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(-9, -13, 18, 26, 2); g.fill(); g.stroke(); g.restore();
+        }
+        const o = art(115, 215);
+        const n = q.n(30);
+        for (let i = 0; i < n; i++) {
+          const p = PUFF[i];
+          const k = seg(t, 0.02 + p.dl * 0.5, 0.3 + p.dl), fade = 1 - seg(t, 0.5 + p.dl, 0.86 + p.dl * 0.5);
+          const a = 0.85 * Math.min(1, k * 3) * fade; if (a <= 0.01) continue;
+          const e = ease.out(k), ang = p.a + p.spin * t;
+          const x = o.x + Math.cos(ang) * p.d * e, y = o.y - 10 + Math.sin(ang) * p.d * e * 0.75 - t * 14, r = p.r * (0.4 + 0.8 * e);
+          if (q.on(1)) { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(230,220,200,${a})`); gr.addColorStop(1, 'rgba(230,220,200,0)'); g.fillStyle = gr; }
+          else g.fillStyle = `rgba(222,210,188,${a * 0.75})`;
+          circ(g, x, y, r); g.fill();
+        }
+        const fl = seg(t, 0.02, 0.1);
+        if (q.on(2) && fl > 0 && fl < 1) { g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = `rgba(255,240,210,${(1 - fl) * 0.6})`; circ(g, o.x, o.y - 6, 10 + fl * 30); g.fill(); g.restore(); }
+      },
+    },
+    {
+      id: 'C', name: 'C. 잉크 잔상 휙!', cost: 1, dur: 1400,
+      desc: '빨간 조준선이 카드를 조이는 순간 카드가 "휙!" 옆으로 빠지며 잉크 잔상을 남기고, 조준선은 빈자리를 친다 · 저: 잔상 1개만',
+      draw(g, t, q) {
+        bg(g);
+        const zip = ease.out(seg(t, 0.24, 0.34)), back = ease.inOut(seg(t, 0.62, 0.9));
+        const dx = -74 * zip * (1 - back);
+        // 잔상: 테두리만
+        const ghosts = q.on(1) ? 3 : 1, ga = 1 - seg(t, 0.34, 0.55);
+        if (zip > 0 && ga > 0) for (let i = 1; i <= ghosts; i++) {
+          const gx = dx * (1 - i / (ghosts + 1));
+          g.save(); g.strokeStyle = `rgba(20,12,6,${ga * (0.7 - i * 0.15)})`; g.lineWidth = 2; g.beginPath(); g.roundRect(card.x + gx, card.y, card.w, card.h, 8); g.stroke(); g.restore();
+        }
+        // 속도선
+        if (zip > 0 && ga > 0) { g.strokeStyle = `rgba(20,12,6,${ga})`; g.lineWidth = 2; g.lineCap = 'round'; [30, 60, 95, 120].forEach((yy, i) => { g.beginPath(); g.moveTo(card.x + card.w + dx + 6, card.y + yy); g.lineTo(card.x + card.w + dx + 30 + i * 8, card.y + yy); g.stroke(); }); }
+        g.save(); g.translate(dx, 0); drawCard(g, '탈출', face); g.restore();
+        // 조준선
+        const lock = ease.out(seg(t, 0, 0.26)), hit = seg(t, 0.34, 0.5), fade = 1 - seg(t, 0.5, 0.7);
+        if (fade > 0) {
+          const r = lerp(70, 20, lock) - 6 * Math.sin(hit * Math.PI);
+          g.save(); g.translate(CX, CY); g.rotate((1 - lock) * 1.5); g.globalAlpha = fade;
+          g.strokeStyle = '#c0281c'; g.lineWidth = 2.5; circ(g, 0, 0, r); g.stroke();
+          for (let i = 0; i < 4; i++) { g.rotate(Math.PI / 2); g.beginPath(); g.moveTo(r - 6, 0); g.lineTo(r + 8, 0); g.stroke(); }
+          if (hit > 0) { g.lineWidth = 3; g.beginPath(); g.moveTo(-8, -8); g.lineTo(8, 8); g.moveTo(8, -8); g.lineTo(-8, 8); g.stroke(); }
+          g.restore();
+        }
+        // 휙!
+        const wk = seg(t, 0.26, 0.6);
+        if (wk > 0 && wk < 1) {
+          g.save(); g.globalAlpha = 1 - seg(wk, 0.7, 1); g.translate(card.x + dx - 6, card.y + 24); g.rotate(-0.15); g.scale(0.6 + 0.4 * ease.back(Math.min(1, wk * 3)), 0.6 + 0.4 * ease.back(Math.min(1, wk * 3)));
+          g.font = '900 22px sans-serif'; g.textAlign = 'right'; g.lineWidth = 5; g.strokeStyle = '#140c06'; g.fillStyle = '#f2c14e'; g.strokeText('휙!', 0, 0); g.fillText('휙!', 0, 0); g.restore();
+        }
+      },
+    },
+    {
+      id: 'D', name: 'D. 덧문 열고 뛰어내리기 (3D)', cost: 2, dur: 1800,
+      desc: '카드가 테이블에서 들리며 두 짝 덧문처럼 앞으로 열리고, 안쪽 창에서 남자가 유리 조각과 함께 화면 쪽으로 뛰쳐나온다. 덧문이 닫히며 내려앉는다 · 저: 유리 조각 줄임, 창 안 불빛 납작하게',
+      draw(g, t, q) {
+        bg(g);
+        const L = ease.out(seg(t, 0, 0.15)) * (1 - ease.in(seg(t, 0.84, 1)));
+        const open = ease.inOut(seg(t, 0.15, 0.34)) * (1 - ease.inOut(seg(t, 0.62, 0.82)));
+        const ang = open * Math.PI / 2 * 0.82, c = Math.cos(ang), s = Math.sin(ang);
+        // 그림자
+        g.fillStyle = `rgba(0,0,0,${0.25 + 0.2 * L})`; g.beginPath(); g.roundRect(card.x + 7 * L, card.y + 10 * L, card.w, card.h, 8); g.fill();
+        g.save(); g.translate(CX, CY - 5 * L); g.scale(1 + 0.06 * L, 1 + 0.06 * L); g.translate(-CX, -CY);
+        if (open > 0.001) {
+          // 창 안
+          g.fillStyle = '#1a120a'; g.beginPath(); g.roundRect(card.x, card.y, card.w, card.h, 8); g.fill();
+          if (q.on(1)) { const gr = g.createRadialGradient(CX, CY, 4, CX, CY, 60); gr.addColorStop(0, `rgba(255,200,110,${0.8 * open})`); gr.addColorStop(1, 'rgba(255,200,110,0)'); g.fillStyle = gr; }
+          else g.fillStyle = `rgba(230,170,90,${0.5 * open})`;
+          g.fillRect(card.x, card.y, card.w, card.h);
+          g.strokeStyle = '#5a3a1c'; g.lineWidth = 2; g.beginPath(); g.moveTo(CX, card.y + 8); g.lineTo(CX, card.y + card.h - 8); g.moveTo(card.x + 8, CY); g.lineTo(card.x + card.w - 8, CY); g.stroke();
+        }
+        const half = (hx, dir) => {
+          g.save(); g.translate(hx, CY); g.transform(c, -dir * s * 0.2, 0, 1, 0, 0); g.translate(-hx, -CY);
+          g.beginPath(); g.rect(dir > 0 ? card.x - 2 : CX, card.y - 4, card.w / 2 + 2, card.h + 8); g.clip();
+          drawCard(g, '탈출', face);
+          if (open > 0) { g.fillStyle = `rgba(20,10,0,${s * 0.45})`; g.fillRect(card.x - 2, card.y - 4, card.w + 4, card.h + 8); }
+          g.restore();
+        };
+        half(card.x, 1); half(card.x + card.w, -1);
+        g.restore();
+        // 뛰쳐나오는 남자 + 유리 조각 (화면 쪽으로 커진다)
+        const jk = seg(t, 0.26, 0.62);
+        if (jk > 0 && jk < 1) {
+          const n = q.n(18);
+          for (let i = 0; i < n; i++) {
+            const p = SHARD[i], k = seg(jk, p.dl, 1), z = 1 + k * 2.2, d = k * 70 * p.s;
+            g.save(); g.translate(CX + Math.cos(p.a) * d, CY + Math.sin(p.a) * d * 0.8 + k * k * 30); g.rotate(p.rot + k * 6); g.scale(z, z);
+            g.fillStyle = `rgba(200,230,240,${(1 - k) * 0.9})`; g.beginPath(); g.moveTo(0, -p.sz); g.lineTo(p.sz * 0.7, p.sz * 0.6); g.lineTo(-p.sz * 0.6, p.sz * 0.4); g.closePath(); g.fill(); g.restore();
+          }
+          const e = ease.in(jk);
+          man(g, CX + e * 30, CY - 14 + e * 26 - Math.sin(jk * Math.PI) * 18, 0.7 + e * 2.6, 1 - seg(jk, 0.65, 1));
+        }
+      },
+    },
+  ],
+});
+</script></body></html>

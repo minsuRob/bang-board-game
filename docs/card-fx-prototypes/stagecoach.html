@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>역마차 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389)
+  - 흐린 수채 하늘 y 90~200, 해(달) 동그라미 (125,140) 반지름 ≈20, 구름 (80~120,110~150)
+  - 포장마차 덮개 x 65~130, y 175~230 (흰 회녹색 천)
+  - 바퀴 두 개 (55,235) (105,240) 반지름 ≈12, 앞에 말 x 130~200, y 205~245, 땅 y 245~260
+  → 카드 2장 배달. 마차가 달리며 먼지를 일으키고 카드가 날아와 손(화면 아래)에 들어오는 흐름.
+  소리: 말발굽 '다그닥' 네 번 + 바퀴 덜컹 + 카드 두 장 '착 착' (gen-sfx: 짧은 저역 펄스 + 종이 스침 노이즈)
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+
+const HAND = [{ x: 140, y: 196, r: -0.16 }, { x: 160, y: 196, r: 0.16 }];
+/** 작은 카드. flip 은 -1~1 (cos 값). 음수면 앞면 */
+function miniCard(g, x, y, rot, s, flip, a) {
+  if (a <= 0) return;
+  const f = flip == null ? 1 : flip;
+  g.save(); g.globalAlpha *= a; g.translate(x, y); g.rotate(rot); g.scale(s * Math.max(0.04, Math.abs(f)), s);
+  g.beginPath(); g.roundRect(-9, -13, 18, 26, 2.5);
+  if (f >= 0) { g.fillStyle = '#7a2a22'; g.fill(); g.strokeStyle = '#f0dcb4'; g.lineWidth = 1; g.stroke(); g.strokeStyle = 'rgba(240,220,180,0.6)'; g.beginPath(); g.roundRect(-6, -10, 12, 20, 1.5); g.stroke(); }
+  else { g.fillStyle = '#efe2c6'; g.fill(); g.strokeStyle = '#8b5a2b'; g.lineWidth = 1; g.stroke(); g.fillStyle = '#1e140b'; g.fillRect(-8, -12, 16, 4); }
+  g.restore();
+}
+/** 손에 쥔 카드 자리 (흐리게) */
+function handHint(g, a) {
+  if (a <= 0) return;
+  g.save(); g.globalAlpha = a * 0.5;
+  [-0.32, 0, 0.32].forEach((r, i) => miniCard(g, 150 + (i - 1) * 16, 210, r, 1, 1, 1));
+  g.restore();
+}
+function wheel(g, x, y, r, ang) {
+  g.strokeStyle = '#4e3c2a'; g.lineWidth = 1.2; g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke();
+  g.lineWidth = 0.8; for (let i = 0; i < 6; i++) { const a = ang + i * Math.PI / 3; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); g.stroke(); }
+  g.fillStyle = '#4e3c2a'; g.beginPath(); g.arc(x, y, r * 0.18, 0, 7); g.fill();
+}
+/** 마차 + 말. (dx,dy) 흔들림, spin 바퀴 각 */
+function coach(g, dx, dy, spin, sil) {
+  const c0 = art(65, 175), c1 = art(130, 230), w1 = art(55, 235), w2 = art(105, 240);
+  g.save(); g.translate(dx, dy);
+  // 말
+  const h0 = art(135, 208), h1 = art(200, 242);
+  g.fillStyle = sil || '#8b6b4c';
+  g.beginPath(); g.ellipse((h0.x + h1.x) / 2, (h0.y + h1.y) / 2 + 1, (h1.x - h0.x) / 2, 4.5, 0, 0, 7); g.fill();
+  g.beginPath(); g.moveTo(h1.x - 6, h0.y + 4); g.lineTo(h1.x + 2, h0.y - 3); g.lineTo(h1.x + 5, h0.y + 1); g.lineTo(h1.x - 2, h0.y + 8); g.closePath(); g.fill();
+  g.strokeStyle = sil || '#6b4f36'; g.lineWidth = 1.4; const leg = Math.sin(spin * 2) * 3;
+  [[h0.x + 4, leg], [h0.x + 10, -leg], [h1.x - 8, -leg], [h1.x - 3, leg]].forEach(([x, l]) => { g.beginPath(); g.moveTo(x, h1.y - 4); g.lineTo(x + l, h1.y + 4); g.stroke(); });
+  // 차체 + 덮개
+  g.fillStyle = sil || '#6e5a44'; g.fillRect(c0.x, c1.y - 8, c1.x - c0.x + 4, 7);
+  g.fillStyle = sil || '#dfe5dc'; g.beginPath(); g.moveTo(c0.x, c1.y - 8); g.lineTo(c0.x - 2, c0.y + 4); g.quadraticCurveTo((c0.x + c1.x) / 2, c0.y - 4, c1.x + 2, c0.y + 4); g.lineTo(c1.x, c1.y - 8); g.closePath(); g.fill();
+  if (!sil) { g.strokeStyle = 'rgba(90,100,90,0.5)'; g.lineWidth = 0.7; for (let i = 1; i < 4; i++) { const x = lerp(c0.x, c1.x, i / 4); g.beginPath(); g.moveTo(x, c0.y + 1); g.lineTo(x, c1.y - 8); g.stroke(); } }
+  g.restore();
+  g.save(); g.translate(dx, 0);
+  if (sil) { g.strokeStyle = sil; }
+  wheel(g, w1.x, w1.y, 4.6, spin); wheel(g, w2.x, w2.y, 4.6, spin + 0.4);
+  g.restore();
+}
+function coachArt(g, o) {
+  o = o || {};
+  const sky = o.sky || '#d6e2e4';
+  g.fillStyle = sky; g.fillRect(card.x, card.y, card.w, card.h);
+  const s = art(125, 140); g.fillStyle = o.sun || '#f4f1e6'; g.beginPath(); g.arc(s.x, s.y, 7.5, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,255,255,0.7)'; [[85, 125], [190, 150]].forEach(([px, py]) => { const p = art(px, py); g.beginPath(); g.arc(p.x, p.y, 5, 0, 7); g.arc(p.x + 6, p.y + 1, 4, 0, 7); g.fill(); });
+  const gr = art(0, 245); g.fillStyle = o.ground || '#cdc3a6'; g.fillRect(card.x, gr.y, card.w, card.h);
+  if (o.lines != null) { g.strokeStyle = 'rgba(120,100,70,0.5)'; g.lineWidth = 0.8; for (let i = 0; i < 5; i++) { const x = card.x + ((i * 23 + o.lines) % (card.w + 10)) - 5; g.beginPath(); g.moveTo(x, gr.y + 4 + (i % 2) * 5); g.lineTo(x + 8, gr.y + 4 + (i % 2) * 5); g.stroke(); } }
+  if (!o.noCoach) coach(g, o.dx || 0, o.dy || 0, o.spin || 0);
+}
+
+// ---- A. 달리는 역마차 -------------------------------------------------
+const DUST = (() => { const r = rng(12); return Array.from({ length: 30 }, () => ({ d: r() * 0.55, vx: -30 - r() * 60, vy: -6 - r() * 16, r: 3 + r() * 5, tone: r() })); })();
+function drawA(g, t, q) {
+  bg(g);
+  const run = Math.sin(seg(t, 0, 0.85) * Math.PI), sp = t * 60;
+  const bob = Math.abs(Math.sin(t * 38)) * -1.6 * run;
+  if (q.on(2)) { g.save(); shake(g, 0.6 * run, t); }
+  drawCard(g, '역마차', (g) => coachArt(g, { dx: 3 * run, dy: bob, spin: sp, lines: t * 400 }));
+  if (q.on(2)) g.restore();
+  // 먼지: 뒷바퀴에서 왼쪽 뒤로
+  const wb = art(55, 245);
+  DUST.slice(0, q.n(30)).forEach((p) => {
+    const k = seg(t, 0.05 + p.d, 0.5 + p.d); if (k <= 0 || k >= 1) return;
+    const e = ease.out(k), x = wb.x + p.vx * e, y = wb.y + p.vy * e, r = p.r * (0.5 + e);
+    if (q.on(1)) { const gr = g.createRadialGradient(x, y, 0, x, y, r); const c = p.tone > 0.5 ? '205,185,150' : '170,150,120'; gr.addColorStop(0, `rgba(${c},${(1 - k) * 0.7})`); gr.addColorStop(1, `rgba(${c},0)`); g.fillStyle = gr; }
+    else g.fillStyle = `rgba(190,170,135,${(1 - k) * 0.6})`;
+    g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  });
+  // 덮개 위에서 카드 두 장이 튀어 올라 손으로
+  handHint(g, Math.sin(seg(t, 0.3, 1) * Math.PI));
+  const top = art(98, 172);
+  [0, 1].forEach((i) => {
+    const k = seg(t, 0.3 + i * 0.1, 0.78 + i * 0.1); if (k <= 0) return;
+    const e = ease.inOut(k), hd = HAND[i];
+    const x = lerp(top.x, hd.x, e) + Math.sin(e * Math.PI) * (i ? 40 : -40), y = lerp(top.y, hd.y, e) - Math.sin(e * Math.PI) * 55;
+    const rot = lerp(0, hd.r, e) + Math.sin(e * Math.PI) * (i ? 1.2 : -1.2);
+    miniCard(g, x, y, rot, 1 + 0.25 * Math.sin(e * Math.PI), Math.cos(e * Math.PI * 2), 1 - seg(t, 0.9 + i * 0.03, 1));
+  });
+}
+
+// ---- B. 굴러오는 바퀴와 3D 배달 ----------------------------------------
+function drawB(g, t, q) {
+  bg(g);
+  // 카드가 Y 축으로 살짝 돌며(원근) 들린다
+  const tilt = Math.sin(seg(t, 0, 0.9) * Math.PI);
+  const cx = card.x + card.w / 2, cy = card.y + card.h / 2;
+  g.save(); g.globalAlpha = 0.4 * tilt; g.fillStyle = '#100803'; g.beginPath(); g.ellipse(cx + 8 * tilt, cy + 12 * tilt, card.w * 0.5, card.h * 0.5, 0, 0, 7); g.fill(); g.restore();
+  g.save(); g.translate(cx, cy); g.transform(1 - 0.18 * tilt, 0.12 * tilt, 0, 1, 0, -6 * tilt); g.translate(-cx, -cy);
+  drawCard(g, '역마차', (g) => coachArt(g, { spin: t * 30 }));
+  if (q.on(1)) { const gr = g.createLinearGradient(card.x, 0, card.x + card.w, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, `rgba(0,0,0,${0.28 * tilt})`); g.fillStyle = gr; g.fillRect(card.x, card.y, card.w, card.h); }
+  g.restore();
+  // 앞쪽에서 큰 바퀴가 가로질러 굴러간다 (원근 타원)
+  const wk = seg(t, 0.02, 0.45);
+  if (wk > 0 && wk < 1) {
+    const x = lerp(-60, W + 60, ease.inOut(wk)), y = 168, R = 46, ang = wk * 14;
+    g.save(); g.translate(x, y); g.scale(0.42, 1);
+    g.strokeStyle = '#5a3b1f'; g.lineWidth = 6; g.beginPath(); g.arc(0, 0, R, 0, 7); g.stroke();
+    g.strokeStyle = '#8a5f35'; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, R - 4, 0, 7); g.stroke();
+    g.lineWidth = 3; for (let i = 0; i < 8; i++) { const a = ang + i * Math.PI / 4; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * (R - 4), Math.sin(a) * (R - 4)); g.stroke(); }
+    g.fillStyle = '#3e2810'; g.beginPath(); g.arc(0, 0, 7, 0, 7); g.fill();
+    g.restore();
+    if (q.on(1)) { g.fillStyle = 'rgba(200,180,140,0.35)'; for (let i = 0; i < q.n(10); i++) { const k = (i / 10); g.beginPath(); g.arc(x - 20 - i * 9, y + 36 - k * 14 + Math.sin(i) * 4, 5 + i * 0.8, 0, 7); g.fill(); } }
+  }
+  // 카드 두 장이 카드 앞면에서 뽑혀 나와 앞으로(커지며) 뒤집히고 손으로
+  handHint(g, Math.sin(seg(t, 0.35, 1) * Math.PI));
+  [0, 1].forEach((i) => {
+    const k = seg(t, 0.38 + i * 0.12, 0.85 + i * 0.07); if (k <= 0) return;
+    const e = ease.inOut(k), hd = HAND[i], z = Math.sin(e * Math.PI);
+    const x = lerp(cx + (i ? 8 : -8), hd.x, e), y = lerp(cy, hd.y, e) - z * 30;
+    if (q.on(1) && z > 0.05) { g.fillStyle = `rgba(10,6,2,${0.3 * z})`; g.beginPath(); g.ellipse(x + 10 * z, y + 18 * z + 10, 10 * (1 + z), 4 * (1 + z), 0, 0, 7); g.fill(); }
+    miniCard(g, x, y, lerp(0, hd.r, e) + z * 0.3 * (i ? 1 : -1), 1 + 0.9 * z, Math.cos(e * Math.PI * 2), 1 - seg(t, 0.92 + i * 0.03, 1));
+  });
+}
+
+// ---- C. 무성영화 실루엣 ------------------------------------------------
+function drawC(g, t, q, f) {
+  const jy = q.on(1) && f % 11 === 0 ? 1.5 : 0;
+  g.save(); g.translate(0, jy);
+  bg(g, '#2a2219');
+  const sep = Math.sin(seg(t, 0, 1) * Math.PI);
+  drawCard(g, '역마차', (g) => coachArt(g, { noCoach: sep > 0.15, sky: '#e7dcc2', ground: '#b9a782' }));
+  // 커다란 해 + 지평선 띠 (카드 밖까지)
+  if (sep > 0) {
+    g.fillStyle = `rgba(238,220,180,${0.85 * sep})`; g.beginPath(); g.arc(150, 92, 52, 0, 7); g.fill();
+    g.fillStyle = `rgba(40,30,20,${0.85 * sep})`; g.fillRect(0, 122, W, 3);
+  }
+  // 실루엣 마차가 해를 가로지른다
+  const rk = seg(t, 0.06, 0.66);
+  if (rk > 0 && rk < 1) {
+    const dx = lerp(-200, 210, rk), bob = Math.abs(Math.sin(t * 40)) * -1.5;
+    g.save(); g.translate(0, 122 - art(0, 245).y); g.globalAlpha = sep; coach(g, dx, bob, t * 60, '#1a120a'); g.restore();
+    // 먼지 실루엣
+    for (let i = 0; i < q.n(10); i++) { const x = art(55, 0).x + dx - 8 - i * 7, y = 118 - (i % 3) * 3; g.fillStyle = `rgba(40,30,20,${0.35 * (1 - i / 10) * sep})`; g.beginPath(); g.arc(x, y, 3 + i * 0.6, 0, 7); g.fill(); }
+  }
+  // 카드 두 장이 마차에서 떨어져 내려와 손으로
+  [0, 1].forEach((i) => {
+    const k = seg(t, 0.4 + i * 0.1, 0.82 + i * 0.06); if (k <= 0) return;
+    const e = ease.inOut(k), hd = HAND[i], sx = 120 + i * 40;
+    miniCard(g, lerp(sx, hd.x, e), lerp(118, hd.y, e) - Math.sin(e * Math.PI) * 26, lerp(i ? 0.6 : -0.6, hd.r, e), 1.2, Math.cos(e * Math.PI), 1 - seg(t, 0.9, 1));
+  });
+  g.restore();
+  g.fillStyle = `rgba(112,82,44,${0.4 * sep})`; g.fillRect(0, 0, W, H);
+  if (sep > 0.02) {
+    const r = rng(f * 7 + 3);
+    g.fillStyle = `rgba(20,16,12,${0.5 * sep})`; for (let i = 0; i < q.n(220); i++) g.fillRect(r() * W, r() * H, 1, 1);
+    g.fillStyle = `rgba(255,250,240,${0.22 * sep})`; for (let i = 0; i < q.n(60); i++) g.fillRect(r() * W, r() * H, 1, 1);
+    if (q.on(1) && r() > 0.55) { g.strokeStyle = `rgba(240,230,210,${0.3 * sep})`; g.lineWidth = 1; const x = r() * W; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + r() * 4 - 2, H); g.stroke(); }
+    if (q.on(1)) { const v = g.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.7); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(0,0,0,${0.6 * sep})`); g.fillStyle = v; g.fillRect(0, 0, W, H); }
+  }
+}
+
+// ---- D. 배달 경로 (미니멀) ---------------------------------------------
+function drawD(g, t, q) {
+  bg(g);
+  drawCard(g, '역마차', (g) => coachArt(g));
+  const show = seg(t, 0, 0.1) * (1 - seg(t, 0.86, 1)); if (show <= 0) return;
+  // 경로: 왼쪽 덱 → 카드 아래를 돌아 → 손
+  const P = (k) => { const a = Math.PI * (1 - k); return { x: 150 + Math.cos(a) * 118, y: 150 + Math.sin(a) * 40 + k * k * 30 }; };
+  g.save(); g.globalAlpha = show; g.setLineDash([3, 4]); g.strokeStyle = 'rgba(243,231,206,0.45)'; g.lineWidth = 1.5;
+  g.beginPath(); for (let i = 0; i <= 20; i++) { const p = P(i / 20 * 0.5); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); } g.stroke(); g.setLineDash([]);
+  // 덱
+  const d0 = P(0); for (let i = 2; i >= 0; i--) miniCard(g, d0.x - i * 1.2, d0.y - 14 - i * 1.2, 0, 1, 1, 1);
+  g.restore();
+  // 마차 아이콘이 경로를 따라 이동하며 카드를 떨군다
+  const mk = ease.inOut(seg(t, 0.08, 0.6)), mp = P(mk * 0.5);
+  if (mk < 1) {
+    g.save(); g.globalAlpha = show; g.translate(mp.x, mp.y - 6);
+    g.fillStyle = '#f3e7ce'; g.beginPath(); g.roundRect(-9, -6, 14, 8, 3); g.fill(); g.fillRect(5, -3, 6, 4);
+    g.fillStyle = '#2e2013'; g.beginPath(); g.arc(-5, 3, 2.3, 0, 7); g.arc(3, 3, 2.3, 0, 7); g.fill(); g.restore();
+  }
+  [0, 1].forEach((i) => {
+    const k = seg(t, 0.3 + i * 0.16, 0.6 + i * 0.16); if (k <= 0) return;
+    const from = P((0.3 + i * 0.16 - 0.08) / 0.52 * 0.5), hd = HAND[i], e = ease.out(k);
+    miniCard(g, lerp(from.x, hd.x, e), lerp(from.y - 12, hd.y, e), lerp(0, hd.r, e), 1, 1, show);
+  });
+  // 카운터 +2
+  const n = (t > 0.6 ? 1 : 0) + (t > 0.76 ? 1 : 0);
+  if (n > 0) {
+    const pk = seg(t, n === 1 ? 0.6 : 0.76, (n === 1 ? 0.6 : 0.76) + 0.08);
+    g.save(); g.globalAlpha = show; g.fillStyle = '#c8902f'; g.beginPath(); g.roundRect(180, 182, 30, 18, 9); g.fill();
+    g.fillStyle = '#1b120b'; g.font = '700 12px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.save(); g.translate(195, 191.5); g.scale(1 + 0.25 * Math.sin(pk * Math.PI), 1 + 0.25 * Math.sin(pk * Math.PI)); g.fillText('+' + n, 0, 0); g.restore(); g.restore();
+  }
+}
+
+FxKit.mount({
+  kind: 'stagecoach', title: '역마차 연출 시안',
+  lead: '덱에서 카드 2장을 가져온다. 카드가 날아와 손(화면 아래)에 들어오는 흐름. 칸을 누르면 다시 본다.',
+  concepts: [
+    { id: 'A', name: 'A. 달리는 역마차', cost: 2, dur: 1800, draw: drawA,
+      desc: '그림 속 마차가 덜컹이며 달리고 바퀴살이 돌고 땅이 흐른다. 뒷바퀴에서 먼지가 뒤로 일고, 덮개 위에서 카드 두 장이 튀어 올라 뒤집히며 손으로 들어간다 · 저: 먼지 1/4 단색, 흔들림 없음' },
+    { id: 'B', name: 'B. 굴러오는 바퀴 (3D)', cost: 3, dur: 1800, draw: drawB,
+      desc: '카드가 옆으로 돌며 들리고, 화면 앞을 커다란 바퀴가 원근 타원으로 굴러 지나간다. 카드 두 장이 카메라 쪽으로 커지며 뒤집히다 그림자와 함께 손에 내려앉는다 · 저: 카드 음영·바퀴 먼지·날아가는 그림자 없음' },
+    { id: 'C', name: 'C. 무성영화 실루엣', cost: 2, dur: 2000, draw: drawC,
+      desc: '세피아 화면에 큰 해와 지평선이 깔리고, 검은 실루엣 역마차가 해를 가로질러 달린다. 지나간 자리에서 카드 두 장이 떨어져 손으로 · 저: 입자 1/4, 긁힘·비네트·흔들림 없음' },
+    { id: 'D', name: 'D. 배달 경로', cost: 1, dur: 1500, draw: drawD,
+      desc: '왼쪽 덱에서 점선 길이 손까지 이어지고, 작은 마차 아이콘이 길을 따라가며 카드 두 장을 차례로 떨군다. 손 옆 카운터가 +1, +2 로 오른다 · 저: 그대로 (원래 가벼움)' },
+  ],
+});
+</script></body></html>

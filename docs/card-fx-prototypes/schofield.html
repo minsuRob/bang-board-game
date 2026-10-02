@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>스코필드 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389): 꺾어 여는(브레이크 톱) 리볼버가 왼쪽 아래 손잡이 → 오른쪽 위 총구로 놓였다.
+  총구 (178,113) · 총열 (100~178, 106~165) · 실린더 (88~128, 138~182, 가운데 108,160)
+  · 공이치기 (72~90, 147~162) · 방아쇠울 (115,200) · 손잡이 (66~100, 198~258) · 사정거리 동그라미 "2" (125,308)
+  꺾임 축은 실린더 앞 아래 (128,180) 쯤. 그래서 "총을 꺾어 여는 장전" 과 "실린더" 를 주인공으로 잡았다.
+  소리: 꺾을 때 '척', 탄 넣을 때 작은 '틱' 6번(점점 빠르게), 닫을 때 묵직한 '철컥'. 실린더 회전은 '딸깍' 6번.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+
+const BLUE = '#2f4c80';
+const P = (g, pts) => { g.beginPath(); pts.forEach(([x, y], i) => { const p = art(x, y); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); };
+const rotAt = (g, px, py, a) => { const p = art(px, py); g.translate(p.x, p.y); g.rotate(a); g.translate(-p.x, -p.y); };
+const clipCard = (g) => { g.beginPath(); g.rect(card.x + 2, card.y + 22, card.w - 4, card.h - 24); g.clip(); };
+function badge(g, n) {
+  const c = art(125, 308);
+  g.strokeStyle = '#2a1c10'; g.lineWidth = 1; g.beginPath(); g.arc(c.x, c.y, 8.5, 0, 7); g.stroke();
+  g.beginPath(); g.moveTo(c.x - 11, c.y); g.lineTo(c.x + 11, c.y); g.stroke();
+  g.fillStyle = '#2a1c10'; g.font = '600 11px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(n, c.x, c.y + 0.5); g.textBaseline = 'alphabetic';
+}
+
+// 스코필드 (원본 좌표). 앞(총열+실린더)과 뒤(몸통·손잡이)를 나눠 꺾는다
+const BARREL = [[100, 150], [170, 106], [178, 112], [178, 120], [112, 165]];
+const CYL = [[88, 147], [120, 138], [128, 170], [97, 182]];
+const FRAME = [[78, 158], [92, 148], [98, 185], [125, 190], [128, 200], [100, 205], [85, 200]];
+const HAMMER = [[70, 150], [84, 146], [90, 160], [80, 163]];
+const GRIP = [[68, 205], [96, 198], [98, 228], [100, 250], [86, 258], [74, 255], [66, 228]];
+const HINGE = [128, 180], MZ = [178, 115], CYC = [108, 160], GUARD = [115, 200];
+function front(g, tone) {
+  g.fillStyle = tone || '#1e140b'; P(g, BARREL); g.fill();
+  g.fillStyle = tone || '#3a2c1e'; P(g, CYL); g.fill();
+  if (!tone) { g.strokeStyle = '#d9cbb0'; g.lineWidth = 0.7; for (const k of [0.3, 0.6]) { const a = art(lerp(88, 120, k), lerp(147, 138, k)), b = art(lerp(97, 128, k), lerp(182, 170, k)); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); } const a = art(110, 150), b = art(172, 111); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+}
+function rear(g, tone) {
+  g.fillStyle = tone || '#1e140b'; P(g, FRAME); g.fill(); P(g, HAMMER); g.fill(); P(g, GRIP); g.fill();
+  const c = art(...GUARD); g.strokeStyle = tone || '#1e140b'; g.lineWidth = 1.6; g.beginPath(); g.arc(c.x, c.y, 3.4, 0, 7); g.stroke();
+  if (!tone) { g.fillStyle = '#d9cbb0'; const s = art(80, 225); g.beginPath(); g.arc(s.x, s.y, 1.2, 0, 7); g.fill(); }
+}
+const gun = (g, tone) => { rear(g, tone); front(g, tone); };
+const face = (g) => drawCard(g, '스코필드', (x) => { gun(x); badge(x, '2'); }, { band: BLUE });
+const faceBare = (g, ghost) => drawCard(g, '스코필드', (x) => { if (ghost) { x.setLineDash([2, 2]); x.globalAlpha = 0.35; gun(x, '#8b5a2b'); x.setLineDash([]); x.globalAlpha = 1; } badge(x, '2'); }, { band: BLUE });
+const faceRear = (g) => drawCard(g, '스코필드', (x) => { rear(x); badge(x, '2'); }, { band: BLUE });
+
+function bulletAt(g, x, y, a, s) {
+  g.save(); g.translate(x, y); g.rotate(a); g.scale(s, s);
+  g.fillStyle = '#c99a3c'; g.fillRect(-4, -1.6, 6, 3.2); g.fillStyle = '#8e6a2a'; g.beginPath(); g.ellipse(2, 0, 2.2, 1.6, 0, -Math.PI / 2, Math.PI / 2); g.fill();
+  g.fillStyle = '#e8c878'; g.fillRect(-4, -1.6, 0.8, 3.2); g.restore();
+}
+const turnPt = (px, py, a) => { const p = art(px, py), h = art(...HINGE); const c = Math.cos(a), s = Math.sin(a); return { x: h.x + (p.x - h.x) * c - (p.y - h.y) * s, y: h.y + (p.x - h.x) * s + (p.y - h.y) * c }; };
+// A 탄 6발 시작 자리
+const ROUNDS = (() => { const r = rng(17); return Array.from({ length: 6 }, (_, i) => ({ x: 20 + r() * 50, y: 18 + r() * 40, spin: 2 + r() * 3, t0: 0.26 + i * 0.045 })); })();
+// C 좌석 7개 (나=아래)
+const SEATS = Array.from({ length: 7 }, (_, i) => { const a = Math.PI / 2 + i * Math.PI * 2 / 7; return { x: 150 + Math.cos(a) * 128, y: 110 + Math.sin(a) * 78, d: Math.min(i, 7 - i), i }; });
+// D 잔상
+const GHOSTS = [0.05, 0.1, 0.16];
+
+FxKit.mount({
+  kind: 'schofield', title: '스코필드 연출 시안',
+  lead: '스코필드(사정거리 2) 장착. 꺾어 여는 리볼버라 "장전 동작" 과 "실린더" 를 앞세운다. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 꺾어 열고 장전', cost: 2, dur: 1800,
+      desc: '그림 속 총이 경첩에서 아래로 꺾여 열리고, 탄 여섯 발이 돌며 날아와 실린더에 꽂힌 뒤 "철컥" 닫힌다 · 저: 탄 반짝임·닫힘 흔들림 없이',
+      draw(g, t, q) {
+        bg(g);
+        const open = ease.out(seg(t, 0.06, 0.24)) * (1 - ease.in(seg(t, 0.6, 0.66)));
+        const a = open * 0.55;
+        const snap = seg(t, 0.66, 0.76), sk = snap > 0 && snap < 1 ? 1 - snap : 0;
+        g.save(); if (q.on(2)) shake(g, sk * 1.4, t);
+        faceRear(g);
+        g.save(); clipCard(g); rotAt(g, HINGE[0], HINGE[1], a); front(g); g.restore();
+        // 탄 날아오기: 열린 실린더 뒤쪽(왼쪽 위)으로 들어간다
+        ROUNDS.forEach((r, i) => {
+          const k = seg(t, r.t0, r.t0 + 0.12); if (k <= 0) return;
+          const tgt = turnPt(90 + i * 1.5, 150 + i * 5, a);
+          if (k >= 1) return; // 들어갔으면 실린더에 가려 안 보인다
+          const e = ease.inOut(k), x = lerp(r.x, tgt.x, e), y = lerp(r.y, tgt.y, e) - Math.sin(k * Math.PI) * 14;
+          bulletAt(g, x, y, lerp(r.spin * 6.28, a + 0.3, e), lerp(1.6, 1, e));
+          if (q.on(1) && k > 0.85) { g.fillStyle = `rgba(255,240,190,${(1 - k) / 0.15})`; g.beginPath(); g.arc(tgt.x, tgt.y, 3, 0, 7); g.fill(); }
+        });
+        g.restore();
+        // 닫힘: 경첩에서 짧은 선 몇 줄
+        if (sk > 0) {
+          const h = art(...HINGE); g.strokeStyle = `rgba(255,236,190,${sk})`; g.lineWidth = 1.5;
+          for (let i = 0; i < 6; i++) { const ag = -0.6 + i * 0.5, r0 = 8 + (1 - sk) * 6; g.beginPath(); g.moveTo(h.x + Math.cos(ag) * r0, h.y + Math.sin(ag) * r0); g.lineTo(h.x + Math.cos(ag) * (r0 + 6), h.y + Math.sin(ag) * (r0 + 6)); g.stroke(); }
+        }
+        // 사정거리 2: 총구 앞 화살촉 두 개
+        const r2 = seg(t, 0.72, 1);
+        if (r2 > 0 && r2 < 1) {
+          const m = art(...MZ), al = Math.sin(r2 * Math.PI);
+          g.strokeStyle = `rgba(242,193,78,${al})`; g.lineWidth = 2; g.lineCap = 'round';
+          for (let i = 0; i < 2; i++) { const x = m.x + 12 + i * 10 + r2 * 8, y = m.y - 6 - i * 5 - r2 * 4; g.beginPath(); g.moveTo(x - 3, y - 5); g.lineTo(x + 2, y); g.lineTo(x - 3, y + 5); g.stroke(); }
+          g.lineCap = 'butt';
+        }
+      },
+    },
+    {
+      id: 'B', name: 'B. 3D 실린더 회전', cost: 3, dur: 1700,
+      desc: '카드 옆에 큰 실린더가 옆면부터 돌아 정면을 보이고, 딸깍딸깍 여섯 칸 돌며 약실마다 탄이 차오른 뒤 작아져 그림 속 실린더 자리로 빨려 든다 · 저: 금속 그라데이션·불꽃 없이 단색',
+      draw(g, t, q) {
+        bg(g); face(g);
+        const app = ease.out(seg(t, 0, 0.16)), back = ease.inOut(seg(t, 0.68, 0.92));
+        if (t >= 0.92) return;
+        const tgt = art(...CYC);
+        const cx = lerp(238, tgt.x, back), cy = lerp(98, tgt.y, back), R = lerp(42, 6, back);
+        const turnY = lerp(0.12, 1, app) * lerp(1, 0.3, back); // 정면을 향하는 정도 (가로 축소 = 옆으로 돈 각도)
+        const depth = (1 - turnY) * 12 + 5 * (1 - back);
+        // 클릭 6번
+        let steps = 0, click = 0;
+        for (let i = 0; i < 6; i++) { const k = seg(t, 0.2 + i * 0.07, 0.25 + i * 0.07); steps += ease.back(k); if (k > 0 && k < 1) click = 1 - k; }
+        const rot = steps * Math.PI / 3;
+        g.save(); g.translate(cx, cy);
+        // 그림자
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.ellipse(4, R + 10, R * turnY + depth, R * 0.18, 0, 0, 7); g.fill();
+        // 옆면 (두께)
+        g.fillStyle = '#2a2420'; g.beginPath(); g.ellipse(depth, 0, R * turnY, R, 0, 0, 7); g.fill();
+        g.fillRect(0, -R, depth, R * 2);
+        // 앞면
+        g.scale(turnY, 1);
+        if (q.on(1)) { const gr = g.createRadialGradient(-R * 0.3, -R * 0.4, 2, 0, 0, R); gr.addColorStop(0, '#b9b4ac'); gr.addColorStop(0.6, '#6d665e'); gr.addColorStop(1, '#3a342e'); g.fillStyle = gr; } else g.fillStyle = '#6d665e';
+        g.beginPath(); g.arc(0, 0, R, 0, 7); g.fill();
+        g.strokeStyle = '#1e140b'; g.lineWidth = 1.5; g.stroke();
+        g.rotate(rot);
+        for (let i = 0; i < 6; i++) {
+          const a = i * Math.PI / 3 - Math.PI / 2, x = Math.cos(a) * R * 0.56, y = Math.sin(a) * R * 0.56, r = R * 0.2;
+          g.fillStyle = '#120c08'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+          const loaded = steps > i + 0.5 || t > 0.62;
+          if (loaded) { g.fillStyle = '#c99a3c'; g.beginPath(); g.arc(x, y, r * 0.8, 0, 7); g.fill(); g.fillStyle = '#8e6a2a'; g.beginPath(); g.arc(x, y, r * 0.3, 0, 7); g.fill(); }
+          // 홈
+          const b = a + Math.PI / 6; g.fillStyle = 'rgba(20,14,8,0.6)'; g.beginPath(); g.ellipse(Math.cos(b) * R * 0.9, Math.sin(b) * R * 0.9, R * 0.08, R * 0.16, b, 0, 7); g.fill();
+        }
+        g.fillStyle = '#2a2420'; g.beginPath(); g.arc(0, 0, R * 0.12, 0, 7); g.fill();
+        g.restore();
+        // 정지판 딸깍 불꽃
+        if (click > 0 && q.on(1)) {
+          g.save(); if (q.on(2)) g.globalCompositeOperation = 'lighter';
+          g.strokeStyle = `rgba(255,220,140,${click})`; g.lineWidth = 1.2;
+          for (let i = 0; i < 4; i++) { const a = -Math.PI / 2 + (i - 1.5) * 0.35; g.beginPath(); g.moveTo(cx + Math.cos(a) * (R + 2), cy + Math.sin(a) * (R + 2)); g.lineTo(cx + Math.cos(a) * (R + 2 + 7 * click), cy + Math.sin(a) * (R + 2 + 7 * click)); g.stroke(); }
+          g.restore();
+        }
+        // 금속 반사 띠 (빨려 들기 직전)
+        const sw = seg(t, 0.6, 0.7);
+        if (sw > 0 && sw < 1 && q.on(1)) { g.save(); g.beginPath(); g.ellipse(cx, cy, R * turnY, R, 0, 0, 7); g.clip(); g.fillStyle = `rgba(255,255,255,${Math.sin(sw * Math.PI) * 0.5})`; g.translate(cx + lerp(-R, R, sw), cy); g.rotate(0.5); g.fillRect(-4, -R * 1.5, 8, R * 3); g.restore(); }
+      },
+    },
+    {
+      id: 'C', name: 'C. 원근 테이블 좌석 2칸', cost: 1, dur: 1600,
+      desc: '원근으로 누운 테이블 둘레에 7자리가 깔리고, 내 자리에서 양옆으로 1칸·2칸 자리가 차례로 켜지며 닿는 범위가 띠로 칠해진다 · 저: 그대로 (선과 원뿐)',
+      draw(g, t) {
+        bg(g);
+        const a = seg(t, 0, 0.12) * (1 - seg(t, 0.82, 1));
+        if (a > 0) {
+          g.save(); g.globalAlpha = a;
+          // 테이블 둘레
+          g.strokeStyle = 'rgba(179,155,116,0.5)'; g.lineWidth = 1; g.setLineDash([3, 4]); g.beginPath(); g.ellipse(150, 110, 128, 78, 0, 0, 7); g.stroke(); g.setLineDash([]);
+          // 닿는 범위 띠
+          const band = ease.out(seg(t, 0.2, 0.6)), span = band * (2 * Math.PI * 2 / 7 + 0.15);
+          if (band > 0) { g.strokeStyle = 'rgba(242,193,78,0.35)'; g.lineWidth = 10; g.lineCap = 'round'; g.beginPath(); g.ellipse(150, 110, 128, 78, 0, Math.PI / 2 - span, Math.PI / 2 + span); g.stroke(); g.lineCap = 'butt'; }
+          SEATS.forEach((s) => {
+            const sc = 0.65 + 0.35 * (s.y - 32) / 156; // 아래(가까이)일수록 크다
+            const on = s.d === 0 ? 1 : s.d <= 2 ? seg(t, 0.2 + (s.d - 1) * 0.18, 0.3 + (s.d - 1) * 0.18) : 0;
+            const r = 7 * sc;
+            g.fillStyle = on > 0 ? `rgba(242,193,78,${0.25 + 0.75 * on})` : 'rgba(90,70,48,0.9)';
+            g.beginPath(); g.ellipse(s.x, s.y, r * 1.3, r * 0.8, 0, 0, 7); g.fill();
+            g.strokeStyle = s.d === 0 ? '#efe2c6' : 'rgba(179,155,116,0.7)'; g.lineWidth = 1; g.stroke();
+            if (on > 0 && on < 1) { g.strokeStyle = `rgba(242,193,78,${1 - on})`; g.beginPath(); g.ellipse(s.x, s.y, r * (1.3 + on * 1.4), r * (0.8 + on * 0.9), 0, 0, 7); g.stroke(); }
+            if (s.d > 0 && s.d <= 2 && on > 0) { g.fillStyle = '#1b120b'; g.font = `700 ${Math.round(9 * sc)}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(s.d), s.x, s.y + 0.5); g.textBaseline = 'alphabetic'; }
+            if (s.d === 0) { g.fillStyle = '#efe2c6'; g.font = '500 9px sans-serif'; g.textAlign = 'center'; g.fillText('나', s.x, s.y + 3); }
+          });
+          g.restore();
+        }
+        face(g);
+        const c = seg(t, 0.5, 0.62) * (1 - seg(t, 0.82, 1));
+        if (c > 0) { g.save(); g.globalAlpha = c; g.fillStyle = '#f2c14e'; g.beginPath(); g.roundRect(card.x + card.w + 8, card.y + 4, 62, 18, 9); g.fill(); g.fillStyle = '#1b120b'; g.font = '600 10px sans-serif'; g.textAlign = 'center'; g.fillText('사정거리 2', card.x + card.w + 39, card.y + 16.5); g.restore(); }
+      },
+    },
+    {
+      id: 'D', name: 'D. 총 돌리기', cost: 2, dur: 1700,
+      desc: '총이 카드에서 빠져나와 방아쇠울을 축으로 두 바퀴 반 휙 돌고(잔상), 제자리로 꽂히며 은빛이 한 번 스친다. 빈자리엔 점선 윤곽 · 저: 잔상·광택 없이 회전만',
+      draw(g, t, q) {
+        bg(g);
+        const out = ease.out(seg(t, 0, 0.16)), back = ease.back(seg(t, 0.62, 0.82)), away = out * (1 - back);
+        const spinK = ease.inOut(seg(t, 0.12, 0.66));
+        const pv = art(...GUARD);
+        const at = (k) => ({ x: pv.x + away * 52, y: pv.y - away * 34, a: k * Math.PI * 5, s: 1 + away * 0.55 });
+        faceBare(g, away > 0.02);
+        const put = (k, alpha) => { const p = at(k); g.save(); g.globalAlpha = alpha; g.translate(p.x, p.y); g.rotate(p.a); g.scale(p.s, p.s); g.translate(-pv.x, -pv.y); gun(g); g.restore(); };
+        if (away < 0.02 && t > 0.5) { g.save(); clipCard(g); gun(g); g.restore(); }
+        else {
+          // 그림자 (떠 있는 높이만큼)
+          const p = at(spinK); g.fillStyle = `rgba(0,0,0,${0.25 * away})`; g.beginPath(); g.ellipse(p.x + 6, 186, 26 * away, 4 * away, 0, 0, 7); g.fill();
+          if (q.on(1) && spinK > 0 && spinK < 1) GHOSTS.forEach((d, i) => put(Math.max(0, spinK - d), 0.22 - i * 0.06));
+          put(spinK, 1);
+        }
+        // 꽂힐 때 광택
+        const gl = seg(t, 0.8, 0.96);
+        if (gl > 0 && gl < 1) {
+          g.save(); clipCard(g); g.beginPath(); P(g, BARREL); const c = art(...CYC); g.rect(c.x - 6, c.y - 8, 12, 16); g.clip();
+          const x = lerp(card.x, card.x + card.w, gl);
+          if (q.on(1)) { const gr = g.createLinearGradient(x - 8, 0, x + 8, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(235,240,255,0.95)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x - 8, card.y, 16, card.h); }
+          g.restore();
+        }
+      },
+    },
+  ],
+});
+</script></body></html>

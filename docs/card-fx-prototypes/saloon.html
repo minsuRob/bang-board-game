@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>주점 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389)
+  - 하늘 y 90~130 (구름), 큰길 y 225~265
+  - 가운데 판자 건물 x 70~175, y 130~225. 간판 "SALOON" x 75~165, y 140~158
+  - 스윙 도어 x 85~120, y 168~210 (안에 사람 그림자). 오른쪽 창 x 135~165, y 170~195
+  - 앞 데크 y 210~225, 왼쪽 벤치 (110,215). 양옆 건물 x 40~70 / x 190~215
+  → 모두 회복. 문이 흔들리며 열리고 하트가 여러 자리로 퍼지는 흐름을 네 갈래로.
+  소리: 스윙 도어 '삐걱' 두 번 + 홍키통크 피아노 세 음 + 하트마다 작은 '띵' (gen-sfx: 노이즈 마찰 + 디튠 사각파 짧게)
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+
+function heartPath(g, x, y, s) {
+  g.beginPath();
+  g.moveTo(x, y + 0.5 * s);
+  g.bezierCurveTo(x - 0.1 * s, y + 0.35 * s, x - 0.5 * s, y + 0.1 * s, x - 0.5 * s, y - 0.15 * s);
+  g.bezierCurveTo(x - 0.5 * s, y - 0.45 * s, x - 0.1 * s, y - 0.5 * s, x, y - 0.25 * s);
+  g.bezierCurveTo(x + 0.1 * s, y - 0.5 * s, x + 0.5 * s, y - 0.45 * s, x + 0.5 * s, y - 0.15 * s);
+  g.bezierCurveTo(x + 0.5 * s, y + 0.1 * s, x + 0.1 * s, y + 0.35 * s, x, y + 0.5 * s);
+  g.closePath();
+}
+function heart(g, x, y, s, a, ink) {
+  if (a <= 0 || s <= 0) return;
+  g.save(); g.globalAlpha = a; heartPath(g, x, y, s); g.fillStyle = '#d8433b'; g.fill();
+  g.lineWidth = ink ? 2.5 : 1.5; g.strokeStyle = ink ? '#1e140b' : '#fff3d6'; g.stroke(); g.restore();
+}
+function plusOne(g, x, y, a, size) {
+  if (a <= 0) return;
+  g.save(); g.globalAlpha = a; g.font = `700 ${size || 11}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 3; g.strokeStyle = '#3a1d0e'; g.strokeText('+1', x, y); g.fillStyle = '#ffe9a8'; g.fillText('+1', x, y); g.restore();
+}
+/** 판 둘레 자리 7곳 (가운데 카드를 둘러싼 타원) */
+const SEATS = [-150, -105, -60, -15, 30, 150, 195].map((d) => { const a = d * Math.PI / 180; return { x: 150 + Math.cos(a) * 124, y: 105 + Math.sin(a) * 84 }; });
+const DOOR = art(102, 190);
+
+/** 문짝 하나. 바깥 경첩 hx 에서 안쪽으로 w, open 은 -1~1 (cos 로 폭이 줄어든다) */
+function doorLeaf(g, hx, y0, y1, w, open, dir) {
+  const ww = w * Math.cos(open * 1.3);
+  const x2 = hx + dir * ww;
+  g.fillStyle = '#9b6531'; g.beginPath(); g.moveTo(hx, y0); g.lineTo(x2, y0 + 2); g.lineTo(x2, y1); g.lineTo(hx, y1); g.closePath(); g.fill();
+  g.strokeStyle = '#5b3818'; g.lineWidth = 0.8; g.stroke();
+  for (let i = 1; i < 4; i++) { const x = hx + dir * ww * i / 4; g.beginPath(); g.moveTo(x, y0 + 2); g.lineTo(x, y1 - 1); g.stroke(); }
+}
+function saloonArt(g, o) {
+  o = o || {};
+  const sk = art(0, 60), gr0 = art(0, 225);
+  g.fillStyle = '#bcd6e3'; g.fillRect(card.x, sk.y, card.w, gr0.y - sk.y);
+  g.fillStyle = '#d9c3a0'; g.fillRect(card.x, gr0.y, card.w, card.h);
+  g.fillStyle = '#f4f7f8'; [[80, 100, 7], [100, 96, 9], [190, 105, 8]].forEach(([px, py, r]) => { const p = art(px, py); g.beginPath(); g.arc(p.x, p.y, r * 0.5, 0, 7); g.arc(p.x + 5, p.y + 1, r * 0.4, 0, 7); g.fill(); });
+  const l0 = art(40, 150), l1 = art(70, 225), r0 = art(190, 150), r1 = art(215, 225);
+  g.fillStyle = '#7d5a43'; g.fillRect(l0.x, l0.y, l1.x - l0.x, l1.y - l0.y); g.fillRect(r0.x, r0.y, r1.x - r0.x, r1.y - r0.y);
+  const b0 = art(70, 130), b1 = art(175, 225);
+  g.fillStyle = '#c98a4e'; g.fillRect(b0.x, b0.y, b1.x - b0.x, b1.y - b0.y);
+  g.strokeStyle = 'rgba(110,60,25,0.45)'; g.lineWidth = 0.7;
+  for (let y = b0.y + 4; y < b1.y; y += 3) { g.beginPath(); g.moveTo(b0.x, y); g.lineTo(b1.x, y); g.stroke(); }
+  const s0 = art(75, 140), s1 = art(165, 158);
+  g.fillStyle = '#efe2c6'; g.fillRect(s0.x, s0.y, s1.x - s0.x, s1.y - s0.y);
+  g.fillStyle = '#6b3d1c'; g.font = '700 6px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('SALOON', (s0.x + s1.x) / 2, (s0.y + s1.y) / 2 + 0.5);
+  const w0 = art(135, 170), w1 = art(165, 195);
+  g.fillStyle = o.lit ? `rgb(255,${Math.round(200 + 30 * o.lit)},120)` : '#a8443a'; g.fillRect(w0.x, w0.y, w1.x - w0.x, w1.y - w0.y);
+  const d0 = art(85, 168), d1 = art(120, 210);
+  g.fillStyle = o.lit ? `rgba(255,214,120,${0.6 + 0.4 * o.lit})` : '#5a2f1a'; g.fillRect(d0.x, d0.y, d1.x - d0.x, d1.y - d0.y);
+  const dm = (d0.x + d1.x) / 2, dw = (d1.x - d0.x) / 2, open = o.door || 0;
+  doorLeaf(g, d0.x, d0.y + 3, d1.y - 4, dw, open, 1); doorLeaf(g, d1.x, d0.y + 3, d1.y - 4, dw, open, -1);
+  const p0 = art(70, 210), p1 = art(175, 225); g.fillStyle = '#8a5a30'; g.fillRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
+}
+/** 감쇠 진동 (문 흔들림) */
+const swing = (t, a, b) => { const k = seg(t, a, b); return k <= 0 || k >= 1 ? 0 : Math.sin(k * Math.PI * 4) * Math.exp(-k * 3.2); };
+
+// ---- A. 문이 흔들리고 하트가 자리마다 --------------------------------
+const NOTES = (() => { const r = rng(31); return Array.from({ length: 10 }, (_, i) => ({ d: i * 0.035, dx: (r() - 0.5) * 50, ch: r() > 0.5 ? '♪' : '♫', w: r() * 6.28 })); })();
+function drawA(g, t, q) {
+  bg(g);
+  const open = swing(t, 0.02, 0.9), lit = Math.sin(seg(t, 0.02, 0.95) * Math.PI);
+  drawCard(g, '주점', (g) => saloonArt(g, { door: open, lit }));
+  // 문틈 불빛
+  if (q.on(1) && lit > 0) { const gr = g.createRadialGradient(DOOR.x, DOOR.y, 2, DOOR.x, DOOR.y, 40); gr.addColorStop(0, `rgba(255,210,120,${0.5 * lit})`); gr.addColorStop(1, 'rgba(255,210,120,0)'); g.save(); if (q.on(2)) g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.fillRect(DOOR.x - 40, DOOR.y - 40, 80, 80); g.restore(); }
+  // 피아노 음표
+  NOTES.slice(0, q.n(10)).forEach((n) => {
+    const k = seg(t, 0.06 + n.d, 0.55 + n.d); if (k <= 0 || k >= 1) return;
+    const x = DOOR.x + n.dx * k + Math.sin(n.w + k * 8) * 5, y = DOOR.y - 6 - k * 70;
+    g.save(); g.globalAlpha = Math.sin(k * Math.PI); g.fillStyle = '#3a1d0e'; g.font = '700 13px serif'; g.textAlign = 'center'; g.fillText(n.ch, x, y); g.restore();
+  });
+  // 하트가 문에서 나와 둘레 자리로
+  SEATS.forEach((s, i) => {
+    const k = seg(t, 0.3 + i * 0.04, 0.62 + i * 0.04), out = seg(t, 0.82, 1);
+    if (k <= 0 || out >= 1) return;
+    const e = ease.out(k), x = lerp(DOOR.x, s.x, e), y = lerp(DOOR.y, s.y, e) - Math.sin(e * Math.PI) * 30;
+    const land = seg(t, 0.62 + i * 0.04, 0.7 + i * 0.04), sz = 9 + 7 * e + 4 * Math.sin(land * Math.PI);
+    heart(g, x, y, sz, Math.min(1, k * 5) * (1 - out));
+    if (land > 0) plusOne(g, x + 12, y - 9 - land * 4, land * (1 - out));
+  });
+}
+
+// ---- B. 앞쪽 스윙 도어 (3D) --------------------------------------------
+const BURST = (() => { const r = rng(44); return Array.from({ length: 24 }, (_, i) => ({ seat: SEATS[i % SEATS.length], z: r(), d: r() * 0.12 })); })();
+function drawB(g, t, q) {
+  bg(g);
+  const lit = Math.sin(seg(t, 0.1, 1) * Math.PI);
+  drawCard(g, '주점', (g) => saloonArt(g, { lit: lit * 0.6 }));
+  // 문 뒤에서 터지는 따뜻한 빛
+  if (lit > 0) {
+    if (q.on(1)) { const gr = g.createRadialGradient(150, 105, 5, 150, 105, 110); gr.addColorStop(0, `rgba(255,200,110,${0.32 * lit})`); gr.addColorStop(1, 'rgba(255,214,130,0)'); g.save(); if (q.on(2)) g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.fillRect(0, 0, W, H); g.restore(); }
+    else { g.fillStyle = `rgba(255,214,130,${0.2 * lit})`; g.fillRect(0, 0, W, H); }
+  }
+  // 하트가 안쪽에서 카메라 쪽으로 쏟아져 각 자리로
+  const f = 1.6;
+  BURST.slice(0, q.n(24)).forEach((p) => {
+    const k = seg(t, 0.28 + p.d, 0.78 + p.d); if (k <= 0 || k >= 1) return;
+    const e = ease.out(k), depth = lerp(0.25, 1 + p.z * 0.6, e), sc = depth;
+    const x = lerp(150, p.seat.x, e), y = lerp(105, p.seat.y, e);
+    heart(g, x, y, 14 * sc, Math.min(1, k * 4) * (1 - seg(k, 0.7, 1)));
+  });
+  // 문짝 두 장: 화면 앞을 가리고 있다가 바깥쪽으로 원근 회전하며 열린다
+  const openK = ease.out(seg(t, 0.06, 0.32)), back = swing(t, 0.32, 1) * 0.35, fade = seg(t, 0.75, 0.95);
+  if (fade < 1) {
+    const ang = Math.min(1.45, openK * 1.35 + back) * (1 - fade * 0.4);
+    const y0 = 30, y1 = 175, hw = 72;
+    g.save(); g.globalAlpha = (1 - fade) * seg(t, 0, 0.05);
+    [-1, 1].forEach((side) => {
+      const hx = 150 + side * hw, c = Math.cos(ang), sn = Math.sin(ang);
+      const ix = hx - side * hw * c; // 안쪽 모서리
+      const grow = 1 + sn * 0.35; // 카메라 쪽으로 올수록 커 보인다
+      const iy0 = 105 - (105 - y0) * grow, iy1 = 105 + (y1 - 105) * grow;
+      g.fillStyle = side < 0 ? '#8d5a2b' : '#7f5126';
+      g.beginPath(); g.moveTo(hx, y0); g.lineTo(ix, iy0 + 14 * grow); g.quadraticCurveTo((hx + ix) / 2, iy0 - 4, hx, y0 + 0); g.lineTo(hx, y0); g.lineTo(hx, y1); g.lineTo(ix, iy1); g.lineTo(ix, iy0 + 14 * grow); g.closePath(); g.fill();
+      g.strokeStyle = '#3e2410'; g.lineWidth = 1.2; g.stroke();
+      if (c > 0.08) { g.strokeStyle = 'rgba(40,22,8,0.6)'; g.lineWidth = 1; for (let i = 1; i < 5; i++) { const x = lerp(hx, ix, i / 5), ya = lerp(y0 + 4, iy0 + 16 * grow, i / 5), yb = lerp(y1 - 4, iy1 - 4, i / 5); g.beginPath(); g.moveTo(x, ya); g.lineTo(x, yb); g.stroke(); } }
+      if (q.on(1)) { g.fillStyle = `rgba(0,0,0,${0.35 * sn})`; g.beginPath(); g.moveTo(hx, y0); g.lineTo(ix, iy0 + 14 * grow); g.lineTo(ix, iy1); g.lineTo(hx, y1); g.closePath(); g.fill(); }
+    });
+    g.restore();
+  }
+  const pk = seg(t, 0.55, 0.68), out = seg(t, 0.85, 1);
+  if (pk > 0) { g.save(); g.globalAlpha = pk * (1 - out); g.font = '700 13px sans-serif'; g.textAlign = 'center'; g.lineWidth = 3.5; g.strokeStyle = '#3a1d0e'; g.strokeText('모두 +1', 150, 194); g.fillStyle = '#ffe9a8'; g.fillText('모두 +1', 150, 194); g.restore(); }
+}
+
+// ---- C. 무성영화 ------------------------------------------------------
+function drawC(g, t, q, f) {
+  const jy = q.on(1) && f % 9 === 0 ? 1.5 : 0;
+  g.save(); g.translate(0, jy);
+  bg(g, '#2a2219');
+  const open = swing(t, 0.05, 0.6);
+  drawCard(g, '주점', (g) => saloonArt(g, { door: open, lit: 0.4 }), { face: '#ddd0b4' });
+  g.restore();
+  // 세피아 덧칠 (카드 포함)
+  const sep = Math.sin(seg(t, 0, 1) * Math.PI);
+  g.fillStyle = `rgba(112,82,44,${0.42 * sep})`; g.fillRect(0, 0, W, H);
+  // 자막 카드
+  const it = seg(t, 0.3, 0.62);
+  if (it > 0 && it < 1) {
+    const a = Math.min(1, it * 6) * Math.min(1, (1 - it) * 6);
+    g.fillStyle = `rgba(14,11,8,${0.94 * a})`; g.fillRect(36, 50, 228, 110);
+    g.strokeStyle = `rgba(232,222,200,${a})`; g.lineWidth = 1.5; g.strokeRect(44, 58, 212, 94); g.strokeRect(48, 62, 204, 86);
+    g.fillStyle = `rgba(240,232,214,${a})`; g.font = '500 20px serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('"모두에게 한 잔씩!"', 150, 96); g.font = '400 11px serif'; g.fillText('— 주점 주인', 150, 124);
+  }
+  // 자막 뒤: 하트가 둘레 자리에서 동시에 깜박
+  const hk = seg(t, 0.62, 0.95);
+  if (hk > 0 && hk < 1) SEATS.forEach((s, i) => { const blink = (Math.floor(hk * 8 + i) % 2) ? 1 : 0.55; heart(g, s.x, s.y, 16 + 4 * Math.sin(hk * Math.PI), Math.sin(hk * Math.PI) * blink, true); });
+  if (hk > 0 && hk < 1) { g.fillStyle = `rgba(30,24,16,${0.25 * Math.sin(hk * Math.PI)})`; g.fillRect(0, 0, W, H); }
+  // 필름 입자·긁힘·비네트
+  if (sep > 0.02) {
+    const r = rng(f * 13 + 1);
+    g.fillStyle = `rgba(20,16,12,${0.5 * sep})`; for (let i = 0; i < q.n(220); i++) g.fillRect(r() * W, r() * H, 1, 1);
+    g.fillStyle = `rgba(255,250,240,${0.25 * sep})`; for (let i = 0; i < q.n(70); i++) g.fillRect(r() * W, r() * H, 1, 1);
+    if (q.on(1) && r() > 0.5) { g.strokeStyle = `rgba(240,230,210,${0.35 * sep})`; g.lineWidth = 1; const x = r() * W; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + r() * 4 - 2, H); g.stroke(); }
+    if (q.on(1)) { const v = g.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.7); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(0,0,0,${0.65 * sep})`); g.fillStyle = v; g.fillRect(0, 0, W, H); }
+    if (q.on(2) && f % 5 === 0) { g.fillStyle = `rgba(255,248,230,${0.06 * sep})`; g.fillRect(0, 0, W, H); }
+  }
+}
+
+// ---- D. 둘레 맥박 (미니멀) ---------------------------------------------
+function drawD(g, t, q) {
+  bg(g);
+  drawCard(g, '주점', (g) => saloonArt(g));
+  const show = seg(t, 0, 0.1) * (1 - seg(t, 0.85, 1));
+  if (show <= 0) return;
+  // 자리 점
+  SEATS.forEach((s) => { g.fillStyle = `rgba(243,231,206,${0.35 * show})`; g.beginPath(); g.arc(s.x, s.y, 9, 0, 7); g.fill(); });
+  // 퍼지는 고리 (타원)
+  const rings = q.on(1) ? 2 : 1;
+  for (let j = 0; j < rings; j++) {
+    const k = seg(t, 0.12 + j * 0.12, 0.62 + j * 0.12); if (k <= 0 || k >= 1) continue;
+    g.strokeStyle = `rgba(255,214,130,${(1 - k) * (j ? 0.45 : 0.9)})`; g.lineWidth = 2.5 - j;
+    g.beginPath(); g.ellipse(150, 105, 30 + k * 104, 20 + k * 70, 0, 0, 7); g.stroke();
+  }
+  // 고리가 지나가면 그 자리에 하트
+  SEATS.forEach((s) => {
+    const dx = (s.x - 150) / 124, dy = (s.y - 105) / 84, reach = 0.12 + 0.5 * Math.min(1, Math.hypot(dx, dy) * 0.97);
+    const k = seg(t, reach, reach + 0.12); if (k <= 0) return;
+    const sz = 14 * (0.6 + 0.4 * ease.back(k));
+    heart(g, s.x, s.y, sz, show);
+    plusOne(g, s.x + 11, s.y - 8, Math.min(1, k * 2) * show, 9);
+  });
+  g.save(); g.globalAlpha = show * seg(t, 0.1, 0.2); g.fillStyle = 'rgba(30,20,11,0.75)'; g.beginPath(); g.roundRect(118, 176, 64, 18, 9); g.fill();
+  g.fillStyle = '#ffe9a8'; g.font = '600 10px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('모두 회복', 150, 185.5); g.restore();
+}
+
+FxKit.mount({
+  kind: 'saloon', title: '주점 연출 시안',
+  lead: '자신을 포함한 모두가 목숨 1 회복. 하트가 판 둘레 여러 자리로 퍼진다. 칸을 누르면 다시 본다.',
+  concepts: [
+    { id: 'A', name: 'A. 문이 흔들리며 한 잔씩', cost: 2, dur: 2000, draw: drawA,
+      desc: '그림 속 스윙 도어가 삐걱 흔들리고 문틈과 창에 불이 켜진다. 피아노 음표가 오르고, 하트가 문에서 튀어나와 둘레 일곱 자리로 포물선을 그리며 날아가 +1 · 저: 음표 1/4, 문틈 불빛 없음' },
+    { id: 'B', name: 'B. 앞쪽 스윙 도어 (3D)', cost: 3, dur: 1900, draw: drawB,
+      desc: '화면 앞을 가린 커다란 문짝 두 장이 원근을 따라 바깥으로 열렸다 되흔들리고, 안쪽 빛 속에서 하트가 카메라 쪽으로 커지며 자리마다 쏟아진다 · 저: 하트 1/4, 빛 단색, 문짝 그늘 없음' },
+    { id: 'C', name: 'C. 무성영화 자막', cost: 2, dur: 2200, draw: drawC,
+      desc: '세피아로 바래며 필름 입자가 끼고, 자막 카드 "모두에게 한 잔씩!" 이 뜬 뒤 둘레 자리마다 잉크 하트가 깜박인다 · 저: 입자 1/4, 긁힘·비네트·흔들림 없음' },
+    { id: 'D', name: 'D. 둘레 맥박', cost: 1, dur: 1600, draw: drawD,
+      desc: '자리 점이 흐리게 깔리고 카드에서 타원 고리가 퍼진다. 고리가 닿는 자리마다 하트 +1 이 차례로 켜진다 · 저: 고리 한 겹' },
+  ],
+});
+</script></body></html>

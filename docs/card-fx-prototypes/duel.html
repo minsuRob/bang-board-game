@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>결투 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389)
+  - 그림 칸은 대략 y 95~265. 하늘은 옅은 크림색, 바닥(큰길)은 y 212 아래
+  - 왼쪽 x 26~94, y 104~214: 살롱 건물(기둥 3개, 'LOON' 간판)
+  - 오른쪽 x 112~228: 화면 앞쪽 사나이의 등(어깨~다리). 허리띠 y 150~162, 권총집 x 205~232
+  - 두 다리 사이 틈(x 138~162, y 178~265) 너머 멀리 x 146, y 206 에 상대가 작게 서 있다
+  노린 것: 앞 사나이 다리 틈으로 보이는 먼 상대 = '지목한 한 명'. 그 틈으로 파고드는 대치·긴장·한 방.
+  결투 규칙(번갈아 뱅!을 버림)은 D 에서 핑퐁으로 보여 준다.
+  소리 아이디어: 바람 휘파람(필터 노이즈) → 심장 박동 2번 → 정적 → 총성 하나와 긴 울림(리버브 꼬리).
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const TX = 268, TY = 42; // 지목한 표적 자리 (오른쪽 위)
+const env = (t, a, b, c, d) => seg(t, a, b) * (1 - seg(t, c, d));
+
+function P(g, pts, fill) { g.fillStyle = fill; g.beginPath(); pts.forEach(([px, py], i) => { const p = art(px, py); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); g.fill(); }
+function seat(g, x, y, a, label) {
+  if (a <= 0.01) return;
+  g.save(); g.globalAlpha = Math.min(1, a);
+  g.fillStyle = '#2a1d12'; g.strokeStyle = '#c8902f'; g.lineWidth = 1.5;
+  g.beginPath(); g.arc(x, y, 12, 0, 7); g.fill(); g.stroke();
+  g.fillStyle = '#c8902f';
+  g.beginPath(); g.arc(x, y - 3, 3.4, 0, 7); g.fill();
+  g.beginPath(); g.ellipse(x, y + 7, 6.5, 5, 0, Math.PI, Math.PI * 2); g.fill();
+  if (label) { g.font = '500 9px sans-serif'; g.textAlign = 'center'; g.fillStyle = '#e8d6b0'; g.fillText(label, x, y + 24); }
+  g.restore();
+}
+
+// 카드 안 그림 흉내: 살롱 + 앞 사나이 등 + 다리 틈 너머 먼 상대
+function body(g, o) {
+  o = o || {};
+  const a = art(0, 92), b = art(250, 268);
+  g.fillStyle = '#ecdfc2'; g.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+  const gy = art(0, 212).y;
+  g.fillStyle = '#d9c49b'; g.fillRect(a.x, gy, b.x - a.x, b.y - gy);
+  const s0 = art(26, 104), s1 = art(94, 214);
+  g.fillStyle = '#bba987'; g.fillRect(s0.x, s0.y, s1.x - s0.x, s1.y - s0.y);
+  g.fillStyle = '#8e7a5a';
+  for (const px of [32, 56, 80]) { const c0 = art(px, 150), c1 = art(px + 5, 214); g.fillRect(c0.x, c0.y, c1.x - c0.x, c1.y - c0.y); }
+  const sg = art(40, 110); g.fillStyle = '#efe2c6'; g.fillRect(sg.x, sg.y, 15, 5);
+  // 먼 상대
+  const f = art(146, 208), fs = o.farScale || 1;
+  g.fillStyle = o.farColor || '#3b2a1c';
+  g.beginPath(); g.arc(f.x, f.y - 5 * fs, 1.3 * fs, 0, 7); g.fill();
+  g.fillRect(f.x - 1.1 * fs, f.y - 3.8 * fs, 2.2 * fs, 5.4 * fs);
+  g.fillRect(f.x - 2.8 * fs, f.y - 6.3 * fs, 5.6 * fs, 0.9 * fs);
+  // 앞 사나이 등
+  P(g, [[112, 268], [114, 178], [108, 140], [118, 94], [228, 94], [232, 140], [220, 178], [218, 268], [162, 268], [158, 180], [140, 180], [138, 268]], '#6b4a2e');
+  P(g, [[109, 150], [231, 148], [231, 162], [110, 163]], '#3d2a1a');
+  P(g, [[205, 150], [232, 150], [228, 204], [210, 204]], '#2e1f13');
+}
+const cardDraw = (g, o) => drawCard(g, '결투', (gg) => body(gg, o));
+
+// 미리 만든 입자 표
+const WIND = (() => { const r = rng(21); return Array.from({ length: 40 }, () => ({ x: r() * 360, y: 12 + r() * 186, len: 14 + r() * 36, sp: 260 + r() * 260, a: 0.25 + r() * 0.45 })); })();
+const SMOKE = (() => { const r = rng(5); return Array.from({ length: 14 }, () => ({ dx: (r() - 0.5) * 6, dy: -4 - r() * 10, r: 1 + r() * 2.5, d: r() * 0.08 })); })();
+const DUST = (() => { const r = rng(33); return Array.from({ length: 90 }, () => ({ z: r(), u: r() * 2 - 1, sp: 0.35 + r() * 0.5, s: 0.6 + r() * 0.8 })); })();
+
+FxKit.mount({
+  kind: 'duel',
+  title: '결투 연출 시안',
+  lead: '한 명을 지목해 마주 서는 카드. 그림 속 다리 틈 너머의 먼 상대가 곧 지목한 표적이다. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 다리 틈으로 파고들기', cost: 2, dur: 2200,
+      desc: '모래바람과 굴러가는 회전초 속에 카메라가 앞 사나이 다리 틈의 먼 상대로 다가간다. 심장 두 번, 정적, 섬광 한 번 · 저: 심장 비네트·섬광 오버레이·흔들림 없음',
+      draw(g, t, q) {
+        bg(g);
+        const fp = art(146, 202);
+        const zk = ease.inOut(seg(t, 0.02, 0.52)) * (1 - ease.out(seg(t, 0.74, 1)));
+        const z = 1 + 1.7 * zk;
+        const shot = seg(t, 0.6, 0.72);
+        g.save();
+        if (q.on(2) && shot > 0 && shot < 1) shake(g, (1 - shot) * 4, t);
+        g.translate(lerp(fp.x, W / 2, zk), lerp(fp.y, H / 2 + 10, zk)); g.scale(z, z); g.translate(-fp.x, -fp.y);
+        cardDraw(g, { farColor: t > 0.6 && t < 0.66 ? '#fff4d0' : undefined });
+        // 총구 불꽃 (먼 상대 쪽)
+        if (shot > 0 && shot < 1) {
+          const f = art(146, 204), R = 3 + 9 * ease.out(shot);
+          g.save(); g.globalAlpha = 1 - shot;
+          if (q.on(1)) g.globalCompositeOperation = 'lighter';
+          g.fillStyle = '#ffe27a'; g.beginPath();
+          for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; const rr = i % 2 ? R * 0.4 : R; g.lineTo(f.x + Math.cos(a) * rr, f.y + Math.sin(a) * rr); }
+          g.closePath(); g.fill(); g.restore();
+        }
+        // 연기 한 가닥
+        SMOKE.slice(0, q.n(14)).forEach((p) => {
+          const k = seg(t, 0.62 + p.d, 1); if (k <= 0 || k >= 1) return;
+          const f = art(146, 204);
+          g.fillStyle = `rgba(150,140,125,${(1 - k) * 0.5})`;
+          g.beginPath(); g.arc(f.x + p.dx * k, f.y + p.dy * k * 1.6, p.r * (0.5 + k), 0, 7); g.fill();
+        });
+        g.restore();
+        // 모래바람 (총성 순간 뚝 멈춘다)
+        const wa = env(t, 0, 0.1, 0.5, 0.58) + 0.4 * env(t, 0.72, 0.8, 0.88, 0.98);
+        if (wa > 0) {
+          g.lineCap = 'round';
+          WIND.slice(0, q.n(40)).forEach((p) => {
+            const x = ((p.x - t * p.sp) % 360 + 360) % 360 - 30;
+            g.strokeStyle = `rgba(226,205,160,${p.a * wa})`; g.lineWidth = 1.2;
+            g.beginPath(); g.moveTo(x, p.y); g.lineTo(x + p.len, p.y + 1); g.stroke();
+          });
+        }
+        // 회전초
+        const tk = seg(t, 0.04, 0.6);
+        if (tk > 0 && tk < 1) {
+          const x = lerp(W + 24, -24, tk), y = 168 - Math.abs(Math.sin(tk * 9)) * 6, r = 11;
+          g.save(); g.translate(x, y); g.rotate(-tk * 14);
+          g.strokeStyle = '#8a6a3e'; g.lineWidth = 1.2;
+          for (let i = 0; i < 7; i++) { g.beginPath(); g.ellipse(0, 0, r, r * 0.55, i * 0.45, 0, 7); g.stroke(); }
+          g.restore();
+        }
+        // 심장 박동 비네트 두 번
+        if (q.on(1)) {
+          const beat = Math.max(env(t, 0.22, 0.25, 0.27, 0.33), env(t, 0.4, 0.43, 0.45, 0.51));
+          const hold = env(t, 0.5, 0.55, 0.6, 0.61) * 0.6;
+          const v = Math.max(beat, hold);
+          if (v > 0) {
+            const gr = g.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, 190);
+            gr.addColorStop(0, 'rgba(40,6,2,0)'); gr.addColorStop(1, `rgba(40,6,2,${0.75 * v})`);
+            g.fillStyle = gr; g.fillRect(0, 0, W, H);
+          }
+          if (shot > 0 && shot < 1) { g.fillStyle = `rgba(255,248,225,${(1 - shot) * 0.8})`; g.fillRect(0, 0, W, H); }
+        }
+      },
+    },
+    {
+      id: 'B', name: 'B. 눈빛 클로즈업', cost: 2, dur: 2000,
+      desc: '위아래 검은 띠가 닫히며 띠 안에 내 눈(위)과 상대 눈(아래)이 번갈아 번뜩인다. 점점 가늘어지다 흰 섬광과 함께 "탕!" · 저: 필름 입자·전체 섬광 없음',
+      draw(g, t, q, f) {
+        bg(g);
+        cardDraw(g);
+        const open = ease.out(seg(t, 0, 0.16)) * (1 - ease.in(seg(t, 0.82, 0.97)));
+        const hh = 48 * open;
+        if (hh < 0.5) return;
+        const squint = lerp(1, 0.28, ease.inOut(seg(t, 0.12, 0.66)));
+        const cut = seg(t, 0.68, 0.84);
+        const bar = (y0, skin, look, glint) => {
+          g.save(); g.beginPath(); g.rect(0, y0, W, hh); g.clip();
+          g.fillStyle = '#0d0906'; g.fillRect(0, y0, W, hh);
+          if (hh > 18) {
+            const cy = y0 + hh / 2;
+            g.fillStyle = skin; g.fillRect(0, cy - 17, W, 34);
+            g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, cy - 17, W, 7); // 모자 그늘
+            [104, 196].forEach((x) => {
+              const w = 50, h = Math.max(0.7, squint * 7);
+              g.fillStyle = '#f0e4cc'; g.beginPath(); g.moveTo(x - w / 2, cy); g.quadraticCurveTo(x, cy - h * 1.7, x + w / 2, cy); g.quadraticCurveTo(x, cy + h * 1.7, x - w / 2, cy); g.closePath(); g.fill();
+              g.save(); g.clip();
+              const px = x + look * 11;
+              g.fillStyle = '#4b2f1c'; g.beginPath(); g.arc(px, cy, 6.5, 0, 7); g.fill();
+              g.fillStyle = '#0d0906'; g.beginPath(); g.arc(px, cy, 3, 0, 7); g.fill();
+              if (glint > 0) { g.fillStyle = `rgba(255,255,255,${glint})`; g.beginPath(); g.arc(px + 2, cy - 2, 1.6, 0, 7); g.fill(); }
+              g.restore();
+              g.strokeStyle = '#2a1a0e'; g.lineWidth = 3; g.lineCap = 'round';
+              g.beginPath(); g.moveTo(x - w / 2 - 2, cy - h * 1.7 - 4 + (1 - squint) * 3); g.lineTo(x + w / 2 + 2, cy - h * 1.2 - 6 + (1 - squint) * 5); g.stroke();
+            });
+          }
+          if (q.on(2)) { const r = rng(f * 7 + (y0 > 0 ? 3 : 1)); g.fillStyle = 'rgba(255,240,220,0.18)'; for (let i = 0; i < 70; i++) g.fillRect(r() * W, y0 + r() * hh, 1, 1); }
+          g.restore();
+        };
+        // 번갈아 번뜩임: 위(나) → 아래(상대) → 위 → 아래
+        const gl = (a) => env(t, a, a + 0.03, a + 0.06, a + 0.1);
+        bar(0, '#b98a5e', 1, Math.max(gl(0.2), gl(0.44)));
+        bar(H - hh, '#9c6f48', -1, Math.max(gl(0.32), gl(0.56)));
+        if (cut > 0 && cut < 1) {
+          if (q.on(1)) { g.fillStyle = `rgba(255,250,236,${(1 - cut) * 0.9})`; g.fillRect(0, 0, W, H); }
+          else { g.fillStyle = `rgba(255,250,236,${(1 - cut)})`; g.fillRect(0, 0, W, hh); g.fillRect(0, H - hh, W, hh); }
+          g.save(); g.globalAlpha = Math.min(1, (1 - cut) * 2);
+          g.translate(W / 2, H / 2 + 6); const s = 1.4 - 0.4 * ease.out(cut); g.scale(s, s);
+          g.font = '600 38px serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.lineWidth = 6; g.strokeStyle = '#0d0906'; g.strokeText('탕!', 0, 0);
+          g.fillStyle = '#f0e4cc'; g.fillText('탕!', 0, 0); g.restore();
+        }
+      },
+    },
+    {
+      id: 'C', name: 'C. 큰길 원근 대치', cost: 3, dur: 2200,
+      desc: '카드가 테이블에서 들려 표적 쪽으로 몸을 돌리고, 카드에서 표적까지 소실점으로 모이는 큰길이 깔린다. 깊이 따라 크기가 바뀌는 먼지가 흘러가다 총알 빛줄기가 길을 타고 돌아와 카드를 친다 · 저: 먼지 1/4, 그림자 한 겹, 흔들림 없음',
+      draw(g, t, q) {
+        bg(g);
+        const lift = ease.out(seg(t, 0, 0.22)) * (1 - ease.inOut(seg(t, 0.78, 1)));
+        const hit = seg(t, 0.62, 0.8);
+        const jolt = hit > 0 && hit < 1 ? Math.sin(hit * Math.PI * 3) * (1 - hit) : 0;
+        const road = env(t, 0.06, 0.24, 0.72, 0.9);
+        const cx = card.x + card.w / 2, cy = card.y + card.h / 2, by = card.y + card.h;
+        // 큰길 (카드 아래에서 표적으로)
+        if (road > 0) {
+          g.save(); g.globalAlpha = road;
+          g.fillStyle = 'rgba(217,196,155,0.18)';
+          g.beginPath(); g.moveTo(card.x - 10, by + 8); g.lineTo(card.x + card.w + 10, by + 8); g.lineTo(TX + 4, TY + 4); g.lineTo(TX - 4, TY + 4); g.closePath(); g.fill();
+          g.strokeStyle = 'rgba(232,214,176,0.5)'; g.lineWidth = 1; g.setLineDash([4, 5]); g.lineDashOffset = -t * 60;
+          g.beginPath(); g.moveTo(card.x - 10, by + 8); g.lineTo(TX - 4, TY + 4); g.moveTo(card.x + card.w + 10, by + 8); g.lineTo(TX + 4, TY + 4); g.stroke();
+          g.setLineDash([]); g.restore();
+          seat(g, TX, TY - 8, road, '표적');
+        }
+        // 깊이 먼지
+        if (road > 0) {
+          DUST.slice(0, q.n(90)).forEach((p) => {
+            const z = (p.z + t * p.sp) % 1;
+            const bx = lerp(cx, TX, z), byy = lerp(by + 4, TY + 4, z);
+            const half = lerp(62, 4, z);
+            const x = bx + p.u * half, y = byy + Math.sin(p.u * 9 + t * 6) * lerp(4, 0.5, z);
+            const r = lerp(2.6, 0.35, z) * p.s;
+            g.fillStyle = `rgba(232,214,176,${road * (0.25 + 0.5 * (1 - z)) * Math.min(1, z * 6)})`;
+            g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+          });
+        }
+        // 카드: 들림 + 표적 쪽으로 돌림 (원근 기울임)
+        g.save();
+        const sh = 3 + 9 * lift;
+        g.fillStyle = 'rgba(0,0,0,0.28)';
+        const layers = q.on(1) ? 3 : 1;
+        for (let i = 0; i < layers; i++) { const k = (i + 1) / layers; g.beginPath(); g.roundRect(card.x + sh * k, card.y + sh * 1.3 * k, card.w, card.h, 9); g.fill(); }
+        g.translate(cx, cy);
+        g.rotate(-0.1 * lift + jolt * 0.06);
+        g.transform(1, -0.12 * lift, 0, 1, 0, 0);
+        const s = 1 + 0.1 * lift - jolt * 0.03; g.scale(s, s);
+        g.translate(-cx, -cy);
+        if (q.on(2) && hit > 0 && hit < 1) shake(g, (1 - hit) * 3, t);
+        cardDraw(g);
+        g.restore();
+        // 총알 빛줄기: 표적 → 카드
+        const bk = seg(t, 0.5, 0.62);
+        if (bk > 0 && bk < 1) {
+          const e = ease.in(bk);
+          const x = lerp(TX, cx + 10, e), y = lerp(TY, cy - 10, e);
+          const tx = lerp(TX, cx + 10, Math.max(0, e - 0.25)), ty = lerp(TY, cy - 10, Math.max(0, e - 0.25));
+          g.strokeStyle = 'rgba(255,236,190,0.9)'; g.lineCap = 'round'; g.lineWidth = lerp(0.6, 3.2, e);
+          g.beginPath(); g.moveTo(tx, ty); g.lineTo(x, y); g.stroke();
+        }
+        if (hit > 0 && hit < 1) {
+          g.save(); g.globalAlpha = 1 - hit;
+          if (q.on(1)) g.globalCompositeOperation = 'lighter';
+          g.strokeStyle = '#ffe27a'; g.lineWidth = 2;
+          g.beginPath(); g.ellipse(cx + 10, cy - 10, 6 + 30 * ease.out(hit), (6 + 30 * ease.out(hit)) * 0.5, -0.5, 0, 7); g.stroke();
+          g.restore();
+        }
+      },
+    },
+    {
+      id: 'D', name: 'D. 번갈아 뱅! 핑퐁', cost: 1, dur: 1800,
+      desc: '나와 표적 사이에 가는 선이 이어지고, 뱅! 칩이 표적부터 번갈아 오가며 점점 빨라진다. 마지막에 못 받아친 쪽이 붉게 번쩍이며 −1 · 저: 거의 그대로(고리 잔상만 빠짐)',
+      draw(g, t, q) {
+        bg(g);
+        const A = { x: 36, y: 105 }, B = { x: 264, y: 105 };
+        const fade = 1 - seg(t, 0.84, 0.97);
+        const lk = ease.out(seg(t, 0, 0.14));
+        if (fade > 0) {
+          g.strokeStyle = `rgba(200,144,47,${0.6 * fade})`; g.lineWidth = 1.5; g.setLineDash([3, 4]);
+          g.beginPath(); g.moveTo(A.x, A.y); g.lineTo(lerp(A.x, B.x, lk), B.y); g.stroke(); g.setLineDash([]);
+        }
+        cardDraw(g);
+        // 칩 비행 시간표: 표적 → 나 → 표적 → 나 → 표적
+        const hops = [0.16, 0.36, 0.52, 0.64, 0.73, 0.79];
+        const ends = [B, A, B, A, B, A];
+        let pos = null, loser = null, lastArrive = -1;
+        for (let i = 0; i < hops.length - 1; i++) {
+          const k = seg(t, hops[i], hops[i + 1]);
+          if (k > 0 && k < 1) { const e = ease.inOut(k); pos = { x: lerp(ends[i].x, ends[i + 1].x, e), y: ends[i].y - Math.sin(e * Math.PI) * 14 }; }
+          if (t >= hops[i + 1]) lastArrive = i + 1;
+        }
+        // 노드
+        const ring = (p, a, col) => { g.strokeStyle = col; g.globalAlpha = a; g.lineWidth = 2; g.beginPath(); g.arc(p.x, p.y, 14, 0, 7); g.stroke(); g.globalAlpha = 1; };
+        seat(g, A.x, A.y, fade * lk, '나');
+        seat(g, B.x, B.y, fade * lk, '표적');
+        // 도착 고리
+        hops.slice(1).forEach((h, i) => {
+          const k = seg(t, h, h + 0.08); if (k <= 0 || k >= 1) return;
+          const p = ends[i + 1]; const r = 14 + 14 * k;
+          g.strokeStyle = `rgba(242,193,78,${(1 - k) * fade})`; g.lineWidth = 2; g.beginPath(); g.arc(p.x, p.y, r, 0, 7); g.stroke();
+          if (q.on(1)) { g.strokeStyle = `rgba(242,193,78,${(1 - k) * 0.4 * fade})`; g.beginPath(); g.arc(p.x, p.y, r * 1.4, 0, 7); g.stroke(); }
+        });
+        if (pos && fade > 0) {
+          g.save(); g.translate(pos.x, pos.y);
+          g.fillStyle = '#b3261e'; g.beginPath(); g.roundRect(-14, -8, 28, 16, 4); g.fill();
+          g.strokeStyle = '#1e140b'; g.lineWidth = 1.5; g.stroke();
+          g.fillStyle = '#f3e7ce'; g.font = '600 10px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('뱅!', 0, 0.5);
+          g.restore();
+        }
+        // 마지막: 표적이 못 받아침
+        const lose = seg(t, 0.79, 0.95);
+        if (lose > 0 && lose < 1) {
+          ring(B, (1 - lose), '#e0453a');
+          g.fillStyle = `rgba(224,69,58,${(1 - lose) * 0.35})`; g.beginPath(); g.arc(B.x, B.y, 12 + 8 * lose, 0, 7); g.fill();
+          g.fillStyle = `rgba(255,214,200,${1 - lose})`; g.font = '600 14px sans-serif'; g.textAlign = 'center';
+          g.fillText('−1', B.x, B.y - 20 - 10 * ease.out(lose));
+        }
+      },
+    },
+  ],
+});
+</script></body></html>

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>유령 연출 시안</title>
+<!--
+  원본 그림 메모 (assets/cards/card/ghost.png, 250×389, 파랑 카드)
+  - 그림 칸: (40,95)~(210,250). 해 질 녘 푸르스름한 하늘, 먼 산 (40~210, 112~140)
+    왼쪽 회색 건물 (40~95, 100~245), 오른쪽 갈색 건물·처마 (160~210, 130~245), 바닥 (40~210, 220~250)
+  - 가운데 반투명한 총잡이 유령: 넓은 모자 (125,112), 얼굴 (125,135), 긴 외투가 (100~150,150)에서
+    (85~165,250)로 퍼지며 아래가 흐려진다. 두 팔을 벌려 권총 (65,185), (185,185)
+  노린 것: "제거된 사람이 반투명하게 돌아온다". A 는 그림 속 유령이 카드 아래 무덤에서 솟아올라 제자리에 선다.
+  B 는 푸른 안개가 카드를 감싸며 반투명 카드가 단단해진다. C 는 무성영화 자막. D 는 엎어진 카드가 그림자 없이 떠올라 뒤집힌다(3D).
+  소리: 낮은 바람 웅웅(저역 사인 + 느린 떨림) 위에 유리 같은 높은 쉬익. C 는 영사기 딸깍딸깍.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const TAU = Math.PI * 2, CX = card.x + card.w / 2, CY = card.y + card.h / 2;
+function circ(g, x, y, r) { g.beginPath(); g.arc(x, y, Math.max(0, r), 0, TAU); }
+function rect(g, x0, y0, x1, y1, fill) { const a = art(x0, y0), b = art(x1, y1); g.fillStyle = fill; g.fillRect(a.x, a.y, b.x - a.x, b.y - a.y); }
+const GH = art(125, 135);
+const BAND = '#2f4a8a';
+
+/** 유령 총잡이. (x,y) = 얼굴 */
+function ghostFig(g, x, y, s, a, sway) {
+  if (a <= 0) return;
+  g.save(); g.translate(x, y); g.rotate(sway || 0); g.scale(s, s); g.globalAlpha *= a;
+  const c = 'rgba(232,240,250,1)';
+  g.fillStyle = c; g.beginPath(); g.moveTo(-7, 5); g.lineTo(7, 5); g.lineTo(14, 36);
+  for (let i = 0; i <= 6; i++) g.lineTo(14 - i * 28 / 6, 36 + (i % 2 ? 4 : 0));
+  g.closePath(); g.fill();
+  g.strokeStyle = c; g.lineWidth = 2.4; g.lineCap = 'round'; g.beginPath(); g.moveTo(-6, 9); g.lineTo(-21, 17); g.moveTo(6, 9); g.lineTo(21, 17); g.stroke();
+  g.fillStyle = '#9aa6b8'; g.fillRect(-26, 15, 6, 2.4); g.fillRect(20, 15, 6, 2.4);
+  g.fillStyle = c; circ(g, 0, 0, 4); g.fill();
+  g.beginPath(); g.ellipse(0, -5, 10, 2.2, 0, 0, TAU); g.fill(); g.beginPath(); g.ellipse(0, -8, 5, 3.4, 0, 0, TAU); g.fill();
+  g.fillStyle = 'rgba(80,90,110,.6)'; g.fillRect(-2.5, -1, 1.6, 1.2); g.fillRect(1, -1, 1.6, 1.2);
+  g.restore();
+}
+/** 마을 배경. rise: 유령이 올라온 정도(0~1), ga: 유령 투명도 */
+function town(g, rise, ga, sway) {
+  rect(g, 40, 95, 210, 175, '#7f89a0'); rect(g, 40, 175, 210, 250, '#a8a6a6');
+  g.fillStyle = '#4f5a70'; g.beginPath(); [[40, 140], [40, 128], [80, 116], [120, 128], [160, 112], [210, 124], [210, 140]].forEach(([px, py], i) => { const p = art(px, py); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); g.fill();
+  rect(g, 40, 100, 95, 245, '#8d8c8c'); rect(g, 52, 130, 70, 160, '#5a5f6a'); rect(g, 52, 175, 70, 205, '#5a5f6a');
+  rect(g, 160, 130, 210, 245, '#8a6a4c'); rect(g, 155, 160, 210, 166, '#6a4c34'); rect(g, 175, 135, 195, 155, '#5a4632');
+  rect(g, 40, 222, 210, 250, '#b9b2a6');
+  ghostFig(g, GH.x, GH.y + (1 - rise) * 44, 1, ga, sway);
+}
+const face = (g) => town(g, 1, 0.75, 0);
+function drawGhostCard(g) { drawCard(g, '유령', face, { band: BAND }); }
+
+// ----- A 표 -----
+const WISP = (() => { const r = rng(3); return Array.from({ length: 16 }, () => ({ ph: r() * TAU, amp: 3 + r() * 6, w: 1 + r() * 2.5 })); })();
+// ----- B 표 -----
+const FOG = (() => { const r = rng(17); return Array.from({ length: 26 }, () => ({ a: r() * TAU, rx: 60 + r() * 50, ry: 18 + r() * 26, sz: 14 + r() * 18, sp: 0.6 + r() * 0.8, dl: r() * 0.18 })); })();
+
+FxKit.mount({
+  kind: 'ghost',
+  title: '유령 연출 시안',
+  lead: '제거된 사람이 반투명하게 게임에 돌아온다. 칸을 누르면 다시 본다. 원본 그림: 해 질 녘 마을 한가운데 두 손에 권총을 든 반투명 총잡이.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 무덤에서 솟아오르기', cost: 2, dur: 2000,
+      desc: '카드 아래 묘비에서 푸른 혼이 실처럼 피어올라 카드로 스며들고, 그림 속 총잡이가 바닥에서 반투명하게 솟아 제자리에 선다. 눈이 한 번 번뜩인다 · 저: 혼 줄기 4가닥, 유령 테두리 빛 없음',
+      draw(g, t, q) {
+        bg(g);
+        const rise = ease.out(seg(t, 0.28, 0.72));
+        const sway = Math.sin(t * 14) * 0.12 * (1 - seg(t, 0.6, 0.9));
+        drawCard(g, '유령', (g) => {
+          town(g, rise, 0.75 * Math.min(1, rise * 1.4), sway);
+          if (q.on(1) && rise > 0 && t < 0.9) { g.save(); g.globalAlpha = 0.35 * (1 - seg(t, 0.7, 0.9)); g.shadowColor = '#bfe0ff'; g.shadowBlur = 8; ghostFig(g, GH.x, GH.y + (1 - rise) * 44, 1.04, 0.6, sway); g.restore(); }
+          const ek = seg(t, 0.72, 0.86);
+          if (ek > 0 && ek < 1) { g.fillStyle = `rgba(255,250,200,${Math.sin(ek * Math.PI)})`; circ(g, GH.x - 1.7, GH.y - 0.4, 1.4); g.fill(); circ(g, GH.x + 1.8, GH.y - 0.4, 1.4); g.fill(); }
+        }, { band: BAND });
+        // 묘비
+        const sa = ease.out(seg(t, 0, 0.1)) * (1 - seg(t, 0.72, 0.92));
+        if (sa > 0) {
+          const sx = CX, sy = 196;
+          g.save(); g.globalAlpha = sa; g.fillStyle = '#6d6a66'; g.strokeStyle = '#2a2622'; g.lineWidth = 1.5;
+          g.beginPath(); g.moveTo(sx - 10, sy + 10); g.lineTo(sx - 10, sy - 6); g.arc(sx, sy - 6, 10, Math.PI, TAU); g.lineTo(sx + 10, sy + 10); g.closePath(); g.fill(); g.stroke();
+          g.strokeStyle = '#2a2622'; g.beginPath(); g.moveTo(sx, sy - 10); g.lineTo(sx, sy + 4); g.moveTo(sx - 4, sy - 5); g.lineTo(sx + 4, sy - 5); g.stroke();
+          g.restore();
+        }
+        // 혼 줄기: 묘비 → 카드 아래쪽
+        const wk = seg(t, 0.06, 0.45), wf = 1 - seg(t, 0.4, 0.7);
+        if (wk > 0 && wf > 0) {
+          const n = q.n(16);
+          g.lineCap = 'round';
+          for (let i = 0; i < n; i++) {
+            const p = WISP[i], top = lerp(190, card.y + card.h - 30, ease.out(wk));
+            g.strokeStyle = `rgba(190,225,255,${0.55 * wf})`; g.lineWidth = p.w; g.beginPath();
+            for (let y = 190; y >= top; y -= 4) { const x = CX + Math.sin(y * 0.12 + p.ph + t * 12) * p.amp * (0.4 + (190 - y) / 60); y === 190 ? g.moveTo(x, y) : g.lineTo(x, y); }
+            g.stroke();
+          }
+        }
+      },
+    },
+    {
+      id: 'B', name: 'B. 푸른 안개 소용돌이', cost: 3, dur: 2200,
+      desc: '푸른 안개가 카드 둘레를 돌며(뒤쪽 안개는 카드 뒤로, 앞쪽은 앞으로) 반투명하던 카드가 차츰 단단해지고 차가운 테두리 빛이 돈다 · 저: 안개를 납작한 원 7개로, 빛 합성·테두리 빛 없음',
+      draw(g, t, q) {
+        bg(g);
+        const n = q.n(26);
+        const puff = (p, front, k) => {
+          const ang = p.a + t * p.sp * TAU * 0.5, z = Math.sin(ang);
+          if ((z > 0) !== front) return;
+          const a = (k || 0.55) * seg(t, p.dl, p.dl + 0.22) * (1 - seg(t, 0.68, 0.94)) * (0.6 + 0.4 * (z + 1) / 2);
+          if (a <= 0.01) return;
+          const grow = 0.7 + 0.5 * seg(t, 0, 0.9);
+          const x = CX + Math.cos(ang) * p.rx * grow, y = CY + 20 + z * p.ry - t * 18, r = p.sz * (0.8 + 0.3 * z);
+          if (q.on(1)) { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(130,175,240,${a})`); gr.addColorStop(1, 'rgba(130,175,240,0)'); g.fillStyle = gr; }
+          else g.fillStyle = `rgba(150,185,230,${a * 0.6})`;
+          circ(g, x, y, r); g.fill();
+        };
+        for (let i = 0; i < n; i++) puff(FOG[i], false);
+        const solid = ease.inOut(seg(t, 0.25, 0.78));
+        g.save(); g.globalAlpha = lerp(0.2, 1, solid); drawGhostCard(g); g.restore();
+        if (solid < 1) { g.fillStyle = `rgba(120,160,230,${0.45 * (1 - solid)})`; g.beginPath(); g.roundRect(card.x, card.y, card.w, card.h, 8); g.fill(); }
+        const rim = Math.sin(seg(t, 0.3, 0.9) * Math.PI);
+        if (q.on(2) && rim > 0) { g.save(); g.shadowColor = '#9fd0ff'; g.shadowBlur = 14 * rim; g.strokeStyle = `rgba(190,225,255,${0.8 * rim})`; g.lineWidth = 2; g.beginPath(); g.roundRect(card.x, card.y, card.w, card.h, 8); g.stroke(); g.restore(); }
+        g.save(); if (q.on(2)) g.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < n; i++) puff(FOG[i], true, q.on(2) ? 0.22 : 0.45);
+        g.restore();
+      },
+    },
+    {
+      id: 'C', name: 'C. 무성영화 "그가 돌아왔다…"', cost: 1, dur: 2000,
+      desc: '조리개가 열리고 검은 자막 카드가 끼어든 뒤, 흑백 필름 속 카드에서 유령이 깜빡이며 나타난다. 긁힘·먼지가 지나가다 색이 돌아온다 · 저: 흑백 대신 갈색 덮개, 비네트 없음',
+      draw(g, t, q, f) {
+        bg(g, '#14100c');
+        const film = 1 - seg(t, 0.84, 1);
+        const flick = t < 0.42 ? 0 : t < 0.8 ? (Math.floor(t * 60) % 3 === 0 ? 0.25 : 0.75) : 0.75;
+        drawCard(g, '유령', (g) => town(g, 1, flick, 0), { band: BAND });
+        if (film > 0) {
+          if (q.on(1)) { g.save(); g.globalCompositeOperation = 'saturation'; g.globalAlpha = film; g.fillStyle = '#808080'; g.fillRect(0, 0, W, H); g.restore(); }
+          else { g.fillStyle = `rgba(60,42,24,${0.3 * film})`; g.fillRect(0, 0, W, H); }
+          if (q.on(2)) { g.save(); g.globalCompositeOperation = 'color'; g.globalAlpha = 0.35 * film; g.fillStyle = '#a0885e'; g.fillRect(0, 0, W, H); g.restore(); }
+          g.fillStyle = `rgba(0,0,0,${0.12 * film * ((f * 7) % 3) / 2})`; g.fillRect(0, 0, W, H);
+          if (q.on(1)) { const v = g.createRadialGradient(CX, CY, 60, CX, CY, 180); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(0,0,0,${0.7 * film})`); g.fillStyle = v; g.fillRect(0, 0, W, H); }
+          const r = rng(1 + Math.floor(f / 3));
+          g.strokeStyle = `rgba(235,225,200,${0.45 * film})`; g.lineWidth = 0.8;
+          for (let i = 0; i < 2; i++) { const x = r() * W; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + (r() - 0.5) * 6, H); g.stroke(); }
+          g.fillStyle = `rgba(20,15,10,${0.7 * film})`;
+          for (let i = 0, n = q.n(10); i < n; i++) { circ(g, r() * W, r() * H, 0.5 + r() * 1.4); g.fill(); }
+        }
+        // 자막 카드
+        const ti = seg(t, 0.12, 0.16) * (1 - seg(t, 0.38, 0.42));
+        if (ti > 0) {
+          g.save(); g.globalAlpha = ti; g.fillStyle = '#0d0a07'; g.fillRect(0, 0, W, H);
+          g.strokeStyle = '#d9cfb8'; g.lineWidth = 1.5; g.strokeRect(20, 20, W - 40, H - 40); g.lineWidth = 0.6; g.strokeRect(26, 26, W - 52, H - 52);
+          g.fillStyle = '#efe6d0'; g.font = '500 20px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('그가 돌아왔다…', W / 2, H / 2);
+          g.font = '12px serif'; g.fillStyle = '#b8ac90'; g.fillText('― ✦ ―', W / 2, H / 2 + 26); g.restore();
+        }
+        // 조리개
+        const iris = ease.out(seg(t, 0, 0.12));
+        if (iris < 1) { g.fillStyle = '#000'; g.beginPath(); g.rect(0, 0, W, H); g.arc(CX, CY, iris * 190, 0, TAU, true); g.fill('evenodd'); }
+      },
+    },
+    {
+      id: 'D', name: 'D. 그림자 없이 떠오르기 (3D)', cost: 2, dur: 2000,
+      desc: '테이블에 엎어져 누운 카드가 일어서며 떠오르고(바닥 그림자는 점점 사라진다), 공중에서 뒤집혀 반투명한 앞면을 보인다. 뒤로 푸른 잔상 층이 따라오다 내려앉는다 · 저: 잔상 1장',
+      draw(g, t, q) {
+        bg(g);
+        const up = ease.inOut(seg(t, 0, 0.35));
+        const fk = seg(t, 0.22, 0.56), sx = Math.abs(Math.cos(fk * Math.PI)), faceUp = fk >= 0.5;
+        const sy = lerp(0.26, 1, up);
+        const settle = ease.inOut(seg(t, 0.8, 1));
+        const bob = Math.sin((t - 0.35) * 14) * 3 * seg(t, 0.35, 0.5) * (1 - seg(t, 0.75, 0.9));
+        const py = CY + lerp(48, -14, up) * (1 - settle) + bob;
+        const alpha = faceUp ? lerp(0.55, 1, seg(t, 0.75, 0.95)) : 1;
+        // 바닥 그림자: 들릴수록 사라진다
+        const sh = 1 - seg(t, 0.05, 0.3);
+        if (sh > 0) { g.fillStyle = `rgba(0,0,0,${0.35 * sh})`; g.beginPath(); g.ellipse(CX, CY + 58 + 10, 52, 12 + 6 * (1 - sh), 0, 0, TAU); g.fill(); }
+        // 잔상 층 (뒤쪽, 위로)
+        const ek = seg(t, 0.4, 0.55) * (1 - seg(t, 0.78, 0.92));
+        if (ek > 0) {
+          const layers = q.on(1) ? 3 : 1;
+          for (let i = layers; i >= 1; i--) {
+            const lag = Math.sin((t - 0.35 - i * 0.04) * 14) * 3, s = 1 - i * 0.06;
+            g.save(); g.translate(CX + i * 4, py - i * 7 + lag - bob); g.scale(s, s);
+            g.fillStyle = `rgba(150,190,255,${0.16 * ek})`; g.strokeStyle = `rgba(200,225,255,${0.3 * ek})`; g.lineWidth = 1.2;
+            g.beginPath(); g.roundRect(-card.w / 2, -card.h / 2, card.w, card.h, 8); g.fill(); g.stroke(); g.restore();
+          }
+        }
+        g.save(); g.translate(CX, py); g.scale(Math.max(0.02, sx), sy); g.translate(-CX, -CY); g.globalAlpha = alpha;
+        if (faceUp) drawGhostCard(g);
+        else {
+          g.fillStyle = '#1f2f5a'; g.strokeStyle = '#8b5a2b'; g.lineWidth = 3; g.beginPath(); g.roundRect(card.x, card.y, card.w, card.h, 8); g.fill(); g.stroke();
+          g.strokeStyle = '#c9a05a'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(card.x + 8, card.y + 8, card.w - 16, card.h - 16, 5); g.stroke();
+          g.fillStyle = '#c9a05a'; g.font = '500 16px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('BANG!', CX, CY);
+        }
+        if (faceUp && alpha < 1) { g.fillStyle = `rgba(140,185,255,${0.5 * (1 - alpha)})`; g.beginPath(); g.roundRect(card.x, card.y, card.w, card.h, 8); g.fill(); }
+        g.restore();
+      },
+    },
+  ],
+});
+</script></body></html>

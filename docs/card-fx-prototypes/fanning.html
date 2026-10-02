@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>패닝 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389):
+  - 그림 칸 x 40~210, y 95~250. 거리 한가운데 총잡이 셋
+  - 가운데 노란 셔츠 총잡이: 모자 (120,118), 몸 (105~140, 130~175), 다리 ~230
+    허리춤에 권총을 두 손으로 쥐고 손바닥으로 공이를 친다. 섬광 두 개 (100,140), (135,140)
+  - 왼쪽 앞에 등 돌린 큰 인물 (40~100, 100~250), 오른쪽 앞에 초록 셔츠 인물 (165~215, 100~250)
+  - 아래 기호: 뱅! + 닿는 거리
+  노린 것: 섬광이 둘이라 "연달아 두 발". 첫 표적과 그 옆 사람(거리 1)에게 차례로 꽂히게 한다.
+  판 위 자리 가운데 위쪽 둘(242°, 298°)을 첫 표적·옆 사람으로 고정해 보인다.
+  소리 아이디어: 손바닥 짝 + 총성, 짧은 간격(120ms)으로 두 번. 두 번째 총성은 살짝 높게.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const S = card.w / 250;
+const CX = card.x + card.w / 2, CY = card.y + card.h / 2;
+const TAU = Math.PI * 2;
+const G = art(120, 150); // 권총
+const F1 = art(102, 141), F2 = art(136, 141); // 그림 속 섬광 두 자리
+
+const SEAT_DEG = [130, 186, 242, 298, 354, 410];
+const seatAt = (deg) => { const a = deg * Math.PI / 180; return { x: 150 + Math.cos(a) * 132, y: 105 + Math.sin(a) * 88 }; };
+const SEATS = SEAT_DEG.map(seatAt);
+const T1 = SEATS[2], T2 = SEATS[3]; // 첫 표적 · 거리 1 옆 사람
+const SHOT = [0.18, 0.34]; // 두 발의 순간
+
+function seats(g, a, hl) {
+  if (a <= 0) return;
+  SEATS.forEach((p, i) => {
+    const h = hl ? hl(i) : 0;
+    g.globalAlpha = a * (i === 2 || i === 3 ? 1 : 0.5);
+    g.fillStyle = h > 0 ? `rgba(200,50,30,${0.4 + h * 0.6})` : 'rgba(30,20,11,0.55)'; g.strokeStyle = '#c8902f'; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(p.x, p.y, 7 + h * 3, 0, TAU); g.fill(); g.stroke();
+  });
+  g.globalAlpha = 1;
+}
+function poly(g, pts) { g.beginPath(); pts.forEach(([x, y], i) => { const q = art(x, y); i ? g.lineTo(q.x, q.y) : g.moveTo(q.x, q.y); }); g.closePath(); g.fill(); }
+function scene(g, recoil) {
+  const r = recoil || [0, 0];
+  g.fillStyle = '#d9cbb4'; const gr = art(40, 190); g.fillRect(card.x, gr.y, card.w, card.h);
+  // 가운데 총잡이
+  g.fillStyle = '#4a4440'; poly(g, [[108, 172], [134, 172], [138, 232], [102, 232]]);
+  g.fillStyle = '#e2b53e'; poly(g, [[104, 130], [138, 130], [140, 172], [102, 172]]);
+  const hd = art(120, 122); g.fillStyle = '#b98b62'; g.beginPath(); g.arc(hd.x, hd.y, 8 * S, 0, TAU); g.fill();
+  g.fillStyle = '#7a3b20'; g.beginPath(); g.ellipse(hd.x, hd.y - 7 * S, 18 * S, 4 * S, 0, 0, TAU); g.fill(); g.fillRect(hd.x - 8 * S, hd.y - 17 * S, 16 * S, 10 * S);
+  g.fillStyle = '#2a2724'; g.fillRect(G.x - 6 * S, G.y - 3 * S, 16 * S, 6 * S);
+  // 앞쪽 두 인물 (맞으면 바깥으로 젖혀진다)
+  g.save(); g.translate(-r[0] * 4, 0); g.rotate(-r[0] * 0.05); g.fillStyle = '#6b4a30'; poly(g, [[40, 110], [92, 120], [102, 250], [40, 250]]); const h1 = art(62, 112); g.fillStyle = '#5a3a24'; g.beginPath(); g.arc(h1.x, h1.y, 12 * S, 0, TAU); g.fill(); g.restore();
+  g.save(); g.translate(r[1] * 4, 0); g.rotate(r[1] * 0.05); g.fillStyle = '#4f6b3e'; poly(g, [[168, 130], [212, 110], [212, 250], [160, 250]]); const h2 = art(195, 112); g.fillStyle = '#6e5a44'; g.beginPath(); g.arc(h2.x, h2.y, 12 * S, 0, TAU); g.fill(); g.restore();
+}
+const draw = (g, recoil) => drawCard(g, '패닝', (c) => scene(c, recoil));
+
+function star(g, x, y, r, rot, fill) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = fill;
+  g.beginPath(); for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; const rr = i % 2 ? r * 0.38 : r * (i % 4 ? 0.75 : 1); g.lineTo(Math.cos(a) * rr * 1.3, Math.sin(a) * rr); } g.closePath(); g.fill();
+  g.restore();
+}
+function palm(g, x, y, a, s) { // 손바닥 (위에서 내려치는 모양)
+  g.save(); g.translate(x, y); g.rotate(a); g.scale(s, s);
+  g.fillStyle = '#c99772'; g.strokeStyle = '#5a3a24'; g.lineWidth = 1;
+  g.beginPath(); g.ellipse(0, 0, 9, 6, 0, 0, TAU); g.fill(); g.stroke();
+  for (let i = 0; i < 4; i++) { g.beginPath(); g.roundRect(-8 + i * 4.4, -13, 3.6, 9, 1.8); g.fill(); g.stroke(); }
+  g.restore();
+}
+const recoilAt = (t) => SHOT.map((s) => { const k = seg(t, s + 0.03, s + 0.25); return k > 0 && k < 1 ? Math.sin(k * Math.PI) : 0; });
+
+// ---------- A: 그림 장면 — 손바닥 두 번, 섬광 두 개, 첫 표적 → 옆 사람 ----------
+function A(g, t, q) {
+  g.save();
+  SHOT.forEach((s) => { const k = seg(t, s, s + 0.05); if (q.on(2) && k > 0 && k < 1) shake(g, (1 - k) * 2, t); });
+  bg(g); draw(g, recoilAt(t));
+  const sa = Math.min(seg(t, 0, 0.1), 1 - seg(t, 0.82, 1));
+  seats(g, sa, (i) => { const s = i === 2 ? SHOT[0] : i === 3 ? SHOT[1] : -1; if (s < 0) return 0; const k = seg(t, s + 0.07, s + 0.4); return k > 0 && k < 1 ? 1 - k : 0; });
+  // 거리 1 고리: 첫 표적에서 옆 사람으로 점선 호가 이어진다
+  const lk = seg(t, SHOT[0] + 0.06, SHOT[1] + 0.02), lo = 1 - seg(t, 0.7, 0.85);
+  if (lk > 0 && lo > 0) {
+    g.save(); g.globalAlpha = lo; g.strokeStyle = '#f2c14e'; g.lineWidth = 1.5; g.setLineDash([3, 3]);
+    g.beginPath(); g.ellipse(150, 105, 132, 88, 0, SEAT_DEG[2] * Math.PI / 180, lerp(SEAT_DEG[2], SEAT_DEG[3], ease.out(lk)) * Math.PI / 180); g.stroke(); g.setLineDash([]);
+    if (lk >= 1) { g.fillStyle = '#f2c14e'; g.font = '600 10px sans-serif'; g.textAlign = 'center'; g.fillText('거리 1', 150, 105 - 88 + 14); }
+    g.restore();
+  }
+  // 손바닥: 쏘기 직전마다 공이를 쓸어 친다
+  SHOT.forEach((s, i) => {
+    const k = seg(t, s - 0.08, s + 0.02); if (k <= 0 || k >= 1) return;
+    palm(g, lerp(G.x + 14, G.x - 4, ease.in(k)), lerp(G.y - 16, G.y - 4, ease.in(k)), -0.6 + k * 0.4, 0.55);
+  });
+  // 섬광 + 총알 줄
+  [[F1, T1], [F2, T2]].forEach(([fp, tp], i) => {
+    const s = SHOT[i]; const k = seg(t, s, s + 0.1);
+    if (k > 0 && k < 1) {
+      const a = Math.atan2(tp.y - fp.y, tp.x - fp.x);
+      if (q.on(1)) { g.save(); g.globalCompositeOperation = 'lighter'; const gr = g.createRadialGradient(fp.x, fp.y, 0, fp.x, fp.y, 26); gr.addColorStop(0, `rgba(255,230,150,${1 - k})`); gr.addColorStop(1, 'rgba(255,120,30,0)'); g.fillStyle = gr; g.beginPath(); g.arc(fp.x, fp.y, 26, 0, TAU); g.fill(); g.restore(); }
+      star(g, fp.x, fp.y, 9 * (1 - k * 0.5), a, '#fff3c0');
+    }
+    const bk = seg(t, s, s + 0.08);
+    if (bk > 0 && bk < 1) { g.strokeStyle = 'rgba(255,224,150,0.9)'; g.lineWidth = 2; g.beginPath(); g.moveTo(lerp(fp.x, tp.x, Math.max(0, bk - 0.3)), lerp(fp.y, tp.y, Math.max(0, bk - 0.3))); g.lineTo(lerp(fp.x, tp.x, bk), lerp(fp.y, tp.y, bk)); g.stroke(); }
+    const hk = seg(t, s + 0.07, s + 0.22);
+    if (hk > 0 && hk < 1) { g.strokeStyle = `rgba(232,90,60,${1 - hk})`; g.lineWidth = 2; g.beginPath(); g.arc(tp.x, tp.y, 8 + hk * 14, 0, TAU); g.stroke(); }
+  });
+  g.restore();
+}
+
+// ---------- B: 3D 클로즈업 — 카드가 눕고 리볼버가 앞으로 튀어나와 공이가 두 번 ----------
+function revolver(g, cock, cyl) {
+  // 옆모습 권총. (0,0) 이 실린더 가운데
+  g.fillStyle = '#2b2622';
+  g.beginPath(); g.roundRect(6, -6, 58, 9, 2); g.fill(); // 총열
+  g.beginPath(); g.moveTo(-14, -2); g.lineTo(-30, 30); g.lineTo(-18, 34); g.lineTo(-4, 8); g.closePath(); g.fill(); // 손잡이
+  g.fillStyle = '#6b4a30'; g.beginPath(); g.moveTo(-17, 6); g.lineTo(-28, 28); g.lineTo(-20, 31); g.lineTo(-9, 9); g.closePath(); g.fill();
+  // 실린더: 타원 + 약실이 돌아간다 (앞쪽 반만 보인다)
+  g.fillStyle = '#4a433d'; g.beginPath(); g.ellipse(0, 0, 13, 11, 0, 0, TAU); g.fill();
+  for (let i = 0; i < 6; i++) { const a = cyl + i * TAU / 6; const cz = Math.cos(a); if (cz < -0.1) continue; g.fillStyle = `rgba(20,16,12,${0.5 + cz * 0.5})`; g.beginPath(); g.ellipse(Math.sin(a) * 4, Math.sin(a + 1.2) * 6, 2.6 * (0.5 + cz * 0.5), 2.6, 0, 0, TAU); g.fill(); }
+  // 공이: cock 0 = 내려감, 1 = 젖혀짐
+  g.save(); g.translate(-11, -8); g.rotate(-0.2 - cock * 0.9); g.fillStyle = '#2b2622'; g.fillRect(-2, -12, 4, 13); g.restore();
+}
+function B(g, t, q) {
+  bg(g);
+  const tilt = Math.sin(seg(t, 0, 0.85) * Math.PI); // 카드가 판 쪽으로 눕는다
+  const pop = ease.back(seg(t, 0.02, 0.14)) * (1 - ease.in(seg(t, 0.62, 0.8))); // 권총이 앞으로 튀어나옴
+  seats(g, Math.min(seg(t, 0, 0.1), 1 - seg(t, 0.82, 1)), (i) => { const s = i === 2 ? SHOT[0] : i === 3 ? SHOT[1] : -1; if (s < 0) return 0; const k = seg(t, s + 0.05, s + 0.4); return k > 0 && k < 1 ? 1 - k : 0; });
+  // 카드: 아래 변을 축으로 뒤로 눕는 원근 (세로 축소 + 위쪽 좁히기 흉내)
+  g.save(); g.translate(CX, card.y + card.h); g.scale(1, 1 - 0.32 * tilt); g.transform(1, 0, 0, 1, 0, 0); g.translate(-CX, -(card.y + card.h));
+  draw(g, recoilAt(t));
+  g.restore();
+  if (pop > 0.01) {
+    // 공이 움직임: 손바닥이 칠 때마다 젖혔다가 떨어진다. 실린더는 한 칸(60°)씩
+    let cock = 0, cyl = 0;
+    SHOT.forEach((s, i) => { const up = seg(t, s - 0.09, s - 0.02), dn = seg(t, s - 0.02, s); cock = Math.max(cock, up * (1 - dn)); cyl += ease.inOut(up) * TAU / 6; });
+    const gx = CX - 8, gy = CY + 4 - pop * 6;
+    // 바닥 그림자: 높이 들릴수록 작고 흐리다
+    if (q.on(1)) { g.fillStyle = `rgba(0,0,0,${0.35 * pop})`; g.beginPath(); g.ellipse(gx + 12, card.y + card.h - 6, 40 * pop, 6 * pop, 0, 0, TAU); g.fill(); }
+    g.save(); g.translate(gx, gy); g.scale(pop * 1.15, pop * 1.15); g.rotate(-0.12 + Math.max(0, ...SHOT.map((s) => { const k = seg(t, s, s + 0.08); return k > 0 && k < 1 ? (1 - k) * 0.25 : 0; })) * -1);
+    revolver(g, cock, cyl);
+    SHOT.forEach((s) => { const k = seg(t, s - 0.09, s + 0.01); if (k > 0 && k < 1) palm(g, lerp(-2, -10, ease.in(k)), lerp(-34, -18, ease.in(k)), -0.2, 1); });
+    SHOT.forEach((s, i) => { const k = seg(t, s, s + 0.07); if (k > 0 && k < 1) { if (q.on(1)) { g.save(); g.globalCompositeOperation = 'lighter'; const gr = g.createRadialGradient(70, -2, 0, 70, -2, 30); gr.addColorStop(0, `rgba(255,236,170,${1 - k})`); gr.addColorStop(1, 'rgba(255,120,30,0)'); g.fillStyle = gr; g.beginPath(); g.arc(70, -2, 30, 0, TAU); g.fill(); g.restore(); } star(g, 72, -2, 10 * (1 - k * 0.4), i * 0.3, '#fff3c0'); } });
+    g.restore();
+  }
+  // 두 발이 각각 다른 자리로
+  [T1, T2].forEach((tp, i) => {
+    const bk = seg(t, SHOT[i], SHOT[i] + 0.12); if (bk <= 0 || bk >= 1) return;
+    const fx = CX + 70, fy = CY;
+    g.strokeStyle = 'rgba(255,224,150,0.9)'; g.lineWidth = 2; g.beginPath();
+    g.moveTo(lerp(fx, tp.x, Math.max(0, bk - 0.25)), lerp(fy, tp.y, Math.max(0, bk - 0.25)) - Math.sin(bk * Math.PI) * 20); g.lineTo(lerp(fx, tp.x, bk), lerp(fy, tp.y, bk) - Math.sin(bk * Math.PI) * 20); g.stroke();
+  });
+}
+
+// ---------- C: 만화 2컷 — 탕! 탕! 컷이 번갈아 들어왔다 나간다 ----------
+function panel(g, side, k, label, tp) {
+  // side -1: 왼쪽 위 사선 컷, 1: 오른쪽 아래 사선 컷
+  const off = (1 - ease.out(Math.min(1, k * 3))) * 200 * side + ease.in(seg(k, 0.75, 1)) * 200 * side;
+  g.save(); g.translate(off, 0);
+  g.beginPath();
+  if (side < 0) { g.moveTo(6, 8); g.lineTo(186, 8); g.lineTo(130, 120); g.lineTo(6, 120); }
+  else { g.moveTo(170, 90); g.lineTo(294, 90); g.lineTo(294, 202); g.lineTo(114, 202); }
+  g.closePath(); g.fillStyle = '#fffaf0'; g.fill(); g.lineWidth = 3; g.strokeStyle = '#1e140b'; g.stroke(); g.save(); g.clip();
+  const cx = side < 0 ? 70 : 220, cy = side < 0 ? 64 : 146;
+  g.strokeStyle = '#1e140b'; g.lineWidth = 1.2;
+  for (let i = 0; i < 16; i++) { const a = i / 16 * TAU; g.beginPath(); g.moveTo(cx + Math.cos(a) * 26, cy + Math.sin(a) * 20); g.lineTo(cx + Math.cos(a) * 120, cy + Math.sin(a) * 90); g.stroke(); }
+  g.fillStyle = '#1e140b'; g.beginPath(); g.arc(cx, cy, 10, 0, TAU); g.fill(); // 맞은 사람 머리
+  g.beginPath(); g.ellipse(cx, cy + 22, 12, 14, 0, 0, TAU); g.fill();
+  g.font = '800 26px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+  g.lineWidth = 6; g.strokeStyle = '#1e140b'; g.strokeText(label, cx + side * -30, cy - 26); g.fillStyle = '#f2c14e'; g.fillText(label, cx + side * -30, cy - 26);
+  g.restore(); g.restore();
+}
+function C(g, t, q) {
+  bg(g, '#f3ead6'); draw(g, recoilAt(t));
+  const k1 = seg(t, 0.12, 0.66), k2 = seg(t, 0.28, 0.8);
+  if (k1 > 0 && k1 < 1) panel(g, -1, k1, '탕!', T1);
+  if (k2 > 0 && k2 < 1) panel(g, 1, k2, '탕!', T2);
+  // 컷 사이를 잇는 손바닥 동작선
+  const pk = seg(t, 0.06, 0.4);
+  if (pk > 0 && pk < 1 && q.on(1)) { g.strokeStyle = 'rgba(30,20,11,0.7)'; g.lineWidth = 2; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(G.x, G.y - 6, 14 + i * 5, -2.4, -2.4 + pk * 2.2); g.stroke(); } }
+}
+
+// ---------- D: 사실풍 슬로모션 — 두 발이 시간차로 날아간다 ----------
+const D_SMOKE = (() => { const r = rng(55); return Array.from({ length: 24 }, (_, i) => ({ shot: i % 2, vx: (r() - 0.5) * 40, vy: -18 - r() * 30, r0: 3 + r() * 3, r1: 12 + r() * 14, tone: r() })); })();
+function D(g, t, q) {
+  // 시간 왜곡: 첫 발 뒤 느려졌다가(슬로) 두 번째 발 뒤 다시 빨라진다
+  const warp = (x) => x < 0.2 ? x * 1.6 : x < 0.7 ? 0.32 + (x - 0.2) * 0.4 : 0.52 + (x - 0.7) * 1.6;
+  const w = warp(t); // 0 → 1
+  const s1 = 0.3, s2 = 0.42;
+  const z = 1 + Math.sin(seg(t, 0.1, 0.8) * Math.PI) * 0.18;
+  g.save();
+  if (q.on(2)) [s1, s2].forEach((s) => { const k = seg(w, s, s + 0.04); if (k > 0 && k < 1) shake(g, (1 - k) * 2.5, t); });
+  bg(g); g.translate(CX, CY); g.scale(z, z); g.translate(-CX, -CY);
+  draw(g, [seg(w, s1 + 0.05, s1 + 0.15) * (1 - seg(w, 0.7, 0.9)), seg(w, s2 + 0.05, s2 + 0.15) * (1 - seg(w, 0.7, 0.9))]);
+  seats(g, Math.min(seg(t, 0, 0.1), 1 - seg(t, 0.82, 1)), (i) => { const s = i === 2 ? s1 : i === 3 ? s2 : -1; if (s < 0) return 0; const k = seg(w, s + 0.14, s + 0.4); return k > 0 && k < 1 ? 1 - k : 0; });
+  // 연기
+  D_SMOKE.slice(0, q.n(D_SMOKE.length)).forEach((p) => {
+    const s = p.shot ? s2 : s1; const fp = p.shot ? F2 : F1; const k = seg(w, s, 0.98); if (k <= 0 || k >= 1) return;
+    const e = ease.out(k); const x = fp.x + p.vx * e, y = fp.y + p.vy * e; const r = lerp(p.r0, p.r1, e); const a = (1 - k) * 0.4;
+    const c = p.tone > 0.5 ? '170,160,145' : '110,100,90';
+    if (q.on(1)) { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${c},${a})`); gr.addColorStop(1, `rgba(${c},0)`); g.fillStyle = gr; } else g.fillStyle = `rgba(${c},${a * 0.6})`;
+    g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  });
+  // 섬광 + 총알 (느린 시간에 또렷이 보인다)
+  [[F1, T1, s1], [F2, T2, s2]].forEach(([fp, tp, s]) => {
+    const fk = seg(w, s, s + 0.05);
+    if (fk > 0 && fk < 1) {
+      if (q.on(1)) { g.save(); g.globalCompositeOperation = 'lighter'; const gr = g.createRadialGradient(fp.x, fp.y, 0, fp.x, fp.y, 34); gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.3, `rgba(255,226,122,${1 - fk})`); gr.addColorStop(1, 'rgba(255,90,20,0)'); g.fillStyle = gr; g.beginPath(); g.arc(fp.x, fp.y, 34, 0, TAU); g.fill(); g.restore(); }
+      else star(g, fp.x, fp.y, 10, 0, '#ffe27a');
+    }
+    const bk = seg(w, s + 0.01, s + 0.16); if (bk <= 0 || bk >= 1) return;
+    const x = lerp(fp.x, tp.x, bk), y = lerp(fp.y, tp.y, bk); const a = Math.atan2(tp.y - fp.y, tp.x - fp.x);
+    g.strokeStyle = 'rgba(255,236,190,0.6)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(lerp(fp.x, tp.x, bk * 0.4), lerp(fp.y, tp.y, bk * 0.4)); g.lineTo(x, y); g.stroke();
+    g.save(); g.translate(x, y); g.rotate(a); g.fillStyle = '#c9b48a'; g.beginPath(); g.ellipse(0, 0, 4.5, 2.4, 0, 0, TAU); g.fill(); g.restore();
+    // 공기를 가르는 고리
+    g.strokeStyle = `rgba(220,210,190,${(1 - bk) * 0.6})`; g.lineWidth = 1; g.beginPath(); g.ellipse(lerp(fp.x, tp.x, bk * 0.5), lerp(fp.y, tp.y, bk * 0.5), 3, 8 * bk + 3, a, 0, TAU); g.stroke();
+  });
+  g.restore();
+  if (t > 0.2 && t < 0.7) { g.fillStyle = 'rgba(242,193,78,0.9)'; g.font = '500 11px sans-serif'; g.textAlign = 'right'; g.fillText('slow', W - 10, 18); }
+}
+
+FxKit.mount({
+  kind: 'fanning', title: '패닝 연출 시안',
+  lead: '그림 속 총잡이가 손바닥으로 공이를 쳐 섬광 두 개를 낸다. 첫 표적(위 왼쪽 자리)과 거리 1인 옆 사람(위 오른쪽 자리)에게 차례로 한 발씩. 칸을 누르면 다시.',
+  concepts: [
+    { id: 'A', name: 'A. 그림 장면 · 손바닥 두 번', cost: 2, dur: 1700, draw: A,
+      desc: '손바닥이 공이를 두 번 쓸고, 그림 속 두 섬광 자리에서 차례로 불이 터져 두 자리에 꽂히며, 앞쪽 인물이 젖혀지고 "거리 1" 점선 호가 두 자리를 잇는다 · 저: 섬광 빛무리·흔들림 없음' },
+    { id: 'B', name: 'B. 3D 클로즈업 · 리볼버가 튀어나옴', cost: 2, dur: 1800, draw: B,
+      desc: '카드가 판 쪽으로 눕고 옆모습 리볼버가 그림자를 남기며 앞으로 튀어나와, 손바닥이 칠 때마다 공이가 젖혀졌다 떨어지고 실린더가 한 칸씩 돈다 · 저: 그림자·총구 빛무리 없음' },
+    { id: 'C', name: 'C. 만화 2컷 · 탕! 탕!', cost: 1, dur: 1600, draw: C,
+      desc: '사선 컷 두 장이 왼쪽 위·오른쪽 아래에서 시간차로 미끄러져 들어와 맞은 사람 실루엣과 "탕!"을 보이고 빠진다 · 저: 손바닥 동작선만 빠짐' },
+    { id: 'D', name: 'D. 사실풍 슬로모션 · 두 발의 시간차', cost: 3, dur: 2200, draw: D,
+      desc: '첫 발 뒤 시간이 느려져 두 총알이 공기 고리를 남기며 두 자리로 따로 날아가고, 연기가 피어오른 뒤 다시 빨라진다 · 저: 빛무리 대신 별 섬광, 연기는 단색·개수 줄어듦, 흔들림 없음' },
+  ],
+});
+</script></body></html>

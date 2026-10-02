@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>웰스 파고 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389)
+  - 왼쪽으로 질주하는 말 두 마리 x 45~140, y 190~250 (앞발 든 말 머리 (60,205))
+  - 오른쪽 큰 역마차 차체 x 150~215, y 120~250. 지붕 짐(상자) (175,120) 근처, 마부 (140,150)
+  - 앞바퀴 (170,240) 반지름 ≈15. 왼쪽 위 먼지 구름 x 60~110, y 110~160
+  → 웰스 파고 = 금고 수송. 카드 3장. 금고가 열려 카드가 쏟아지는 흐름(A·C), 그림 속 질주와 지붕 상자(B), 미니멀 카운터(D).
+  소리: 금고 다이얼 '찰칵 찰칵' + 무거운 문 '끼익' + 카드 세 장 '착착착' (gen-sfx: 짧은 클릭 펄스 + 저역 마찰 + 종이 노이즈)
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+
+const HAND = [{ x: 130, y: 194, r: -0.28 }, { x: 150, y: 191, r: 0 }, { x: 170, y: 194, r: 0.28 }];
+function miniCard(g, x, y, rot, s, flip, a) {
+  if (a <= 0) return;
+  const f = flip == null ? 1 : flip;
+  g.save(); g.globalAlpha *= a; g.translate(x, y); g.rotate(rot); g.scale(s * Math.max(0.04, Math.abs(f)), s);
+  g.beginPath(); g.roundRect(-9, -13, 18, 26, 2.5);
+  if (f >= 0) { g.fillStyle = '#7a2a22'; g.fill(); g.strokeStyle = '#f0dcb4'; g.lineWidth = 1; g.stroke(); g.strokeStyle = 'rgba(240,220,180,0.6)'; g.beginPath(); g.roundRect(-6, -10, 12, 20, 1.5); g.stroke(); }
+  else { g.fillStyle = '#efe2c6'; g.fill(); g.strokeStyle = '#8b5a2b'; g.lineWidth = 1; g.stroke(); g.fillStyle = '#1e140b'; g.fillRect(-8, -12, 16, 4); }
+  g.restore();
+}
+/** 금고 상자 (lid 0 닫힘 → 1 열림) */
+function strongbox(g, x, y, s, lid, ink) {
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.lineWidth = ink ? 2.2 : 1; g.strokeStyle = ink ? '#1e140b' : '#3a2410';
+  g.fillStyle = '#6a8a5a'; g.beginPath(); g.roundRect(-14, -6, 28, 16, 2); g.fill(); g.stroke();
+  g.fillStyle = '#c9963a'; g.fillRect(-14, -1, 28, 3); g.fillRect(-2, -6, 4, 16);
+  g.save(); g.translate(-14, -6); g.rotate(-lid * 1.9);
+  g.fillStyle = '#58784a'; g.beginPath(); g.roundRect(0, -6, 28, 6, 2); g.fill(); g.stroke(); g.restore();
+  g.fillStyle = '#e6c46a'; g.font = '700 4px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('W.F.&Co', 0, 6);
+  g.restore();
+}
+function fargoArt(g, o) {
+  o = o || {};
+  g.fillStyle = '#e4e2d6'; g.fillRect(card.x, card.y, card.w, card.h);
+  const gr = art(0, 248); g.fillStyle = '#d2c7aa'; g.fillRect(card.x, gr.y, card.w, card.h);
+  // 먼지 구름 (왼쪽 위)
+  const puff = o.puff || 0;
+  g.fillStyle = 'rgba(205,195,170,0.85)'; [[70, 130, 8], [90, 120, 9], [100, 145, 7], [75, 150, 6]].forEach(([px, py, r], i) => { const p = art(px - puff * (8 + i * 3), py - puff * 4); g.beginPath(); g.arc(p.x, p.y, r * (0.6 + puff * 0.4), 0, 7); g.fill(); });
+  const dx = o.dx || 0, dy = o.dy || 0, leg = o.leg || 0;
+  g.save(); g.translate(dx, dy);
+  // 말 두 마리
+  [[0, 0], [8, 6]].forEach(([ox, oy], i) => {
+    const b0 = art(70 + ox * 3, 205 + oy * 3), b1 = art(130 + ox * 3, 232 + oy * 3);
+    g.fillStyle = i ? '#7a5638' : '#9a6f48';
+    g.beginPath(); g.ellipse((b0.x + b1.x) / 2, (b0.y + b1.y) / 2, (b1.x - b0.x) / 2, 4, -0.1, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(b0.x + 2, b0.y + 2); g.lineTo(b0.x - 6, b0.y - 5); g.lineTo(b0.x - 9, b0.y - 2); g.lineTo(b0.x - 1, b0.y + 6); g.closePath(); g.fill();
+    g.strokeStyle = i ? '#5f4029' : '#7a5638'; g.lineWidth = 1.4; const l = Math.sin(leg * 2 + i) * 3;
+    [[b0.x + 3, -l], [b0.x + 6, l], [b1.x - 4, l], [b1.x - 1, -l]].forEach(([x, q]) => { g.beginPath(); g.moveTo(x, b1.y - 3); g.lineTo(x + q, b1.y + 4); g.stroke(); });
+  });
+  // 역마차
+  const c0 = art(150, 135), c1 = art(215, 235);
+  g.fillStyle = '#5f7f8a'; g.beginPath(); g.moveTo(c0.x, c0.y + 6); g.lineTo(c1.x, c0.y + 2); g.lineTo(c1.x - 2, c1.y - 6); g.quadraticCurveTo((c0.x + c1.x) / 2, c1.y, c0.x + 2, c1.y - 8); g.closePath(); g.fill();
+  g.fillStyle = '#c5d2d2'; g.fillRect(c0.x + 6, c0.y + 10, 8, 7); g.fillRect(c0.x + 17, c0.y + 9, 6, 7);
+  const dr = art(140, 150); g.fillStyle = '#5a4030'; g.beginPath(); g.arc(dr.x, dr.y, 2.5, 0, 7); g.fill(); g.fillRect(dr.x - 2, dr.y + 2, 4, 6);
+  g.strokeStyle = '#5a4030'; g.lineWidth = 0.6; g.beginPath(); g.moveTo(dr.x, dr.y + 4); g.lineTo(art(70, 205).x, art(70, 205).y); g.stroke();
+  if (!o.noBox) { const b = art(178, 120); strongbox(g, b.x, b.y, 0.45, 0); }
+  g.restore();
+  const w = art(170, 240); g.strokeStyle = '#3d2d20'; g.lineWidth = 1.3; g.beginPath(); g.arc(w.x + dx, w.y + dy, 5.5, 0, 7); g.stroke();
+  for (let i = 0; i < 6; i++) { const a = (o.spin || 0) + i * Math.PI / 3; g.beginPath(); g.moveTo(w.x + dx, w.y + dy); g.lineTo(w.x + dx + Math.cos(a) * 5.5, w.y + dy + Math.sin(a) * 5.5); g.stroke(); }
+}
+function cardsToHand(g, t, from, t0, gap, q, flips) {
+  HAND.forEach((hd, i) => {
+    const k = seg(t, t0 + i * gap, t0 + i * gap + 0.32); if (k <= 0) return;
+    const e = ease.inOut(k), z = Math.sin(e * Math.PI);
+    const x = lerp(from.x, hd.x, e) + (i - 1) * 34 * z, y = lerp(from.y, hd.y, e) - z * 34;
+    miniCard(g, x, y, lerp(0, hd.r, e) + (i - 1) * 0.8 * z, 1 + 0.35 * z, flips ? Math.cos(e * Math.PI * 2) : 1, 1 - seg(t, 0.9 + i * 0.02, 1));
+  });
+}
+
+// ---- A. 금고 문 (3D) ----------------------------------------------------
+function drawA(g, t, q) {
+  bg(g);
+  drawCard(g, '웰스 파고', (g) => fargoArt(g));
+  const cx = 150, cy = 102, R = 50;
+  const inK = ease.out(seg(t, 0, 0.12)), spin = ease.inOut(seg(t, 0.1, 0.34)), open = ease.inOut(seg(t, 0.34, 0.56)), outK = seg(t, 0.78, 0.95);
+  // 금고 안 금빛
+  const glow = open * (1 - outK);
+  if (glow > 0) {
+    if (q.on(1)) { const gr = g.createRadialGradient(cx, cy, 2, cx, cy, R * 1.6); gr.addColorStop(0, `rgba(255,226,140,${0.5 * glow})`); gr.addColorStop(1, 'rgba(255,190,80,0)'); g.save(); if (q.on(2)) g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, R * 1.6, 0, 7); g.fill(); g.restore(); }
+    else { g.fillStyle = `rgba(255,220,130,${0.55 * glow})`; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.fill(); }
+  }
+  if (outK < 1 && inK > 0) {
+    g.save(); g.globalAlpha = inK * (1 - outK);
+    // 문틀
+    g.strokeStyle = '#3a3a3e'; g.lineWidth = 6; g.beginPath(); g.arc(cx, cy, R + 3, 0, 7); g.stroke();
+    // 문짝: 왼쪽 경첩 기준으로 Y 축 회전 → 폭이 cos 로 줄고, 앞으로 나오며 커진다
+    const ang = open * 1.3, c = Math.cos(ang), sn = Math.sin(ang);
+    const hx = cx - R, grow = 1 + 0.35 * sn;
+    g.save(); g.translate(hx, cy); g.scale(c, grow); g.translate(R, 0);
+    if (c > 0) {
+      if (q.on(1)) { const gr = g.createRadialGradient(-12, -14, 4, 0, 0, R); gr.addColorStop(0, '#9aa0a6'); gr.addColorStop(1, '#4b4f55'); g.fillStyle = gr; } else g.fillStyle = '#6f747a';
+      g.beginPath(); g.arc(0, 0, R, 0, 7); g.fill(); g.strokeStyle = '#2a2b2e'; g.lineWidth = 2; g.stroke();
+      g.fillStyle = '#2a2b2e'; for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; g.beginPath(); g.arc(Math.cos(a) * (R - 6), Math.sin(a) * (R - 6), 1.6, 0, 7); g.fill(); }
+      // 손잡이 바퀴 (돌아간다)
+      g.save(); g.rotate(spin * Math.PI * 2.5); g.strokeStyle = '#c9963a'; g.lineWidth = 3; g.lineCap = 'round';
+      for (let i = 0; i < 3; i++) { const a = i * Math.PI / 1.5; g.beginPath(); g.moveTo(Math.cos(a) * 5, Math.sin(a) * 5); g.lineTo(Math.cos(a) * 20, Math.sin(a) * 20); g.stroke(); g.beginPath(); g.arc(Math.cos(a) * 21, Math.sin(a) * 21, 2.5, 0, 7); g.fillStyle = '#e0b04f'; g.fill(); }
+      g.fillStyle = '#e0b04f'; g.beginPath(); g.arc(0, 0, 6, 0, 7); g.fill(); g.restore();
+      g.fillStyle = '#e6c46a'; g.font = '700 7px serif'; g.textAlign = 'center'; g.fillText('WELLS FARGO', 0, R - 12);
+      if (q.on(1) && sn > 0) { g.fillStyle = `rgba(0,0,0,${0.45 * sn})`; g.beginPath(); g.arc(0, 0, R, 0, 7); g.fill(); }
+    }
+    g.restore();
+    // 문 두께 (열릴 때 보이는 옆면)
+    if (sn > 0.05 && c > -0.2) { g.fillStyle = '#2f3134'; g.fillRect(hx + R * 2 * c - 1, cy - R * grow, Math.max(1, 7 * sn), R * 2 * grow); }
+    g.restore();
+  }
+  // 카드 세 장이 금고 안에서 솟아 손으로
+  cardsToHand(g, t, { x: cx, y: cy }, 0.5, 0.08, q, true);
+}
+
+// ---- B. 질주와 지붕 상자 ----------------------------------------------
+const DUSTB = (() => { const r = rng(4); return Array.from({ length: 26 }, () => ({ d: r() * 0.5, vx: -40 - r() * 70, vy: -10 - r() * 30, r: 3 + r() * 6 })); })();
+function drawB(g, t, q) {
+  bg(g);
+  const run = Math.sin(seg(t, 0, 0.7) * Math.PI), bob = -Math.abs(Math.sin(t * 40)) * 2 * run;
+  const boxOff = t > 0.2;
+  drawCard(g, '웰스 파고', (g) => fargoArt(g, { dx: -3 * run, dy: bob, leg: t * 40, spin: -t * 50, puff: run, noBox: boxOff }));
+  // 먼지: 말발굽 아래에서 오른쪽 뒤로 (말은 왼쪽으로 달린다)
+  const hoof = art(110, 250);
+  DUSTB.slice(0, q.n(26)).forEach((p) => {
+    const k = seg(t, 0.02 + p.d * 0.6, 0.45 + p.d * 0.6); if (k <= 0 || k >= 1) return;
+    const e = ease.out(k), x = hoof.x - p.vx * e * 0.9, y = hoof.y + p.vy * e, r = p.r * (0.5 + e);
+    if (q.on(1)) { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(200,185,150,${(1 - k) * 0.7})`); gr.addColorStop(1, 'rgba(200,185,150,0)'); g.fillStyle = gr; }
+    else g.fillStyle = `rgba(200,185,150,${(1 - k) * 0.55})`;
+    g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  });
+  // 지붕 상자: 덜컹에 튀어 올라 카드 위 가운데에 쿵 내려앉고 뚜껑이 열린다
+  if (boxOff) {
+    const b0 = art(178, 120), land = { x: 150, y: 36 };
+    const fk = seg(t, 0.2, 0.42), e = ease.out(fk);
+    const x = lerp(b0.x, land.x, fk), y = lerp(b0.y, land.y, fk) - Math.sin(fk * Math.PI) * 30;
+    const sq = fk >= 1 ? 1 - 0.15 * Math.sin(seg(t, 0.42, 0.5) * Math.PI) : 1;
+    const lid = ease.back(seg(t, 0.48, 0.58)), out = seg(t, 0.82, 0.95);
+    if (out < 1) {
+      g.save(); g.globalAlpha = 1 - out; g.translate(x, y); g.scale(2 - sq, sq); g.rotate((1 - e) * 0.8);
+      strongbox(g, 0, 0, lerp(0.45, 1.3, e), lid); g.restore();
+    }
+    if (fk >= 1 && t < 0.56) { const k = seg(t, 0.42, 0.56); g.strokeStyle = `rgba(243,231,206,${1 - k})`; g.lineWidth = 1.5; for (let i = 0; i < 6; i++) { const a = Math.PI + i * Math.PI / 5; g.beginPath(); g.moveTo(land.x + Math.cos(a) * (20 + k * 10), land.y + 12 + Math.sin(a) * 6); g.lineTo(land.x + Math.cos(a) * (28 + k * 14), land.y + 12 + Math.sin(a) * 9); g.stroke(); } }
+    if (q.on(2) && t > 0.42 && t < 0.5) { /* 착지 흔들림은 실제 화면에서 카드 래퍼로 */ }
+    cardsToHand(g, t, { x: land.x, y: land.y }, 0.52, 0.07, q, true);
+  }
+}
+
+// ---- C. 만화 쾅! 금화 --------------------------------------------------
+const COINS = (() => { const r = rng(61); return Array.from({ length: 40 }, () => { const a = -Math.PI / 2 + (r() - 0.5) * 2.4, s = 70 + r() * 110; return { vx: Math.cos(a) * s, vy: Math.sin(a) * s, sp: 6 + r() * 14, ph: r() * 6.28 }; }); })();
+function drawC(g, t, q) {
+  bg(g, '#3a2816');
+  drawCard(g, '웰스 파고', (g) => fargoArt(g));
+  const bx = 150, by = 112, pop = 0.18;
+  const inK = ease.back(seg(t, 0, 0.14)), outK = seg(t, 0.8, 0.95);
+  // 별 터짐
+  const sk = seg(t, pop, pop + 0.25);
+  if (sk > 0 && sk < 1) {
+    const s = 0.5 + ease.out(sk) * 0.9;
+    g.save(); g.globalAlpha = 1 - sk; g.translate(bx, by - 6); g.scale(s, s);
+    g.beginPath(); for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12, rr = i % 2 ? 26 : 46 + (i % 4) * 4; g.lineTo(Math.cos(a) * rr * 1.2, Math.sin(a) * rr); } g.closePath();
+    g.fillStyle = '#ffd34d'; g.fill(); g.lineWidth = 3; g.strokeStyle = '#1e140b'; g.stroke(); g.restore();
+  }
+  // 상자
+  if (outK < 1) { g.save(); g.globalAlpha = 1 - outK; strongbox(g, bx, by, 1.6 * inK, ease.back(seg(t, pop, pop + 0.1)), true); g.restore(); }
+  // 쾅!
+  const wk = seg(t, pop, 0.65);
+  if (wk > 0 && wk < 1) {
+    const s = wk < 0.12 ? 0.4 + ease.back(wk / 0.12) * 0.6 : 1;
+    g.save(); g.globalAlpha = 1 - seg(wk, 0.75, 1); g.translate(232, 54); g.rotate(0.2); g.scale(s, s);
+    g.font = '900 24px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.lineWidth = 7; g.strokeStyle = '#1e140b'; g.strokeText('쾅!', 0, 0); g.fillStyle = '#ff7a3a'; g.fillText('쾅!', 0, 0); g.restore();
+  }
+  // 금화 샤워
+  const ck = seg(t, pop, pop + 0.6);
+  if (ck > 0 && ck < 1) COINS.slice(0, q.n(40)).forEach((c) => {
+    const x = bx + c.vx * ck, y = by - 10 + c.vy * ck + 240 * ck * ck; if (y > H + 6) return;
+    const w = Math.abs(Math.cos(c.ph + ck * c.sp)) * 4 + 0.6;
+    g.fillStyle = '#f2c14e'; g.strokeStyle = '#1e140b'; g.lineWidth = 1.2; g.beginPath(); g.ellipse(x, y, w, 4, 0, 0, 7); g.fill(); g.stroke();
+  });
+  // 카드 세 장 (잉크 테두리, 뒤집기 없이 휙)
+  cardsToHand(g, t, { x: bx, y: by - 12 }, pop + 0.12, 0.07, q, false);
+  // 숫자 3
+  const nk = seg(t, 0.62, 0.72), no = seg(t, 0.85, 1);
+  if (nk > 0 && no < 1) { g.save(); g.globalAlpha = 1 - no; g.translate(196, 176); g.scale(0.6 + 0.4 * ease.back(nk), 0.6 + 0.4 * ease.back(nk)); g.font = '900 20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.lineWidth = 6; g.strokeStyle = '#1e140b'; g.strokeText('×3', 0, 0); g.fillStyle = '#fff'; g.fillText('×3', 0, 0); g.restore(); }
+}
+
+// ---- D. 세 칸 카운터 (미니멀) -----------------------------------------
+function drawD(g, t, q) {
+  bg(g);
+  drawCard(g, '웰스 파고', (g) => fargoArt(g));
+  const show = seg(t, 0, 0.1) * (1 - seg(t, 0.85, 1)); if (show <= 0) return;
+  const cx = 150, cy = 105;
+  // 금빛 고리 세 칸
+  g.save(); g.globalAlpha = show; g.lineCap = 'round';
+  for (let i = 0; i < 3; i++) {
+    const a0 = -Math.PI / 2 + i * (Math.PI * 2 / 3) + 0.12, a1 = a0 + Math.PI * 2 / 3 - 0.24;
+    g.strokeStyle = 'rgba(243,231,206,0.25)'; g.lineWidth = 4; g.beginPath(); g.ellipse(cx, cy, 78, 74, 0, a0, a1); g.stroke();
+    const k = ease.out(seg(t, 0.18 + i * 0.16, 0.34 + i * 0.16));
+    if (k > 0) { g.strokeStyle = '#e0b04f'; g.beginPath(); g.ellipse(cx, cy, 78, 74, 0, a0, lerp(a0, a1, k)); g.stroke(); }
+  }
+  g.restore();
+  // 칸이 찰 때마다 카드 한 장이 카드에서 미끄러져 손으로
+  HAND.forEach((hd, i) => {
+    const k = seg(t, 0.2 + i * 0.16, 0.42 + i * 0.16); if (k <= 0) return;
+    const e = ease.out(k);
+    miniCard(g, lerp(cx, hd.x, e), lerp(cy + 20, hd.y, e), lerp(0, hd.r, e), 1, 1, show);
+  });
+  // 가운데 숫자
+  const n = t < 0.34 ? 0 : t < 0.5 ? 1 : t < 0.66 ? 2 : 3;
+  if (n === 0) return;
+  g.save(); g.globalAlpha = show; g.fillStyle = 'rgba(30,20,11,0.8)'; g.beginPath(); g.arc(cx + 62, cy - 54, 13, 0, 7); g.fill();
+  g.strokeStyle = '#e0b04f'; g.lineWidth = 1.5; g.stroke();
+  g.fillStyle = '#ffe9a8'; g.font = '700 13px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('+' + n, cx + 62, cy - 53); g.restore();
+}
+
+FxKit.mount({
+  kind: 'wellsFargo', title: '웰스 파고 연출 시안',
+  lead: '덱에서 카드 3장을 가져온다. 금고 수송 마차라는 그림의 성격을 살려 금고·상자에서 카드가 나와 손으로 들어간다. 칸을 누르면 다시 본다.',
+  concepts: [
+    { id: 'A', name: 'A. 금고 문 (3D)', cost: 3, dur: 2200, draw: drawA,
+      desc: '카드 앞에 둥근 강철 금고 문이 뜨고, 손잡이 바퀴가 돌아간 뒤 문이 경첩을 축으로 원근 회전하며 열린다. 금빛 속에서 카드 세 장이 솟아 부채꼴로 뒤집히며 손에 들어간다 · 저: 금빛 단색, 문 금속 질감·그늘 없음' },
+    { id: 'B', name: 'B. 질주와 지붕 상자', cost: 2, dur: 2000, draw: drawB,
+      desc: '그림 속 말과 마차가 덜컹이며 질주하고 먼지 구름이 뒤로 번진다. 지붕의 금고 상자가 튀어 올라 카드 위에 쿵 내려앉고 뚜껑이 열려 카드 세 장이 손으로 · 저: 먼지 1/4 단색' },
+    { id: 'C', name: 'C. 만화 쾅! 금화', cost: 2, dur: 1700, draw: drawC,
+      desc: '잉크 테두리 금고 상자가 노란 별 터짐과 "쾅!" 으로 열리며 금화가 쏟아지고, 카드 세 장이 휙휙 손으로 날아가 "×3" 이 찍힌다 · 저: 금화 1/4' },
+    { id: 'D', name: 'D. 세 칸 고리', cost: 1, dur: 1600, draw: drawD,
+      desc: '카드 둘레에 세 칸짜리 금빛 고리가 깔리고, 한 칸이 찰 때마다 카드가 한 장씩 손으로 미끄러진다. 귀퉁이 숫자가 +1·+2·+3 으로 오른다 · 저: 그대로 (원래 가벼움)' },
+  ],
+});
+</script></body></html>

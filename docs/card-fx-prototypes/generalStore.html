@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>잡화점 연출 시안</title>
+<!--
+  원본 그림 메모 (assets/cards/card/generalStore.png, 250×389)
+  - 그림 칸: (40,95)~(210,265). 맑은 하늘 (40~210, 95~140), 흰 구름 (70~110, 100~120), (170~200, 105~125)
+  - 가운데 가게 건물: 박공 간판 "GENERAL STORE" (72~180, 104~135), 차양 (60~196, 138~146)
+    기둥 넷 (x 72, 98, 152, 182 / y 146~205), 창 둘 (82~108, 155~180), (148~174, 155~180)
+    가운데 문 (115~138, 152~205). 오른쪽 아래 통 (200,200), 앞마당 흙바닥 (40~210, 205~265)
+  노린 것: "가게 문이 열리고 카드가 진열된 뒤 한 장씩 골라 간다(사용자부터 시계 방향)".
+  A 는 그림 속 문에서 카드가 쏟아져 부채로 펼쳐진다. B 3D 진열대(카드가 테이블에 누웠다가 일어서 날아감),
+  C 반짝이는 회전 진열(3D 회전목마), D 순서 번호 미니멀 UI. 생존자 5명 기준.
+  소리: 가게 문 종 딸랑(고역 사인 두세 개 + 빠른 감쇠), 카드 펼침 촤르륵, 한 장씩 집을 때 짧은 슥.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const TAU = Math.PI * 2, CX = card.x + card.w / 2, CY = card.y + card.h / 2;
+const N = 5;
+function circ(g, x, y, r) { g.beginPath(); g.arc(x, y, Math.max(0, r), 0, TAU); }
+function rect(g, x0, y0, x1, y1, fill) { const a = art(x0, y0), b = art(x1, y1); g.fillStyle = fill; g.fillRect(a.x, a.y, b.x - a.x, b.y - a.y); }
+const DOOR = { a: art(115, 152), b: art(138, 205) };
+const DC = { x: (DOOR.a.x + DOOR.b.x) / 2, y: (DOOR.a.y + DOOR.b.y) / 2 };
+
+/** open: 문 열림 0~1 */
+function store(g, open) {
+  rect(g, 40, 95, 210, 205, '#dcebf0');
+  g.fillStyle = '#fbfdfd'; [[80, 110, 12], [98, 106, 9], [185, 115, 11], [172, 118, 7]].forEach(([px, py, r]) => { const p = art(px, py); circ(g, p.x, p.y, r * 0.37); g.fill(); });
+  rect(g, 40, 205, 210, 265, '#d8b8a0'); rect(g, 115, 205, 138, 265, '#e4cdb8');
+  rect(g, 68, 130, 188, 205, '#c98a4a');
+  g.fillStyle = '#e0a860'; g.beginPath(); [[72, 136], [72, 118], [125, 104], [180, 118], [180, 136]].forEach(([px, py], i) => { const p = art(px, py); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); g.fill();
+  rect(g, 85, 120, 166, 127, '#7a4a22');
+  rect(g, 60, 138, 196, 146, '#a86a3a');
+  [72, 98, 152, 182].forEach((x) => rect(g, x - 2, 146, x + 2, 205, '#6a4020'));
+  rect(g, 82, 155, 108, 180, '#8fb8d0'); rect(g, 148, 155, 174, 180, '#8fb8d0');
+  const dw = DOOR.b.x - DOOR.a.x, dh = DOOR.b.y - DOOR.a.y;
+  if (open > 0) { g.fillStyle = '#ffd890'; g.fillRect(DOOR.a.x, DOOR.a.y, dw, dh); }
+  g.fillStyle = '#5a3a20'; g.fillRect(DOOR.a.x, DOOR.a.y, dw * (1 - 0.8 * open), dh);
+  const br = art(200, 200); g.fillStyle = '#9a6a3a'; g.beginPath(); g.ellipse(br.x, br.y, 4, 6, 0, 0, TAU); g.fill();
+}
+const face = (g) => store(g, 0);
+function drawStore(g, open) { drawCard(g, '잡화점', open ? (g) => store(g, open) : face); }
+const FACES = [['#6a3a1a', '#c0281c'], ['#2f4a8a', '#c98a4a'], ['#6a3a1a', '#3d7a4a'], ['#2f4a8a', '#8a6a3a'], ['#6a3a1a', '#d9a050']];
+/** 작은 카드. sx: 가로 축척(뒤집기, 음수 가능), isFace 로 앞뒤 */
+function mini(g, x, y, s, sx, rot, isFace, i, a) {
+  g.save(); g.globalAlpha *= a == null ? 1 : a; g.translate(x, y); g.rotate(rot || 0); g.scale(s * Math.max(0.03, Math.abs(sx)), s);
+  if (isFace) {
+    const [band, mark] = FACES[i % FACES.length];
+    g.fillStyle = '#efe2c6'; g.strokeStyle = '#8b5a2b'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(-11, -16, 22, 32, 3); g.fill(); g.stroke();
+    g.fillStyle = band; g.fillRect(-10, -15, 20, 6); g.fillStyle = mark; circ(g, 0, 3, 5); g.fill();
+  } else {
+    g.fillStyle = '#7a3b1e'; g.strokeStyle = '#1e140b'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(-11, -16, 22, 32, 3); g.fill(); g.stroke();
+    g.strokeStyle = '#c9a05a'; g.lineWidth = 1; g.beginPath(); g.roundRect(-8, -13, 16, 26, 2); g.stroke();
+  }
+  g.restore();
+}
+// ----- C 표 -----
+const SPARK = (() => { const r = rng(61); return Array.from({ length: 30 }, () => ({ a: r() * TAU, rr: 0.7 + r() * 0.5, dy: (r() - 0.5) * 30, ph: r() * TAU, sz: 1.5 + r() * 3 })); })();
+function twinkle(g, x, y, s, a) {
+  g.fillStyle = `rgba(255,225,140,${a})`; g.beginPath(); g.moveTo(x, y - s); g.lineTo(x + s * 0.25, y - s * 0.25); g.lineTo(x + s, y); g.lineTo(x + s * 0.25, y + s * 0.25); g.lineTo(x, y + s); g.lineTo(x - s * 0.25, y + s * 0.25); g.lineTo(x - s, y); g.lineTo(x - s * 0.25, y - s * 0.25); g.closePath(); g.fill();
+}
+
+FxKit.mount({
+  kind: 'generalStore',
+  title: '잡화점 연출 시안',
+  lead: '생존자 수만큼 카드를 펼치고 사용자부터 시계 방향으로 한 장씩 고른다. 칸을 누르면 다시 본다. 원본 그림: 박공 간판을 단 서부 잡화점, 가운데 문, 앞마당 흙길.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 가게 문에서 쏟아지기', cost: 2, dur: 2000,
+      desc: '그림 속 가게 문이 열려 불빛이 새고, 문에서 카드 다섯 장이 차례로 튀어나와 뒤집히며 가게 위로 부채처럼 펼쳐진다. 왼쪽부터 한 장씩 바깥으로 날아가고 문이 닫힌다 · 저: 불빛 번짐 없음',
+      draw(g, t, q) {
+        bg(g);
+        const open = ease.out(seg(t, 0.02, 0.14)) * (1 - seg(t, 0.86, 0.98));
+        drawStore(g, open);
+        if (q.on(1) && open > 0) {
+          g.save(); const gr = g.createRadialGradient(DC.x, DOOR.b.y, 2, DC.x, DOOR.b.y, 34); gr.addColorStop(0, `rgba(255,220,140,${0.6 * open})`); gr.addColorStop(1, 'rgba(255,220,140,0)'); g.fillStyle = gr; g.beginPath(); g.ellipse(DC.x, DOOR.b.y + 4, 34, 14, 0, 0, TAU); g.fill(); g.restore();
+        }
+        for (let i = 0; i < N; i++) {
+          const th = lerp(-150, -30, i / (N - 1)) * Math.PI / 180;
+          const e = ease.out(seg(t, 0.1 + i * 0.05, 0.3 + i * 0.05));
+          const lk = seg(t, 0.5 + i * 0.075, 0.64 + i * 0.075);
+          if (e <= 0 || lk >= 1) continue;
+          const r = 74 * e + ease.in(lk) * 120;
+          const x = DC.x + Math.cos(th) * r, y = DC.y + Math.sin(th) * r - Math.sin(e * Math.PI) * 6;
+          const sx = Math.cos(Math.PI * (1 - e));
+          mini(g, x, y, lerp(0.3, 0.95, e) * (1 + lk * 0.3), sx, (th + Math.PI / 2) * e, sx > 0, i, 1 - seg(lk, 0.5, 1));
+        }
+      },
+    },
+    {
+      id: 'B', name: 'B. 진열대 위에서 집어 가기 (3D)', cost: 2, dur: 1900,
+      desc: '카드 앞에 원근으로 누운 나무 진열대가 올라오고, 카드 다섯 장이 진열대 위에 납작하게 깔린다. 차례로 한 장씩 일어서며 들려 화면 쪽으로 커지며 날아간다 · 저: 진열대 나뭇결·카드 그림자 없음',
+      draw(g, t, q) {
+        bg(g);
+        drawStore(g, 0);
+        const ca = ease.out(seg(t, 0, 0.12)) * (1 - seg(t, 0.88, 1));
+        if (ca <= 0) return;
+        const oy = (1 - ca) * 30;
+        g.save(); g.globalAlpha = ca;
+        g.fillStyle = '#6a4526'; g.beginPath(); g.moveTo(44, 164 + oy); g.lineTo(256, 164 + oy); g.lineTo(286, 206 + oy); g.lineTo(14, 206 + oy); g.closePath(); g.fill();
+        g.fillStyle = '#4a2f18'; g.fillRect(14, 206 + oy, 272, 4);
+        if (q.on(1)) { g.strokeStyle = 'rgba(40,24,10,.5)'; g.lineWidth = 0.8; [176, 190].forEach((y) => { g.beginPath(); g.moveTo(30, y + oy); g.lineTo(270, y + oy); g.stroke(); }); }
+        g.restore();
+        for (let i = 0; i < N; i++) {
+          const sx0 = 62 + i * 44, sy0 = 185 + oy;
+          const deal = ease.out(seg(t, 0.08 + i * 0.04, 0.28 + i * 0.04));
+          const pk = seg(t, 0.4 + i * 0.09, 0.58 + i * 0.09);
+          if (deal <= 0 || pk >= 1) continue;
+          const stand = ease.out(seg(pk, 0, 0.4)), fly = ease.in(seg(pk, 0.35, 1));
+          const x = lerp(CX, sx0, deal) + fly * (sx0 - CX) * 0.8, y = lerp(CY, sy0, deal) - stand * 22 - fly * 120;
+          const skew = (sx0 - CX) * 0.006 * (1 - stand), syS = lerp(0.42, 1, stand), s = 1.15 * (1 + fly * 0.9);
+          if (q.on(1) && stand < 1) { g.fillStyle = `rgba(0,0,0,${0.35 * (1 - stand) * deal})`; g.beginPath(); g.ellipse(sx0 + 2, sy0 + 4, 13, 4, 0, 0, TAU); g.fill(); }
+          g.save(); g.translate(x, y); g.transform(1, 0, skew, syS, 0, 0); g.translate(-x, -y);
+          mini(g, x, y, s, 1, 0, true, i, 1 - seg(fly, 0.6, 1)); g.restore();
+        }
+      },
+    },
+    {
+      id: 'C', name: 'C. 반짝이는 회전 진열', cost: 3, dur: 2200,
+      desc: '가게 문 종이 딸랑 흔들리고 따뜻한 빛 속에서 카드 다섯 장이 기울어진 고리를 그리며 카드 둘레를 돈다(뒤쪽은 작고 어둡게 카드 뒤로). 금빛 반짝이가 흩날리고 한 장씩 위로 빠져나간다 · 저: 빛 번짐·빛 합성 없음, 반짝이 줄임',
+      draw(g, t, q) {
+        bg(g);
+        const ring = ease.out(seg(t, 0.05, 0.28)), spin = ease.out(seg(t, 0.05, 0.9)) * TAU * 1.1;
+        const glow = Math.sin(seg(t, 0, 0.9) * Math.PI);
+        if (q.on(1) && glow > 0) { const gr = g.createRadialGradient(CX, CY, 10, CX, CY, 130); gr.addColorStop(0, `rgba(255,200,110,${0.35 * glow})`); gr.addColorStop(1, 'rgba(255,200,110,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H); }
+        const items = [];
+        for (let i = 0; i < N; i++) {
+          const lk = seg(t, 0.55 + i * 0.07, 0.7 + i * 0.07);
+          if (ring <= 0 || lk >= 1) continue;
+          const ang = i / N * TAU + spin, z = Math.sin(ang);
+          const fl = ease.in(lk);
+          items.push({ i, z, x: CX + Math.cos(ang) * 112 * ring, y: CY + 8 + z * 26 * ring - fl * 110, s: (0.85 + 0.3 * z) * (1 + fl * 0.4), a: 1 - seg(lk, 0.5, 1), dark: (1 - z) / 2 });
+        }
+        items.sort((a, b) => a.z - b.z);
+        const drawItem = (it) => { mini(g, it.x, it.y, it.s, 1, Math.cos(it.z) * 0.1 - 0.05, true, it.i, it.a); if (it.dark > 0.05) { g.save(); g.globalAlpha = it.a * it.dark * 0.45; g.translate(it.x, it.y); g.scale(it.s, it.s); g.fillStyle = '#1b120b'; g.beginPath(); g.roundRect(-11, -16, 22, 32, 3); g.fill(); g.restore(); } };
+        items.filter((it) => it.z < 0).forEach(drawItem);
+        drawStore(g, 0);
+        items.filter((it) => it.z >= 0).forEach(drawItem);
+        // 종
+        const ba = ease.out(seg(t, 0, 0.08)) * (1 - seg(t, 0.32, 0.45));
+        if (ba > 0) {
+          g.save(); g.globalAlpha = ba; g.translate(CX, card.y - 14); g.rotate(Math.sin(t * 70) * 0.5 * (1 - seg(t, 0.05, 0.4)));
+          g.strokeStyle = '#8b5a2b'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, -10); g.lineTo(0, -4); g.stroke();
+          g.fillStyle = '#e0b04a'; g.beginPath(); g.moveTo(-7, 8); g.quadraticCurveTo(-6, -5, 0, -5); g.quadraticCurveTo(6, -5, 7, 8); g.closePath(); g.fill(); g.fillStyle = '#8b5a2b'; circ(g, 0, 9, 1.8); g.fill(); g.restore();
+          g.fillStyle = `rgba(242,193,78,${ba})`; g.font = '600 11px sans-serif'; g.textAlign = 'left'; g.fillText('딸랑', CX + 12, card.y - 16);
+        }
+        // 반짝이
+        const sa = seg(t, 0.08, 0.25) * (1 - seg(t, 0.75, 0.95));
+        if (sa > 0) {
+          g.save(); if (q.on(2)) g.globalCompositeOperation = 'lighter';
+          for (let i = 0, n = q.n(30); i < n; i++) { const p = SPARK[i], a = p.a + spin * 0.6, tw = 0.5 + 0.5 * Math.sin(t * 30 + p.ph); twinkle(g, CX + Math.cos(a) * 112 * p.rr, CY + 8 + Math.sin(a) * 26 * p.rr + p.dy, p.sz * tw, sa * tw); }
+          g.restore();
+        }
+      },
+    },
+    {
+      id: 'D', name: 'D. 순서 표시 미니멀', cost: 1, dur: 1600,
+      desc: '카드 둘레에 다섯 자리 번호가 점선 고리로 뜨고, 금색 바늘이 아래(나)부터 시계 방향으로 돌며 닿는 자리마다 작은 카드가 미끄러져 가고 번호가 체크로 바뀐다 · 저: 고리 점선 대신 실선',
+      draw(g, t, q) {
+        bg(g);
+        drawStore(g, 0);
+        const fa = ease.out(seg(t, 0, 0.12)) * (1 - seg(t, 0.86, 1));
+        if (fa <= 0) return;
+        const RX = 120, RY = 84, a0 = Math.PI / 2;
+        const sweep = ease.inOut(seg(t, 0.14, 0.8)) * TAU * (N - 1) / N;
+        g.save(); g.globalAlpha = fa;
+        if (q.on(1)) g.setLineDash([2, 4]);
+        g.strokeStyle = 'rgba(239,226,198,.45)'; g.lineWidth = 1; g.beginPath(); g.ellipse(CX, CY, RX, RY, 0, 0, TAU); g.stroke(); g.setLineDash([]);
+        if (sweep > 0) { g.strokeStyle = '#f2c14e'; g.lineWidth = 3; g.lineCap = 'round'; g.beginPath(); g.ellipse(CX, CY, RX, RY, 0, a0, a0 + sweep); g.stroke(); const hx = CX + Math.cos(a0 + sweep) * RX, hy = CY + Math.sin(a0 + sweep) * RY; g.fillStyle = '#f2c14e'; circ(g, hx, hy, 3.5); g.fill(); }
+        for (let i = 0; i < N; i++) {
+          const ang = a0 + i / N * TAU, bx = CX + Math.cos(ang) * RX, by = CY + Math.sin(ang) * RY;
+          const reach = 0.14 + (0.8 - 0.14) * i / (N - 1);
+          const got = t >= reach;
+          const ck = seg(t, reach - 0.1, reach);
+          if (ck > 0 && ck < 1) mini(g, lerp(CX, bx, ease.inOut(ck)), lerp(CY, by, ease.inOut(ck)), 0.7, 1, 0, true, i);
+          const s = ease.back(seg(t, 0.02 + i * 0.02, 0.14 + i * 0.02));
+          g.save(); g.translate(bx, by); g.scale(s, s);
+          g.fillStyle = got ? '#f2c14e' : '#efe2c6'; g.strokeStyle = '#1b120b'; g.lineWidth = 1.5; circ(g, 0, 0, 10); g.fill(); g.stroke();
+          g.fillStyle = '#1b120b'; g.font = '600 11px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          if (got) { g.strokeStyle = '#1b120b'; g.lineWidth = 2; g.lineCap = 'round'; g.beginPath(); g.moveTo(-4, 0); g.lineTo(-1, 3.5); g.lineTo(4.5, -3.5); g.stroke(); }
+          else g.fillText(String(i + 1), 0, 0.5);
+          g.restore();
+          if (i === 0) { g.fillStyle = `rgba(179,155,116,${s})`; g.font = '10px sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText('나', bx + 14, by); }
+        }
+        g.restore();
+      },
+    },
+  ],
+});
+</script></body></html>

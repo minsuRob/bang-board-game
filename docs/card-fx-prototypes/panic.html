@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>강탈 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389)
+  - 그림 칸은 대략 y 88~262, 바탕은 노르스름한 크림색
+  - 가운데 콧수염 사내의 얼굴(중심 x 120, y 172), 눈을 크게 뜨고 겁에 질렸다 (눈 x 102·138, y 165)
+  - 머리 뒤로 흰 폭발 같은 놀람 무늬가 x 70~200, y 95~180 에 번진다
+  - 오른쪽에서 권총이 관자놀이를 겨눈다. 총열 x 158~235, y 148~165, 총구가 머리에 닿는 곳 x 158, y 152
+  - 아래는 붉은 외투 x 45~205, y 222~262. 아래 기호 칸: 카드 쥔 손, 거리 1
+  노린 것: 겁먹은 한 명(표적)에게서 카드 한 장을 '확' 낚아채 내 쪽(화면 아래)으로 끌고 오는 방향.
+  소리 아이디어: 공이치기 '철컥' → 짧은 숨 들이켬 → 카드가 휙 빠지는 종이 마찰음.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const TX = 262, TY = 40;       // 빼앗기는 표적
+const ME = { x: 150, y: 250 }; // 내 손 (화면 아래 밖)
+const env = (t, a, b, c, d) => seg(t, a, b) * (1 - seg(t, c, d));
+
+function P(g, pts, fill) { g.fillStyle = fill; g.beginPath(); pts.forEach(([px, py], i) => { const p = art(px, py); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); g.fill(); }
+function seat(g, x, y, a, label) {
+  if (a <= 0.01) return;
+  g.save(); g.globalAlpha = Math.min(1, a);
+  g.fillStyle = '#2a1d12'; g.strokeStyle = '#c8902f'; g.lineWidth = 1.5;
+  g.beginPath(); g.arc(x, y, 12, 0, 7); g.fill(); g.stroke();
+  g.fillStyle = '#c8902f';
+  g.beginPath(); g.arc(x, y - 3, 3.4, 0, 7); g.fill();
+  g.beginPath(); g.ellipse(x, y + 7, 6.5, 5, 0, Math.PI, Math.PI * 2); g.fill();
+  if (label) { g.font = '500 9px sans-serif'; g.textAlign = 'center'; g.fillStyle = '#e8d6b0'; g.fillText(label, x, y + 24); }
+  g.restore();
+}
+function body(g, o) {
+  o = o || {};
+  const a = art(0, 88), b = art(250, 262);
+  g.fillStyle = '#efe0c0'; g.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+  const bc = art(135, 140), bs = o.burst || 1;
+  g.fillStyle = '#fbf6ea'; g.beginPath();
+  for (let i = 0; i < 22; i++) { const an = i * Math.PI / 11; const r = (i % 2 ? 15 : 24) * bs; g.lineTo(bc.x + Math.cos(an) * r * 1.25, bc.y + Math.sin(an) * r); }
+  g.closePath(); g.fill();
+  P(g, [[45, 262], [70, 225], [175, 222], [205, 262]], '#7a3b2e');
+  P(g, [[100, 222], [140, 222], [120, 240]], '#e9e1d0');
+  const hy = o.headDy || 0;
+  const fc = art(120, 172); g.fillStyle = '#e3b58b'; g.beginPath(); g.ellipse(fc.x, fc.y + hy, 17, 21, 0, 0, 7); g.fill();
+  g.fillStyle = '#7a5a3a'; g.beginPath(); g.ellipse(fc.x, fc.y - 16 + hy, 16, 7, 0, Math.PI, Math.PI * 2); g.fill();
+  const eo = o.eye || 1;
+  [102, 138].forEach((px) => { const e = art(px, 165); g.fillStyle = '#fff'; g.beginPath(); g.arc(e.x, e.y + hy, 3 * eo, 0, 7); g.fill(); g.fillStyle = '#1e140b'; g.beginPath(); g.arc(e.x, e.y + hy, 1.1, 0, 7); g.fill(); });
+  const m = art(120, 198); g.fillStyle = '#5a3d25'; g.beginPath(); g.ellipse(m.x - 5, m.y + hy, 6, 2.4, 0.25, 0, 7); g.ellipse(m.x + 5, m.y + hy, 6, 2.4, -0.25, 0, 7); g.fill();
+  const gd = o.gunDx || 0;
+  const g0 = art(158, 152), g1 = art(240, 160);
+  g.strokeStyle = '#4a4a4a'; g.lineWidth = 4; g.lineCap = 'butt'; g.beginPath(); g.moveTo(g0.x + gd, g0.y); g.lineTo(g1.x + gd, g1.y); g.stroke();
+  const cy = art(205, 160); g.fillStyle = '#3a3a3a'; g.beginPath(); g.arc(cy.x + gd, cy.y + 1, 4.5, 0, 7); g.fill();
+}
+const cardDraw = (g, o) => drawCard(g, '강탈', (gg) => body(gg, o));
+function miniCard(g, x, y, s, rot, face) {
+  g.save(); g.translate(x, y); g.rotate(rot || 0); g.scale(s, s);
+  g.fillStyle = face ? '#efe2c6' : '#7a2a1e'; g.strokeStyle = '#1e140b'; g.lineWidth = 1.5;
+  g.beginPath(); g.roundRect(-9, -13, 18, 26, 2.5); g.fill(); g.stroke();
+  if (face) { g.fillStyle = '#1e140b'; g.fillRect(-7.5, -11.5, 15, 5); g.fillStyle = '#8b5a2b'; g.font = '600 10px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', 0, 3); }
+  else { g.strokeStyle = '#c8902f'; g.lineWidth = 1; g.strokeRect(-6, -10, 12, 20); g.beginPath(); g.moveTo(0, -7); g.lineTo(4, 0); g.lineTo(0, 7); g.lineTo(-4, 0); g.closePath(); g.stroke(); }
+  g.restore();
+}
+// 장갑 손: 지역 +x 가 손끝 방향. open 1 = 활짝, 0 = 움켜쥠
+function hand(g, x, y, ang, open, s) {
+  g.save(); g.translate(x, y); g.rotate(ang); g.scale(s || 1, s || 1);
+  g.fillStyle = '#e8cf9a'; g.strokeStyle = '#1e140b'; g.lineWidth = 1.8;
+  for (let i = 0; i < 4; i++) {
+    const a = (i - 1.5) * 0.28 * open; const L = 5 + 9 * open;
+    g.save(); g.translate(6, (i - 1.5) * 4.2); g.rotate(a); g.beginPath(); g.roundRect(0, -2, L, 4, 2); g.fill(); g.stroke(); g.restore();
+  }
+  g.save(); g.translate(2, -8); g.rotate(-0.9 * open - 0.2); g.beginPath(); g.roundRect(0, -2, 4 + 6 * open, 4, 2); g.fill(); g.stroke(); g.restore();
+  g.beginPath(); g.ellipse(0, 0, 9, 9.5, 0, 0, 7); g.fill(); g.stroke();
+  g.restore();
+}
+const SWEAT = (() => { const r = rng(63); return Array.from({ length: 12 }, () => { const a = -Math.PI * (0.1 + r() * 0.8); const s = 30 + r() * 40; return { vx: Math.cos(a) * s, vy: Math.sin(a) * s, d: r() * 0.12, r: 1.6 + r() * 1.4 }; }); })();
+
+FxKit.mount({
+  kind: 'panic',
+  title: '강탈 연출 시안',
+  lead: '거리 1 안의 한 명에게서 카드 1장을 가져오는 카드. 겁먹은 표적에게서 손이 확 낚아채 내 쪽(화면 아래)으로 끌고 온다. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 손이 확 낚아챔', cost: 1, dur: 1500,
+      desc: '화면 아래(내 자리)에서 잉크 선 장갑 손이 속도선을 끌며 표적의 부채꼴 손패로 쭉 뻗어, 한 장을 움켜쥐고 "휙!" 끌고 내려온다. 남은 카드는 부르르 떤다 · 저: 그대로(가벼움)',
+      draw(g, t) {
+        bg(g); cardDraw(g);
+        const a = env(t, 0, 0.08, 0.8, 0.94);
+        if (a <= 0) return;
+        const fanY = TY + 4;
+        const reach = ease.out(seg(t, 0.08, 0.3));
+        const grab = seg(t, 0.3, 0.38);
+        const yank = ease.in(seg(t, 0.38, 0.6));
+        const start = { x: 236, y: H + 30 }, tip = { x: TX - 18, y: fanY + 4 };
+        const hx = yank > 0 ? lerp(tip.x, ME.x + 40, yank) : lerp(start.x, tip.x, reach);
+        const hy = yank > 0 ? lerp(tip.y, ME.y, yank) : lerp(start.y, tip.y, reach);
+        const ang = Math.atan2(tip.y - start.y, tip.x - start.x) + (yank > 0 ? 0.4 * yank : 0);
+        g.save(); g.globalAlpha = a;
+        seat(g, TX + 14, TY - 6, 1, '');
+        const shiver = grab > 0 && t < 0.7 ? Math.sin(t * 160) * 1.2 * (1 - seg(t, 0.4, 0.7)) : 0;
+        [-0.35, 0, 0.35].forEach((r, i) => { if (i === 1 && grab >= 0.5) return; miniCard(g, TX - 4 + i * 7 + shiver, fanY + 10 + Math.abs(r) * 6, 0.85, r, false); });
+        // 팔(소매) + 속도선
+        const back = { x: hx - Math.cos(ang) * 90, y: hy - Math.sin(ang) * 90 };
+        g.lineCap = 'round';
+        g.strokeStyle = '#1e140b'; g.lineWidth = 11; g.beginPath(); g.moveTo(back.x, back.y); g.lineTo(hx - Math.cos(ang) * 8, hy - Math.sin(ang) * 8); g.stroke();
+        g.strokeStyle = '#7a4b2a'; g.lineWidth = 8; g.beginPath(); g.moveTo(back.x, back.y); g.lineTo(hx - Math.cos(ang) * 8, hy - Math.sin(ang) * 8); g.stroke();
+        const sp = reach < 1 ? reach : yank;
+        if (sp > 0 && sp < 1) {
+          g.strokeStyle = '#1e140b'; g.lineWidth = 1.2;
+          [-14, -7, 7, 14].forEach((o) => { const nx = -Math.sin(ang) * o, ny = Math.cos(ang) * o; const d = yank > 0 ? 1 : -1; g.beginPath(); g.moveTo(hx + nx + Math.cos(ang) * 10 * d, hy + ny + Math.sin(ang) * 10 * d); g.lineTo(hx + nx + Math.cos(ang) * 40 * d, hy + ny + Math.sin(ang) * 40 * d); g.stroke(); });
+        }
+        if (grab >= 0.5) miniCard(g, hx + Math.cos(ang) * 10, hy + Math.sin(ang) * 10, 0.9, ang + 1.2, false);
+        hand(g, hx, hy, ang, 1 - grab, 1.2);
+        if (grab > 0) {
+          const k = seg(t, 0.32, 0.5);
+          g.save(); g.translate(TX - 40, TY + 2); g.rotate(-0.2); const s = k < 1 ? ease.back(k) : 1; g.scale(s, s);
+          g.font = '800 18px sans-serif'; g.textAlign = 'center'; g.lineWidth = 5; g.strokeStyle = '#1e140b'; g.strokeText('휙!', 0, 0); g.fillStyle = '#f2c14e'; g.fillText('휙!', 0, 0); g.restore();
+        }
+        g.restore();
+      },
+    },
+    {
+      id: 'B', name: 'B. 공중제비 도는 카드 (3D)', cost: 2, dur: 1800,
+      desc: '표적 앞 테이블에서 카드 한 장이 들려 뒷면·앞면을 번갈아 보이며 뒤집히고, 원근에 따라 점점 커지며(가까워지며) 내 쪽으로 호를 그리며 날아온다. 테이블 그림자가 높이만큼 떨어져 따라온다 · 저: 잔상·그림자 없음',
+      draw(g, t, q) {
+        bg(g);
+        cardDraw(g);
+        const a = env(t, 0, 0.08, 0.84, 0.95);
+        seat(g, TX, TY, a, '표적');
+        const k = seg(t, 0.12, 0.74);
+        const pose = (kk) => {
+          const e = ease.inOut(kk);
+          const x = lerp(TX - 18, 40, e), base = lerp(TY + 18, H + 30, e);
+          const hgt = Math.sin(kk * Math.PI) * 46;
+          const s = lerp(0.55, 2.0, e * e);
+          const phi = kk * Math.PI * 5;
+          return { x, y: base - hgt, base, s, phi, rot: lerp(0.2, -0.5, e) };
+        };
+        const lift = seg(t, 0.05, 0.12);
+        if (k <= 0 && lift > 0) miniCard(g, TX - 18, TY + 18 - 3 * lift, 0.55, 0.2, false);
+        if (k > 0 && k < 1) {
+          const p = pose(k);
+          if (q.on(1)) {
+            g.save(); g.globalAlpha = 0.25 * a; g.fillStyle = '#000';
+            g.beginPath(); g.ellipse(p.x + 6, p.base, 10 * p.s * Math.max(0.2, Math.abs(Math.cos(p.phi))), 3 * p.s, 0, 0, 7); g.fill(); g.restore();
+            for (let i = 3; i >= 1; i--) { const pp = pose(Math.max(0, k - i * 0.025)); const c = Math.cos(pp.phi); g.save(); g.globalAlpha = 0.12 * (4 - i) * a; g.translate(pp.x, pp.y); g.rotate(pp.rot); g.scale(Math.max(0.05, Math.abs(c)), 1); miniCard(g, 0, 0, pp.s, 0, c < 0); g.restore(); }
+          }
+          const c = Math.cos(p.phi);
+          g.save(); g.translate(p.x, p.y); g.rotate(p.rot); g.scale(Math.max(0.05, Math.abs(c)), 1);
+          miniCard(g, 0, 0, p.s, 0, c < 0);
+          if (q.on(1)) { g.fillStyle = `rgba(255,250,235,${0.35 * (1 - Math.abs(c))})`; g.beginPath(); g.roundRect(-9 * p.s, -13 * p.s, 18 * p.s, 26 * p.s, 2.5 * p.s); g.fill(); }
+          g.restore();
+        }
+      },
+    },
+    {
+      id: 'C', name: 'C. 그림 속 사내가 질겁', cost: 2, dur: 1700,
+      desc: '총구가 관자놀이를 한 번 더 쿡 찌르고, 사내가 움찔 뛰며 눈이 커진다. 머리 뒤 흰 놀람 무늬가 크게 번지고 식은땀이 튀며 "!" — 그 틈에 외투 자락에서 카드 한 장이 빠져 아래(내 쪽)로 쏙 · 저: 식은땀 1/4, 놀람 무늬 번짐 없음',
+      draw(g, t, q) {
+        bg(g);
+        const poke = env(t, 0.04, 0.1, 0.14, 0.24);
+        const jump = env(t, 0.1, 0.14, 0.2, 0.36);
+        const burst = q.on(1) ? 1 + 0.45 * env(t, 0.1, 0.2, 0.5, 0.75) : 1;
+        const eye = 1 + 0.6 * env(t, 0.1, 0.14, 0.6, 0.8);
+        cardDraw(g, { gunDx: -5 * poke, headDy: -4 * jump, burst, eye });
+        const head = art(120, 150);
+        // 놀람 집중선
+        const sl = env(t, 0.1, 0.16, 0.4, 0.6);
+        if (sl > 0) {
+          g.strokeStyle = `rgba(30,20,11,${0.8 * sl})`; g.lineWidth = 1.4; g.lineCap = 'round';
+          for (let i = 0; i < 10; i++) { const an = -Math.PI * (0.1 + i * 0.09); const r0 = 30 + (i % 2) * 5, r1 = r0 + 10 + 6 * sl; g.beginPath(); g.moveTo(head.x + Math.cos(an) * r0, head.y + Math.sin(an) * r0); g.lineTo(head.x + Math.cos(an) * r1, head.y + Math.sin(an) * r1); g.stroke(); }
+        }
+        // 식은땀
+        SWEAT.slice(0, q.n(12)).forEach((p) => {
+          const k = seg(t, 0.12 + p.d, 0.6 + p.d); if (k <= 0 || k >= 1) return;
+          const x = head.x + p.vx * k, y = head.y + p.vy * k + 60 * k * k;
+          g.save(); g.translate(x, y); g.rotate(Math.atan2(p.vy + 120 * k, p.vx) - Math.PI / 2);
+          g.globalAlpha = 1 - k; g.fillStyle = '#cfe8f4'; g.strokeStyle = '#1e140b'; g.lineWidth = 0.8;
+          g.beginPath(); g.moveTo(0, -p.r * 2); g.quadraticCurveTo(p.r, 0, 0, p.r); g.quadraticCurveTo(-p.r, 0, 0, -p.r * 2); g.fill(); g.stroke(); g.restore();
+        });
+        const ex = env(t, 0.14, 0.2, 0.5, 0.62);
+        if (ex > 0) {
+          g.save(); g.translate(head.x - 34, head.y - 26); g.rotate(-0.2); const s = ease.back(Math.min(1, seg(t, 0.14, 0.22))); g.scale(s, s); g.globalAlpha = ex;
+          g.font = '800 26px sans-serif'; g.textAlign = 'center'; g.lineWidth = 5; g.strokeStyle = '#1e140b'; g.strokeText('!', 0, 0); g.fillStyle = '#f2c14e'; g.fillText('!', 0, 0); g.restore();
+        }
+        // 카드 한 장이 외투에서 빠져 내 쪽으로
+        const ck = seg(t, 0.42, 0.78);
+        if (ck > 0 && ck < 1) {
+          const st = art(150, 240);
+          const pk = seg(ck, 0, 0.3), go = ease.in(seg(ck, 0.3, 1));
+          const x = st.x + 8 * pk + lerp(0, ME.x - st.x - 20, go), y = st.y - 10 * pk + lerp(0, ME.y - st.y, go);
+          if (go > 0) { g.strokeStyle = `rgba(239,226,198,${0.6 * (1 - go)})`; g.lineWidth = 1.2; for (let i = -1; i <= 1; i++) { g.beginPath(); g.moveTo(x + i * 5, y - 14); g.lineTo(x + i * 5 - 4 * go, y - 14 - 40 * go); g.stroke(); } }
+          miniCard(g, x, y, 1, 0.15 + go * 0.4, false);
+        }
+      },
+    },
+    {
+      id: 'D', name: 'D. 무성영화 "손 들어!"', cost: 3, dur: 2300,
+      desc: '세피아로 바래며 필름이 떨리고, 홍채가 사내의 겁먹은 얼굴로 조여든다. 자막 카드 "손 들어! 한 장 내놔"가 뜬 뒤, 홍채가 표적 쪽으로 미끄러지며 다시 열린다 · 저: 필름 입자·긁힘·세피아 합성 없음, 홍채와 자막만',
+      draw(g, t, q, f) {
+        bg(g);
+        const flick = q.on(2) && f % 6 === 0 ? 1 : 0;
+        g.save(); if (q.on(2)) g.translate(0, flick);
+        cardDraw(g);
+        g.restore();
+        const face = art(120, 168);
+        const close = ease.inOut(seg(t, 0, 0.28));
+        const open = ease.inOut(seg(t, 0.66, 0.92));
+        const cx = lerp(lerp(W / 2, face.x, close), TX, open * 0.8), cy = lerp(lerp(H / 2, face.y, close), TY, open * 0.8);
+        const r = lerp(lerp(200, 30, close), 240, open);
+        const a = 1 - seg(t, 0.92, 0.98);
+        if (r < 230 && a > 0) {
+          g.fillStyle = `rgba(10,8,6,${0.94 * a})`; g.beginPath(); g.rect(0, 0, W, H); g.arc(cx, cy, r, 0, Math.PI * 2, true); g.fill('evenodd');
+          g.strokeStyle = `rgba(10,8,6,${0.5 * a})`; g.lineWidth = 4; g.beginPath(); g.arc(cx, cy, r + 1, 0, 7); g.stroke();
+        }
+        const tc = env(t, 0.32, 0.36, 0.6, 0.66);
+        if (tc > 0) {
+          g.fillStyle = `rgba(12,10,8,${tc})`; g.fillRect(30, 55, 240, 100);
+          g.strokeStyle = `rgba(230,220,200,${tc})`; g.lineWidth = 1.5; g.strokeRect(38, 63, 224, 84);
+          g.strokeRect(42, 67, 216, 76);
+          g.fillStyle = `rgba(240,232,214,${tc})`; g.textAlign = 'center';
+          g.font = '600 28px serif'; g.fillText('손 들어!', 150, 106);
+          g.font = '14px serif'; g.fillText('— 한 장 내놔 —', 150, 132);
+        }
+        if (q.on(1) && a > 0) { g.save(); g.globalCompositeOperation = 'color'; g.fillStyle = `rgba(112,86,50,${0.6 * a})`; g.fillRect(0, 0, W, H); g.restore(); }
+        if (q.on(2) && a > 0) {
+          const rr = rng(f * 13 + 1); g.fillStyle = `rgba(20,16,12,${0.5 * a})`; for (let i = 0; i < 220; i++) g.fillRect(rr() * W, rr() * H, 1, 1);
+          g.fillStyle = `rgba(255,250,240,${0.22 * a})`; for (let i = 0; i < 80; i++) g.fillRect(rr() * W, rr() * H, 1, 1);
+          if (rr() > 0.55) { g.strokeStyle = `rgba(240,230,210,${0.35 * a})`; g.lineWidth = 1; const x = rr() * W; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + rr() * 4 - 2, H); g.stroke(); }
+        }
+        if (open > 0.3) seat(g, TX, TY, (1 - seg(t, 0.84, 0.95)) * seg(open, 0.3, 0.6), '표적');
+      },
+    },
+  ],
+});
+</script></body></html>

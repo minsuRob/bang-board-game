@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>캣 벌로우 연출 시안</title>
+<!--
+  원본 그림 메모 (assets/cards/card/catBalou.png, 250×389)
+  - 그림 칸: (40,90)~(210,265). 흰 바탕에 하늘색 바람 줄 (55~95, 125~135), (170~205, 145~155)
+  - 챙 넓은 주황 모자를 쓴 여인. 모자 (85~165, 95~130), 얼굴 (120,140), 짙은 머리 (100~115, 135~160)
+    주황 드레스 (85~175, 150~265), 빨간 스카프 (120,175)
+  - 두 손에 종이(카드) 몇 장을 쥐고 있다 (100~150, 195~225), 그중 하나는 초록
+  - 그림 아래 기호 줄: 빨간 X 친 카드 (80,295), 검은 모자 (160,300) = "카드 한 장 버리게 함"
+  노린 것: "남의 카드 한 장을 쳐내 버린 더미로 보낸다". 그림 속 바람과 손에 쥔 카드를 살려
+  A 는 돌풍이 상대 카드를 채 가 버린 더미에 앞면으로 떨군다. B 잉크 채찍, C 3D 로 튕겨 날기, D 그림 아래 X 기호를 쓴 미니멀 UI.
+  소리: 채찍 착(짧은 고역 노이즈 클릭 + 금속성 꼬리), 카드 팔락(짧은 노이즈 3~4번), 더미에 툭.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const TAU = Math.PI * 2, CX = card.x + card.w / 2, CY = card.y + card.h / 2;
+function circ(g, x, y, r) { g.beginPath(); g.arc(x, y, Math.max(0, r), 0, TAU); }
+const F = art(120, 140), HAND = art(118, 212), XS = art(80, 295), HS = art(160, 300);
+const PILE = { x: 258, y: 150 };
+
+function scene(g) {
+  const a = art(40, 90), b = art(210, 265);
+  g.fillStyle = '#eef3f4'; g.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+  g.strokeStyle = '#a9c6d6'; g.lineWidth = 1; [[55, 128, 92, 126], [170, 150, 205, 147], [58, 240, 88, 238], [178, 112, 204, 110]].forEach(([x0, y0, x1, y1]) => { const p = art(x0, y0), q = art(x1, y1); g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(q.x, q.y); g.stroke(); });
+  g.fillStyle = '#d99a3a'; g.beginPath(); g.moveTo(F.x - 14, F.y + 12); g.lineTo(F.x + 12, F.y + 12); g.lineTo(F.x + 17, F.y + 44); g.lineTo(F.x - 18, F.y + 44); g.closePath(); g.fill();
+  g.fillStyle = '#5a4030'; circ(g, F.x - 4, F.y + 1, 6); g.fill();
+  g.fillStyle = '#f3d6b8'; g.beginPath(); g.ellipse(F.x + 1, F.y, 4.2, 5, 0, 0, TAU); g.fill();
+  g.fillStyle = '#d23a2a'; g.beginPath(); g.moveTo(F.x - 3, F.y + 8); g.lineTo(F.x + 5, F.y + 8); g.lineTo(F.x + 1, F.y + 20); g.closePath(); g.fill();
+  g.fillStyle = '#d9a050'; g.beginPath(); g.ellipse(F.x - 2, F.y - 10, 15, 4.5, -0.25, 0, TAU); g.fill(); g.beginPath(); g.ellipse(F.x + 1, F.y - 13, 7, 4, -0.25, 0, TAU); g.fill();
+  [[-0.45, '#f7f5ec'], [0.05, '#9cc28a'], [0.5, '#f7f5ec']].forEach(([r, c]) => { g.save(); g.translate(HAND.x, HAND.y); g.rotate(r); g.fillStyle = c; g.strokeStyle = '#8a8a80'; g.lineWidth = 0.6; g.fillRect(-3, -9, 6, 9); g.strokeRect(-3, -9, 6, 9); g.restore(); });
+  // 기호 줄
+  g.strokeStyle = '#b8b8b8'; g.lineWidth = 1; g.strokeRect(XS.x - 3, XS.y - 7, 6, 14);
+  g.strokeStyle = '#d0281c'; g.lineWidth = 1.8; g.beginPath(); g.moveTo(XS.x - 6, XS.y - 8); g.lineTo(XS.x + 6, XS.y + 9); g.moveTo(XS.x + 5, XS.y - 9); g.lineTo(XS.x - 5, XS.y + 9); g.stroke();
+  g.fillStyle = '#1e1e1e'; g.beginPath(); g.ellipse(HS.x, HS.y + 2, 10, 2.4, -0.1, 0, TAU); g.fill(); g.beginPath(); g.ellipse(HS.x, HS.y - 1, 5, 3.5, -0.1, 0, TAU); g.fill();
+}
+const face = (g) => scene(g);
+function drawCat(g) { drawCard(g, '캣 벌로우', face); }
+/** 작은 카드. (x,y) 가운데, sx 가 음수면 뒷면 대신 앞면 판정은 호출하는 쪽에서 */
+function mini(g, x, y, s, sx, rot, isFace, band, a) {
+  g.save(); g.globalAlpha *= a == null ? 1 : a; g.translate(x, y); g.rotate(rot || 0); g.scale(s * Math.max(0.03, Math.abs(sx)), s);
+  if (isFace) {
+    g.fillStyle = '#efe2c6'; g.strokeStyle = '#8b5a2b'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(-11, -16, 22, 32, 3); g.fill(); g.stroke();
+    g.fillStyle = band || '#2f4a8a'; g.fillRect(-10, -15, 20, 6); g.fillStyle = '#c98a4a'; circ(g, 0, 3, 5); g.fill();
+  } else {
+    g.fillStyle = '#7a3b1e'; g.strokeStyle = '#1e140b'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(-11, -16, 22, 32, 3); g.fill(); g.stroke();
+    g.strokeStyle = '#c9a05a'; g.lineWidth = 1; g.beginPath(); g.roundRect(-8, -13, 16, 26, 2); g.stroke();
+  }
+  g.restore();
+}
+function pile(g, a) {
+  if (a <= 0) return;
+  mini(g, PILE.x + 2, PILE.y + 2, 1.1, 1, 0.12, true, '#6a3a1a', a); mini(g, PILE.x - 1, PILE.y, 1.1, 1, -0.08, true, '#6a3a1a', a);
+}
+function bez(a, b, c, k) { const u = 1 - k; return { x: u * u * a.x + 2 * u * k * b.x + k * k * c.x, y: u * u * a.y + 2 * u * k * b.y + k * k * c.y }; }
+
+// ----- A 표 -----
+const GUST = (() => { const r = rng(41); return Array.from({ length: 16 }, () => ({ y: 20 + r() * 170, sp: 1.4 + r() * 1.2, ph: r(), len: 30 + r() * 60, w: 0.8 + r() * 1.6 })); })();
+const BITS = (() => { const r = rng(43); return Array.from({ length: 18 }, () => ({ y: 30 + r() * 150, sp: 1 + r(), ph: r(), sz: 1 + r() * 2, spin: r() * 10 })); })();
+// ----- B 표 -----
+const STREAK = [0.8, -0.3, 0.2, -0.9, 0.5];
+
+FxKit.mount({
+  kind: 'catBalou',
+  title: '캣 벌로우 연출 시안',
+  lead: '거리와 무관하게 한 명의 카드 한 장을 버리게 한다. 칸을 누르면 다시 본다. 원본 그림: 바람 속에서 모자를 누르고 카드를 쥔 여인, 아래에 X 친 카드 기호.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 돌풍이 채 가기', cost: 3, dur: 1800,
+      desc: '그림 속 바람이 화면 가득 불어 왼쪽 상대 카드를 들어 올리고, 카드가 팔랑팔랑 뒤집히며 날아가 오른쪽 버린 더미에 앞면으로 떨어진다 · 저: 바람 줄 4개·그라데이션 없음, 종이 조각 줄임, 카드 펄럭임 없음',
+      draw(g, t, q) {
+        bg(g);
+        const gust = seg(t, 0.04, 0.2) * (1 - seg(t, 0.62, 0.85));
+        // 바람 줄
+        if (gust > 0) {
+          const n = q.n(16);
+          for (let i = 0; i < n; i++) {
+            const p = GUST[i], x = -80 + (((t * p.sp + p.ph) % 1) * (W + 160));
+            if (q.on(1)) { const gr = g.createLinearGradient(x - p.len, 0, x, 0); gr.addColorStop(0, 'rgba(200,225,240,0)'); gr.addColorStop(1, `rgba(220,238,250,${0.7 * gust})`); g.strokeStyle = gr; }
+            else g.strokeStyle = `rgba(200,225,240,${0.6 * gust})`;
+            g.lineWidth = p.w; g.lineCap = 'round'; g.beginPath(); g.moveTo(x - p.len, p.y); g.quadraticCurveTo(x - p.len / 2, p.y - 6, x, p.y); g.stroke();
+          }
+        }
+        g.save();
+        if (q.on(1) && gust > 0) { g.translate(CX, card.y + card.h); g.transform(1, 0, Math.sin(t * 40) * 0.025 * gust, 1, 0, 0); g.translate(-CX, -(card.y + card.h)); }
+        drawCat(g); g.restore();
+        const pa = ease.out(seg(t, 0.08, 0.2)) * (1 - seg(t, 0.84, 1));
+        pile(g, pa);
+        // 날아가는 카드
+        const k = seg(t, 0.16, 0.74), ta = seg(t, 0, 0.08);
+        const A0 = { x: 34, y: 76 }, C0 = { x: 150, y: -6 };
+        if (k <= 0) mini(g, A0.x, A0.y, 1, 1, -0.15, false, null, ta);
+        else if (k < 1) { const p = bez(A0, C0, PILE, ease.inOut(k)), sx = Math.cos(k * 3 * Math.PI); mini(g, p.x + Math.sin(k * 18) * 4, p.y, 1.1 + Math.sin(k * Math.PI) * 0.2, sx, k * 5 + Math.sin(k * 20) * 0.4, sx < 0, '#6a3a1a'); }
+        else { const b = seg(t, 0.74, 0.8); mini(g, PILE.x + 1, PILE.y - 4 - Math.sin(b * Math.PI) * 4, 1.1, 1, 0.05, true, '#2f4a8a', 1 - seg(t, 0.84, 1)); }
+        // 종이 조각
+        if (gust > 0) { const n = q.n(18); g.fillStyle = `rgba(245,240,225,${0.85 * gust})`; for (let i = 0; i < n; i++) { const p = BITS[i], x = -20 + (((t * p.sp + p.ph) % 1) * (W + 40)); g.save(); g.translate(x, p.y + Math.sin(t * 20 + i) * 6); g.rotate(t * p.spin); g.fillRect(-p.sz, -p.sz * 0.6, p.sz * 2, p.sz * 1.2); g.restore(); } }
+      },
+    },
+    {
+      id: 'B', name: 'B. 잉크 채찍 착!', cost: 1, dur: 1400,
+      desc: '여인의 손에서 검은 채찍이 휘어져 뻗어 왼쪽 카드를 "착!" 쳐내고, 카드가 빙글 돌며 오른쪽 버린 더미 칸에 꽂힌다 · 저: 카드 꼬리 속도선 생략',
+      draw(g, t, q) {
+        bg(g);
+        drawCat(g);
+        const T = { x: 40, y: 124 }, S = HAND;
+        const slot = ease.out(seg(t, 0.05, 0.2)) * (1 - seg(t, 0.84, 1));
+        if (slot > 0) { g.save(); g.globalAlpha = slot; g.setLineDash([3, 3]); g.strokeStyle = '#efe2c6'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(PILE.x - 15, PILE.y - 21, 30, 42, 4); g.stroke(); g.setLineDash([]); g.fillStyle = '#b39b74'; g.font = '11px sans-serif'; g.textAlign = 'center'; g.fillText('버린 더미', PILE.x, PILE.y + 34); g.restore(); }
+        // 채찍
+        const out = ease.out(seg(t, 0.06, 0.28)), back = ease.in(seg(t, 0.32, 0.52));
+        const reach = out * (1 - back);
+        if (reach > 0.01) {
+          const tip = { x: lerp(S.x, T.x, reach), y: lerp(S.y, T.y, reach) };
+          const wave = Math.sin(seg(t, 0.06, 0.52) * Math.PI * 3) * 26 * (1 - back * 0.5);
+          g.strokeStyle = '#140c06'; g.lineCap = 'round';
+          g.lineWidth = 2.6; g.beginPath(); g.moveTo(S.x, S.y);
+          g.bezierCurveTo(lerp(S.x, tip.x, 0.33), lerp(S.y, tip.y, 0.33) - 30 - wave, lerp(S.x, tip.x, 0.66), lerp(S.y, tip.y, 0.66) + wave, tip.x, tip.y); g.stroke();
+          g.fillStyle = '#5a3a1c'; g.beginPath(); g.roundRect(S.x - 2, S.y - 2, 9, 4, 1); g.fill();
+        }
+        // 착!
+        const ck = seg(t, 0.27, 0.5);
+        if (ck > 0 && ck < 1) {
+          g.save(); g.globalAlpha = 1 - seg(ck, 0.6, 1); g.strokeStyle = '#140c06'; g.lineWidth = 2;
+          for (let i = 0; i < 8; i++) { const a = i / 8 * TAU, r0 = 10 + ck * 6, r1 = 18 + ck * 12; g.beginPath(); g.moveTo(T.x + Math.cos(a) * r0, T.y + Math.sin(a) * r0); g.lineTo(T.x + Math.cos(a) * r1, T.y + Math.sin(a) * r1); g.stroke(); }
+          const s = 0.6 + 0.4 * ease.back(Math.min(1, ck * 3)); g.translate(T.x + 6, T.y - 26); g.scale(s, s); g.rotate(-0.2);
+          g.font = '900 22px sans-serif'; g.textAlign = 'center'; g.lineWidth = 5; g.strokeText('착!', 0, 0); g.fillStyle = '#f2c14e'; g.fillText('착!', 0, 0); g.restore();
+        }
+        // 맞은 카드
+        const k = seg(t, 0.28, 0.7);
+        const appear = ease.back(seg(t, 0, 0.12));
+        if (k <= 0) mini(g, T.x, T.y, appear, 1, -0.1, false);
+        else if (k < 1) {
+          const e = ease.out(k), p = bez(T, { x: 150, y: -20 }, PILE, e);
+          if (q.on(1)) { g.strokeStyle = `rgba(20,12,6,${0.6 * (1 - k)})`; g.lineWidth = 1.5; for (let i = 0; i < 3; i++) { const p2 = bez(T, { x: 150, y: -20 }, PILE, Math.max(0, e - 0.08 - i * 0.03)); g.beginPath(); g.moveTo(p2.x, p2.y + STREAK[i] * 6); g.lineTo(p.x - 8, p.y + STREAK[i] * 6); g.stroke(); } }
+          mini(g, p.x, p.y, 1.05, 1, -0.1 + e * 9, e > 0.5);
+        } else mini(g, PILE.x, PILE.y, 1.1, 1, 0, true, null, 1 - seg(t, 0.84, 1));
+      },
+    },
+    {
+      id: 'C', name: 'C. 튕겨 날아가기 (3D)', cost: 2, dur: 1800,
+      desc: '카드가 비스듬히 기울며 옆의 장비 카드를 쳐내면, 그 카드가 공중으로 높이 떠(가까워질수록 커지고 그림자는 바닥에 남아 멀어진다) 앞뒤로 뒤집히며 버린 더미 위로 떨어져 튄다 · 저: 그림자 단순 타원, 카드 기울기 없음',
+      draw(g, t, q) {
+        bg(g);
+        const T = { x: 46, y: 112 };
+        const swing = Math.sin(seg(t, 0.06, 0.4) * Math.PI);
+        pile(g, ease.out(seg(t, 0.1, 0.25)) * (1 - seg(t, 0.86, 1)));
+        // 내 카드: 장비 쪽으로 기울며 휘두름
+        g.fillStyle = `rgba(0,0,0,${0.2 + 0.15 * swing})`; g.beginPath(); g.roundRect(card.x + 6 * swing, card.y + 8 * swing, card.w, card.h, 8); g.fill();
+        g.save(); g.translate(CX - 14 * swing, CY - 4 * swing);
+        if (q.on(1)) g.transform(1 - 0.14 * swing, -0.12 * swing, 0, 1 + 0.04 * swing, 0, 0); else g.rotate(-0.08 * swing);
+        g.translate(-CX, -CY); drawCat(g); g.restore();
+        // 장비 카드 비행
+        const k = seg(t, 0.22, 0.78), land = seg(t, 0.78, 0.88);
+        const z = Math.sin(k * Math.PI) + Math.sin(land * Math.PI) * 0.15;
+        const x = lerp(T.x, PILE.x, ease.inOut(k)), base = lerp(T.y, PILE.y, ease.inOut(k)), y = base - z * 80;
+        const fa = ease.out(seg(t, 0, 0.1)) * (1 - seg(t, 0.86, 1));
+        if (fa > 0) {
+          const sh = 1 - 0.5 * z;
+          g.fillStyle = `rgba(0,0,0,${0.32 * sh * fa})`; g.beginPath(); g.ellipse(x + z * 10, base + 20, 14 * sh, 4 * sh, 0, 0, TAU); g.fill();
+          const sx = Math.cos(k * 4 * Math.PI);
+          mini(g, x, y, 1.15 * (1 + 0.55 * z), sx, Math.sin(k * Math.PI * 2) * 0.5, sx >= 0, '#2f4a8a', fa);
+          if (k > 0 && k < 0.2 && q.on(1)) { const f = k / 0.2; g.strokeStyle = `rgba(255,240,200,${1 - f})`; g.lineWidth = 2; for (let i = 0; i < 6; i++) { const a = -1.3 + i * 0.5; g.beginPath(); g.moveTo(T.x + 16 + Math.cos(a) * 6, T.y + Math.sin(a) * 6); g.lineTo(T.x + 16 + Math.cos(a) * (10 + f * 14), T.y + Math.sin(a) * (10 + f * 14)); g.stroke(); } }
+        }
+      },
+    },
+    {
+      id: 'D', name: 'D. 미니멀 X 표시', cost: 1, dur: 1300,
+      desc: '그림 아래 기호처럼 상대 카드 아이콘에 빨간 X 가 두 획으로 그어지고, "−1" 이 뜨며 아이콘이 점선을 따라 버린 더미 칸으로 미끄러져 들어간다 · 저: 점선 흐름 멈춤',
+      draw(g, t, q) {
+        bg(g);
+        drawCat(g);
+        const I0 = { x: 42, y: 80 };
+        const fa = 1 - seg(t, 0.86, 1);
+        const pop = ease.back(seg(t, 0, 0.14));
+        // 버린 더미 칸
+        const sa = ease.out(seg(t, 0.25, 0.4)) * fa;
+        if (sa > 0) { g.save(); g.globalAlpha = sa; g.fillStyle = 'rgba(239,226,198,.08)'; g.strokeStyle = '#b39b74'; g.lineWidth = 1.5; g.setLineDash([4, 3]); g.beginPath(); g.roundRect(PILE.x - 16, PILE.y - 22, 32, 44, 5); g.fill(); g.stroke(); g.setLineDash([]); g.fillStyle = '#b39b74'; g.font = '11px sans-serif'; g.textAlign = 'center'; g.fillText('버림', PILE.x, PILE.y + 36); g.restore(); }
+        // 점선 길
+        const m = ease.inOut(seg(t, 0.42, 0.76));
+        const C0 = { x: 150, y: 196 };
+        if (sa > 0 && m < 1) { g.save(); g.globalAlpha = sa * (1 - m); g.setLineDash([2, 4]); g.lineDashOffset = q.on(1) ? -t * 60 : 0; g.strokeStyle = '#efe2c6'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(I0.x, I0.y + 24); g.quadraticCurveTo(C0.x, C0.y, PILE.x, PILE.y + 24); g.stroke(); g.restore(); }
+        // 아이콘
+        if (pop > 0 && fa > 0) {
+          const p = m > 0 ? bez({ x: I0.x, y: I0.y }, { x: C0.x, y: C0.y - 24 }, PILE, m) : I0;
+          const s = pop * lerp(1, 0.9, m);
+          g.save(); g.globalAlpha = fa; g.translate(p.x, p.y); g.scale(s, s);
+          g.fillStyle = '#3a2a1a'; g.strokeStyle = '#efe2c6'; g.lineWidth = 2; g.beginPath(); g.roundRect(-13, -18, 26, 36, 4); g.fill(); g.stroke();
+          const x1 = seg(t, 0.14, 0.24), x2 = seg(t, 0.24, 0.34);
+          g.strokeStyle = '#d0281c'; g.lineWidth = 3.5; g.lineCap = 'round';
+          if (x1 > 0) { g.beginPath(); g.moveTo(-11, -15); g.lineTo(lerp(-11, 11, x1), lerp(-15, 15, x1)); g.stroke(); }
+          if (x2 > 0) { g.beginPath(); g.moveTo(11, -15); g.lineTo(lerp(11, -11, x2), lerp(-15, 15, x2)); g.stroke(); }
+          g.restore();
+        }
+        if (pop > 0 && m === 0) { g.fillStyle = `rgba(179,155,116,${pop})`; g.font = '11px sans-serif'; g.textAlign = 'center'; g.fillText('손패', I0.x, I0.y + 32); }
+        // −1
+        const mk = seg(t, 0.34, 0.8);
+        if (mk > 0 && mk < 1) { g.save(); g.globalAlpha = Math.min(1, mk * 5) * (1 - seg(mk, 0.7, 1)); g.fillStyle = '#d0281c'; g.beginPath(); g.roundRect(I0.x + 6, I0.y - 30 - mk * 12, 26, 16, 8); g.fill(); g.fillStyle = '#fff'; g.font = '600 11px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('−1', I0.x + 19, I0.y - 22 - mk * 12); g.restore(); }
+      },
+    },
+  ],
+});
+</script></body></html>

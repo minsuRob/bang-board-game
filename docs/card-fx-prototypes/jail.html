@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>감옥 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389 기준)
+  - 그림 칸: x 38~212, y 85~258. 푸른 회색 감방 벽
+  - 쇠창살: 세로 5개(x≈60, 98, 136, 174, 206), 가로 2개(y≈120, 200). 그림 앞을 가로지른다
+  - 창살 뒤 오른쪽에 모자 쓴 사내: 모자 챙 (150,120), 얼굴 (152,158), 눈 (166,148), 어깨는 아래 가장자리
+  노린 것: 창살이 '내려와 갇힌다'(A), 자물쇠가 잠긴다(B), 창살 그림자가 판을 덮는다(C), 쇠사슬로 묶어 남 앞에 붙인다(D).
+  감옥은 남 앞에 놓는 카드라 B·D 는 자물쇠/작은 카드가 좌석 표식으로 날아가 '탁' 붙고 끝난다.
+  소리: 쇠문 내려오는 쇳소리(필터 스윕된 금속 노이즈) + 끝의 '철컥'(짧은 클릭 두 번, 고음 링). gen-sfx 에 metalClank 하나면 A·B·D 공용.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const CX = card.x + card.w / 2, CY = card.y + card.h / 2, S = card.w / 250;
+
+/** 3D 평면: 가운데 (x,y), 크기 w×h, rx 앞뒤 기울기, ry 좌우 돌기, rz 평면 회전, z 깊이(+ 멀리). draw(front) 는 (0,0) 가운데 기준 */
+function plane(g, o, draw) {
+  const f = 360, cz = Math.cos(o.rz || 0), sz = Math.sin(o.rz || 0), cx = Math.cos(o.rx || 0), sx = Math.sin(o.rx || 0), cy = Math.cos(o.ry || 0), sy = Math.sin(o.ry || 0);
+  const pt = (x, y) => { const X = x * cz - y * sz, Y = x * sz + y * cz; const Y1 = Y * cx, Z1 = Y * sx; const X2 = X * cy + Z1 * sy, Z2 = -X * sy + Z1 * cy; const s = f / Math.max(40, f + Z2 + (o.z || 0)); return { x: o.x + X2 * s, y: o.y + Y1 * s }; };
+  const a = pt(-o.w / 2, -o.h / 2), b = pt(o.w / 2, -o.h / 2), c = pt(-o.w / 2, o.h / 2);
+  const A = (b.x - a.x) / o.w, B = (b.y - a.y) / o.w, C = (c.x - a.x) / o.h, D = (c.y - a.y) / o.h;
+  const front = A * D - B * C > 0;
+  if (draw) { g.save(); g.transform(A, B, C, D, a.x + A * o.w / 2 + C * o.h / 2, a.y + B * o.w / 2 + D * o.h / 2); draw(front); g.restore(); }
+  return { pt, front };
+}
+/** 좌석 표식 (카드를 받는 사람). ring 0→1 이면 '탁' 붙는 고리가 퍼진다 */
+function seat(g, x, y, a, ring) {
+  if (a <= 0) return;
+  g.save(); g.globalAlpha *= a;
+  g.fillStyle = '#3a2a1a'; g.strokeStyle = '#c8902f'; g.lineWidth = 1.5;
+  g.beginPath(); g.arc(x, y, 11, 0, 7); g.fill(); g.stroke();
+  g.fillStyle = '#b39b74'; g.beginPath(); g.arc(x, y - 3, 3.4, 0, 7); g.fill();
+  g.beginPath(); g.ellipse(x, y + 6, 6, 4, 0, Math.PI, 0); g.fill();
+  if (ring > 0 && ring < 1) { g.strokeStyle = `rgba(242,193,78,${1 - ring})`; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 11 + ring * 16, 0, 7); g.stroke(); }
+  g.restore();
+}
+
+// ----- 그림 흉내 -----
+const BAR_X = [60, 98, 136, 174, 206], BAR_Y = [120, 200];
+function bars(g, dy, a) {
+  if (a <= 0) return;
+  g.save(); g.globalAlpha *= a;
+  const top = art(0, 85).y + dy, bot = art(0, 258).y + dy;
+  g.fillStyle = '#2f343b';
+  BAR_Y.forEach((y) => { const p = art(38, y); g.fillRect(p.x, p.y + dy - 1.6, 174 * S, 3.2); });
+  BAR_X.forEach((x) => { const p = art(x, 0); g.fillStyle = '#2f343b'; g.fillRect(p.x - 1.7, top, 3.4, bot - top); g.fillStyle = '#6d7580'; g.fillRect(p.x - 0.9, top, 0.8, bot - top); });
+  g.restore();
+}
+function jailArt(o) {
+  o = o || {};
+  return (g) => {
+    const a = art(38, 85), b = art(212, 258);
+    g.fillStyle = '#8f9ca7'; g.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    g.fillStyle = '#7d8a95'; for (let i = 0; i < 4; i++) { const p = art(38, 105 + i * 42); g.fillRect(a.x, p.y, b.x - a.x, 1.5); }
+    const f = art(152, 158), hb = art(150, 120);
+    g.fillStyle = '#3a3433'; g.beginPath(); g.moveTo(art(96, 0).x, b.y); g.quadraticCurveTo(f.x, art(0, 190).y, art(214, 0).x, b.y); g.fill();
+    g.fillStyle = '#b7a389'; g.beginPath(); g.ellipse(f.x, f.y, 24 * S, 31 * S, 0, 0, 7); g.fill();
+    g.fillStyle = '#2b2626'; g.beginPath(); g.ellipse(hb.x, hb.y, 46 * S, 9 * S, 0, 0, 7); g.fill(); g.fillRect(hb.x - 24 * S, hb.y - 26 * S, 48 * S, 26 * S);
+    const e = art(166, 148); g.fillStyle = '#e6a64a'; g.beginPath(); g.arc(e.x, e.y, 1.4, 0, 7); g.fill();
+    bars(g, o.dy || 0, o.bars == null ? 1 : o.bars);
+  };
+}
+const TITLE = '감옥';
+
+// 먼지 표 (A)
+const DUST = (() => { const r = rng(11); return Array.from({ length: 24 }, () => ({ x: r(), vx: (r() - 0.5) * 50, vy: -10 - r() * 22, s: 3 + r() * 5 })); })();
+// 집중선 표 (D)
+const LINES = (() => { const r = rng(23); return Array.from({ length: 24 }, (_, i) => ({ a: (i / 24) * Math.PI * 2 + r() * 0.2, r0: 70 + r() * 20, len: 30 + r() * 40 })); })();
+// 쇳조각 불꽃 표 (B)
+const SPARK = (() => { const r = rng(5); return Array.from({ length: 16 }, () => ({ a: -Math.PI * r(), v: 30 + r() * 40 })); })();
+
+/** 큰 쇠문(포트컬리스). 카드보다 조금 크다. 바닥에 뾰족 끝 */
+function portcullis(g, y, a, q) {
+  if (a <= 0) return;
+  const x0 = card.x - 14, w = card.w + 28, h = card.h + 22, top = y;
+  g.save(); g.globalAlpha *= a;
+  const xs = 6, step = w / (xs - 1);
+  for (let i = 0; i < xs; i++) {
+    const x = x0 + i * step;
+    if (q.on(1)) { const gr = g.createLinearGradient(x - 3, 0, x + 3, 0); gr.addColorStop(0, '#22262c'); gr.addColorStop(0.5, '#7a828d'); gr.addColorStop(1, '#22262c'); g.fillStyle = gr; } else g.fillStyle = '#3a3f47';
+    g.fillRect(x - 3, top, 6, h);
+    g.fillStyle = '#22262c'; g.beginPath(); g.moveTo(x - 3.5, top + h); g.lineTo(x, top + h + 8); g.lineTo(x + 3.5, top + h); g.fill();
+  }
+  g.fillStyle = '#2b3037';
+  [0.18, 0.62].forEach((k) => { g.fillRect(x0 - 4, top + h * k, w + 8, 5); });
+  g.fillStyle = '#596170'; [0.18, 0.62].forEach((k) => { for (let i = 0; i < xs; i++) { g.beginPath(); g.arc(x0 + i * step, top + h * k + 2.5, 1.4, 0, 7); g.fill(); } });
+  g.restore();
+}
+
+/** 자물쇠. open 0 닫힘 ~ 1 열림 */
+function padlock(g, x, y, s, rot, open) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(s, s);
+  g.strokeStyle = '#4a4e55'; g.lineWidth = 4; g.lineCap = 'round';
+  g.beginPath(); g.arc(open * 6, -10 - open * 9, 8, Math.PI, 0); g.lineTo(8 + open * 6, -4 - open * 9); g.stroke();
+  g.beginPath(); g.moveTo(-8, -10); g.lineTo(-8, -4); g.stroke();
+  g.fillStyle = '#9a7a3a'; g.strokeStyle = '#3b2a12'; g.lineWidth = 1.5;
+  g.beginPath(); g.roundRect(-13, -6, 26, 22, 4); g.fill(); g.stroke();
+  g.fillStyle = '#c9a65a'; g.fillRect(-11, -4, 22, 3);
+  g.fillStyle = '#1e140b'; g.beginPath(); g.arc(0, 3, 3, 0, 7); g.fill(); g.fillRect(-1.2, 3, 2.4, 7);
+  g.restore();
+}
+
+/** 쇠사슬 고리를 (x0,y0)→(x1,y1) 으로 n 개까지 */
+function chain(g, x0, y0, x1, y1, k, q) {
+  const len = Math.hypot(x1 - x0, y1 - y0), ang = Math.atan2(y1 - y0, x1 - x0), step = 9;
+  const n = Math.floor((len / step) * k);
+  g.save(); g.translate(x0, y0); g.rotate(ang);
+  for (let i = 0; i < n; i++) {
+    const x = i * step + step / 2;
+    g.fillStyle = '#a3a9b1'; g.strokeStyle = '#111'; g.lineWidth = q.on(1) ? 2.2 : 1.6;
+    g.beginPath();
+    if (i % 2 === 0) g.ellipse(x, 0, 6.5, 3.6, 0, 0, 7); else g.ellipse(x, 0, 6.5, 1.4, 0, 0, 7);
+    g.fill(); g.stroke();
+    if (i % 2 === 0) { g.fillStyle = '#2e2013'; g.beginPath(); g.ellipse(x, 0, 3.4, 1.2, 0, 0, 7); g.fill(); }
+  }
+  g.restore();
+}
+
+function burst(g, x, y, r, n, txt, a) {
+  if (a <= 0) return;
+  g.save(); g.globalAlpha *= a;
+  g.beginPath();
+  for (let i = 0; i < n * 2; i++) { const rr = i % 2 ? r * 0.62 : r; const an = (i / (n * 2)) * Math.PI * 2 - Math.PI / 2; g.lineTo(x + Math.cos(an) * rr * 1.25, y + Math.sin(an) * rr); }
+  g.closePath(); g.fillStyle = '#f2c14e'; g.fill(); g.strokeStyle = '#111'; g.lineWidth = 2.5; g.stroke();
+  g.fillStyle = '#111'; g.font = '800 15px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, x, y + 1);
+  g.restore();
+}
+
+FxKit.mount({
+  kind: 'jail',
+  title: '감옥 연출 시안',
+  lead: '창살이 내려와 갇히는 순간. 감옥은 남 앞에 놓으므로 B·D 는 받는 사람 좌석 표식으로 날아가 붙는다. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 쇠문 내려꽂힘', cost: 2, dur: 1600,
+      desc: '창살 없는 그림 위로 큰 쇠문이 떨어져 쾅 박히고 먼지가 인다. 쇠문이 그림 속 창살로 스며들며 끝난다 · 저: 쇠 광택·먼지 줄고 흔들림 없음',
+      draw(g, t, q) {
+        bg(g);
+        const land = 0.3, k = seg(t, 0.06, land);
+        const hit = seg(t, land, land + 0.14);
+        if (q.on(1) && t > land) shake(g, 3 * (1 - hit), t);
+        const artBars = seg(t, 0.55, 0.85);
+        drawCard(g, TITLE, jailArt({ bars: artBars }));
+        let y = lerp(-card.h - 40, card.y - 11, ease.in(k));
+        if (t > land) y -= Math.abs(Math.sin(seg(t, land, land + 0.16) * Math.PI * 2)) * 6 * (1 - seg(t, land, land + 0.16));
+        portcullis(g, y, 1 - seg(t, 0.55, 0.85), q);
+        if (t > land) {
+          const d = seg(t, land, 0.8), n = q.n(DUST.length);
+          for (let i = 0; i < n; i++) { const p = DUST[i]; const x = card.x - 10 + p.x * (card.w + 20) + p.vx * d; const yy = card.y + card.h + 10 + p.vy * d; const r = p.s * (0.5 + d); g.fillStyle = `rgba(190,170,140,${(1 - d) * 0.55})`; g.beginPath(); g.arc(x, yy, r, 0, 7); g.fill(); }
+        }
+      },
+    },
+    {
+      id: 'B', name: 'B. 자물쇠 철컥 (3D)', cost: 2, dur: 2000,
+      desc: '카드가 들려 뒤로 기울고 앞에 자물쇠가 흔들리다 철컥 잠긴다. 자물쇠가 받는 사람 좌석으로 날아가 탁 붙는다 · 저: 그림자 흐림·불꽃 줄임',
+      draw(g, t, q) {
+        bg(g);
+        const up = ease.out(seg(t, 0, 0.2)) * (1 - ease.inOut(seg(t, 0.62, 0.9)));
+        const seatX = 270, seatY = 38;
+        seat(g, seatX, seatY, seg(t, 0.4, 0.5) * (1 - seg(t, 0.92, 1)), seg(t, 0.8, 0.95));
+        // 그림자
+        g.save(); g.fillStyle = `rgba(0,0,0,${0.35 * up})`;
+        if (q.on(2)) { g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 12 * up; }
+        g.beginPath(); g.roundRect(card.x + 6 * up, card.y + 12 * up, card.w, card.h, 8); g.fill(); g.restore();
+        plane(g, { x: CX, y: CY - 8 * up, w: card.w, h: card.h, rx: 0.42 * up, ry: -0.18 * up, z: -40 * up }, () => { g.translate(-CX, -CY); drawCard(g, TITLE, jailArt()); });
+        // 자물쇠
+        const appear = ease.back(seg(t, 0.08, 0.24));
+        const snap = seg(t, 0.4, 0.45);
+        const open = 1 - ease.in(snap);
+        const swing = t < 0.4 ? Math.sin(t * 40) * 0.35 * (1 - seg(t, 0.1, 0.4)) : Math.sin((t - 0.4) * 70) * 0.12 * (1 - seg(t, 0.4, 0.55));
+        const fly = ease.inOut(seg(t, 0.56, 0.82));
+        let lx = lerp(CX, seatX, fly), ly = lerp(CY + 20, seatY + 4, fly) - Math.sin(fly * Math.PI) * 30;
+        const ls = lerp(1.5, 0.55, fly) * appear;
+        const la = 1 - seg(t, 0.82, 0.92);
+        if (appear > 0 && la > 0) { g.save(); g.globalAlpha = la; padlock(g, lx, ly, ls, swing + fly * 0.5, open); g.restore(); }
+        if (t > 0.42 && t < 0.62) {
+          const k = seg(t, 0.42, 0.62), n = q.n(SPARK.length);
+          for (let i = 0; i < n; i++) { const s = SPARK[i]; const x = CX + Math.cos(s.a) * s.v * k, y = CY + 8 + Math.sin(s.a) * s.v * k + 40 * k * k; g.fillStyle = `rgba(255,${200 - (i % 3) * 40},90,${1 - k})`; g.fillRect(x - 1, y - 1, 2, 2); }
+          g.save(); g.globalAlpha = 1 - k; g.font = '700 16px sans-serif'; g.textAlign = 'center'; g.fillStyle = '#f2c14e'; g.strokeStyle = '#1e140b'; g.lineWidth = 4; g.strokeText('철컥', CX + 52, CY - 34); g.fillText('철컥', CX + 52, CY - 34); g.restore();
+        }
+      },
+    },
+    {
+      id: 'C', name: 'C. 창살 그림자 (조명)', cost: 1, dur: 1800,
+      desc: '위에서 비친 빛에 창살 그림자가 판 전체로 비스듬히 내려와 카드를 덮고, 아래에 규칙 한 줄이 뜬다 · 저: 어둠막·빛 웅덩이 없이 그림자 줄만',
+      draw(g, t, q) {
+        bg(g);
+        const env = seg(t, 0.02, 0.15) * (1 - seg(t, 0.72, 1));
+        drawCard(g, TITLE, jailArt());
+        if (q.on(1)) { g.fillStyle = `rgba(0,0,0,${0.4 * env})`; g.fillRect(0, 0, W, H); const gr = g.createRadialGradient(CX, CY, 20, CX, CY, 120); gr.addColorStop(0, `rgba(255,230,170,${0.18 * env})`); gr.addColorStop(1, 'rgba(255,230,170,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H); }
+        const drop = ease.out(seg(t, 0.1, 0.42));
+        const bottom = drop * (H + 30);
+        g.fillStyle = `rgba(10,6,3,${0.55 * env})`;
+        for (let i = -2; i < 9; i++) {
+          const x = 20 + i * 36, sk = 26;
+          g.beginPath(); g.moveTo(x, -10); g.lineTo(x + 11, -10); g.lineTo(x + 11 + sk * (bottom / H), bottom); g.lineTo(x + sk * (bottom / H), bottom); g.fill();
+        }
+        const hy = seg(t, 0.38, 0.5);
+        if (hy > 0) { [0.3, 0.72].forEach((k) => { const y = H * k; g.fillRect(0, y, W * ease.out(hy), 8); }); }
+        const cap = seg(t, 0.42, 0.55) * (1 - seg(t, 0.72, 0.9));
+        if (cap > 0) {
+          g.save(); g.globalAlpha = cap; g.fillStyle = 'rgba(27,18,11,0.85)'; g.beginPath(); g.roundRect(CX - 68, 182, 136, 20, 10); g.fill();
+          g.fillStyle = '#f3e7ce'; g.font = '500 11px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('♥ 아니면 한 차례 쉰다', CX, 192.5); g.restore();
+        }
+      },
+    },
+    {
+      id: 'D', name: 'D. 쇠사슬 묶기 (만화 잉크)', cost: 2, dur: 2000,
+      desc: '굵은 잉크 선 쇠사슬이 카드를 X자로 감고 "철컥!" 폭발 글씨. 작은 사본이 사슬째 좌석으로 쌩 날아가 붙는다 · 저: 집중선 줄이고 선 얇게',
+      draw(g, t, q) {
+        bg(g);
+        drawCard(g, TITLE, jailArt());
+        const wrap = ease.out(seg(t, 0.05, 0.34));
+        const gone = seg(t, 0.6, 0.75);
+        if (gone < 1) {
+          g.save(); g.globalAlpha = 1 - gone;
+          chain(g, card.x - 16, card.y - 10, card.x + card.w + 16, card.y + card.h + 10, wrap, q);
+          chain(g, card.x + card.w + 16, card.y - 10, card.x - 16, card.y + card.h + 10, seg(t, 0.12, 0.38), q);
+          g.restore();
+        }
+        const pop = seg(t, 0.36, 0.6);
+        if (pop > 0 && pop < 1) {
+          const n = q.n(LINES.length);
+          g.strokeStyle = `rgba(17,17,17,${0.8 * (1 - pop)})`; g.lineWidth = 2;
+          for (let i = 0; i < n; i++) { const L = LINES[i]; const r0 = L.r0 + pop * 10; g.beginPath(); g.moveTo(CX + Math.cos(L.a) * r0, CY + Math.sin(L.a) * r0 * 0.8); g.lineTo(CX + Math.cos(L.a) * (r0 + L.len), CY + Math.sin(L.a) * (r0 + L.len) * 0.8); g.stroke(); }
+          burst(g, CX, CY, 24 * ease.back(seg(t, 0.36, 0.44)), 9, '철컥!', 1 - seg(t, 0.52, 0.6));
+        }
+        // 날아가 붙기
+        const sx = 28, sy = 160;
+        seat(g, sx, sy, seg(t, 0.55, 0.62) * (1 - seg(t, 0.94, 1)), seg(t, 0.84, 0.98));
+        const fly = seg(t, 0.62, 0.84);
+        if (fly > 0 && fly < 1) {
+          const e = ease.in(fly);
+          const x = lerp(CX, sx, e), y = lerp(CY, sy, e), s = lerp(0.5, 0.2, e);
+          g.strokeStyle = 'rgba(243,231,206,0.6)'; g.lineWidth = 1.5;
+          for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(x + 14 + i * 6, y - 6 + i * 6 - (CY - sy) * 0.08); g.lineTo(x + 40 + i * 10, y - 6 + i * 6 - (CY - sy) * 0.16); g.stroke(); }
+          g.save(); g.translate(x, y); g.rotate(-e * 0.6); g.scale(s, s);
+          g.fillStyle = '#efe2c6'; g.strokeStyle = '#111'; g.lineWidth = 4; g.beginPath(); g.roundRect(-card.w / 2, -card.h / 2, card.w, card.h, 8); g.fill(); g.stroke();
+          g.strokeStyle = '#555b63'; g.lineWidth = 8; g.beginPath(); g.moveTo(-card.w / 2, -card.h / 2); g.lineTo(card.w / 2, card.h / 2); g.moveTo(card.w / 2, -card.h / 2); g.lineTo(-card.w / 2, card.h / 2); g.stroke();
+          g.restore();
+        }
+      },
+    },
+  ],
+});
+</script></body></html>

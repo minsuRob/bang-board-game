@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>카드 연출 시안</title>
+<!--
+  카드 연출 시안 모음. 왼쪽에서 카드를 고르면 오른쪽에 그 카드의 시안 네 개가 돈다.
+  ← → 키로 앞뒤 카드. 위쪽 저·중·고는 모든 시안에 같은 화질을 건다 (?q=).
+  시안 한 장은 _kit.js 틀을 쓴다. 자세한 흐름은 docs/card-fx.md, 성능은 docs/card-fx-perf.md
+-->
+<style>
+  :root { --bg:#1b120b; --panel:#24180f; --line:#5c452c; --ink:#f3e7ce; --mute:#b39b74; --gold:#c8902f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, sans-serif; height: 100vh; display: grid; grid-template-columns: 240px 1fr; grid-template-rows: auto 1fr; }
+  header { grid-column: 1 / 3; display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 16px; font-weight: 500; margin: 0; }
+  header .sp { flex: 1; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  button { background: #3a2a1a; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 13px; }
+  .seg button { border: 0; border-radius: 0; }
+  .seg button.on { background: var(--gold); color: var(--bg); }
+  nav { overflow-y: auto; border-right: 1px solid var(--line); background: var(--panel); padding: 8px 0 24px; }
+  nav h2 { font-size: 11px; letter-spacing: .04em; color: var(--mute); font-weight: 500; margin: 14px 14px 4px; }
+  nav a { display: flex; justify-content: space-between; gap: 6px; padding: 6px 14px; color: var(--ink); text-decoration: none; font-size: 14px; border-left: 3px solid transparent; }
+  nav a small { color: var(--mute); font-size: 11px; }
+  nav a:hover { background: #2f2216; }
+  nav a.on { background: #3a2a1a; border-left-color: var(--gold); }
+  nav a.miss { opacity: .45; }
+  main { position: relative; min-width: 0; }
+  iframe { border: 0; width: 100%; height: 100%; display: block; background: var(--bg); }
+  #doc { position: absolute; inset: 0; overflow-y: auto; padding: 20px 28px 60px; display: none; line-height: 1.6; font-size: 14px; }
+  #doc h2 { font-size: 16px; font-weight: 500; margin: 24px 0 6px; }
+  #doc table { border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+  #doc td, #doc th { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+  #doc th { color: var(--mute); font-weight: 500; }
+  #doc code { background: #2f2216; padding: 1px 4px; border-radius: 4px; }
+  #doc pre { background: #2f2216; padding: 10px; border-radius: 8px; overflow-x: auto; }
+  #doc pre code { padding: 0; }
+  @media (max-width: 700px) {
+    body { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; }
+    header { grid-column: 1; }
+    nav { max-height: 30vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>카드 연출 시안</h1>
+  <span id="where" style="color:var(--mute);font-size:13px"></span>
+  <span class="sp"></span>
+  <span style="font-size:13px;color:var(--mute)">화질</span>
+  <span class="seg" id="seg"></span>
+  <button id="prev" aria-label="이전 카드">←</button>
+  <button id="next" aria-label="다음 카드">→</button>
+</header>
+<nav id="nav"></nav>
+<main><iframe id="view" title="시안"></iframe><div id="doc"></div></main>
+<script>
+// [파일 이름, 한국어 이름, 묶음]
+const GROUPS = [
+  ['개요', [['_perf', '버벅임 분석 · 화질 3단계'], ['_picks', '추천 모아 보기']]],
+  ['완성 (게임에 들어감)', [['bang', '뱅!'], ['missed', '빗나감!']]],
+  ['총기 장착', [['volcanic', '볼캐닉'], ['schofield', '스코필드'], ['remington', '레밍턴'], ['carabine', '카빈'], ['winchester', '윈체스터']]],
+  ['총기 · 장비', [['lemat', '르매트'], ['shotgun', '샷건'], ['scope', '조준경'], ['mustang', '야생마'], ['barrel', '술통']]],
+  ['여러 명 공격', [['gatling', '기관총'], ['indians', '인디언!'], ['fanning', '패닝'], ['bandidos', '반디도스'], ['tornado', '토네이도']]],
+  ['한 명 공격', [['duel', '결투'], ['aim', '조준'], ['tomahawk', '토마호크'], ['backfire', '역화'], ['panic', '강탈']]],
+  ['회복 · 뽑기', [['beer', '맥주'], ['saloon', '주점'], ['lastCall', '라스트 콜'], ['stagecoach', '역마차'], ['wellsFargo', '웰스 파고']]],
+  ['방어 · 특수', [['escape', '탈출'], ['saved', '구조!'], ['ghost', '유령'], ['catBalou', '캣 벌로우'], ['generalStore', '잡화점']]],
+  ['앞에 놓는 카드', [['jail', '감옥'], ['dynamite', '다이너마이트'], ['rattlesnake', '방울뱀'], ['bounty', '포상금'], ['poker', '포커']]],
+];
+const ORDER = GROUPS.flatMap(([, list]) => list.map(([k]) => k));
+const NAME = Object.fromEntries(GROUPS.flatMap(([, list]) => list));
+const nav = document.getElementById('nav');
+const links = {};
+for (const [title, list] of GROUPS) {
+  const h = document.createElement('h2'); h.textContent = title; nav.append(h);
+  for (const [k, n] of list) {
+    const a = document.createElement('a'); a.href = '#' + k;
+    const s = document.createElement('span'); s.textContent = n;
+    const sm = document.createElement('small'); sm.textContent = k.startsWith('_') ? '' : k;
+    a.append(s, sm); nav.append(a); links[k] = a;
+  }
+}
+const LEVELS = ['low', 'mid', 'high'];
+let q = 'high';
+try { q = localStorage.getItem('fxq') || 'high'; } catch (e) {}
+const seg = document.getElementById('seg');
+const qb = LEVELS.map((l, i) => { const b = document.createElement('button'); b.textContent = ['저', '중', '고'][i]; b.onclick = () => { q = l; try { localStorage.setItem('fxq', l); } catch (e) {} paintQ(); show(cur()); }; seg.append(b); return b; });
+function paintQ() { qb.forEach((b, i) => b.classList.toggle('on', LEVELS[i] === q)); }
+paintQ();
+const view = document.getElementById('view'), doc = document.getElementById('doc');
+const cur = () => (location.hash.slice(1) || '_picks');
+function show(k) {
+  if (!NAME[k]) k = 'volcanic';
+  Object.entries(links).forEach(([kk, a]) => a.classList.toggle('on', kk === k));
+  document.getElementById('where').textContent = NAME[k];
+  const sec = document.getElementById('sec' + k);
+  if (sec) { view.style.display = 'none'; view.src = 'about:blank'; doc.style.display = 'block'; doc.innerHTML = sec.innerHTML; return; }
+  doc.style.display = 'none'; view.style.display = 'block';
+  // 완성본(bang, missed)은 옛 틀이라 화질 토글이 없다
+  view.src = k + '.html?q=' + q;
+  links[k].scrollIntoView({ block: 'nearest' });
+}
+function step(d) { const i = ORDER.indexOf(cur()); location.hash = ORDER[(i + d + ORDER.length) % ORDER.length]; }
+document.getElementById('prev').onclick = () => step(-1);
+document.getElementById('next').onclick = () => step(1);
+addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') step(-1); if (e.key === 'ArrowRight') step(1); });
+addEventListener('hashchange', () => show(cur()));
+// 개요 내용(template)은 이 스크립트 아래에 있으므로 다 읽은 뒤 띄운다
+addEventListener('DOMContentLoaded', () => show(cur()));
+</script>
+
+<!-- 개요 페이지 내용. 하위 작업이 끝나면 채운다 -->
+<template id="sec_perf"><h1>카드 연출 성능과 화질 3단계</h1>
+<p>카드를 낼 때 버벅이는 원인을 코드에서 찾고, 지금의 2단계(고화질·일반)를 3단계로 나누는 안을 적는다.
+코드는 아직 고치지 않았다. 이 문서는 분석과 설계안이다.</p>
+<h2>한 줄 결론</h2>
+<p>버벅임은 연출 하나가 무거워서라기보다 <strong>세 가지가 같은 순간에 겹쳐서</strong> 생긴다.
+화면 전체에 도는 fbm 연기 셰이더(GPU), 카메라 흔들림 동안 매 프레임 다시 그려지는 오버레이 React 트리(JS),
+그리고 같은 순간 함께 도는 3D 테이블이다. 단계 나누기보다 먼저 <strong>단계와 상관없는 고침 3가지</strong>를 넣고,
+그다음 저·중·고로 나누는 것이 맞다.</p>
+<h2>가장 효과 큰 고침 3가지 (예상 효과 순)</h2>
+<table>
+<thead>
+<tr>
+<th>순서</th>
+<th>고침</th>
+<th>근거</th>
+<th>기대 효과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><strong>연기 셰이더를 총구 둘레 사각형에만 그린다.</strong> 지금은 캔버스 전체(테이블 영역 전부)에 5옥타브 fbm 을 1.9초 동안 돌린다</td>
+<td><code>CardFxSkia.tsx:227-231</code> 의 <code>&lt;Rect x={0} y={0} width={w} height={h}&gt;</code>, <code>shaders.ts:37</code> 5옥타브, <code>shotFrame</code> 의 <code>smoke</code> 는 60ms~2000ms 동안 0 이 아님(<code>timeline.ts:145</code>)</td>
+<td>연기가 실제로 보이는 곳은 총구 앞 카드 폭 2<del>3배 정도다. 그리는 픽셀이 대략 1/10</del>1/20 로 준다. 폰 GPU 에서 가장 큰 비용으로 본다 (추측, 측정 필요)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>카드 낼 때 매 프레임 일어나는 React 재렌더를 끊는다.</strong> <code>Overlay3D</code> 가 앵커 스토어 전체를 구독해서, 카메라가 흔들리는 동안 매 프레임 Overlay3D → <code>PlayedCardSpotlight</code> → Skia 캔버스 자식 트리까지 다시 렌더된다</td>
+<td><code>Overlay3D.tsx:41</code> <code>useStore(anchorsStore)</code> (선택자 없음), <code>Scene.tsx:147</code> 카메라가 움직이면 매 프레임 <code>project</code>, <code>AnchorProjector.ts:135-137</code> 0.5px 넘게 바뀌면 <code>setState</code>, 뱅!은 <code>Sequencer.ts:142</code> <code>rig.punch</code>, 피해는 <code>fx-plan.ts:139</code> <code>shake</code>. Skia <code>Canvas</code> 는 자식이 바뀔 때마다 <code>root.render(children)</code> (<code>node_modules/@shopify/react-native-skia/lib/module/renderer/Canvas.js:98-100</code>)</td>
+<td>네이티브에서 r3f(expo-gl)는 JS 스레드에서 그리므로, 재렌더가 3D 프레임과 같은 스레드를 다툰다. 웹은 모든 것이 메인 스레드 하나다. 카드 낸 직후 0.1~0.5초 끊김의 주범 후보</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>쉬는 동안의 Skia 캔버스 비용을 없앤다.</strong> <code>onSize</code> 를 주면 Skia 가 Reanimated 프레임 콜백을 <strong>영원히</strong> 돌리며 매 프레임 캔버스를 잰다. 웹은 기기 픽셀 비율 상한도 없다</td>
+<td><code>CardFxSkia.tsx:218</code> <code>onSize={size}</code> → <code>Canvas.js:63-95</code> <code>useFrameCallback(..., !!onSize)</code>. 웹 <code>SkiaPictureView.web.js:43-44,173</code> 이 <code>window.devicePixelRatio</code> 그대로(<code>Platform.web.js:125</code>). 3D 는 <code>dpr={[1, 2]}</code> 로 상한이 있다(<code>Table3D.tsx:156</code>)</td>
+<td>판 내내 매 프레임 <code>measure</code> 한 번이 사라진다. 크기는 <code>fireHq</code> 에서 이미 재는 <code>layerBox</code>(<code>PlayedCardSpotlight.tsx:457</code>)로 넣으면 된다</td>
+</tr>
+</tbody></table>
+<p>이 셋은 화질 단계와 상관없이 고화질의 모양을 바꾸지 않는다. 먼저 넣고 재 본 다음 단계를 나눈다.</p>
+<h2>카드를 낼 때 일어나는 일</h2>
+<pre><code>엔진 전이
+ ├─ fx-bridge → 3D 배치 (카드 이동, 뱅 줄기·고리, 카메라 punch/shake, 파티클)     table3d/core/fx-bridge.ts:14
+ └─ view.log 변화 → PlayedCardSpotlight 가 카드를 띄움                           PlayedCardSpotlight.tsx:238
+      180ms 뒤 fireHq: measureInWindow ×2 → geom → progress 0→1 (2.0s / 2.4s)    :457-478
+      같은 틱에 playSfx, 800ms 뒤 휘익                                             :480-485
+</code></pre>
+<p>3D 와 2D 연출이 <strong>같은 순간</strong> 시작한다. 그래서 GL 표면 두 개(3D 테이블, Skia 캔버스)가 동시에 매 프레임 그린다.</p>
+<h2>원인 목록</h2>
+<p><strong>확인</strong> 은 코드로 동작을 확인한 것, <strong>추측</strong> 은 그럴 만하지만 재 봐야 하는 것이다.</p>
+<h3>GPU (그리는 비용)</h3>
+<table>
+<thead>
+<tr>
+<th>원인</th>
+<th>근거</th>
+<th>구분</th>
+<th>메모</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>연기 셰이더가 캔버스 전체 크기</td>
+<td><code>CardFxSkia.tsx:227-231</code></td>
+<td>확인</td>
+<td>픽셀마다 <code>noise</code> 5번(<code>hash</code> 의 <code>sin</code> 20번). 비용 크기는 추측</td>
+</tr>
+<tr>
+<td><code>stage</code> 확대(최대 1.45배) 안에 셰이더가 있음</td>
+<td><code>CardFxSkia.tsx:223</code>, <code>timeline.ts:114</code></td>
+<td>확인</td>
+<td>확대해도 그리는 픽셀 수는 같다(전체 사각형). 1번 고침으로 같이 해결</td>
+</tr>
+<tr>
+<td>BlurMask 8개 (고리, 충격파, 불티 2, 예광, 불덩이 6, 줄기 3, 심 4)</td>
+<td><code>CardFxSkia.tsx:237-288</code></td>
+<td>확인</td>
+<td>각각 블러 패스. 섬광 구간(0~950ms)에 겹친다</td>
+</tr>
+<tr>
+<td>빗나감! 그림 4장 + <code>&lt;Blur blur={14}&gt;</code> 이미지 필터</td>
+<td><code>MissedSkia.tsx:209-222</code></td>
+<td>확인</td>
+<td>흐린 그림은 매 프레임 새로 흐린다. 한 번 흐려 둔 그림을 재사용하면 된다</td>
+</tr>
+<tr>
+<td>전체 화면 사각형 3장 (비네트 방사 그라데이션, 연기, 번쩍)</td>
+<td><code>CardFxSkia.tsx:219-221, 227-231, 293</code></td>
+<td>확인</td>
+<td>비네트·번쩍은 단색·그라데이션이라 싸다</td>
+</tr>
+<tr>
+<td>웹 Skia 캔버스가 <code>devicePixelRatio</code> 그대로</td>
+<td><code>SkiaPictureView.web.js:43,173</code></td>
+<td>확인</td>
+<td>폰 브라우저는 3배. 3D 는 2배로 묶여 있다. 라이브러리 상수라 우리 쪽에서 바로 못 바꾼다</td>
+</tr>
+<tr>
+<td>GL 표면 두 개가 투명 합성</td>
+<td>3D <code>Table3D.tsx:153</code>, Skia 캔버스 <code>PlayedCardSpotlight.tsx:339</code> (테이블 영역 전체)</td>
+<td>확인</td>
+<td>합성 비용 자체는 추측. 쉬는 동안에도 투명 레이어가 위에 있다</td>
+</tr>
+</tbody></table>
+<h3>JS / UI 스레드</h3>
+<table>
+<thead>
+<tr>
+<th>원인</th>
+<th>근거</th>
+<th>구분</th>
+<th>메모</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>카메라 흔들림 동안 Overlay3D 매 프레임 재렌더</td>
+<td>위 &quot;고침 2&quot;</td>
+<td>확인</td>
+<td>좌석 이름표·호버·스포트라이트까지 전부</td>
+</tr>
+<tr>
+<td><code>CardFxSkiaLayer</code> 가 <code>memo</code> 아님</td>
+<td><code>CardFxSkia.tsx:77</code>, <code>PlayedCardSpotlight.tsx:339</code></td>
+<td>확인</td>
+<td><code>PlayedCardSpotlight</code> 가 렌더될 때마다(로그·손패·peek 변화) Skia 트리 재조정. 연출 중이 아니어도</td>
+</tr>
+<tr>
+<td>Skia <code>onSize</code> 프레임 콜백이 판 내내 돈다</td>
+<td>위 &quot;고침 3&quot;</td>
+<td>확인</td>
+<td>네이티브는 UI 스레드, 웹은 메인 스레드</td>
+</tr>
+<tr>
+<td>진행도에 매달린 파생값 수십 개</td>
+<td><code>CardFxSkia.tsx</code> 약 45개, <code>MissedSkia.tsx</code> 약 40개</td>
+<td>확인</td>
+<td>총격 중에도 <code>MissedSkia</code> 파생값이 함께 계산된다(<code>missFrame(1)</code>). 불티·원뿔은 매 프레임 <code>Skia.Path.Make()</code> (<code>:159-204</code>). 개별 비용은 작다(추측)</td>
+</tr>
+<tr>
+<td>웹은 Reanimated 워클릿·Skia 그리기·three.js 가 모두 메인 스레드</td>
+<td>플랫폼 성질</td>
+<td>확인</td>
+<td>웹이 네이티브보다 먼저 버벅인다</td>
+</tr>
+<tr>
+<td>일반 화질(RN Animated)이 웹에서 JS 구동</td>
+<td><code>PlayedCardSpotlight.tsx:78</code> <code>NATIVE_DRIVER = Platform.OS !== &#39;web&#39;</code>, <code>GunshotFx.tsx</code> 뷰 약 30개</td>
+<td>확인</td>
+<td>웹에서는 &quot;일반&quot;도 공짜가 아니다</td>
+</tr>
+<tr>
+<td><code>measureInWindow</code> 두 번</td>
+<td><code>PlayedCardSpotlight.tsx:457, 1120-1123</code></td>
+<td>확인</td>
+<td>비동기라 끊김보다는 한 프레임 늦음. 웹은 강제 레이아웃 한 번. 작다(추측)</td>
+</tr>
+<tr>
+<td>로그 파싱 <code>pickSpotlights</code></td>
+<td><code>PlayedCardSpotlight.tsx:243</code></td>
+<td>확인</td>
+<td>로그 꼬리만 본다. 작다</td>
+</tr>
+<tr>
+<td>효과음</td>
+<td><code>sfx.ts:84-99</code> 판 들어올 때 9개 미리 생성, <code>:102-116</code> 재생은 가벼움</td>
+<td>확인</td>
+<td>원인 아님으로 본다</td>
+</tr>
+</tbody></table>
+<h3>처음 한 번만 (첫 발이 특히 끊기는 경우)</h3>
+<table>
+<thead>
+<tr>
+<th>원인</th>
+<th>근거</th>
+<th>구분</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>웹 CanvasKit(약 3MB wasm) 받기·컴파일이 판 시작 직후 진행</td>
+<td><code>load.ts:26-29</code>, <code>PlayedCardSpotlight.tsx:125-127</code></td>
+<td>확인. 첫 카드와 겹치면 끊김은 추측</td>
+</tr>
+<tr>
+<td>셰이더 파이프라인 컴파일이 첫 그리기에서 일어남</td>
+<td><code>shaders.ts:65</code> 는 모듈 평가 때 만들기만 한다</td>
+<td>추측</td>
+</tr>
+<tr>
+<td>빗나감! 그림 디코딩</td>
+<td><code>MissedSkia.tsx:62</code> 레이어가 뜰 때 한 번</td>
+<td>확인. 레이어가 판 시작에 뜨므로 대개 연출 전에 끝난다</td>
+</tr>
+<tr>
+<td>저장된 화질을 읽기 전에 기본값 <code>&#39;high&#39;</code> 로 Skia 를 받기 시작</td>
+<td><code>quality.ts:17,20</code> 저장값은 비동기로 늦게 들어온다</td>
+<td>확인. &quot;일반&quot; 사용자도 웹에서 CanvasKit 을 받을 수 있다</td>
+</tr>
+</tbody></table>
+<h3>3D 테이블</h3>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>지금</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>그리기 방식</td>
+<td><code>frameloop=&quot;demand&quot;</code> 움직일 때만</td>
+<td><code>Table3D.tsx:155</code>, <code>Scene.tsx:148</code></td>
+</tr>
+<tr>
+<td>해상도</td>
+<td><code>dpr={[1, 2]}</code></td>
+<td><code>Table3D.tsx:156</code></td>
+</tr>
+<tr>
+<td>안티앨리어싱</td>
+<td>기기 등급 high 면 켬</td>
+<td><code>device-tier.ts:27-31</code></td>
+</tr>
+<tr>
+<td>파티클</td>
+<td>링버퍼 1024 / 256, 프리셋 개수는 등급과 무관 (폭발 90)</td>
+<td><code>Particles.ts:17-19, 73</code></td>
+</tr>
+<tr>
+<td>그림자</td>
+<td>그림자 맵 없음. <code>contactShadow</code> 값은 어디서도 안 읽는다</td>
+<td><code>types.ts:127</code></td>
+</tr>
+<tr>
+<td>등급 판정</td>
+<td>메모리·코어 수로 low/high 둘</td>
+<td><code>device-tier.ts:14-25</code></td>
+</tr>
+</tbody></table>
+<p>쉬는 동안 3D 는 그리지 않는다. 문제는 카드를 낼 때 3D(카드 날기·뱅 줄기·카메라 punch)와 2D 연출이 <strong>동시에</strong> 돈다는 것이다.</p>
+<h2>3단계 설계</h2>
+<p>이름은 <code>low</code> · <code>mid</code> · <code>high</code>, 화면 글자는 <strong>가볍게 · 보통 · 세밀</strong> 로 한다. 시안 틀(<code>card-fx-prototypes/_kit.js</code>)의 저·중·고와 같은 구분이다.</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>저 (가볍게)</th>
+<th>중 (보통)</th>
+<th>고 (세밀)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>그리는 수단</td>
+<td>RN Animated (지금의 &quot;일반&quot;)</td>
+<td>Skia</td>
+<td>Skia</td>
+</tr>
+<tr>
+<td>웹 CanvasKit 받기</td>
+<td>안 받음</td>
+<td>받음</td>
+<td>받음</td>
+</tr>
+<tr>
+<td>입자 수 (시안 비율)</td>
+<td>25%</td>
+<td>55%</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>뱅! 불티 (지금 18)</td>
+<td>— (RN 불티 14 → 4)</td>
+<td>10</td>
+<td>18</td>
+</tr>
+<tr>
+<td>뱅! RN 연기 덩이 (지금 9)</td>
+<td>3</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>화약 연기 셰이더</td>
+<td>없음</td>
+<td>3옥타브, 총구 둘레 사각형</td>
+<td>5옥타브, 총구 둘레 사각형</td>
+</tr>
+<tr>
+<td>BlurMask (섬광·불티·고리)</td>
+<td>없음</td>
+<td>없음 (그라데이션만)</td>
+<td>있음</td>
+</tr>
+<tr>
+<td>방사 그라데이션 (불덩이·비네트)</td>
+<td>없음 (단색 원)</td>
+<td>있음</td>
+<td>있음</td>
+</tr>
+<tr>
+<td>화면 번쩍</td>
+<td>없음</td>
+<td>있음 (약하게)</td>
+<td>있음</td>
+</tr>
+<tr>
+<td>화면·카드 흔들림</td>
+<td>없음</td>
+<td>절반</td>
+<td>그대로</td>
+</tr>
+<tr>
+<td>슬로모션 확대</td>
+<td>없음 (카드 반동만)</td>
+<td>있음</td>
+<td>있음</td>
+</tr>
+<tr>
+<td>빗나감! 그림 조각내기</td>
+<td>없음 (빗나감! 연출 없음 또는 RN 스침)</td>
+<td>조각내기, 빈자리는 단색으로 메움</td>
+<td>조각내기 + 미리 흐린 그림으로 메움</td>
+</tr>
+<tr>
+<td>빗나감! 공기 고리</td>
+<td>—</td>
+<td>1개</td>
+<td>3개</td>
+</tr>
+<tr>
+<td>3D <code>dpr</code></td>
+<td>1</td>
+<td>[1, 1.5]</td>
+<td>[1, 2]</td>
+</tr>
+<tr>
+<td>3D 안티앨리어싱</td>
+<td>끔</td>
+<td>기기 등급 따름</td>
+<td>켬</td>
+</tr>
+<tr>
+<td>3D 파티클 개수 배율</td>
+<td>0.25</td>
+<td>0.55</td>
+<td>1</td>
+</tr>
+<tr>
+<td>3D 카메라 punch·shake</td>
+<td>끔</td>
+<td>절반</td>
+<td>그대로</td>
+</tr>
+</tbody></table>
+<p>메모</p>
+<ul>
+<li>저는 지금 &quot;일반&quot;과 같은 길(RN Animated)이다. 웹에서는 JS 구동이므로 입자 수를 줄이는 것이 효과가 있다</li>
+<li>중의 핵심은 <strong>블러 없음 + 셰이더 가볍게</strong> 다. 모양은 고와 거의 같다</li>
+<li>3D <code>dpr</code>·안티앨리어싱은 GL 컨텍스트를 만들 때 정해진다. 판 도중 바꾸면 다음 판부터 적용한다고 적는다 (<code>Canvas</code> 에 <code>key</code> 를 줘서 다시 만들면 WebGL 컨텍스트가 하나 더 생기므로 판 도중 재생성은 피한다)</li>
+<li>흔들림 끔은 &quot;움직임 줄이기&quot;(접근성)와도 맞는다. 나중에 OS 설정 <code>reduceMotion</code> 을 읽어 흔들림만 따로 끌 수도 있다</li>
+</ul>
+<h3>단계 값을 한곳에</h3>
+<p><code>src/game/ui/fx/fx-profile.ts</code> 에 순수 표를 둔다. Skia·RN·3D 가 모두 이 표만 읽는다.</p>
+<pre><code class="language-ts">export type FxLevel = &#39;low&#39; | &#39;mid&#39; | &#39;high&#39;;
+
+export type FxProfile = {
+  skia: boolean;          // false 면 RN Animated
+  particles: number;      // 0.25 | 0.55 | 1
+  smokeOctaves: 0 | 3 | 5;
+  blur: boolean;
+  gradients: boolean;
+  screenFlash: number;    // 배율
+  shake: number;          // 배율 (카드·카메라 공통)
+  slowZoom: boolean;
+  missedPieces: boolean;
+  table: { dpr: [number, number]; antialias: boolean | &#39;tier&#39; };
+};
+
+export const FX_PROFILE: Record&lt;FxLevel, FxProfile&gt; = { … };
+</code></pre>
+<p>Skia 쪽은 레이어가 판마다 하나라 <code>profile</code> 을 일반 prop 으로 넘기면 된다(바뀔 때만 다시 렌더).
+진행도마다 읽어야 하는 배율(<code>shake</code>, 확대)은 <code>ShotGeom</code> 에 숫자 필드로 넣어 워클릿이 읽게 한다.</p>
+<h3>자동 선택</h3>
+<p>설정의 기본값을 <code>auto</code> 로 두고, 실제 단계는 따로 고른다.</p>
+<ol>
+<li><strong>처음 값은 기기 등급으로.</strong> 이미 있는 <code>getDeviceTier()</code> (<code>device-tier.ts:14</code>)를 쓴다. low → 저, high → 중.
+고는 사용자가 고르거나 아래 측정이 통과했을 때만</li>
+<li><strong>판 시작 후 첫 연출 두세 번을 잰다.</strong> 연출이 도는 동안 <code>requestAnimationFrame</code> 간격(웹) 또는
+Reanimated <code>useFrameCallback</code> 의 <code>timeSincePreviousFrame</code>(네이티브 UI 스레드)을 모은다</li>
+<li><strong>내리기만 한다.</strong> 연출 중 p95 &gt; 25ms 이거나 33ms 넘는 프레임이 10% 넘으면 한 단계 내리고,
+한 번만 &quot;연출을 &#39;보통&#39;으로 낮췄다&quot; 짧은 안내를 띄운다. 자동으로 올리지는 않는다 (오르내림 반복 방지)</li>
+<li>판 도중 단계를 내려도 그 연출은 시작할 때 정한 화질로 끝까지 간다 (지금도 <code>PlayedCardSpotlight.tsx:414</code> 가 그렇게 한다)</li>
+<li>자동이 내린 결과는 <code>bang.fx.autoLevel</code> 에 기억해, 다음 실행에서 거기서 시작한다</li>
+</ol>
+<p>AI 배속(<code>fxPacing.timeScale</code>)이 4배를 넘는 검증용 배속에서는 측정을 건너뛴다. 연출이 짧아 표본이 안 된다.</p>
+<h3>저장 키 이전</h3>
+<p>키는 그대로 <code>bang.fx.quality</code> 를 쓰고 읽을 때 옛 값을 바꾼다. 옛 앱으로 돌아가도 깨지지 않게 옛 값은 지우지 않는다.</p>
+<table>
+<thead>
+<tr>
+<th>저장된 값</th>
+<th>읽은 뒤</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>없음</td>
+<td><code>auto</code></td>
+</tr>
+<tr>
+<td><code>&#39;high&#39;</code></td>
+<td><code>high</code> (사용자가 고른 적이 없어도 지금 기본이 high 라 그대로 둔다)</td>
+</tr>
+<tr>
+<td><code>&#39;normal&#39;</code></td>
+<td><code>low</code></td>
+</tr>
+<tr>
+<td><code>&#39;auto&#39; | &#39;low&#39; | &#39;mid&#39;</code></td>
+<td>그대로</td>
+</tr>
+<tr>
+<td>그 밖</td>
+<td><code>auto</code></td>
+</tr>
+</tbody></table>
+<pre><code class="language-ts">export type FxQuality = &#39;auto&#39; | FxLevel;
+const LEGACY: Record&lt;string, FxQuality&gt; = { normal: &#39;low&#39; };
+</code></pre>
+<p>함께 고칠 것: 저장값을 읽기 전에는 Skia 를 받지 않는다. 스토어에 <code>ready</code> 를 두고 <code>useFxStage</code>·<code>useFxQuality</code> 의
+<code>loadSkiaFx()</code> 를 <code>ready &amp;&amp; level !== &#39;low&#39;</code> 일 때만 부른다 (지금 <code>quality.ts:17</code> 기본 <code>&#39;high&#39;</code> 문제).</p>
+<p><code>&#39;high&#39;</code>/<code>&#39;normal&#39;</code> 을 직접 비교하는 곳은 셋이다. 모두 <code>profile.skia</code> 로 바꾼다.</p>
+<ul>
+<li><code>PlayedCardSpotlight.tsx:124-131</code> (<code>useFxStage</code>)</li>
+<li><code>QualityPicker.tsx:21-27</code></li>
+<li><code>codex/CodexDetail.tsx:115-118</code></li>
+</ul>
+<h3>설정 UI</h3>
+<ul>
+<li><code>InkSegmented</code> 에 4칸: <strong>자동 · 가볍게 · 보통 · 세밀</strong> (<code>QualityPicker.tsx:15-18</code>)</li>
+<li>설명(<code>qualityHint</code>)은 단계마다 한 줄. 자동이면 지금 고른 단계를 함께 보인다. 예: &quot;기기에 맞춰 고른다. 지금은 보통.&quot;</li>
+<li>첫 화면 요약(<code>SettingsSheet.tsx:33-39</code>)은 &quot;연출 자동(보통)&quot;처럼</li>
+<li>3D 해상도처럼 다음 판부터 바뀌는 항목이 있으면 설명 끝에 &quot;테이블 해상도는 다음 판부터&quot; 를 붙인다</li>
+<li>칸이 넷이면 좁은 폰에서 넘칠 수 있다. 칸 안쪽 여백(<code>QualityPicker.tsx:81</code> <code>paddingHorizontal: 16</code>)을 줄이거나 두 줄로</li>
+</ul>
+<h3>바꿔야 할 파일</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>할 일</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>src/game/ui/fx/fx-profile.ts</code> (새)</td>
+<td>단계 표, <code>resolveLevel(quality, tier, autoLevel)</code></td>
+</tr>
+<tr>
+<td><code>src/game/ui/fx/quality.ts</code></td>
+<td>타입 넓히기, 옛 값 이전, <code>ready</code>, <code>autoLevel</code></td>
+</tr>
+<tr>
+<td><code>src/game/ui/fx/frame-meter.ts</code> (새)</td>
+<td>연출 중 프레임 간격 모으기. 개발 측정과 자동 선택이 같이 쓴다</td>
+</tr>
+<tr>
+<td><code>src/game/ui/QualityPicker.tsx</code></td>
+<td>칸·설명, Skia 미리 받기 조건</td>
+</tr>
+<tr>
+<td><code>src/game/ui/settings/SettingsSheet.tsx</code></td>
+<td>요약 글</td>
+</tr>
+<tr>
+<td><code>src/game/ui/PlayedCardSpotlight.tsx</code></td>
+<td><code>useFxStage</code> 단계 판정, 레이어 <code>memo</code>, 크기를 <code>geom</code> 으로, profile 전달</td>
+</tr>
+<tr>
+<td><code>src/game/ui/fx/skia/CardFxSkia.tsx</code></td>
+<td><code>onSize</code> 제거, 연기 사각형 한정, 불티 수·블러·그라데이션 토글</td>
+</tr>
+<tr>
+<td><code>src/game/ui/fx/skia/shaders.ts</code></td>
+<td>옥타브 수(3/5)용 셰이더 두 벌 또는 <code>u_oct</code> 유니폼, 모양이 0 이면 일찍 끝내기</td>
+</tr>
+<tr>
+<td><code>src/game/ui/fx/skia/MissedSkia.tsx</code></td>
+<td>흐린 그림을 한 번만 만들기(오프스크린 스냅샷), 중에서 단색 메움, 고리 수</td>
+</tr>
+<tr>
+<td><code>src/game/ui/fx/skia/timeline.ts</code></td>
+<td><code>ShotGeom</code> 에 <code>shakeK</code>, <code>zoomK</code> (워클릿이 읽는 배율)</td>
+</tr>
+<tr>
+<td><code>src/game/ui/fx/GunshotFx.tsx</code></td>
+<td>저 단계 입자 수 줄이기</td>
+</tr>
+<tr>
+<td><code>src/game/ui/codex/CodexDetail.tsx</code></td>
+<td>화질 비교를 profile 로</td>
+</tr>
+<tr>
+<td><code>src/game/table3d/overlay/Overlay3D.tsx</code></td>
+<td>앵커 구독을 필요한 값만 고르게, <code>PlayedCardSpotlight</code> 를 앵커 변화에서 떼기</td>
+</tr>
+<tr>
+<td><code>src/game/table3d/core/device-tier.ts</code>, <code>core/types.ts</code></td>
+<td><code>FxBudget</code> 에 <code>dpr</code>, <code>particleScale</code>, <code>shake</code>. 안 쓰는 <code>contactShadow</code> 정리</td>
+</tr>
+<tr>
+<td><code>src/game/table3d/Table3D.tsx</code></td>
+<td><code>dpr</code>·안티앨리어싱을 budget 에서</td>
+</tr>
+<tr>
+<td><code>src/game/table3d/scene/Particles.ts</code></td>
+<td><code>spawn</code> 개수에 배율</td>
+</tr>
+<tr>
+<td><code>src/game/table3d/scene/CameraRig.ts</code></td>
+<td>punch·shake 세기에 배율</td>
+</tr>
+<tr>
+<td><code>docs/card-fx.md</code></td>
+<td>&quot;구조&quot;의 quality 설명, 화질 3단계 표 링크</td>
+</tr>
+</tbody></table>
+<p><code>src/game/table3d/</code> 는 경계 규칙 대상(<code>engine/</code>·<code>data/</code>·<code>modifiers/</code>·<code>ai/</code>)이 아니지만, <code>fx-profile.ts</code> 는 React 없이 쓰면 테스트하기 쉽다.</p>
+<h3>작업 순서</h3>
+<ol>
+<li><strong>재는 도구부터.</strong> <code>frame-meter.ts</code> 와 아래 스니펫으로 지금 값을 적어 둔다 (고 / 일반 / <code>?flat=1</code>)</li>
+<li><strong>단계와 상관없는 고침.</strong> 위 3가지 + <code>CardFxSkiaLayer</code> <code>memo</code> + 저장값 읽기 전 Skia 안 받기. 다시 잰다</li>
+<li>여기서 충분히 좋아졌으면 4 이후는 작게 해도 된다</li>
+<li><code>fx-profile.ts</code> 와 <code>quality.ts</code> 이전 (단위 테스트: 옛 값 → 새 값, 표의 단조성 — 고가 중보다 적게 켜는 항목이 없음)</li>
+<li>Skia 쪽에 profile 연결 (중 단계). <code>?fxloop=1&amp;q=mid</code> 처럼 반복 모드에서 단계를 고를 수 있게</li>
+<li>RN 쪽(저) 입자 줄이기</li>
+<li>3D budget 연결</li>
+<li>자동 선택</li>
+<li>설정 UI, <code>docs/card-fx.md</code> 고치기</li>
+<li><code>npm test &amp;&amp; npm run typecheck</code>, <code>npx eslint src/game/ui src/game/table3d</code>. 규칙은 안 건드리므로 시뮬레이터는 생략</li>
+</ol>
+<h2>재는 법</h2>
+<h3>웹</h3>
+<p><strong>Performance 패널</strong></p>
+<ol>
+<li>개발 서버에서 <code>/game/…?fxloop=1</code> (뱅! 3초마다), <code>?fxloop=missed</code> (빗나감!)</li>
+<li>DevTools → Performance → CPU 4x slowdown → 녹화 10초</li>
+<li>볼 곳: Frames 줄의 빨간·노란 프레임, Main 줄의 긴 작업(50ms 넘는 회색 삼각형), GPU 줄</li>
+<li>Main 에서 <code>Overlay3D</code> · <code>PlayedCardSpotlight</code> 렌더가 연출 동안 몇 번 나오는지. React DevTools Profiler 의 &quot;Highlight updates&quot; 로도 보인다</li>
+<li>비교 짝: <code>?fxloop=1</code> 과 <code>?fxloop=1&amp;flat=1</code> (3D 끔), 고 / 일반</li>
+</ol>
+<p>브라우저 패널이 가려져 있으면 <code>requestAnimationFrame</code> 이 멈춘다 (<code>docs/card-fx.md</code> &quot;함정&quot;). 보이는 상태에서 잰다.</p>
+<p><strong>콘솔 스니펫: rAF 간격 기록</strong></p>
+<p><code>?fxloop=1</code> 을 켠 채로 콘솔에 붙인다. 15초 동안 프레임 간격을 모아 표로 보인다.</p>
+<pre><code class="language-js">(() =&gt; {
+  const gaps = [];
+  let last = performance.now();
+  let on = true;
+  const tick = (now) =&gt; {
+    gaps.push(now - last);
+    last = now;
+    if (on) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  const longs = [];
+  const po = new PerformanceObserver((l) =&gt; l.getEntries().forEach((e) =&gt; longs.push(Math.round(e.duration))));
+  try { po.observe({ type: &#39;longtask&#39;, buffered: false }); } catch {}
+  setTimeout(() =&gt; {
+    on = false;
+    po.disconnect();
+    const s = gaps.slice(1).sort((a, b) =&gt; a - b);
+    const q = (p) =&gt; s[Math.min(s.length - 1, Math.floor(s.length * p))].toFixed(1);
+    const avg = s.reduce((a, b) =&gt; a + b, 0) / s.length;
+    console.table({
+      frames: s.length,
+      fps: (1000 / avg).toFixed(1),
+      p50: q(0.5), p95: q(0.95), p99: q(0.99), max: s.at(-1).toFixed(1),
+      over25ms: s.filter((g) =&gt; g &gt; 25).length,
+      over50ms: s.filter((g) =&gt; g &gt; 50).length,
+      longTasks: longs.join(&#39;,&#39;),
+    });
+  }, 15000);
+})();
+</code></pre>
+<p>연출 구간만 보고 싶으면 <code>__shot.start()</code> 직전·직후에 <code>performance.mark(&#39;fx&#39;)</code> 를 찍고 그 사이 간격만 거른다.
+<code>?fxloop=hold</code> 로 진행도를 멈추면 파생값이 안 바뀌어 다시 그리지 않으므로, 셰이더 비용은 멈춤이 아니라 반복으로 잰다.</p>
+<p><strong>GPU 만 따로</strong>: DevTools → Rendering → Frame Rendering Stats. 연기 셰이더 한정 전후를 이것으로 비교한다.</p>
+<h3>네이티브</h3>
+<ul>
+<li><strong>Release 빌드에서 잰다.</strong> 개발 빌드는 JS 가 몇 배 느리다. <code>npx expo run:ios --configuration Release</code></li>
+<li>개발 메뉴 <strong>Perf Monitor</strong>: UI·JS 프레임을 따로 보인다. 카드 낼 때 JS 가 떨어지면 고침 2, UI 가 떨어지면 고침 1·3 쪽이다</li>
+<li>iOS: Xcode Instruments 의 <strong>Animation Hitches</strong>, <strong>Metal System Trace</strong> (GPU 시간), <strong>Time Profiler</strong> (JS·UI 스레드)</li>
+<li>Android: <code>adb shell dumpsys gfxinfo &lt;패키지&gt; framestats</code>, Perfetto</li>
+<li>앱 안에서: <code>frame-meter.ts</code> 가 Reanimated <code>useFrameCallback</code> 의 <code>timeSincePreviousFrame</code>(UI 스레드)과
+JS 쪽 <code>requestAnimationFrame</code> 간격(JS 스레드)을 함께 모아 연출이 끝날 때 p50·p95·최대를 로그로 남긴다.
+개발 모드에서 <code>globalThis.__fxMeter</code> 로 꺼내 본다. 자동 선택도 이 값을 쓴다</li>
+<li>네이티브에는 주소창이 없으므로 반복 연출은 도감(<code>CardFxPreview</code>, <code>PlayedCardSpotlight.tsx:360</code>)에서 같은 카드를 여러 번 돌려 잰다</li>
+</ul>
+<h3>기록할 표</h3>
+<table>
+<thead>
+<tr>
+<th>경우</th>
+<th>플랫폼</th>
+<th>p50</th>
+<th>p95</th>
+<th>33ms 넘는 프레임</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>고 (지금)</td>
+<td>웹 / iOS / Android</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>고 + 고침 3가지</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>중</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>저</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>고, <code>?flat=1</code></td>
+<td>웹</td>
+<td></td>
+<td></td>
+<td></td>
+<td>3D 몫 가르기</td>
+</tr>
+</tbody></table>
+</template>
+<template id="sec_picks"><h2>카드별 추천</h2><p>시안을 만든 작업자가 고른 안. "옮기기 쉬움"은 지금 Skia 구조(조각내기·총격 재사용)에 얼마나 그대로 맞는지 기준이다. 카드 이름을 누르면 그 시안으로 간다.</p><table><tr><th>카드</th><th>추천</th><th>이유</th></tr><tr><td><a href="#volcanic" style="color:#e8b860">볼캐닉</a></td><td>A</td><td>연사 스트로브 — "몇 번이든 쏜다"가 바로 읽힘. 뱅! 섬광 반복</td></tr><tr><td><a href="#schofield" style="color:#e8b860">스코필드</a></td><td>A</td><td>꺾어 열고 장전 — 이 총만의 동작. 그림 조각 clip+transform (사정거리 표시는 C)</td></tr><tr><td><a href="#remington" style="color:#e8b860">레밍턴</a></td><td>C</td><td>사격장 과녁 1~3 — 숫자 3이 가장 직관적, 원·선뿐</td></tr><tr><td><a href="#carabine" style="color:#e8b860">카빈</a></td><td>A</td><td>미니멀 조준선 눈금 1~4 — 가장 가벼움 (고화질은 B 레인 덧붙임)</td></tr><tr><td><a href="#winchester" style="color:#e8b860">윈체스터</a></td><td>A+C</td><td>레버 착-착 + 일어서는 카드·고리 5겹 — 총 정체성 + Skia 원근 행렬</td></tr><tr><td><a href="#lemat" style="color:#e8b860">르매트</a></td><td>A</td><td>실린더 장전 — 손패가 뱅!으로 뒤집혀 탄환이 되어 약실을 채움. 규칙이 가장 바로 읽히고 Skia 로 옮기기 쉬움</td></tr><tr><td><a href="#shotgun" style="color:#e8b860">샷건</a></td><td>A</td><td>사실풍 산탄 — 뱅!과 톤이 같아 섬광·연기 코드 재사용. 저화질에도 손패 −1 이 남음</td></tr><tr><td><a href="#scope" style="color:#e8b860">조준경</a></td><td>A</td><td>렌즈 속 당겨 보기 — 거리 3→2. 원 clip 하나로 끝남 (짧게는 D)</td></tr><tr><td><a href="#mustang" style="color:#e8b860">야생마</a></td><td>B</td><td>3D 멀어졌다 돌아오기 — RN 카드 변환만으로 대부분, 가장 가벼움</td></tr><tr><td><a href="#barrel" style="color:#e8b860">술통</a></td><td>B</td><td>3D 판정 카드 뒤집기 — ♥ 판정이 보임. 단 기존 RevealSpot 과 겹치니 장착 때 A, 판정 때 B 권장</td></tr><tr><td><a href="#gatling" style="color:#e8b860">기관총</a></td><td>A</td><td>총열 회전 + 예광탄 부채꼴 — 선·별·사각형뿐, 뱅! 총구 섬광 재사용</td></tr><tr><td><a href="#indians" style="color:#e8b860">인디언!</a></td><td>A</td><td>함성 고리가 판 전체로 — 타원 고리·점선, 저화질에도 고리 남음</td></tr><tr><td><a href="#fanning" style="color:#e8b860">패닝</a></td><td>A</td><td>손바닥 두 번 + 거리 1 점선 호 — 뱅! 총격을 두 방향으로 두 번</td></tr><tr><td><a href="#bandidos" style="color:#e8b860">반디도스</a></td><td>B</td><td>손패 두 장씩 뒤집혀 빨려 듦(3D) — 규칙이 바로 보임. A 먼지 섞기</td></tr><tr><td><a href="#tornado" style="color:#e8b860">토네이도</a></td><td>B</td><td>자리마다 나선(3D) — 1장 버리고 2장 받음을 보여 주는 유일한 안. 가볍게는 A 고리 + D 표시</td></tr><tr><td><a href="#duel" style="color:#e8b860">결투</a></td><td>A</td><td>다리 틈으로 파고들기 — 그림 속 장면 살리기(빗나감!과 같은 방식). 확대 + 선·원 몇 개</td></tr><tr><td><a href="#aim" style="color:#e8b860">조준</a></td><td>A</td><td>조준경이 조여듦 → ×2 — 한눈에 읽힘. evenodd 구멍 Path 하나</td></tr><tr><td><a href="#tomahawk" style="color:#e8b860">토마호크</a></td><td>A</td><td>그림 속 도끼가 빠져나감 — 원본 조각 clip+transform 으로 지금 구조에 그대로</td></tr><tr><td><a href="#backfire" style="color:#e8b860">역화</a></td><td>A</td><td>슬로모션 되돌림 — 뱅!/빗나감! 슬로모션 시간표와 총알 그림 재사용</td></tr><tr><td><a href="#panic" style="color:#e8b860">강탈</a></td><td>B</td><td>공중제비 도는 카드(3D) — 표적→나 방향이 분명, ?fxloop=take 결과 표시와 이어 붙이기 쉬움</td></tr><tr><td><a href="#beer" style="color:#e8b860">맥주</a></td><td>A</td><td>거품이 하트로 — 그림 속 넘치는 거품 그대로. 원 입자 lerp, 저화질에도 하트</td></tr><tr><td><a href="#saloon" style="color:#e8b860">주점</a></td><td>A</td><td>문이 흔들리며 한 잔씩 — 하트가 7자리로 퍼짐. 실제 좌석 좌표에 D 맥박 섞기</td></tr><tr><td><a href="#lastCall" style="color:#e8b860">라스트 콜</a></td><td>A</td><td>바텐더 종 — 종소리 하나로 맥주와 구분, 가벼움</td></tr><tr><td><a href="#stagecoach" style="color:#e8b860">역마차</a></td><td>A</td><td>달리는 역마차 — 카드 2장이 뒤집혀 손으로. 웰스 파고 A 와 손 들어가기 공용</td></tr><tr><td><a href="#wellsFargo" style="color:#e8b860">웰스 파고</a></td><td>A</td><td>금고 문(3D) — 3장 = 금고. 가볍게는 B</td></tr><tr><td><a href="#escape" style="color:#e8b860">탈출</a></td><td>A</td><td>구름 박차고 뛰기 — 인물 조각 하나 + 먼지 원, MissedSkia 구조 그대로</td></tr><tr><td><a href="#saved" style="color:#e8b860">구조!</a></td><td>A</td><td>그림 속 밀치기 — 끝 장면이 원본과 같아 자연스레 넘어감. 2장 가져오기는 C 끝부분</td></tr><tr><td><a href="#ghost" style="color:#e8b860">유령</a></td><td>A</td><td>무덤에서 솟아오르기 — 조각 y 이동·투명도 + 혼 줄기 Path. D 의 그림자 없음 섞기</td></tr><tr><td><a href="#catBalou" style="color:#e8b860">캣 벌로우</a></td><td>B</td><td>잉크 채찍 착! — 베지어 Path 하나, ?fxloop=take 와 이어 붙이기 쉬움</td></tr><tr><td><a href="#generalStore" style="color:#e8b860">잡화점</a></td><td>A</td><td>가게 문에서 쏟아지기 — 카드 수와 시계 방향 순서가 바로 읽힘</td></tr><tr><td><a href="#jail" style="color:#e8b860">감옥</a></td><td>B</td><td>자물쇠 철컥(3D) — 카드가 들려 기울고 자물쇠가 잠겨 좌석으로 날아감. Group 변환 + Path 몇 개</td></tr><tr><td><a href="#dynamite" style="color:#e8b860">다이너마이트</a></td><td>A</td><td>심지 불꽃 — 놓기만 하고 터지지 않음을 정확히 보여 줌. 뱅! 불꽃 코드 재사용 (저화질 대체는 B 고리)</td></tr><tr><td><a href="#rattlesnake" style="color:#e8b860">방울뱀</a></td><td>A</td><td>방울 떨림 → 물기 — MissedSkia 조각내기 구조 그대로, 비용 가장 낮음</td></tr><tr><td><a href="#bounty" style="color:#e8b860">포상금</a></td><td>B</td><td>수배 전단 핀(3D) — 날아와 철썩, 핀 탁, 좌석으로. A 의 금화를 덧붙여도 좋음</td></tr><tr><td><a href="#poker" style="color:#e8b860">포커</a></td><td>A</td><td>사방에서 엎어 모이기(3D) — 규칙이 그대로 보임. 뒤에 GroupRevealSpot 이 이어지니 2초 이하로</td></tr></table><h2>공통으로 묶을 수 있는 것</h2><ul><li><b>그림 조각내기</b>(빗나감! 방식): 방울뱀 A · 토마호크 A · 탈출 A · 구조! A · 유령 A · 스코필드 A · 결투 A — MissedSkia 를 일반화하면 한 번에</li><li><b>총구 섬광 재사용</b>(뱅! 방식): 볼캐닉 A · 샷건 A · 기관총 A · 패닝 A · 다이너마이트 A · 역화 A</li><li><b>카드가 손/좌석으로 날아가기</b>: 역마차 A · 웰스 파고 A · 잡화점 A · 반디도스 B · 강탈 B · 캣 벌로우 B · 감옥 B · 포상금 B</li><li><b>3D 기울임</b>: 시안은 2D 캔버스라 띠로 잘라 흉내 냈다. Skia 에서는 Matrix4 perspective + rotateX/Y 하나로 된다</li><li><b>판정과 겹침</b>: 술통·다이너마이트·감옥·포커는 이미 판정 펼치기(RevealSpot·GroupRevealSpot)가 따로 뜬다. 낼 때 연출은 짧게(2초 이하)</li></ul></template>
+</body>
+</html>

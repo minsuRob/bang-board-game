@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>레밍턴 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389): 무거운 통짜 몸통 리볼버. 왼쪽 아래 손잡이 → 오른쪽 위 총구, 가장 크게 그려진 권총이다.
+  총구 (206,116) · 총열 (110~207, 110~178) · 아래 장전 레버 (130,182)→(195,128) · 실린더 (100~136, 158~198, 가운데 118,178)
+  · 공이치기 뿔 (48~78, 184~202, 축 74,200) · 방아쇠울 (92,225) · 손잡이 (52~84, 206~282) · 사정거리 동그라미 "3" (125,308)
+  노린 것: 툭 튀어나온 공이치기를 젖히는 동작, 무게감 있는 금속 광택, 그리고 "3칸까지 닿는다" 를 과녁 3개로.
+  소리: 공이치기 '끼릭-딸깍'(두 단), 실린더 '착'. 과녁 시안은 '탕-땡' 세 번, 뒤로 갈수록 '땡' 이 작고 늦게.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+
+const BLUE = '#2f4c80';
+const P = (g, pts) => { g.beginPath(); pts.forEach(([x, y], i) => { const p = art(x, y); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); };
+const rotAt = (g, px, py, a) => { const p = art(px, py); g.translate(p.x, p.y); g.rotate(a); g.translate(-p.x, -p.y); };
+const clipCard = (g) => { g.beginPath(); g.rect(card.x + 2, card.y + 22, card.w - 4, card.h - 24); g.clip(); };
+function badge(g, n) {
+  const c = art(125, 308);
+  g.strokeStyle = '#2a1c10'; g.lineWidth = 1; g.beginPath(); g.arc(c.x, c.y, 8.5, 0, 7); g.stroke();
+  g.beginPath(); g.moveTo(c.x - 11, c.y); g.lineTo(c.x + 11, c.y); g.stroke();
+  g.fillStyle = '#2a1c10'; g.font = '600 11px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(n, c.x, c.y + 0.5); g.textBaseline = 'alphabetic';
+}
+const _img = {};
+function cardImg(key, fn) { if (_img[key]) return _img[key]; const c = document.createElement('canvas'); c.width = W * 2; c.height = H * 2; const x = c.getContext('2d'); x.setTransform(2, 0, 0, 2, 0, 0); fn(x); return (_img[key] = c); }
+
+// 레밍턴 (원본 좌표)
+const BARREL = [[110, 165], [200, 110], [207, 116], [205, 122], [125, 178]];
+const CYL = [[100, 165], [128, 158], [136, 190], [106, 198]];
+const HAMMER = [[48, 190], [60, 184], [78, 195], [70, 202]];
+const FRAME = [[70, 192], [102, 170], [110, 205], [96, 216], [76, 212]];
+const GRIP = [[58, 212], [78, 206], [84, 240], [80, 282], [60, 282], [52, 250]];
+const HPIV = [74, 200], MZ = [206, 116], GUARD = [92, 225];
+function gun(g, o) {
+  o = o || {};
+  g.fillStyle = '#1e140b'; P(g, BARREL); g.fill(); P(g, FRAME); g.fill(); P(g, GRIP); g.fill();
+  // 장전 레버
+  g.strokeStyle = '#1e140b'; g.lineWidth = 1.6; let a = art(130, 182), b = art(195, 128); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+  // 실린더 + 홈 (ph: 돌아간 정도)
+  g.save(); g.fillStyle = '#2c2218'; P(g, CYL); g.fill(); g.clip();
+  g.strokeStyle = '#a89878'; g.lineWidth = 0.8; const ph = o.ph || 0;
+  for (let i = -1; i < 4; i++) { const k = ((i + ph) / 3); a = art(lerp(100, 128, k), lerp(165, 158, k)); b = art(lerp(106, 136, k), lerp(198, 190, k)); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+  g.restore();
+  // 공이치기
+  g.save(); rotAt(g, HPIV[0], HPIV[1], o.cock || 0); g.fillStyle = '#1e140b'; P(g, HAMMER); g.fill(); g.restore();
+  const c = art(...GUARD); g.strokeStyle = '#1e140b'; g.lineWidth = 1.6; g.beginPath(); g.arc(c.x, c.y, 3.6, 0, 7); g.stroke();
+  g.fillStyle = '#efe2c6'; for (const [x, y] of [[66, 236], [70, 262]]) { const p = art(x, y); g.beginPath(); g.arc(p.x, p.y, 1, 0, 7); g.fill(); }
+}
+const face = (g) => drawCard(g, '레밍턴', (x) => { gun(x); badge(x, '3'); }, { band: BLUE });
+const faceArgs = (o) => (g) => drawCard(g, '레밍턴', (x) => { gun(x, o); badge(x, '3'); }, { band: BLUE });
+function cardBack(g) {
+  g.save(); g.fillStyle = '#5a1a14'; g.strokeStyle = '#8b5a2b'; g.lineWidth = 3; g.beginPath(); g.roundRect(card.x, card.y, card.w, card.h, 8); g.fill(); g.stroke();
+  g.strokeStyle = '#c8902f'; g.lineWidth = 1; g.beginPath(); g.roundRect(card.x + 7, card.y + 7, card.w - 14, card.h - 14, 4); g.stroke();
+  g.save(); g.beginPath(); g.rect(card.x + 8, card.y + 8, card.w - 16, card.h - 16); g.clip(); g.strokeStyle = 'rgba(200,144,47,0.35)';
+  for (let i = -10; i < 20; i++) { g.beginPath(); g.moveTo(card.x + i * 10, card.y); g.lineTo(card.x + i * 10 + 140, card.y + 140); g.stroke(); g.beginPath(); g.moveTo(card.x + i * 10, card.y + card.h); g.lineTo(card.x + i * 10 + 140, card.y + card.h - 140); g.stroke(); }
+  g.restore();
+  g.fillStyle = '#f2c14e'; g.font = '800 18px serif'; g.textAlign = 'center'; g.fillText('BANG!', card.x + card.w / 2, card.y + card.h / 2 + 6);
+  g.restore();
+}
+// 원근 카드 그리기: rotX(위쪽이 멀어지는 각), sx(뒤집기 가로 배율), dy(들림)
+function drawTilt(g, img, rotX, sx, dy, N) {
+  const f = 320, py = card.y + card.h / 2, cx = card.x + card.w / 2;
+  const proj = (y) => { const l = y - py; const z = -l * Math.sin(rotX); const s = f / (f + z); return { y: py + l * Math.cos(rotX) * s + dy, s }; };
+  for (let i = 0; i < N; i++) {
+    const y0 = card.y - 2 + (card.h + 4) * i / N, y1 = card.y - 2 + (card.h + 4) * (i + 1) / N;
+    const p0 = proj(y0), p1 = proj(y1), w = (card.w + 6) * (p0.s + p1.s) / 2 * sx;
+    if (Math.abs(w) < 0.3) continue;
+    g.drawImage(img, (card.x - 3) * 2, y0 * 2, (card.w + 6) * 2, (y1 - y0) * 2, cx - Math.abs(w) / 2, p0.y, Math.abs(w), p1.y - p0.y + 0.6);
+  }
+  return proj;
+}
+const DUST = (() => { const r = rng(23); return Array.from({ length: 26 }, () => ({ a: Math.PI + r() * Math.PI, v: 20 + r() * 40, r: 2 + r() * 4, up: 4 + r() * 10 })); })();
+// C 과녁: 원근으로 멀어지는 5자리 (x, 바닥 y, 크기)
+const TGT = [[226, 172, 1], [252, 140, 0.78], [271, 116, 0.6], [285, 98, 0.46], [295, 85, 0.36]];
+const HITS = [0.34, 0.48, 0.62];
+
+FxKit.mount({
+  kind: 'remington', title: '레밍턴 연출 시안',
+  lead: '레밍턴(사정거리 3) 장착. 큼직한 공이치기·실린더와 "세 칸까지" 를 보여 준다. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 공이치기 젖히고 광택', cost: 2, dur: 1600,
+      desc: '그림 속 공이치기가 끼릭 젖혀지고 실린더가 한 칸 착 돈 뒤, 은빛이 실린더에서 총구까지 미끄러지고 사정거리 "3" 에서 물결 세 겹 · 저: 광택은 흰 선 하나, 반짝임 없이',
+      draw(g, t, q) {
+        bg(g);
+        const cock = -0.55 * ease.out(seg(t, 0.06, 0.24)) * (1 - ease.inOut(seg(t, 0.82, 0.95)));
+        const ph = ease.back(seg(t, 0.22, 0.32));
+        faceArgs({ cock, ph })(g);
+        // 딸깍
+        const ck = seg(t, 0.22, 0.32);
+        if (ck > 0 && ck < 1) { const p = art(92, 180); g.strokeStyle = `rgba(255,236,190,${1 - ck})`; g.lineWidth = 1.2; for (let i = 0; i < 5; i++) { const a = -2.6 + i * 0.5; g.beginPath(); g.moveTo(p.x + Math.cos(a) * 3, p.y + Math.sin(a) * 3); g.lineTo(p.x + Math.cos(a) * (5 + ck * 6), p.y + Math.sin(a) * (5 + ck * 6)); g.stroke(); } }
+        // 광택: 총열 모양 안에서 실린더 → 총구
+        const sw = seg(t, 0.32, 0.6);
+        if (sw > 0 && sw < 1) {
+          const a = art(110, 180), b = art(210, 112), x = lerp(a.x, b.x, ease.inOut(sw)), y = lerp(a.y, b.y, ease.inOut(sw));
+          g.save(); clipCard(g); g.beginPath(); P(g, BARREL); g.clip();
+          if (q.on(1)) { g.globalCompositeOperation = 'lighter'; const gr = g.createRadialGradient(x, y, 0, x, y, 14); gr.addColorStop(0, 'rgba(230,240,255,0.95)'); gr.addColorStop(1, 'rgba(230,240,255,0)'); g.fillStyle = gr; g.fillRect(x - 14, y - 14, 28, 28); }
+          else { g.strokeStyle = 'rgba(255,255,255,0.8)'; g.lineWidth = 2; g.beginPath(); g.moveTo(x - 3, y - 4); g.lineTo(x + 3, y + 4); g.stroke(); }
+          g.restore();
+        }
+        const gl = seg(t, 0.56, 0.74);
+        if (gl > 0 && gl < 1 && q.on(1)) { const m = art(...MZ), s = Math.sin(gl * Math.PI) * 8; g.save(); g.translate(m.x, m.y); g.rotate(gl); g.fillStyle = '#fffbe8'; g.beginPath(); for (let i = 0; i < 8; i++) { const r = i % 2 ? s * 0.2 : s; g.lineTo(Math.cos(i * Math.PI / 4) * r, Math.sin(i * Math.PI / 4) * r); } g.closePath(); g.fill(); g.restore(); }
+        // 사정거리 3 물결
+        const c = art(125, 308);
+        for (let i = 0; i < 3; i++) { const k = seg(t, 0.6 + i * 0.08, 0.86 + i * 0.05); if (k <= 0 || k >= 1) continue; g.strokeStyle = `rgba(242,193,78,${1 - k})`; g.lineWidth = 1.5; g.beginPath(); g.arc(c.x, c.y, 9 + k * (14 + i * 10), 0, 7); g.stroke(); }
+      },
+    },
+    {
+      id: 'B', name: 'B. 3D 카드 뒤집기', cost: 3, dur: 1800,
+      desc: '엎어져 누운 카드가 테이블에서 들리며 원근으로 기울어 한 바퀴 뒤집혀 앞면을 보이고, 쿵 내려앉아 먼지가 일어난다 · 저: 먼지·가장자리 빛 없이, 원근 띠 수 줄임',
+      draw(g, t, q) {
+        bg(g);
+        const lift = ease.out(seg(t, 0, 0.3)) * (1 - ease.in(seg(t, 0.62, 0.78)));
+        const flip = ease.inOut(seg(t, 0.12, 0.58));
+        const rotX = lerp(1.15, 0, ease.out(seg(t, 0, 0.35))) + 0.35 * lift * (1 - flip) - 0.12 * Math.sin(flip * Math.PI);
+        const sx = Math.cos(flip * Math.PI);
+        const land = seg(t, 0.76, 0.84), bump = land > 0 && land < 1 ? Math.sin(land * Math.PI) * 2 : 0;
+        // 그림자
+        g.fillStyle = `rgba(0,0,0,${0.35 - lift * 0.15})`; g.beginPath(); g.ellipse(150 + lift * 6, 174, (card.w / 2 + 6) * Math.max(0.2, Math.abs(sx)) + lift * 6, 6 + lift * 3, 0, 0, 7); g.fill();
+        const img = sx >= 0 && flip < 0.5 ? cardImg('back', cardBack) : cardImg('face', face);
+        const N = q.on(1) ? 36 : 12;
+        g.save(); if (q.on(2) && bump) g.translate(0, bump * 0.6);
+        drawTilt(g, img, rotX, sx, -lift * 18 + bump, N);
+        // 뒤집히는 가장자리 빛
+        if (q.on(1) && Math.abs(sx) < 0.25) { g.fillStyle = `rgba(255,236,190,${(0.25 - Math.abs(sx)) * 3})`; g.fillRect(148, card.y - lift * 18, 4, card.h); }
+        g.restore();
+        // 먼지
+        if (land > 0 && t < 1) {
+          const k = seg(t, 0.76, 1);
+          DUST.slice(0, q.n(DUST.length)).forEach((d, i) => {
+            const side = i % 2 ? 1 : -1, x = 150 + side * (card.w / 2 + Math.abs(Math.cos(d.a)) * d.v * ease.out(k)), y = 172 - d.up * ease.out(k) - Math.sin(d.a) * 2;
+            g.fillStyle = `rgba(180,160,130,${(1 - k) * 0.5})`; g.beginPath(); g.arc(x, y, d.r * (0.6 + k), 0, 7); g.fill();
+          });
+        }
+      },
+    },
+    {
+      id: 'C', name: 'C. 사격장 과녁 3개', cost: 2, dur: 2000,
+      desc: '오른쪽 원근 사격장에 과녁 5개가 일어서고, 총구에서 예광선이 1·2·3번을 차례로 맞혀 넘어뜨린다. 4·5번은 흐린 점선으로 남는다 · 저: 예광선 번짐·바닥선 없이',
+      draw(g, t, q) {
+        bg(g);
+        const fade = 1 - seg(t, 0.84, 1);
+        if (fade > 0) {
+          g.save(); g.globalAlpha = fade;
+          if (q.on(1)) { g.strokeStyle = 'rgba(179,155,116,0.25)'; g.lineWidth = 1; g.beginPath(); g.moveTo(206, 190); g.lineTo(300, 70); g.moveTo(246, 196); g.lineTo(300, 120); g.stroke(); }
+          TGT.forEach(([x, y, s], i) => {
+            const up = ease.back(seg(t, 0.04 + i * 0.04, 0.18 + i * 0.04));
+            const hit = i < 3 ? seg(t, HITS[i], HITS[i] + 0.08) : 0;
+            const sy = up * (1 - 0.75 * ease.out(hit));
+            if (sy <= 0.01) return;
+            const r = 11 * s;
+            g.save(); g.translate(x, y); g.scale(1, sy);
+            g.strokeStyle = '#6b4a2f'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -r); g.stroke();
+            if (i < 3) {
+              g.fillStyle = '#efe2c6'; g.beginPath(); g.arc(0, -r * 2, r, 0, 7); g.fill();
+              g.fillStyle = '#b3261e'; g.beginPath(); g.arc(0, -r * 2, r * 0.66, 0, 7); g.fill();
+              g.fillStyle = '#efe2c6'; g.beginPath(); g.arc(0, -r * 2, r * 0.33, 0, 7); g.fill();
+              if (hit > 0) { g.fillStyle = '#1e140b'; g.beginPath(); g.arc(1, -r * 2 + 1, 1.6 * s + 0.4, 0, 7); g.fill(); }
+            } else { g.setLineDash([2, 2]); g.strokeStyle = 'rgba(179,155,116,0.6)'; g.beginPath(); g.arc(0, -r * 2, r, 0, 7); g.stroke(); g.setLineDash([]); }
+            g.restore();
+            g.fillStyle = i < 3 ? '#f2c14e' : 'rgba(179,155,116,0.6)'; g.font = `600 ${Math.round(10 * s + 3)}px sans-serif`; g.textAlign = 'center'; g.fillText(String(i + 1), x, y + 11 * s);
+          });
+          g.restore();
+        }
+        face(g);
+        const m = art(...MZ);
+        HITS.forEach((h, i) => {
+          const k = seg(t, h - 0.05, h + 0.05); if (k <= 0 || k >= 1) return;
+          const [x, y, s] = TGT[i], tx = x, ty = y - 22 * s;
+          const hx = lerp(m.x, tx, Math.min(1, k * 2)), hy = lerp(m.y, ty, Math.min(1, k * 2));
+          if (q.on(1)) { g.save(); g.globalCompositeOperation = 'lighter'; const gr = g.createLinearGradient(m.x, m.y, hx, hy); gr.addColorStop(0, 'rgba(255,220,140,0)'); gr.addColorStop(1, `rgba(255,244,210,${1 - k})`); g.strokeStyle = gr; g.lineWidth = 2.5; g.beginPath(); g.moveTo(m.x, m.y); g.lineTo(hx, hy); g.stroke(); g.restore(); }
+          else { g.strokeStyle = `rgba(255,236,170,${1 - k})`; g.lineWidth = 1.5; g.beginPath(); g.moveTo(lerp(m.x, hx, 0.5), lerp(m.y, hy, 0.5)); g.lineTo(hx, hy); g.stroke(); }
+          if (k > 0.5) { const p = (k - 0.5) * 2; g.strokeStyle = `rgba(255,220,140,${1 - p})`; g.lineWidth = 1; for (let j = 0; j < 6; j++) { const a = j * 1.05; g.beginPath(); g.moveTo(tx + Math.cos(a) * 3, ty + Math.sin(a) * 3); g.lineTo(tx + Math.cos(a) * (4 + p * 8 * s), ty + Math.sin(a) * (4 + p * 8 * s)); g.stroke(); } }
+        });
+      },
+    },
+    {
+      id: 'D', name: 'D. 만화 "철컥!"', cost: 1, dur: 1300,
+      desc: '카드가 통 튀며 공이치기 둘레에 움직임 곡선 세 줄, 뒤로 노란 잉크 별, 위에 굵은 "철컥!" 이 찍힌다 · 저: 그대로 (단색 도형과 글자뿐)',
+      draw(g, t) {
+        bg(g);
+        const hop = Math.sin(seg(t, 0.04, 0.22) * Math.PI), sq = 1 + 0.06 * Math.sin(seg(t, 0.18, 0.3) * Math.PI);
+        const cock = -0.55 * ease.out(seg(t, 0.06, 0.16)) * (1 - seg(t, 0.85, 0.95));
+        const hp = art(...HPIV);
+        // 잉크 별
+        const st = seg(t, 0.1, 0.5);
+        if (st > 0 && st < 1) {
+          const s = ease.back(Math.min(1, st * 3)) * (1 - seg(st, 0.75, 1));
+          g.save(); g.translate(hp.x - 6, hp.y - 8); g.scale(s, s); g.beginPath();
+          for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; const r = i % 2 ? 9 : 22 + (i % 4) * 2; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+          g.closePath(); g.fillStyle = '#f2c14e'; g.fill(); g.strokeStyle = '#1e140b'; g.lineWidth = 2; g.stroke(); g.restore();
+        }
+        g.save(); g.translate(150, 171); g.scale(1 / sq, sq); g.translate(-150, -171 - hop * 8);
+        faceArgs({ cock })(g);
+        g.restore();
+        // 움직임 곡선
+        const mv = seg(t, 0.08, 0.36);
+        if (mv > 0 && mv < 1) { g.strokeStyle = `rgba(30,20,11,${1 - mv})`; g.lineWidth = 2; g.lineCap = 'round'; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(hp.x, hp.y - hop * 8, 12 + i * 5, -2.9, -2.2); g.stroke(); } g.lineCap = 'butt'; }
+        // 철컥!
+        const tx = seg(t, 0.12, 1);
+        if (tx > 0 && tx < 1) {
+          const s = tx < 0.08 ? 2 - tx / 0.08 : tx < 0.14 ? 1 - Math.sin((tx - 0.08) / 0.06 * Math.PI) * 0.12 : 1;
+          g.save(); g.translate(62, 64); g.rotate(-0.18); g.scale(s, s); g.globalAlpha = tx > 0.75 ? (1 - tx) / 0.25 : 1;
+          g.font = '900 26px sans-serif'; g.textAlign = 'center'; g.lineJoin = 'round'; g.lineWidth = 6; g.strokeStyle = '#1e140b'; g.strokeText('철컥!', 0, 0);
+          g.fillStyle = '#b3261e'; g.fillText('철컥!', 2, 2); g.fillStyle = '#efe2c6'; g.fillText('철컥!', 0, 0); g.restore();
+        }
+      },
+    },
+  ],
+});
+</script></body></html>

@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>르매트 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389): 흰 바탕에 르매트 리볼버 한 자루가 오른쪽 위를 겨눈다.
+  위 총열 (118,108)→(212,90) 총구, 그 아래 짧은 산탄 총열 (118,124)→(192,112),
+  실린더 중심 (112,142), 몸통 (82~140, 108~172), 손잡이 (48~100, 158~216) 왼쪽 아래.
+  규칙이 "손의 아무 카드나 뱅!"이라 손패 카드가 실린더로 빨려 들어가 탄환이 되는 장면을 노렸다.
+  실린더 약실(6개)이 하나씩 채워지는 것이 공통 장치. 장착 카드라 끝은 카드가 자리에 '착' 붙는다.
+  소리: 카드 넘기는 사각 + 약실 철컥(짧은 금속 클릭 2단) + 끝에 실린더 회전 드르륵.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const CX = card.x + card.w / 2, CY = card.y + card.h / 2;
+const CYL = art(112, 142), MUZ = art(212, 90);
+const LABELS = ['맥주', '강탈', '역마차', '술통', '빗나감!'];
+
+function poly(g, pts) { g.beginPath(); pts.forEach(([x, y], i) => { const p = art(x, y); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); }
+function gun(g, col) {
+  g.fillStyle = col || '#3b3026';
+  poly(g, [[118, 108], [208, 84], [212, 96], [122, 122]]); g.fill();
+  poly(g, [[118, 124], [190, 108], [192, 116], [120, 132]]); g.fill();
+  poly(g, [[82, 118], [125, 108], [140, 160], [96, 172]]); g.fill();
+  poly(g, [[62, 160], [100, 158], [86, 216], [48, 212]]); g.fill();
+  g.beginPath(); g.ellipse(CYL.x, CYL.y, 9, 7.5, 0, 0, 7); g.fill();
+}
+function chambers(g, spin, filled) {
+  for (let i = 0; i < 6; i++) {
+    const a = spin + i * Math.PI / 3;
+    g.fillStyle = i < filled ? '#d9a441' : '#140d07';
+    g.beginPath(); g.arc(CYL.x + Math.cos(a) * 5.2, CYL.y + Math.sin(a) * 4.3, 1.6, 0, 7); g.fill();
+  }
+}
+function mini(g, x, y, rot, sx, sy, label, red, w, h) {
+  w = w || 18; h = h || 26;
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(sx, sy);
+  g.fillStyle = '#efe2c6'; g.strokeStyle = '#8b5a2b'; g.lineWidth = 1.2;
+  g.beginPath(); g.roundRect(-w / 2, -h / 2, w, h, 2.5); g.fill(); g.stroke();
+  g.fillStyle = red ? '#b3261e' : '#1e140b'; g.fillRect(-w / 2 + 1, -h / 2 + 1, w - 2, Math.max(5, h * 0.2));
+  g.fillStyle = red ? '#b3261e' : '#3b3026'; g.font = `500 ${Math.max(7, w * 0.3)}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(label, 0, h * 0.1); g.restore();
+}
+function bullet(g, x, y, rot, s) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(s, s);
+  g.fillStyle = '#c9a24a'; g.fillRect(-5, -2.2, 6, 4.4);
+  g.fillStyle = '#8f6a2a'; g.beginPath(); g.ellipse(1, 0, 4, 2.2, 0, -Math.PI / 2, Math.PI / 2); g.fill(); g.restore();
+}
+function settle(g, k) {
+  if (k <= 0 || k >= 1) return; const p = 3 + ease.out(k) * 14;
+  g.strokeStyle = `rgba(242,193,78,${(1 - k) * 0.85})`; g.lineWidth = 2 * (1 - k) + 0.5;
+  g.beginPath(); g.roundRect(card.x - p, card.y - p, card.w + p * 2, card.h + p * 2, 8 + p); g.stroke();
+}
+function scaled(g, s, fn) { g.save(); g.translate(CX, CY); g.scale(s, s); g.translate(-CX, -CY); fn(); g.restore(); }
+
+// D: 손패 3장에서 흩어져 실린더로 감겨 드는 불씨
+const HAND = [{ x: 34, y: 178 }, { x: 60, y: 183 }, { x: 86, y: 178 }];
+const EMB = (() => { const r = rng(41); return Array.from({ length: 150 }, () => ({ c: Math.floor(r() * 3), u: r() - 0.5, v: r() - 0.5, a0: r() * 6.28, turns: 2 + r() * 2.5, d: r() * 0.18, hot: r() > 0.35 })); })();
+const SMOKE = (() => { const r = rng(9); return Array.from({ length: 10 }, () => ({ vx: 8 + r() * 30, vy: -12 - r() * 26, r0: 2 + r() * 3, r1: 9 + r() * 12, d: r() * 0.08 })); })();
+// B: 뒤쪽 부채 카드
+const FAN = LABELS;
+
+FxKit.mount({
+  kind: 'lemat', title: '르매트 연출 시안',
+  lead: '아무 카드나 뱅!으로 쓰는 총. 손패가 탄환이 되어 실린더를 채운다. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 실린더 장전', cost: 2, dur: 1800,
+      desc: '손패가 한 장씩 날아가며 앞면이 뱅!으로 바뀌고, 탄환으로 줄어 실린더 약실을 채운다. 철컥 회전 후 카드가 붙는다 · 저: 카드 2장, 꼬리선·총열 광택 없음',
+      draw(g, t, q) {
+        bg(g);
+        const N = Math.max(2, q.n(5)), span = 0.5 / N;
+        let filled = 0;
+        for (let i = 0; i < N; i++) if (t >= 0.08 + i * span + 0.22) filled++;
+        const spin = ease.inOut(seg(t, 0.62, 0.8)) * Math.PI * 2;
+        const pulse = t > 0.8 ? 1 + 0.05 * (1 - seg(t, 0.8, 0.92)) : 1;
+        scaled(g, pulse, () => drawCard(g, '르매트', (g) => {
+          gun(g); chambers(g, spin, Math.round(filled * 6 / N));
+          const gk = seg(t, 0.66, 0.8);
+          if (gk > 0 && gk < 1 && q.on(1)) {
+            const a = art(125, 106), x = lerp(a.x, MUZ.x, gk), y = lerp(a.y, MUZ.y, gk);
+            g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = `rgba(255,240,200,${Math.sin(gk * Math.PI)})`; g.lineWidth = 2;
+            g.beginPath(); g.moveTo(x - 6, y + 2); g.lineTo(x + 6, y - 2); g.stroke(); g.restore();
+          }
+        }));
+        for (let i = 0; i < N; i++) {
+          const d0 = 0.08 + i * span, k = seg(t, d0, d0 + 0.22);
+          const sx0 = 24 + i * (70 / N), sy0 = 182 - (i % 2) * 5, r0 = -0.35 + i * 0.16;
+          const pop = ease.back(seg(t, 0, 0.08));
+          if (k >= 1) {
+            const fk = seg(t, d0 + 0.22, d0 + 0.32);
+            if (fk > 0 && fk < 1) { g.strokeStyle = `rgba(242,193,78,${1 - fk})`; g.lineWidth = 1.5; g.beginPath(); g.arc(CYL.x, CYL.y, 4 + fk * 10, 0, 7); g.stroke(); }
+            continue;
+          }
+          const e = ease.inOut(k), cx = sx0 + 40, cy = sy0 - 90;
+          const x = (1 - e) * (1 - e) * sx0 + 2 * (1 - e) * e * cx + e * e * CYL.x;
+          const y = (1 - e) * (1 - e) * sy0 + 2 * (1 - e) * e * cy + e * e * CYL.y;
+          if (q.on(1) && k > 0) {
+            g.strokeStyle = 'rgba(217,164,65,0.35)'; g.lineWidth = 1; g.beginPath();
+            for (let j = 0; j <= 6; j++) { const ee = ease.inOut(Math.max(0, k - j * 0.025)); g.lineTo((1 - ee) * (1 - ee) * sx0 + 2 * (1 - ee) * ee * cx + ee * ee * CYL.x, (1 - ee) * (1 - ee) * sy0 + 2 * (1 - ee) * ee * cy + ee * ee * CYL.y); }
+            g.stroke();
+          }
+          if (k < 0.6) {
+            const flip = Math.abs(Math.cos(seg(k, 0.1, 0.35) * Math.PI));
+            const bang = k > 0.225;
+            mini(g, x, y, lerp(r0, 2.5, e), flip * pop * lerp(1, 0.6, k / 0.6), pop * lerp(1, 0.6, k / 0.6), bang ? '뱅!' : LABELS[i], bang);
+          } else bullet(g, x, y, Math.atan2(CYL.y - y, CYL.x - x), lerp(1.4, 0.8, seg(k, 0.6, 1)));
+        }
+        settle(g, seg(t, 0.84, 1));
+      },
+    },
+    {
+      id: 'B', name: 'B. 3D 부채 뒤집기', cost: 2, dur: 2000,
+      desc: '카드가 테이블에서 들리며 뒤로 손패가 부채처럼 펼쳐지고, 한 장씩 3D로 뒤집혀 모두 뱅!이 된다. 접히며 착지 · 저: 부채 3장, 착지 먼지 없음',
+      draw(g, t, q) {
+        bg(g);
+        const lift = 16 * Math.sin(Math.PI * seg(t, 0, 0.92));
+        const M = q.on(1) ? 5 : 3;
+        const fo = ease.out(seg(t, 0.05, 0.28)) * (1 - ease.in(seg(t, 0.62, 0.8)));
+        // 그림자
+        g.fillStyle = `rgba(0,0,0,${0.35 - lift * 0.01})`; g.beginPath(); g.roundRect(card.x + lift * 0.5, card.y + lift * 0.4 + 2, card.w + lift * 0.3, card.h, 10); g.fill();
+        const px = CX, py = card.y + card.h - 6 - lift;
+        if (fo > 0.01) for (let i = 0; i < M; i++) {
+          const ang = (i - (M - 1) / 2) * 0.34 * fo;
+          const fk = seg(t, 0.3 + i * 0.05, 0.42 + i * 0.05);
+          const flip = Math.abs(Math.cos(fk * Math.PI));
+          g.save(); g.translate(px, py); g.rotate(ang); g.translate(0, -card.h * 0.48 - fo * 14);
+          mini(g, 0, 0, 0, flip, 1, fk < 0.5 ? FAN[i] : '뱅!', fk >= 0.5, 60, 86); g.restore();
+        }
+        const ry = Math.sin(seg(t, 0.1, 0.85) * Math.PI * 2) * 0.22;
+        g.save(); g.translate(CX, CY - lift); g.transform(Math.cos(ry), Math.sin(ry) * 0.18, 0, 1 + lift * 0.004, 0, 0); g.translate(-CX, -CY);
+        drawCard(g, '르매트', (g) => { gun(g); chambers(g, 0, Math.round(6 * seg(t, 0.4, 0.75))); });
+        if (ry !== 0) { g.fillStyle = `rgba(255,255,255,${Math.max(0, ry) * 0.5})`; g.beginPath(); g.roundRect(card.x, card.y, card.w, card.h, 8); g.fill(); }
+        g.restore();
+        const lk = seg(t, 0.9, 1);
+        if (q.on(1) && lk > 0 && lk < 1) for (let s = -1; s <= 1; s += 2) for (let j = 0; j < 3; j++) {
+          g.fillStyle = `rgba(200,170,120,${(1 - lk) * 0.5})`; g.beginPath(); g.arc(CX + s * (card.w / 2 + lk * (8 + j * 6)), card.y + card.h - j * 4, 2 + lk * 4, 0, 7); g.fill();
+        }
+        settle(g, lk);
+      },
+    },
+    {
+      id: 'C', name: 'C. 만화 잉크 도장', cost: 1, dur: 1500,
+      desc: '종이 톤 위 손패 석 장에 빨간 뱅! 도장이 쾅쾅 찍히고, 집중선을 따라 총으로 쏙 빨려 든다. 철컥! 글씨 · 저: 집중선 줄임',
+      draw(g, t, q) {
+        bg(g, '#f3ead6');
+        const zip = seg(t, 0.5, 0.68);
+        const nl = q.n(16);
+        if (zip > 0 && zip < 1) {
+          g.strokeStyle = `rgba(30,20,11,${(1 - zip) * 0.8})`; g.lineWidth = 1.5;
+          for (let i = 0; i < nl; i++) { const a = Math.PI * 0.55 + (i / nl) * Math.PI * 0.9; const r0 = 30 + (1 - zip) * 40, r1 = r0 + 26 + (i % 3) * 10; g.beginPath(); g.moveTo(CYL.x + Math.cos(a) * r0, CYL.y + Math.sin(a) * r0); g.lineTo(CYL.x + Math.cos(a) * r1, CYL.y + Math.sin(a) * r1); g.stroke(); }
+        }
+        drawCard(g, '르매트', (g) => { gun(g, '#1e140b'); chambers(g, 0, t > 0.68 ? 6 : 0); });
+        [[44, 62], [36, 108], [48, 154]].forEach(([x0, y0], i) => {
+          if (zip >= 1) return;
+          const e = ease.in(zip), x = lerp(x0, CYL.x, e), y = lerp(y0, CYL.y, e), s = lerp(1, 0.2, e);
+          if (zip > 0) { g.strokeStyle = '#1e140b'; g.lineWidth = 1.5; for (let j = -1; j <= 1; j++) { g.beginPath(); g.moveTo(x - 10, y + j * 6); g.lineTo(x - 10 - 30 * zip, y + j * 6); g.stroke(); } }
+          g.save(); g.translate(x, y); g.scale(s, s); g.rotate(-0.1 + i * 0.1);
+          g.fillStyle = '#fffaf0'; g.strokeStyle = '#1e140b'; g.lineWidth = 2; g.beginPath(); g.roundRect(-14, -19, 28, 38, 3); g.fill(); g.stroke();
+          const sk = seg(t, 0.1 + i * 0.12, 0.18 + i * 0.12);
+          if (sk <= 0) { g.fillStyle = '#1e140b'; g.font = '500 16px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', 0, 1); }
+          else { const ss = lerp(1.8, 1, ease.out(sk)); g.rotate(-0.25); g.scale(ss, ss); g.globalAlpha = Math.min(1, sk * 3);
+            g.strokeStyle = '#b3261e'; g.lineWidth = 2; g.strokeRect(-12, -8, 24, 16); g.fillStyle = '#b3261e'; g.font = '700 10px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('뱅!', 0, 1); }
+          g.restore();
+        });
+        const tk = seg(t, 0.68, 0.94);
+        if (tk > 0 && tk < 1) {
+          g.save(); g.translate(CYL.x - 18, CYL.y - 40); g.rotate(-0.18); const s = tk < 0.15 ? 1.6 - tk * 4 : 1; g.scale(s, s); g.globalAlpha = tk > 0.75 ? (1 - tk) / 0.25 : 1;
+          g.font = '800 22px sans-serif'; g.textAlign = 'center'; g.lineJoin = 'round'; g.lineWidth = 6; g.strokeStyle = '#1e140b'; g.strokeText('철컥!', 0, 0); g.fillStyle = '#f2c14e'; g.fillText('철컥!', 0, 0); g.restore();
+        }
+      },
+    },
+    {
+      id: 'D', name: 'D. 불씨로 녹아드는 손패', cost: 3, dur: 2000,
+      desc: '손패 석 장이 불씨로 부서져 소용돌이치며 실린더로 감겨 든다. 실린더가 달아오르고 열기가 총구까지 번져 연기 한 줄 · 저: 불씨 25%, 발광·연기 없음',
+      draw(g, t, q, f) {
+        bg(g, '#1d140c');
+        const heat = Math.sin(Math.PI * seg(t, 0.4, 0.95));
+        drawCard(g, '르매트', (g) => { gun(g); chambers(g, seg(t, 0.5, 0.8) * 6.28, Math.round(6 * seg(t, 0.35, 0.75))); });
+        HAND.forEach((h, i) => {
+          const a = 1 - seg(t, 0.05 + i * 0.05, 0.3 + i * 0.05);
+          if (a <= 0) return; g.globalAlpha = a; mini(g, h.x, h.y, -0.2 + i * 0.2, 1, 1, LABELS[i], false, 20, 28); g.globalAlpha = 1;
+        });
+        g.save(); if (q.on(1)) g.globalCompositeOperation = 'lighter';
+        const n = q.n(EMB.length);
+        for (let i = 0; i < n; i++) {
+          const p = EMB[i], h = HAND[p.c], d = 0.05 + p.c * 0.05 + p.d;
+          const k = seg(t, d, d + 0.45); if (k <= 0 || k >= 1) continue;
+          const sx = h.x + p.u * 20, sy = h.y + p.v * 28, e = ease.inOut(k);
+          const dx = sx - CYL.x, dy = sy - CYL.y, R = Math.hypot(dx, dy) * (1 - e), a = Math.atan2(dy, dx) + e * p.turns;
+          g.fillStyle = p.hot ? `rgba(255,${180 + (f % 3) * 20},90,${Math.min(1, k * 4) * (1 - k * 0.5)})` : `rgba(255,110,40,${(1 - k) * 0.9})`;
+          g.fillRect(CYL.x + Math.cos(a) * R, CYL.y + Math.sin(a) * R * 0.8, 1.6, 1.6);
+        }
+        if (heat > 0) {
+          if (q.on(1)) { const gr = g.createRadialGradient(CYL.x, CYL.y, 0, CYL.x, CYL.y, 22); gr.addColorStop(0, `rgba(255,170,70,${heat * 0.8})`); gr.addColorStop(1, 'rgba(255,90,20,0)'); g.fillStyle = gr; g.beginPath(); g.arc(CYL.x, CYL.y, 22, 0, 7); g.fill(); }
+          else { g.fillStyle = `rgba(255,140,50,${heat * 0.5})`; g.beginPath(); g.arc(CYL.x, CYL.y, 9, 0, 7); g.fill(); }
+          const bk = ease.out(seg(t, 0.6, 0.78)), a0 = art(125, 108);
+          g.strokeStyle = `rgba(255,150,60,${heat * 0.7})`; g.lineWidth = 3; g.beginPath(); g.moveTo(a0.x, a0.y); g.lineTo(lerp(a0.x, MUZ.x, bk), lerp(a0.y, MUZ.y, bk)); g.stroke();
+        }
+        g.restore();
+        if (q.on(2)) SMOKE.forEach((p) => {
+          const k = seg(t, 0.72 + p.d, 1); if (k <= 0 || k >= 1) return; const e = ease.out(k);
+          const x = MUZ.x + p.vx * e, y = MUZ.y + p.vy * e, r = lerp(p.r0, p.r1, e);
+          const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(150,140,125,${(1 - k) * 0.35})`); gr.addColorStop(1, 'rgba(150,140,125,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+        });
+        settle(g, seg(t, 0.86, 1));
+      },
+    },
+  ],
+});
+</script></body></html>

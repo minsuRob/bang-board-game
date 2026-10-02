@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>카빈 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389): 리볼버 카빈(실린더 달린 소총)이 오른쪽 아래 개머리판 → 왼쪽 위 총구로 길게 놓였다.
+  총구 (34,97) · 가는 총열 (30~130, 96~178) · 실린더 (122~150, 170~197, 가운데 136,183)
+  · 기관부·방아쇠 (118~158, 192~210) · 개머리판 (138~218, 198~272) · 사정거리 동그라미 "4" (125,308)
+  노린 것: 권총들과 달리 총구가 왼쪽 위를 향한 "긴 총". 총구에서 뻗어 나가는 조준선과 멀리 깔리는 사거리.
+  소리: 개머리판을 어깨에 대는 '턱' + 실린더 '딸깍', 시험 사격은 권총보다 낮고 긴 '쾅-' 과 꼬리 메아리.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+
+const BLUE = '#2f4c80';
+const P = (g, pts) => { g.beginPath(); pts.forEach(([x, y], i) => { const p = art(x, y); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); };
+const clipCard = (g) => { g.beginPath(); g.rect(card.x + 2, card.y + 22, card.w - 4, card.h - 24); g.clip(); };
+function badge(g, n) {
+  const c = art(125, 308);
+  g.strokeStyle = '#2a1c10'; g.lineWidth = 1; g.beginPath(); g.arc(c.x, c.y, 8.5, 0, 7); g.stroke();
+  g.beginPath(); g.moveTo(c.x - 11, c.y); g.lineTo(c.x + 11, c.y); g.stroke();
+  g.fillStyle = '#2a1c10'; g.font = '600 11px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(n, c.x, c.y + 0.5); g.textBaseline = 'alphabetic';
+}
+const _img = {};
+function cardImg(key, fn) { if (_img[key]) return _img[key]; const c = document.createElement('canvas'); c.width = W * 2; c.height = H * 2; const x = c.getContext('2d'); x.setTransform(2, 0, 0, 2, 0, 0); fn(x); return (_img[key] = c); }
+
+// 카빈 (원본 좌표)
+const BARREL = [[30, 98], [37, 95], [130, 170], [124, 178]];
+const FOREND = [[86, 146], [122, 168], [118, 175], [82, 151]];
+const CYL = [[122, 170], [145, 170], [150, 195], [126, 197]];
+const RECV = [[118, 192], [150, 192], [158, 205], [130, 210]];
+const STOCK = [[140, 198], [162, 198], [205, 242], [218, 248], [212, 272], [192, 264], [150, 220], [138, 212]];
+const MZ = [33, 96], PIV = [136, 190];
+function rifle(g, tone) {
+  g.fillStyle = tone || '#1e140b'; P(g, BARREL); g.fill(); P(g, FOREND); g.fill(); P(g, RECV); g.fill(); P(g, STOCK); g.fill();
+  g.fillStyle = tone || '#4a3d30'; P(g, CYL); g.fill();
+  if (!tone) {
+    g.strokeStyle = '#d9cbb0'; g.lineWidth = 0.6; for (const k of [0.35, 0.7]) { const a = art(lerp(122, 145, k), 171), b = art(lerp(126, 150, k), 196); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+    g.strokeStyle = '#efe2c6'; g.lineWidth = 0.5; const a = art(160, 205), b = art(210, 254); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+  }
+  const c = art(132, 212); g.strokeStyle = tone || '#1e140b'; g.lineWidth = 1.2; g.beginPath(); g.arc(c.x, c.y, 2.4, 0, 7); g.stroke();
+}
+const face = (g) => drawCard(g, '카빈', (x) => { rifle(x); badge(x, '4'); }, { band: BLUE });
+const faceGhost = (g) => drawCard(g, '카빈', (x) => { x.globalAlpha = 0.25; rifle(x, '#8b5a2b'); x.globalAlpha = 1; badge(x, '4'); }, { band: BLUE });
+const M = art(...MZ), CY = art(136, 183);
+const AIM = Math.atan2(M.y - CY.y, M.x - CY.x); // 총구 방향 (왼쪽 위)
+
+// D 연기·불티
+const SMOKE = (() => { const r = rng(41); return Array.from({ length: 36 }, () => ({ v: 20 + r() * 70, sp: (r() - 0.5) * 0.9, r0: 3 + r() * 4, r1: 14 + r() * 22, d: r() * 0.12, w: r() * 6.28, tone: r() })); })();
+const SPARK = (() => { const r = rng(43); return Array.from({ length: 20 }, () => ({ a: (r() - 0.5) * 1.1, v: 70 + r() * 110, hot: r() > 0.4 })); })();
+
+FxKit.mount({
+  kind: 'carabine', title: '카빈 연출 시안',
+  lead: '카빈(사정거리 4) 장착. 왼쪽 위로 뻗은 긴 총열을 살려 "멀리 닿는다" 를 보여 준다. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 미니멀 조준선 눈금', cost: 1, dur: 1400,
+      desc: '그림 속 총구에서 점선 조준선이 왼쪽 위로 쭉 뻗고, 눈금 1·2·3·4 가 차례로 찍힌 끝에 작은 조준 고리가 맺힌다 · 저: 그대로 (선과 글자뿐)',
+      draw(g, t) {
+        bg(g); face(g);
+        const a = 1 - seg(t, 0.8, 1); if (a <= 0) return;
+        const ext = ease.out(seg(t, 0.06, 0.45)), STEP = 18, L = STEP * 4 + 8;
+        const ux = Math.cos(AIM), uy = Math.sin(AIM), nx = -uy, ny = ux;
+        g.save(); g.globalAlpha = a;
+        g.strokeStyle = '#f2c14e'; g.lineWidth = 1.2; g.setLineDash([4, 3]); g.lineDashOffset = -t * 40;
+        g.beginPath(); g.moveTo(M.x + ux * 4, M.y + uy * 4); g.lineTo(M.x + ux * (4 + L * ext), M.y + uy * (4 + L * ext)); g.stroke(); g.setLineDash([]);
+        for (let i = 1; i <= 4; i++) {
+          const k = seg(t, 0.12 + i * 0.07, 0.2 + i * 0.07); if (k <= 0) continue;
+          const d = 4 + STEP * i, x = M.x + ux * d, y = M.y + uy * d, w = 4 * ease.back(k);
+          g.lineWidth = 1.5; g.beginPath(); g.moveTo(x - nx * w, y - ny * w); g.lineTo(x + nx * w, y + ny * w); g.stroke();
+          g.globalAlpha = a * k; g.fillStyle = '#efe2c6'; g.font = '600 9px sans-serif'; g.textAlign = 'center'; g.fillText(String(i), x + nx * 10, y + ny * 10 + 3); g.globalAlpha = a;
+        }
+        const rk = seg(t, 0.5, 0.62);
+        if (rk > 0) {
+          const d = 4 + STEP * 4 + 6, x = M.x + ux * d, y = M.y + uy * d, r = lerp(14, 5, ease.out(rk));
+          g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke();
+          g.beginPath(); g.moveTo(x - r - 3, y); g.lineTo(x - r + 2, y); g.moveTo(x + r - 2, y); g.lineTo(x + r + 3, y); g.moveTo(x, y - r - 3); g.lineTo(x, y - r + 2); g.moveTo(x, y + r - 2); g.lineTo(x, y + r + 3); g.stroke();
+        }
+        const ck = seg(t, 0.55, 0.65);
+        if (ck > 0) { g.globalAlpha = a * ck; g.fillStyle = '#f2c14e'; g.beginPath(); g.roundRect(card.x + card.w + 8, card.y + card.h - 26, 62, 18, 9); g.fill(); g.fillStyle = '#1b120b'; g.font = '600 10px sans-serif'; g.textAlign = 'center'; g.fillText('사정거리 4', card.x + card.w + 39, card.y + card.h - 13.5); }
+        g.restore();
+      },
+    },
+    {
+      id: 'B', name: 'B. 원근 사격 레인', cost: 2, dur: 1800,
+      desc: '카드 아래로 소실점까지 이어지는 원근 바닥이 깔리고, 가까운 칸부터 1·2·3·4 띠가 차례로 불이 들어온다. 5칸째부터는 어둡다. 카드는 살짝 뒤로 기대 선다 · 저: 띠 그라데이션 없이 단색',
+      draw(g, t, q) {
+        bg(g);
+        const a = seg(t, 0, 0.12) * (1 - seg(t, 0.82, 1));
+        const lean = 0.28 * ease.out(seg(t, 0, 0.2)) * (1 - ease.inOut(seg(t, 0.78, 0.95)));
+        if (a > 0) {
+          const vx = 150, vy = 6, by = 210, half = 120;
+          const Y = (z) => vy + (by - vy) / z, X = (z, s) => vx + s * half / z;
+          g.save(); g.globalAlpha = a;
+          // 바닥 테두리
+          g.strokeStyle = 'rgba(179,155,116,0.45)'; g.lineWidth = 1; g.beginPath(); g.moveTo(X(1, -1), by); g.lineTo(vx, vy); g.lineTo(X(1, 1), by); g.stroke();
+          for (let i = 0; i < 6; i++) {
+            const z0 = 1 + i * 0.75, z1 = 1 + (i + 1) * 0.75;
+            const k = i < 4 ? seg(t, 0.2 + i * 0.1, 0.3 + i * 0.1) : 0;
+            g.beginPath(); g.moveTo(X(z0, -1), Y(z0)); g.lineTo(X(z0, 1), Y(z0)); g.lineTo(X(z1, 1), Y(z1)); g.lineTo(X(z1, -1), Y(z1)); g.closePath();
+            if (k > 0) {
+              if (q.on(1)) { const gr = g.createLinearGradient(0, Y(z0), 0, Y(z1)); gr.addColorStop(0, `rgba(242,193,78,${0.42 * k})`); gr.addColorStop(1, `rgba(242,193,78,${0.12 * k})`); g.fillStyle = gr; }
+              else g.fillStyle = `rgba(242,193,78,${0.28 * k})`;
+              g.fill();
+            }
+            g.strokeStyle = i < 4 ? 'rgba(242,193,78,0.6)' : 'rgba(179,155,116,0.3)'; g.stroke();
+            if (i < 4 && k > 0) { const s = 1 / z0; g.fillStyle = `rgba(239,226,198,${k})`; g.font = `700 ${Math.round(8 + 10 * s)}px sans-serif`; g.textAlign = 'center'; g.fillText(String(i + 1), X(z0, -0.82), (Y(z0) + Y(z1)) / 2 + 4 * s); g.fillText(String(i + 1), X(z0, 0.82), (Y(z0) + Y(z1)) / 2 + 4 * s); }
+          }
+          g.restore();
+        }
+        // 기대 선 카드 (아래 모서리 축 원근)
+        g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.ellipse(150, 173, 50, 5 + lean * 10, 0, 0, 7); g.fill();
+        const img = cardImg('face', face), N = q.on(1) ? 32 : 12, f = 320, py = card.y + card.h, cx = 150;
+        const proj = (y) => { const l = y - py; const z = -l * Math.sin(lean); const s = f / (f + z); return { y: py + l * Math.cos(lean) * s, s }; };
+        for (let i = 0; i < N; i++) {
+          const y0 = card.y - 2 + (card.h + 4) * i / N, y1 = card.y - 2 + (card.h + 4) * (i + 1) / N, p0 = proj(y0), p1 = proj(y1), w = (card.w + 6) * (p0.s + p1.s) / 2;
+          g.drawImage(img, (card.x - 3) * 2, y0 * 2, (card.w + 6) * 2, (y1 - y0) * 2, cx - w / 2, p0.y, w, p1.y - p0.y + 0.6);
+        }
+      },
+    },
+    {
+      id: 'C', name: 'C. 어깨에 대고 겨누기', cost: 2, dur: 1900,
+      desc: '그림 속 카빈이 카드에서 들려 나와 수평으로 돌아 왼쪽을 겨누고, 쾅 반동과 함께 예광선이 화면 끝까지 갔다가 제자리로 돌아와 꽂힌다 · 저: 그림자·섬광 번짐 없이',
+      draw(g, t, q) {
+        bg(g);
+        const out = ease.out(seg(t, 0.04, 0.26)), back = ease.back(seg(t, 0.66, 0.86)), k = out * (1 - back);
+        const pv = art(...PIV);
+        const fire = seg(t, 0.4, 0.5), kick = fire > 0 && fire < 1 ? Math.sin(fire * Math.PI) : 0;
+        const rot = -(Math.PI + AIM) * k - kick * 0.08; // 총구 방향을 수평 왼쪽으로
+        const px = pv.x + k * 12 + kick * 4, py = pv.y - k * 40, s = 1 + k * 0.35;
+        k > 0.02 ? faceGhost(g) : face(g);
+        if (k > 0.02) {
+          if (q.on(1)) { g.fillStyle = `rgba(0,0,0,${0.3 * k})`; g.beginPath(); g.ellipse(px - 30, 186, 60 * k, 4, 0, 0, 7); g.fill(); }
+          g.save(); g.translate(px, py); g.rotate(rot); g.scale(s, s); g.translate(-pv.x, -pv.y); rifle(g); g.restore();
+          // 겨눈 뒤 총구 위치
+          const mx = px + ((M.x - pv.x) * Math.cos(rot) - (M.y - pv.y) * Math.sin(rot)) * s, my = py + ((M.x - pv.x) * Math.sin(rot) + (M.y - pv.y) * Math.cos(rot)) * s;
+          if (fire > 0 && fire < 1) {
+            g.save(); if (q.on(1)) { g.globalCompositeOperation = 'lighter'; const gr = g.createRadialGradient(mx - 6, my, 0, mx - 6, my, 18); gr.addColorStop(0, `rgba(255,250,220,${1 - fire})`); gr.addColorStop(1, 'rgba(255,140,40,0)'); g.fillStyle = gr; g.beginPath(); g.arc(mx - 6, my, 18, 0, 7); g.fill(); }
+            g.fillStyle = `rgba(255,236,170,${1 - fire})`; g.beginPath(); g.moveTo(mx, my - 3); g.lineTo(mx - 16, my); g.lineTo(mx, my + 3); g.fill(); g.restore();
+          }
+          const tr = seg(t, 0.42, 0.6);
+          if (tr > 0 && tr < 1) { const x1 = lerp(mx, -10, ease.out(tr)); g.strokeStyle = `rgba(255,240,200,${1 - tr})`; g.lineWidth = 1.5; g.beginPath(); g.moveTo(Math.min(mx, x1 + 60), my); g.lineTo(x1, my); g.stroke(); }
+        }
+      },
+    },
+    {
+      id: 'D', name: 'D. 사실풍 시험 사격', cost: 3, dur: 2000,
+      desc: '그림 속 총구에서 크게 불을 뿜고 꼬리 달린 불티, 총열 방향으로 길게 흘러 피어오르는 화약 연기, 연기가 걷히며 총열을 타고 놋쇠빛이 반짝 · 저: 연기 수·블러·흔들림 줄이고 섬광은 단색',
+      draw(g, t, q) {
+        bg(g);
+        const ux = Math.cos(AIM), uy = Math.sin(AIM);
+        g.save(); if (q.on(2) && t < 0.14) shake(g, (1 - t / 0.14) * 3, t);
+        face(g);
+        g.restore();
+        // 연기
+        g.save(); if (q.on(2)) g.filter = 'blur(1px)';
+        SMOKE.slice(0, q.n(SMOKE.length)).forEach((p) => {
+          const k = seg(t, 0.04 + p.d, 1); if (k <= 0) return;
+          const e = ease.out(k), a = AIM + p.sp;
+          const x = M.x + Math.cos(a) * p.v * e + Math.sin(p.w + k * 4) * 4, y = M.y + Math.sin(a) * p.v * e - k * k * 26;
+          const r = lerp(p.r0, p.r1, e), al = (1 - k) * 0.4, c = p.tone > 0.5 ? '160,148,130' : '100,92,82';
+          if (q.on(1)) { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${c},${al})`); gr.addColorStop(1, `rgba(${c},0)`); g.fillStyle = gr; }
+          else g.fillStyle = `rgba(${c},${al * 0.6})`;
+          g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+        });
+        g.restore();
+        // 불티
+        SPARK.slice(0, q.n(SPARK.length)).forEach((p) => {
+          const k = seg(t, 0.03, 0.4); if (k <= 0 || k >= 1) return;
+          const a = AIM + p.a, x = M.x + Math.cos(a) * p.v * k, y = M.y + Math.sin(a) * p.v * k + 60 * k * k, b = k - 0.05;
+          const x0 = M.x + Math.cos(a) * p.v * b, y0 = M.y + Math.sin(a) * p.v * b + 60 * b * b;
+          g.strokeStyle = p.hot ? `rgba(255,230,140,${1 - k})` : `rgba(255,140,50,${1 - k})`; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x, y); g.stroke();
+        });
+        // 섬광
+        if (t < 0.14) {
+          const k = t / 0.14, R = 10 + 34 * ease.out(Math.min(1, k * 2.5));
+          g.save(); g.translate(M.x, M.y); g.rotate(AIM); g.globalAlpha = 1 - k;
+          if (q.on(1)) { g.globalCompositeOperation = 'lighter'; const gr = g.createRadialGradient(0, 0, 0, R * 0.4, 0, R); gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.3, '#ffe27a'); gr.addColorStop(0.7, 'rgba(255,120,30,.5)'); gr.addColorStop(1, 'rgba(255,80,20,0)'); g.fillStyle = gr; }
+          else g.fillStyle = '#ffe27a';
+          g.beginPath(); g.ellipse(R * 0.45, 0, R, R * 0.5, 0, 0, 7); g.fill(); g.restore();
+        }
+        // 놋쇠빛 반짝 (총열을 타고 총구로)
+        const gl = seg(t, 0.5, 0.78);
+        if (gl > 0 && gl < 1) {
+          const x = lerp(CY.x, M.x, ease.inOut(gl)), y = lerp(CY.y, M.y, ease.inOut(gl));
+          g.save(); clipCard(g); g.beginPath(); P(g, BARREL); g.clip();
+          g.fillStyle = 'rgba(255,226,150,0.9)'; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill(); g.restore();
+          if (q.on(1)) { const s = Math.sin(gl * Math.PI) * 5; g.fillStyle = 'rgba(255,240,200,0.8)'; g.beginPath(); g.moveTo(x - s, y); g.lineTo(x, y - 0.8); g.lineTo(x + s, y); g.lineTo(x, y + 0.8); g.closePath(); g.fill(); g.beginPath(); g.moveTo(x, y - s); g.lineTo(x + 0.8, y); g.lineTo(x, y + s); g.lineTo(x - 0.8, y); g.closePath(); g.fill(); }
+        }
+      },
+    },
+  ],
+});
+</script></body></html>

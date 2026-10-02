@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>라스트 콜 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389)
+  - 바 카운터에 기댄 두 사람이 맥주 한 잔을 사이에 두고 노려본다
+  - 왼쪽: 하늘색 셔츠·붉은 두건·갈색 모자 x 40~95, y 115~260 (모자 (70,128), 얼굴 (72,145))
+  - 오른쪽: 검은 챙 넓은 모자·검은 코트·붉은 조끼 x 150~210, y 115~260 (모자 (175,128), 얼굴 (178,148))
+  - 가운데 맥주잔 하나 (122,185), 카운터 윗면 y≈190, x 60~200
+  → 맥주(거품·건배)와 구분: '마지막' 이 핵심. 바텐더 종(A), 마지막 한 방울(B), 꺼져 가는 네온(C), 카운터를 미끄러지는 잔(D).
+  소리: 바텐더 종 '딩—' 길게 한 번 + 방울 '똑' (gen-sfx: 놋쇠 종은 비정수배 배음 사인 3개 감쇠)
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+
+function heartPath(g, x, y, s) {
+  g.beginPath();
+  g.moveTo(x, y + 0.5 * s);
+  g.bezierCurveTo(x - 0.1 * s, y + 0.35 * s, x - 0.5 * s, y + 0.1 * s, x - 0.5 * s, y - 0.15 * s);
+  g.bezierCurveTo(x - 0.5 * s, y - 0.45 * s, x - 0.1 * s, y - 0.5 * s, x, y - 0.25 * s);
+  g.bezierCurveTo(x + 0.1 * s, y - 0.5 * s, x + 0.5 * s, y - 0.45 * s, x + 0.5 * s, y - 0.15 * s);
+  g.bezierCurveTo(x + 0.5 * s, y + 0.1 * s, x + 0.1 * s, y + 0.35 * s, x, y + 0.5 * s);
+  g.closePath();
+}
+function heart(g, x, y, s, a, stroke) {
+  if (a <= 0 || s <= 0) return;
+  g.save(); g.globalAlpha = a; heartPath(g, x, y, s); g.fillStyle = '#d8433b'; g.fill(); g.lineWidth = 1.8; g.strokeStyle = stroke || '#fff3d6'; g.stroke(); g.restore();
+}
+function plusOne(g, x, y, a, size) {
+  if (a <= 0) return;
+  g.save(); g.globalAlpha = a; g.font = `700 ${size || 13}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 3.5; g.strokeStyle = '#3a1d0e'; g.strokeText('+1', x, y); g.fillStyle = '#ffe9a8'; g.fillText('+1', x, y); g.restore();
+}
+function mug(g, cx, cy, s, foam) {
+  g.save(); g.translate(cx, cy); g.scale(s, s);
+  g.lineWidth = 1.4; g.strokeStyle = '#6e4a22';
+  g.beginPath(); g.ellipse(11, 1, 5, 6.5, 0, 0, 7); g.stroke(); // 손잡이(오른쪽)
+  g.fillStyle = '#e2a537'; g.beginPath(); g.roundRect(-10, -9, 20, 20, 2); g.fill(); g.stroke();
+  g.fillStyle = 'rgba(255,240,190,0.55)'; g.fillRect(-6, -7, 2.5, 16);
+  if (foam !== 0) { g.fillStyle = '#fbf6ea'; [[-6, -10, 4], [0, -11, 4.6], [6, -10, 4]].forEach(([x, y, r]) => { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }); }
+  g.restore();
+}
+const MUG = art(122, 185), BAR_Y = art(0, 192).y;
+function lastArt(g, o) {
+  o = o || {};
+  g.fillStyle = '#f1e6cc'; g.fillRect(card.x, card.y, card.w, card.h);
+  const bk = art(60, 100); g.fillStyle = '#e8d3a8'; g.fillRect(card.x, bk.y, card.w, BAR_Y - bk.y);
+  const turn = o.turn || 0;
+  // 왼쪽 사람
+  const lb = art(40, 160), lb2 = art(98, 262);
+  g.fillStyle = '#7ea2c4'; g.beginPath(); g.moveTo(lb.x + 2, lb.y); g.lineTo(lb2.x, lb.y + 4); g.lineTo(lb2.x + 3, BAR_Y + 2); g.lineTo(lb2.x - 2, lb2.y); g.lineTo(lb.x, lb2.y); g.closePath(); g.fill();
+  g.fillStyle = '#b8423a'; const lk = art(70, 158); g.beginPath(); g.moveTo(lk.x - 6, lk.y - 2); g.lineTo(lk.x + 6, lk.y - 2); g.lineTo(lk.x + 1, lk.y + 6); g.closePath(); g.fill();
+  const lf = art(72 + turn * 6, 145); g.fillStyle = '#e3b48a'; g.beginPath(); g.ellipse(lf.x, lf.y, 5, 6, 0, 0, 7); g.fill();
+  const lh = art(70 + turn * 6, 130); g.fillStyle = '#9a6c3f'; g.beginPath(); g.ellipse(lh.x, lh.y + 2, 10, 2.5, 0, 0, 7); g.fill(); g.fillRect(lh.x - 5, lh.y - 4, 10, 6);
+  // 오른쪽 사람
+  const rb = art(150, 160), rb2 = art(212, 262);
+  g.fillStyle = '#2b2b33'; g.beginPath(); g.moveTo(rb.x, rb.y + 4); g.lineTo(rb2.x, rb.y); g.lineTo(rb2.x, rb2.y); g.lineTo(rb.x + 2, rb2.y); g.lineTo(rb.x - 3, BAR_Y + 2); g.closePath(); g.fill();
+  const rv = art(172, 165); g.fillStyle = '#a3402f'; g.fillRect(rv.x - 4, rv.y, 8, 14);
+  const rf = art(178 - turn * 6, 148); g.fillStyle = '#d9a67c'; g.beginPath(); g.ellipse(rf.x, rf.y, 5, 6, 0, 0, 7); g.fill();
+  const rh = art(175 - turn * 6, 130); g.fillStyle = '#1d1a18'; g.beginPath(); g.ellipse(rh.x, rh.y + 2, 13, 2.5, 0, 0, 7); g.fill(); g.fillRect(rh.x - 5, rh.y - 4, 10, 6);
+  // 카운터
+  const c0 = art(55, 190), c1 = art(205, 262);
+  g.fillStyle = '#8a5a30'; g.fillRect(c0.x, c0.y, c1.x - c0.x, c1.y - c0.y);
+  g.fillStyle = '#a8743f'; g.fillRect(c0.x - 2, c0.y - 1, c1.x - c0.x + 4, 3);
+  g.strokeStyle = 'rgba(60,35,15,0.5)'; g.lineWidth = 0.8; for (let x = c0.x + 8; x < c1.x; x += 9) { g.beginPath(); g.moveTo(x, c0.y + 3); g.lineTo(x, c1.y); g.stroke(); }
+  if (!o.noMug) mug(g, MUG.x, MUG.y, 0.6, o.foam);
+}
+
+// ---- A. 바텐더 종 -----------------------------------------------------
+function bell(g, x, y, rot, s) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(s, s);
+  g.fillStyle = '#c9963a'; g.strokeStyle = '#6b4a18'; g.lineWidth = 1.2;
+  g.beginPath(); g.moveTo(-3, 4); g.quadraticCurveTo(-4, 14, -12, 20); g.lineTo(12, 20); g.quadraticCurveTo(4, 14, 3, 4); g.quadraticCurveTo(0, 1, -3, 4); g.closePath(); g.fill(); g.stroke();
+  g.fillStyle = 'rgba(255,240,180,0.6)'; g.beginPath(); g.ellipse(-4, 13, 1.5, 5, 0.3, 0, 7); g.fill();
+  g.fillStyle = '#6b4a18'; g.beginPath(); g.arc(0, 21.5, 2.4, 0, 7); g.fill();
+  g.restore();
+}
+function drawA(g, t, q) {
+  bg(g);
+  const ringT = 0.22, turn = ease.inOut(seg(t, 0.28, 0.45)) * (1 - ease.inOut(seg(t, 0.8, 0.95)));
+  drawCard(g, '라스트 콜', (g) => lastArt(g, { turn }));
+  const bx = 150, by = 6, inK = ease.out(seg(t, 0, 0.18)), outK = seg(t, 0.78, 0.92);
+  // 종: 위에서 내려와 흔들림
+  if (outK < 1) {
+    const sw = Math.sin(seg(t, ringT - 0.04, 0.9) * Math.PI * 7) * 0.5 * Math.exp(-seg(t, ringT, 0.9) * 3) * (t > ringT - 0.04 ? 1 : 0);
+    g.save(); g.globalAlpha = (1 - outK) * seg(t, 0, 0.08);
+    g.strokeStyle = '#4a3420'; g.lineWidth = 1; g.beginPath(); g.moveTo(bx, 0); g.lineTo(bx, by - 10 + inK * 14); g.stroke();
+    bell(g, bx, by - 10 + inK * 14, sw, 1.25);
+    g.restore();
+  }
+  // 소리 물결
+  const n = q.on(1) ? 4 : 2;
+  for (let i = 0; i < n; i++) {
+    const k = seg(t, ringT + i * 0.07, ringT + 0.4 + i * 0.07); if (k <= 0 || k >= 1) continue;
+    g.strokeStyle = `rgba(255,226,150,${(1 - k) * 0.9})`; g.lineWidth = 2;
+    const r = 18 + k * 60;
+    g.beginPath(); g.arc(bx, 26, r, Math.PI * 0.15, Math.PI * 0.85); g.stroke();
+  }
+  // 잔이 빛나고 하트 하나가 천천히 오른다
+  const gk = Math.sin(seg(t, 0.35, 0.85) * Math.PI);
+  if (gk > 0) {
+    if (q.on(1)) { const gr = g.createRadialGradient(MUG.x, MUG.y, 1, MUG.x, MUG.y, 22); gr.addColorStop(0, `rgba(255,220,120,${0.6 * gk})`); gr.addColorStop(1, 'rgba(255,220,120,0)'); g.fillStyle = gr; g.fillRect(MUG.x - 22, MUG.y - 22, 44, 44); }
+    else { g.strokeStyle = `rgba(255,220,120,${gk})`; g.lineWidth = 1.5; g.beginPath(); g.arc(MUG.x, MUG.y, 11, 0, 7); g.stroke(); }
+  }
+  const hk = seg(t, 0.45, 1);
+  if (hk > 0 && hk < 1) {
+    const a = Math.min(1, hk * 5) * (1 - seg(hk, 0.7, 1)), y = MUG.y - 12 - ease.out(hk) * 38;
+    heart(g, MUG.x, y, 14 + 8 * ease.back(Math.min(1, hk * 3)), a); plusOne(g, MUG.x + 18, y - 4, a);
+  }
+  // '마지막 한 잔' 칩
+  const ck = seg(t, 0.3, 0.42), co = seg(t, 0.8, 0.95);
+  if (ck > 0 && co < 1) { g.save(); g.globalAlpha = ck * (1 - co); g.fillStyle = 'rgba(30,20,11,0.85)'; g.beginPath(); g.roundRect(108, 178, 84, 20, 10); g.fill(); g.fillStyle = '#ffd98a'; g.font = '600 11px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('마지막 한 잔', 150, 188.5); g.restore(); }
+}
+
+// ---- B. 마지막 한 방울 (3D) -------------------------------------------
+const CROWN = (() => { const r = rng(8); return Array.from({ length: 16 }, (_, i) => ({ a: (i / 16) * Math.PI * 2, h: 6 + r() * 8, s: 0.7 + r() * 0.6 })); })();
+function drawB(g, t, q) {
+  bg(g);
+  // 카드가 탁자에 눕는다 (위쪽이 멀어지는 원근)
+  const lay = ease.inOut(seg(t, 0, 0.2)) * (1 - ease.inOut(seg(t, 0.82, 1)));
+  const cx = 150, base = card.y + card.h;
+  g.save(); g.translate(cx, base); g.transform(1, 0, 0, 1 - 0.42 * lay, 0, 0);
+  g.scale(1 + 0.12 * lay, 1); g.translate(-cx, -base);
+  if (q.on(1)) { g.fillStyle = `rgba(10,6,2,${0.35 * lay})`; g.beginPath(); g.roundRect(card.x + 4, card.y + 6, card.w, card.h, 8); g.fill(); }
+  drawCard(g, '라스트 콜', (g) => lastArt(g, { foam: 0 }));
+  g.restore();
+  // 누운 카드 위에서 잔 자리 (원근 투영)
+  const py = base - (base - MUG.y) * (1 - 0.42 * lay);
+  // 앞쪽에서 거꾸로 든 잔 (크게)
+  const hold = seg(t, 0.08, 0.25) * (1 - seg(t, 0.62, 0.78));
+  const gx = 150, gy = 40 - 50 * (1 - hold);
+  if (hold > 0) {
+    g.save(); g.translate(gx, gy); g.rotate(Math.PI * 0.82); mug(g, 0, 0, 2.2, 0); g.restore();
+  }
+  // 방울: 맺힘 → 늘어남 → 느리게 떨어짐(그림자가 커짐)
+  const rim = { x: gx - 4, y: gy + 22 };
+  const form = seg(t, 0.2, 0.36), fall = seg(t, 0.36, 0.58);
+  const dropY = lerp(rim.y, py, ease.in(fall));
+  if (form > 0 && fall < 1) {
+    const r = 2 + 2.2 * form, stretch = fall > 0 ? 1.6 - fall * 0.4 : 1 + form * 0.6;
+    if (q.on(1)) { const sk = fall; g.fillStyle = `rgba(30,18,6,${0.15 + 0.35 * sk})`; g.beginPath(); g.ellipse(rim.x, py + 1, 2 + 5 * sk, (2 + 5 * sk) * 0.35, 0, 0, 7); g.fill(); }
+    g.fillStyle = '#f0b440'; g.beginPath(); g.ellipse(rim.x, dropY + (fall > 0 ? 0 : r * 0.4), r, r * stretch, 0, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,250,220,0.85)'; g.beginPath(); g.arc(rim.x - r * 0.35, dropY - r * 0.3, r * 0.3, 0, 7); g.fill();
+  }
+  // 왕관 튀김 (원근 타원)
+  const sp = seg(t, 0.58, 0.8);
+  if (sp > 0 && sp < 1) {
+    const R = 4 + sp * 16, flat = 0.35;
+    g.strokeStyle = `rgba(240,180,64,${1 - sp})`; g.lineWidth = 1.5; g.beginPath(); g.ellipse(rim.x, py, R, R * flat, 0, 0, 7); g.stroke();
+    CROWN.slice(0, q.n(16)).forEach((c) => { const x = rim.x + Math.cos(c.a) * R, y = py + Math.sin(c.a) * R * flat - Math.sin(sp * Math.PI) * c.h * c.s; g.fillStyle = `rgba(240,180,64,${1 - sp})`; g.beginPath(); g.arc(x, y, 1.3 * c.s, 0, 7); g.fill(); });
+  }
+  // 튄 자리에서 하트가 위로(카메라 쪽으로) 떠오른다
+  const hk = seg(t, 0.62, 1);
+  if (hk > 0 && hk < 1) {
+    const e = ease.out(hk), a = Math.min(1, hk * 5) * (1 - seg(hk, 0.65, 1));
+    heart(g, rim.x, py - 8 - e * 44, 12 + e * 22, a); plusOne(g, rim.x + 22 + e * 6, py - 18 - e * 44, a);
+  }
+  // 슬로 표시
+  if (q.on(2) && t > 0.2 && t < 0.6) { const v = g.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.7); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(0,0,0,${0.45 * Math.sin(seg(t, 0.2, 0.6) * Math.PI)})`); g.fillStyle = v; g.fillRect(0, 0, W, H); }
+}
+
+// ---- C. 꺼져 가는 네온 -------------------------------------------------
+// 각 관이 켜지는 시각과 깜박임 패턴
+const TUBES = [{ on: 0.08, off: 0.82 }, { on: 0.16, off: 0.74 }, { on: 0.24, off: 0.88 }];
+function neonOn(t, i, f) {
+  const tb = TUBES[i]; if (t < tb.on || t > tb.off + 0.06) return 0;
+  const k = seg(t, tb.on, tb.on + 0.08); if (k < 1) return (Math.floor(k * 9 + i) % 2) ? 1 : 0.15; // 켜질 때 지직
+  if (t > tb.off) return (Math.floor((t - tb.off) * 120 + f * 0.3) % 2) ? 0.7 : 0.05; // 꺼질 때 지직
+  return 0.92 + 0.08 * Math.sin(f * 0.7 + i);
+}
+function tube(g, color, a, q, path) {
+  if (a <= 0.02) return;
+  g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
+  if (q.on(2)) { g.shadowColor = color; g.shadowBlur = 14 * a; g.globalCompositeOperation = 'lighter'; }
+  if (q.on(1)) { g.strokeStyle = color; g.globalAlpha = 0.35 * a; g.lineWidth = 7; path(); g.stroke(); }
+  g.shadowBlur = 0; g.globalAlpha = a; g.strokeStyle = color; g.lineWidth = 2.6; path(); g.stroke();
+  g.strokeStyle = '#fff6ea'; g.lineWidth = 0.9; path(); g.stroke();
+  g.restore();
+}
+function drawC(g, t, q, f) {
+  bg(g);
+  drawCard(g, '라스트 콜', (g) => lastArt(g));
+  const dim = Math.sin(seg(t, 0, 1) * Math.PI);
+  g.fillStyle = `rgba(12,6,14,${0.6 * dim})`; g.fillRect(0, 0, W, H);
+  // 간판 틀
+  const fr = seg(t, 0.02, 0.12) * (1 - seg(t, 0.88, 0.98));
+  if (fr > 0) { g.strokeStyle = `rgba(70,50,60,${fr})`; g.lineWidth = 1; g.beginPath(); g.roundRect(64, 26, 172, 132, 10); g.stroke(); }
+  // 관 1: 글자 LAST CALL
+  const a0 = neonOn(t, 0, f);
+  if (a0 > 0.02) {
+    g.save(); g.font = '700 26px "Brush Script MT", cursive'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    if (q.on(2)) { g.shadowColor = '#ff4fa0'; g.shadowBlur = 16 * a0; g.globalCompositeOperation = 'lighter'; }
+    g.globalAlpha = a0; g.strokeStyle = '#ff4fa0'; g.lineWidth = 3; g.strokeText('Last Call', 150, 52);
+    g.shadowBlur = 0; g.strokeStyle = '#ffe3f0'; g.lineWidth = 0.9; g.strokeText('Last Call', 150, 52); g.restore();
+  }
+  // 관 2: 잔 윤곽 (기울어 마지막 한 방울)
+  tube(g, '#ffb340', neonOn(t, 1, f), q, () => { g.beginPath(); g.moveTo(128, 82); g.lineTo(131, 126); g.lineTo(161, 126); g.lineTo(164, 82); g.moveTo(164, 92); g.quadraticCurveTo(178, 96, 164, 116); g.moveTo(128, 82); g.quadraticCurveTo(134, 74, 142, 80); g.quadraticCurveTo(150, 72, 158, 79); g.quadraticCurveTo(164, 76, 164, 82); });
+  // 관 3: 하트 + 1
+  const a2 = neonOn(t, 2, f);
+  tube(g, '#ff3b3b', a2, q, () => { heartPath(g, 196, 132, 26); });
+  if (a2 > 0.02) { g.save(); g.globalAlpha = a2; g.font = '700 14px sans-serif'; g.fillStyle = '#ffe9a8'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText('+1', 212, 126); g.restore(); }
+  // 방울 하나가 잔에서 떨어진다 (관 2 가 켜진 동안)
+  const dk = seg(t, 0.36, 0.6);
+  if (dk > 0 && dk < 1) { g.fillStyle = `rgba(255,190,80,${1 - dk * 0.3})`; g.beginPath(); g.ellipse(146, 130 + ease.in(dk) * 34, 2.2, 3, 0, 0, 7); g.fill(); }
+}
+
+// ---- D. 카운터 미끄럼 (잉크) --------------------------------------------
+function drawD(g, t, q) {
+  bg(g);
+  const slide = seg(t, 0.04, 0.4), stop = 0.4;
+  drawCard(g, '라스트 콜', (g) => lastArt(g, { noMug: true, turn: ease.out(seg(t, 0.4, 0.5)) * (1 - seg(t, 0.85, 1)) }));
+  // 잔: 오른쪽 화면 밖에서 카운터 높이로 미끄러져 그림 자리에 선다
+  const x = lerp(W + 20, MUG.x, ease.out(slide));
+  const wob = t > stop ? Math.sin((t - stop) * 70) * 0.18 * Math.exp(-(t - stop) * 14) : -0.12 * (1 - slide);
+  // 속도선 (카드 밖에서도 보이게 카운터 연장선)
+  if (slide > 0 && slide < 1) {
+    const n = q.n(8);
+    for (let i = 0; i < n; i++) { const y = MUG.y - 6 + i * 2.2, len = 30 + (i % 3) * 18; g.strokeStyle = `rgba(30,20,11,${0.8 * (1 - slide)})`; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x + 10, y); g.lineTo(x + 10 + len, y); g.stroke(); }
+  }
+  if (slide > 0) {
+    g.save(); g.translate(x, MUG.y + 6); g.rotate(wob); mug(g, 0, -6, 0.6 * (x > card.x + card.w ? 1.3 : 1), 1);
+    g.restore();
+  }
+  // 탁!
+  const tk = seg(t, stop, stop + 0.25);
+  if (tk > 0 && tk < 1) {
+    g.save(); g.globalAlpha = 1 - tk; g.translate(MUG.x - 22, MUG.y - 22); g.rotate(-0.25); g.scale(0.7 + 0.3 * ease.back(Math.min(1, tk * 4)), 0.7 + 0.3 * ease.back(Math.min(1, tk * 4)));
+    g.font = '900 16px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.lineWidth = 5; g.strokeStyle = '#1e140b'; g.strokeText('탁!', 0, 0); g.fillStyle = '#ffd34d'; g.fillText('탁!', 0, 0); g.restore();
+    g.strokeStyle = `rgba(30,20,11,${1 - tk})`; g.lineWidth = 1.5; [[-1, -0.5], [1, -0.5], [-1, 0.2], [1, 0.2]].forEach(([dx, dy]) => { g.beginPath(); g.moveTo(MUG.x + dx * 12, MUG.y + 4 + dy * 6); g.lineTo(MUG.x + dx * 18, MUG.y + 2 + dy * 10); g.stroke(); });
+  }
+  // 거품이 넘실 → 잉크 하트
+  const hk = seg(t, 0.5, 0.64), out = seg(t, 0.84, 1);
+  if (hk > 0 && out < 1) {
+    const y = MUG.y - 30 - 8 * out, s = 26 * (0.6 + 0.4 * ease.back(hk));
+    heart(g, MUG.x, y, s, 1 - out, '#1e140b'); plusOne(g, MUG.x + 22, y - 6, hk * (1 - out));
+  }
+}
+
+FxKit.mount({
+  kind: 'lastCall', title: '라스트 콜 연출 시안',
+  lead: '목숨 1 회복, 맥주가 아니다. 거품·건배인 맥주와 달리 "마지막 한 잔" 의 느낌을 노린다. 칸을 누르면 다시 본다.',
+  concepts: [
+    { id: 'A', name: 'A. 바텐더 종', cost: 1, dur: 1600, draw: drawA,
+      desc: '카드 위로 놋쇠 종이 내려와 딩 흔들리며 소리 물결이 번진다. 그림 속 두 사람이 고개를 잔 쪽으로 돌리고, 빛나는 잔에서 하트 하나가 오른다. "마지막 한 잔" 칩 · 저: 물결 두 겹, 잔 빛은 고리 하나' },
+    { id: 'B', name: 'B. 마지막 한 방울 (3D)', cost: 2, dur: 2000, draw: drawB,
+      desc: '카드가 탁자에 눕고, 앞쪽에서 거꾸로 든 큰 잔 끝에 방울 하나가 맺혀 늘어나다 느리게 떨어진다. 그림자가 커지다 원근 타원 왕관으로 튀고 하트가 떠오른다 · 저: 카드 그림자·방울 그림자·비네트 없음, 왕관 방울 1/4' },
+    { id: 'C', name: 'C. 꺼져 가는 네온', cost: 3, dur: 2100, draw: drawC,
+      desc: '판이 어두워지고 "Last Call" 분홍 네온, 기운 잔, 붉은 하트 +1 이 지직거리며 차례로 켜진다. 잔에서 방울 하나가 떨어진 뒤 관이 하나씩 깜박이며 꺼진다 · 저: 번짐(그림자 블러)·합성·겉빛 없이 가는 관만' },
+    { id: 'D', name: 'D. 카운터 미끄럼', cost: 1, dur: 1500, draw: drawD,
+      desc: '잔이 오른쪽 화면 밖에서 카운터를 따라 쭉 미끄러져 와 두 사람 사이에 "탁!" 멈추고, 흔들린 거품 위로 잉크 테두리 하트 +1 · 저: 속도선 1/4' },
+  ],
+});
+</script></body></html>

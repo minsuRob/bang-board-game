@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>방울뱀 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389 기준)
+  - 그림 칸: x 38~212, y 85~258. 옅은 모래색 바탕
+  - 오른쪽 위: 청바지 (150~212, 85~125), 그 아래 갈색 장화가 왼쪽(앞코 ≈128,175)으로 내딛는 중
+  - 방울뱀: 머리 (88,150) 가 위오른쪽(장화)을 향해 입을 벌림, 목이 (70,185) 로 내려가 (128,215) 둘레로 똬리,
+    꼬리는 오른쪽 (200,203) 로 뻗고 끝 (214,196) 에 방울
+  노린 것: 꼬리 방울 떨림 → 장화를 무는 순간(A), 카드 둘레를 감는 3D 똬리(B), 모래 위 S자 흔적(C), 송곳니 클로즈업(D).
+  방울뱀은 남 앞에 놓는 카드라 B 는 똬리째 받는 사람 좌석으로 미끄러져 붙는다.
+  소리: 방울 '촤르르'(4~6kHz 대역 노이즈를 30Hz 로 진폭 변조) + D 의 '쉬익'(하이패스 노이즈 길게) 과 '콱'(짧은 저음 타격).
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const CX = card.x + card.w / 2, CY = card.y + card.h / 2, S = card.w / 250;
+
+function plane(g, o, draw) {
+  const f = 360, cz = Math.cos(o.rz || 0), sz = Math.sin(o.rz || 0), cx = Math.cos(o.rx || 0), sx = Math.sin(o.rx || 0), cy = Math.cos(o.ry || 0), sy = Math.sin(o.ry || 0);
+  const pt = (x, y) => { const X = x * cz - y * sz, Y = x * sz + y * cz; const Y1 = Y * cx, Z1 = Y * sx; const X2 = X * cy + Z1 * sy, Z2 = -X * sy + Z1 * cy; const s = f / Math.max(40, f + Z2 + (o.z || 0)); return { x: o.x + X2 * s, y: o.y + Y1 * s }; };
+  const a = pt(-o.w / 2, -o.h / 2), b = pt(o.w / 2, -o.h / 2), c = pt(-o.w / 2, o.h / 2);
+  const A = (b.x - a.x) / o.w, B = (b.y - a.y) / o.w, C = (c.x - a.x) / o.h, D = (c.y - a.y) / o.h;
+  const front = A * D - B * C > 0;
+  if (draw) { g.save(); g.transform(A, B, C, D, a.x + A * o.w / 2 + C * o.h / 2, a.y + B * o.w / 2 + D * o.h / 2); draw(front); g.restore(); }
+  return { pt, front };
+}
+function seat(g, x, y, a, ring) {
+  if (a <= 0) return;
+  g.save(); g.globalAlpha *= a;
+  g.fillStyle = '#3a2a1a'; g.strokeStyle = '#c8902f'; g.lineWidth = 1.5;
+  g.beginPath(); g.arc(x, y, 11, 0, 7); g.fill(); g.stroke();
+  g.fillStyle = '#b39b74'; g.beginPath(); g.arc(x, y - 3, 3.4, 0, 7); g.fill();
+  g.beginPath(); g.ellipse(x, y + 6, 6, 4, 0, Math.PI, 0); g.fill();
+  if (ring > 0 && ring < 1) { g.strokeStyle = `rgba(242,193,78,${1 - ring})`; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 11 + ring * 16, 0, 7); g.stroke(); }
+  g.restore();
+}
+
+// ----- 그림 흉내 -----
+const HEAD = [88, 150], BITE = [122, 162];
+/** 뱀 몸 점(원본 좌표). lunge 0→1 머리가 장화로, jit 꼬리 떨림(원본 px) */
+function snakePts(lunge, jit) {
+  const pts = [];
+  const tail = [[214, 196], [205, 200], [192, 205], [178, 210]];
+  tail.forEach(([x, y], i) => pts.push([x, y + (i < 2 ? jit * (i === 0 ? 1 : 0.5) : 0)]));
+  for (let i = 0; i <= 28; i++) { const a = (i / 28) * Math.PI * 1.5 - 0.15; pts.push([128 + Math.cos(a) * 52, 216 + Math.sin(a) * 22]); }
+  const neck = [[70, 200], [66, 182], [74, 166]];
+  neck.forEach(([x, y], i) => { const k = lunge * ((i + 1) / 4); pts.push([lerp(x, x + 28, k), lerp(y, y - 10, k)]); });
+  pts.push([lerp(HEAD[0], BITE[0], lunge), lerp(HEAD[1], BITE[1], lunge)]);
+  return pts;
+}
+function strokeArt(g, pts, w, c, dash) {
+  g.save(); g.strokeStyle = c; g.lineWidth = w; g.lineCap = 'round'; g.lineJoin = 'round'; if (dash) g.setLineDash(dash);
+  g.beginPath(); pts.forEach(([x, y], i) => { const p = art(x, y); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.stroke(); g.restore();
+}
+function snakeHead(g, x, y, rot, s, open) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(s, s);
+  g.fillStyle = '#9c7a4e'; g.beginPath(); g.ellipse(0, 0, 9, 6, 0, 0, 7); g.fill();
+  g.fillStyle = '#b8323a'; g.beginPath(); g.moveTo(4, 0); g.lineTo(13, -5 - open * 3); g.lineTo(13, 5 + open * 3); g.fill();
+  g.fillStyle = '#fff'; g.beginPath(); g.moveTo(9, -3 - open * 2); g.lineTo(10, 1); g.lineTo(11, -3 - open * 2); g.fill();
+  g.fillStyle = '#1e140b'; g.beginPath(); g.arc(-1, -3, 1.2, 0, 7); g.fill();
+  g.restore();
+}
+function snakeArt(o) {
+  o = o || {};
+  return (g) => {
+    const a = art(38, 85), b = art(212, 258);
+    g.fillStyle = '#ece0c4'; g.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    const sh = art(128, 226); g.fillStyle = '#d6c6a2'; g.beginPath(); g.ellipse(sh.x, sh.y, 58 * S, 14 * S, 0, 0, 7); g.fill();
+    const by = o.boot || 0;
+    const poly = (pts, c) => { g.fillStyle = c; g.beginPath(); pts.forEach(([x, y], i) => { const p = art(x, y); i ? g.lineTo(p.x, p.y + by) : g.moveTo(p.x, p.y + by); }); g.fill(); };
+    poly([[150, 80], [214, 80], [214, 125], [160, 125]], '#5d7fa6');
+    poly([[160, 118], [206, 118], [208, 160], [214, 176], [150, 184], [126, 180], [128, 166], [158, 154]], '#5a3a22');
+    poly([[214, 176], [150, 184], [126, 180], [126, 186], [214, 184]], '#2c1c10');
+    const pts = snakePts(o.lunge || 0, o.jit || 0);
+    strokeArt(g, pts, 11 * S, '#9c7a4e');
+    strokeArt(g, pts, 11 * S, '#6b5032', [3, 4]);
+    const r0 = art(214, 196 + (o.jit || 0)); g.fillStyle = '#d8c79c'; for (let i = 0; i < 3; i++) { g.beginPath(); g.ellipse(r0.x + i * 1.6, r0.y - i * 1.2, 2.2, 1.6, -0.6, 0, 7); g.fill(); }
+    const hp = pts[pts.length - 1], h = art(hp[0], hp[1]);
+    snakeHead(g, h.x, h.y, -0.7 + (o.lunge || 0) * 0.3, 0.9, 1);
+  };
+}
+const TITLE = '방울뱀';
+
+const SPEED = (() => { const r = rng(31); return Array.from({ length: 22 }, (_, i) => ({ a: (i / 22) * Math.PI * 2 + r() * 0.2, len: 30 + r() * 50 })); })();
+const VENOM = (() => { const r = rng(37); return Array.from({ length: 10 }, () => ({ x: (r() - 0.5) * 60, b: r() * 0.15, s: 2 + r() * 2 })); })();
+const TRACK = (() => { const out = []; for (let i = 0; i <= 60; i++) { const k = i / 60; out.push([lerp(312, CX, k) + Math.sin(k * Math.PI * 3) * 20 * (1 - k * 0.5), lerp(190, card.y + card.h - 6, k) + Math.cos(k * Math.PI * 3) * 6]); } return out; })();
+
+/** 3D 똬리: 카드 둘레를 도는 나선. th 각도 → 화면 점과 깊이(sin, + 앞) */
+function helix(th, lift) {
+  const R = 64, turns = 3;
+  const y = CY + 66 - (th / (turns * Math.PI * 2)) * 120 - lift;
+  return { x: CX + Math.cos(th) * R, y: y + Math.sin(th) * 14, d: Math.sin(th) };
+}
+
+FxKit.mount({
+  kind: 'rattlesnake',
+  title: '방울뱀 연출 시안',
+  lead: '꼬리 방울이 떨리고 뱀이 똬리를 튼다. 남 앞에 놓는 카드라 B 는 좌석으로 미끄러져 붙는다. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 방울 떨림 → 물기 (그림 조각)', cost: 1, dur: 1600,
+      desc: '그림 속 꼬리 방울이 빠르게 떨며 "촤르르" 떨림선. 머리가 장화로 휙 덮치고 장화가 움찔 들린 뒤 제자리 · 저: 차이 거의 없음(떨림선 수만 줄임)',
+      draw(g, t, q, f) {
+        bg(g);
+        const rattle = (1 - seg(t, 0.75, 0.95));
+        const jit = Math.sin(f * 2.6) * 4 * rattle;
+        const lunge = ease.out(seg(t, 0.38, 0.48)) * (1 - ease.inOut(seg(t, 0.56, 0.8)));
+        const boot = -10 * Math.sin(seg(t, 0.44, 0.7) * Math.PI);
+        drawCard(g, TITLE, snakeArt({ jit, lunge, boot }));
+        const tail = art(214, 196);
+        if (rattle > 0.05) {
+          const n = q.on(1) ? 3 : 2;
+          g.strokeStyle = `rgba(243,231,206,${0.8 * rattle})`; g.lineWidth = 1.5;
+          for (let i = 1; i <= n; i++) { g.beginPath(); g.arc(tail.x, tail.y, 5 + i * 5 + (f % 4), -1.2, 0.6); g.stroke(); }
+          g.save(); g.globalAlpha = seg(t, 0.03, 0.12) * rattle; g.font = '700 12px sans-serif'; g.fillStyle = '#f2c14e'; g.textAlign = 'left'; g.fillText('촤르르', tail.x + 12 + Math.sin(f) * 1.2, tail.y - 18); g.restore();
+        }
+        const hit = seg(t, 0.46, 0.6);
+        if (hit > 0 && hit < 1) {
+          const p = art(BITE[0] + 10, BITE[1] - 4); g.strokeStyle = `rgba(255,240,200,${1 - hit})`; g.lineWidth = 2;
+          for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; g.beginPath(); g.moveTo(p.x + Math.cos(a) * (4 + hit * 6), p.y + Math.sin(a) * (4 + hit * 6)); g.lineTo(p.x + Math.cos(a) * (8 + hit * 12), p.y + Math.sin(a) * (8 + hit * 12)); g.stroke(); }
+        }
+      },
+    },
+    {
+      id: 'B', name: 'B. 3D 똬리 감기', cost: 3, dur: 2200,
+      desc: '들린 카드 둘레를 뱀이 나선으로 감아 오르며 앞쪽 몸은 굵고 뒤쪽은 카드에 가린다. 꼭대기에서 방울을 떤 뒤 똬리째 좌석으로 미끄러져 붙는다 · 저: 몸 마디 줄이고 그림자 없음',
+      draw(g, t, q, f) {
+        bg(g);
+        const up = ease.out(seg(t, 0, 0.18)) * (1 - ease.inOut(seg(t, 0.68, 0.9)));
+        const climb = ease.inOut(seg(t, 0.06, 0.5));
+        const go = ease.inOut(seg(t, 0.62, 0.86));
+        const sx = 272, sy = 168;
+        seat(g, sx, sy, seg(t, 0.5, 0.58) * (1 - seg(t, 0.94, 1)), seg(t, 0.84, 0.98));
+        const headTh = lerp(0.3, Math.PI * 6 - 0.6, climb), L = Math.PI * 2.4;
+        const n = Math.max(18, q.n(90));
+        const segs = [];
+        for (let i = 0; i <= n; i++) { const th = headTh - L * (1 - i / n); if (th < 0) continue; segs.push({ ...helix(th, 0), w: lerp(3, 7, i / n) }); }
+        const move = (p) => ({ x: lerp(p.x, sx + (p.x - CX) * 0.25, go), y: lerp(p.y, sy + (p.y - CY) * 0.25, go), d: p.d, w: p.w * lerp(1, 0.3, go) });
+        const vis = 1 - seg(t, 0.84, 0.92);
+        const body = (front) => {
+          if (vis <= 0) return;
+          g.save(); g.globalAlpha = vis; g.lineCap = 'round';
+          for (let i = 1; i < segs.length; i++) {
+            const a = move(segs[i - 1]), b = move(segs[i]); const fr = (a.d + b.d) / 2 > 0; if (fr !== front) continue;
+            const sh = 0.75 + 0.25 * b.d;
+            g.strokeStyle = i % 4 < 2 ? `rgb(${Math.round(156 * sh)},${Math.round(122 * sh)},${Math.round(78 * sh)})` : `rgb(${Math.round(107 * sh)},${Math.round(80 * sh)},${Math.round(50 * sh)})`;
+            g.lineWidth = b.w * (1 + 0.35 * b.d); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+          }
+          g.restore();
+        };
+        body(false);
+        if (q.on(1)) { g.save(); g.fillStyle = `rgba(0,0,0,${0.35 * up})`; if (q.on(2)) { g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 10 * up; } g.beginPath(); g.roundRect(card.x + 5 * up, card.y + 10 * up, card.w, card.h, 8); g.fill(); g.restore(); }
+        plane(g, { x: CX, y: CY - 6 * up, w: card.w, h: card.h, rx: 0.3 * up, ry: 0.15 * up, z: -24 * up }, () => { g.translate(-CX, -CY); drawCard(g, TITLE, snakeArt()); });
+        body(true);
+        if (segs.length > 1 && vis > 0) {
+          const hd = move(segs[segs.length - 1]), nk = move(segs[segs.length - 2]);
+          g.save(); g.globalAlpha = vis; snakeHead(g, hd.x, hd.y, Math.atan2(hd.y - nk.y, hd.x - nk.x), lerp(1.1, 0.4, go), 0.5 + 0.5 * Math.sin(f * 0.8)); g.restore();
+          const tl = move(segs[0]); const rt = seg(t, 0.48, 0.62) * (1 - seg(t, 0.62, 0.7));
+          if (rt > 0) { const j = Math.sin(f * 2.6) * 3; g.fillStyle = '#d8c79c'; for (let i = 0; i < 3; i++) { g.beginPath(); g.ellipse(tl.x + j - i * 2, tl.y + i * 2, 3, 2, 0.5, 0, 7); g.fill(); } g.strokeStyle = `rgba(243,231,206,${rt})`; g.lineWidth = 1.5; for (let i = 1; i <= 2; i++) { g.beginPath(); g.arc(tl.x, tl.y, 6 + i * 6, Math.PI * 0.6, Math.PI * 1.6); g.stroke(); } }
+        }
+      },
+    },
+    {
+      id: 'C', name: 'C. 모래 위 S자 흔적 (미니멀)', cost: 1, dur: 1400,
+      desc: '오른쪽 가장자리에서 카드 밑으로 S자 기는 흔적이 그어지고, 카드 속 꼬리에서 방울 소리 물결이 세 번 퍼진다. 아래 "♠ 이면 목숨 1" · 저: 차이 없음',
+      draw(g, t) {
+        bg(g);
+        const draw = ease.out(seg(t, 0, 0.45)), fade = 1 - seg(t, 0.6, 0.95);
+        const n = Math.floor(TRACK.length * draw);
+        if (n > 1 && fade > 0) {
+          g.save(); g.globalAlpha = fade; g.lineCap = 'round'; g.lineJoin = 'round';
+          g.strokeStyle = 'rgba(214,190,140,0.55)'; g.lineWidth = 6; g.beginPath(); for (let i = 0; i < n; i++) { const [x, y] = TRACK[i]; i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke();
+          g.strokeStyle = 'rgba(46,32,19,0.6)'; g.lineWidth = 1.2; g.setLineDash([2, 5]); g.stroke();
+          g.restore();
+        }
+        drawCard(g, TITLE, snakeArt());
+        const tail = art(214, 196);
+        for (let i = 0; i < 3; i++) { const k = seg(t, 0.42 + i * 0.1, 0.72 + i * 0.1); if (k <= 0 || k >= 1) continue; g.strokeStyle = `rgba(242,193,78,${(1 - k) * 0.9})`; g.lineWidth = 2; g.beginPath(); g.arc(tail.x, tail.y, 4 + k * 46, 0, 7); g.stroke(); }
+        const cap = seg(t, 0.4, 0.52) * (1 - seg(t, 0.78, 0.95));
+        if (cap > 0) { g.save(); g.globalAlpha = cap; g.fillStyle = 'rgba(27,18,11,0.85)'; g.beginPath(); g.roundRect(CX - 50, 184, 100, 18, 9); g.fill(); g.fillStyle = '#f3e7ce'; g.font = '500 10.5px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('♠ 이면 목숨 1', CX, 193.5); g.restore(); }
+      },
+    },
+    {
+      id: 'D', name: 'D. 송곳니 (만화 잉크)', cost: 2, dur: 1600,
+      desc: '"쉬익!" 과 집중선 뒤로 위아래 턱이 판 밖에서 들어와 카드 앞에서 콱 다물고, 독 방울을 흘리며 물러난다 · 저: 집중선·독 방울 줄이고 흔들림 없음',
+      draw(g, t, q, f) {
+        bg(g);
+        const close = ease.in(seg(t, 0.06, 0.3));
+        const open = ease.inOut(seg(t, 0.44, 0.7));
+        const gap = lerp(lerp(260, 18, close), 260, open);
+        if (q.on(1) && t > 0.3 && t < 0.42) shake(g, 3 * (1 - seg(t, 0.3, 0.42)), t);
+        drawCard(g, TITLE, snakeArt());
+        const sp = seg(t, 0, 0.3) * (1 - seg(t, 0.32, 0.4));
+        if (sp > 0) { const n = q.n(SPEED.length); g.strokeStyle = `rgba(17,17,17,${0.7 * sp})`; g.lineWidth = 2; for (let i = 0; i < n; i++) { const s = SPEED[i]; const r0 = 110; g.beginPath(); g.moveTo(CX + Math.cos(s.a) * r0, CY + Math.sin(s.a) * r0); g.lineTo(CX + Math.cos(s.a) * (r0 + s.len), CY + Math.sin(s.a) * (r0 + s.len)); g.stroke(); } }
+        const jaw = (dir) => {
+          const edge = CY + dir * gap / 2;
+          g.save();
+          g.fillStyle = '#4a1418'; g.strokeStyle = '#111'; g.lineWidth = 3;
+          g.beginPath(); g.moveTo(-10, edge); g.quadraticCurveTo(CX, edge + dir * 26, W + 10, edge); g.lineTo(W + 10, edge + dir * 220); g.lineTo(-10, edge + dir * 220); g.closePath(); g.fill(); g.stroke();
+          g.fillStyle = '#b8323a'; g.beginPath(); g.moveTo(10, edge + dir * 4); g.quadraticCurveTo(CX, edge + dir * 30, W - 10, edge + dir * 4); g.lineTo(W - 10, edge + dir * 14); g.quadraticCurveTo(CX, edge + dir * 40, 10, edge + dir * 14); g.fill();
+          g.fillStyle = '#fbf6ea'; g.lineWidth = 2;
+          [[CX - 52, 34], [CX + 52, 34]].forEach(([x, len]) => { const y0 = edge + dir * 12; g.beginPath(); g.moveTo(x - 7, y0); g.quadraticCurveTo(x - 2, y0 - dir * len * 0.6, x + 1, y0 - dir * len); g.quadraticCurveTo(x + 4, y0 - dir * len * 0.5, x + 7, y0); g.closePath(); g.fill(); g.stroke(); });
+          for (let i = 0; i < 8; i++) { const x = 60 + i * 26; if (Math.abs(x - CX) > 40 && Math.abs(Math.abs(x - CX) - 52) < 10) continue; const y0 = edge + dir * 10; g.beginPath(); g.moveTo(x - 4, y0); g.lineTo(x, y0 - dir * 9); g.lineTo(x + 4, y0); g.closePath(); g.fill(); g.stroke(); }
+          g.restore();
+        };
+        if (gap < 250) { jaw(-1); jaw(1); }
+        const ink = (txt, x, y, size, a) => { if (a <= 0) return; g.save(); g.globalAlpha = a; g.font = `900 ${size}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.strokeStyle = '#111'; g.lineWidth = 5; g.strokeText(txt, x, y); g.fillStyle = '#c9f07a'; g.fillText(txt, x, y); g.restore(); };
+        ink('쉬익!', 58 + Math.sin(f) * 1.5, 30, 18, seg(t, 0, 0.06) * (1 - seg(t, 0.22, 0.3)));
+        ink('콱!', CX, CY, lerp(14, 26, ease.back(seg(t, 0.3, 0.38))), seg(t, 0.29, 0.31) * (1 - seg(t, 0.4, 0.48)));
+        const vk = seg(t, 0.44, 0.9);
+        if (vk > 0 && vk < 1) {
+          const n = q.n(VENOM.length);
+          for (let i = 0; i < n; i++) { const v = VENOM[i]; const k = seg(vk, v.b, v.b + 0.7); if (k <= 0 || k >= 1) continue; const x = CX + (i % 2 ? 52 : -52) + v.x * 0.15, y = CY + 20 + k * 80 + k * k * 40; g.fillStyle = `rgba(150,220,80,${1 - k})`; g.strokeStyle = `rgba(17,17,17,${1 - k})`; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x, y - v.s * 2); g.quadraticCurveTo(x + v.s, y, x, y + v.s); g.quadraticCurveTo(x - v.s, y, x, y - v.s * 2); g.fill(); g.stroke(); }
+        }
+      },
+    },
+  ],
+});
+</script></body></html>

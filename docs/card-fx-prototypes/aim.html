@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>조준 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389)
+  - 그림 칸은 대략 y 92~262, 바탕은 옅은 하늘색
+  - 넓은 모자 챙이 x 30~228, y 104~150 로 화면 위쪽을 가로지른다. 꼭대기는 x 80~180, y 92~118
+  - 그 아래 얼굴(중심 x 118, y 170), 한쪽 눈을 찡그려 x 135, y 158 에서 가늠자를 들여다본다
+  - 소총이 왼쪽 아래 x 88, y 200 에서 오른쪽 x 232, y 168 로 뻗는다. 총구·가늠쇠는 오른쪽 끝
+  - 노란 장갑 손이 x 78, y 205 에서 총을 받친다
+  노린 것: 총구가 가리키는 오른쪽 위 = 표적. 조준점이 조여 들어가 '목숨 2'(×2)로 잠기는 순간.
+  소리 아이디어: 노리쇠 '철컥' → 낮은 숨 → 조준이 잠길 때 짧은 금속음 두 번(피해 2).
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const TX = 268, TY = 70; // 총구가 가리키는 표적
+const env = (t, a, b, c, d) => seg(t, a, b) * (1 - seg(t, c, d));
+const M = art(232, 168); // 총구
+
+function P(g, pts, fill) { g.fillStyle = fill; g.beginPath(); pts.forEach(([px, py], i) => { const p = art(px, py); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); g.fill(); }
+function seat(g, x, y, a, label) {
+  if (a <= 0.01) return;
+  g.save(); g.globalAlpha = Math.min(1, a);
+  g.fillStyle = '#2a1d12'; g.strokeStyle = '#c8902f'; g.lineWidth = 1.5;
+  g.beginPath(); g.arc(x, y, 12, 0, 7); g.fill(); g.stroke();
+  g.fillStyle = '#c8902f';
+  g.beginPath(); g.arc(x, y - 3, 3.4, 0, 7); g.fill();
+  g.beginPath(); g.ellipse(x, y + 7, 6.5, 5, 0, Math.PI, Math.PI * 2); g.fill();
+  if (label) { g.font = '500 9px sans-serif'; g.textAlign = 'center'; g.fillStyle = '#e8d6b0'; g.fillText(label, x, y + 24); }
+  g.restore();
+}
+function body(g) {
+  const a = art(0, 92), b = art(250, 262);
+  g.fillStyle = '#c9dbe0'; g.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+  const fc = art(118, 172); g.fillStyle = '#e0b48c'; g.beginPath(); g.ellipse(fc.x, fc.y, 19, 19, 0, 0, 7); g.fill();
+  P(g, [[30, 150], [62, 118], [170, 104], [228, 118], [205, 138], [120, 142]], '#6b4a2e');
+  P(g, [[80, 118], [95, 92], [175, 92], [180, 110]], '#5a3d25');
+  const e = art(135, 158); g.fillStyle = '#2a1a0e'; g.fillRect(e.x - 4, e.y - 0.8, 8, 1.6);
+  const r0 = art(88, 202);
+  g.strokeStyle = '#3a3a3a'; g.lineWidth = 4.5; g.lineCap = 'butt'; g.beginPath(); g.moveTo(r0.x, r0.y); g.lineTo(M.x, M.y); g.stroke();
+  P(g, [[30, 222], [92, 196], [96, 212], [40, 240]], '#7a4b2a');
+  P(g, [[218, 160], [224, 160], [224, 166], [218, 167]], '#222');
+  P(g, [[138, 176], [148, 172], [149, 180], [139, 183]], '#222');
+  const hd = art(78, 205); g.fillStyle = '#d8b878'; g.beginPath(); g.ellipse(hd.x, hd.y, 8, 6, -0.3, 0, 7); g.fill();
+}
+const cardDraw = (g) => drawCard(g, '조준', body);
+
+function reticle(g, x, y, r, col, a) {
+  g.save(); g.globalAlpha = a; g.strokeStyle = col; g.lineWidth = 1.6;
+  g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke();
+  for (let i = 0; i < 4; i++) { const an = i * Math.PI / 2; g.beginPath(); g.moveTo(x + Math.cos(an) * r * 0.45, y + Math.sin(an) * r * 0.45); g.lineTo(x + Math.cos(an) * (r + 6), y + Math.sin(an) * (r + 6)); g.stroke(); }
+  g.fillStyle = col; g.beginPath(); g.arc(x, y, 1.6, 0, 7); g.fill();
+  g.restore();
+}
+function bullet(g, x, y, s, ang) {
+  g.save(); g.translate(x, y); g.rotate(ang || 0); g.scale(s, s);
+  g.fillStyle = '#c9a24a'; g.fillRect(-8, -3.5, 9, 7);
+  g.fillStyle = '#b07a3a'; g.beginPath(); g.moveTo(1, -3.5); g.quadraticCurveTo(9, -3.5, 10, 0); g.quadraticCurveTo(9, 3.5, 1, 3.5); g.closePath(); g.fill();
+  g.strokeStyle = '#1e140b'; g.lineWidth = 1.4; g.strokeRect(-8, -3.5, 9, 7);
+  g.beginPath(); g.moveTo(1, -3.5); g.quadraticCurveTo(9, -3.5, 10, 0); g.quadraticCurveTo(9, 3.5, 1, 3.5); g.stroke();
+  g.restore();
+}
+const MOTES = (() => { const r = rng(9); return Array.from({ length: 30 }, () => ({ k: r(), off: (r() - 0.5) * 10, ph: r() * 6.28, s: 0.5 + r() })); })();
+const DOTS = (() => { const out = []; for (let y = -40; y <= 40; y += 6) for (let x = -40; x <= 40; x += 6) if (x * x + y * y < 1600) out.push([x + (y % 12 ? 3 : 0), y]); return out; })();
+
+FxKit.mount({
+  kind: 'aim',
+  title: '조준 연출 시안',
+  lead: '뱅!에 덧붙여 피해를 2로 만드는 카드. 조준점이 표적 한 명에게 조여 들어가 ×2 로 잠긴다. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 조준경이 조여듦', cost: 2, dur: 1800,
+      desc: '화면이 조준경 원으로 어두워지고 크게 흔들리던 십자선이 표적 쪽으로 미끄러지며 조여든다. 잠기는 순간 고리가 두 겹으로 겹치며 ×2 · 저: 조준경 어둠 없이 십자선만',
+      draw(g, t, q) {
+        bg(g); cardDraw(g);
+        const a = env(t, 0, 0.1, 0.82, 0.96);
+        const k = ease.inOut(seg(t, 0.05, 0.55));
+        const wob = (1 - k) * 14;
+        const cx = lerp(card.x + card.w / 2, TX, k) + Math.sin(t * 37) * wob;
+        const cy = lerp(card.y + card.h / 2, TY, k) + Math.cos(t * 29) * wob * 0.7;
+        const r = lerp(70, 13, k);
+        seat(g, TX, TY, env(t, 0.1, 0.3, 0.82, 0.96), '');
+        if (q.on(1) && a > 0) {
+          g.save(); g.fillStyle = `rgba(8,5,3,${0.62 * a})`;
+          g.beginPath(); g.rect(0, 0, W, H); g.arc(cx, cy, r + 26, 0, Math.PI * 2, true); g.fill('evenodd');
+          const gr = g.createRadialGradient(cx, cy, r + 10, cx, cy, r + 28);
+          gr.addColorStop(0, 'rgba(8,5,3,0)'); gr.addColorStop(1, `rgba(8,5,3,${0.62 * a})`);
+          g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r + 28, 0, 7); g.fill();
+          g.restore();
+        }
+        if (a > 0) reticle(g, cx, cy, r, '#d0352a', a);
+        const lock = seg(t, 0.55, 0.72);
+        if (lock > 0 && t < 0.96) {
+          reticle(g, TX, TY, lerp(30, 19, ease.out(lock)), '#f2c14e', a * Math.min(1, lock * 3));
+          const s = lock < 0.3 ? 1.8 - lock * 2.7 : 1;
+          g.save(); g.globalAlpha = a; g.translate(TX - 34, TY - 30); g.scale(s, s); g.rotate(-0.12);
+          g.font = '700 22px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.lineWidth = 4; g.strokeStyle = '#1e140b'; g.strokeText('×2', 0, 0); g.fillStyle = '#f2c14e'; g.fillText('×2', 0, 0);
+          g.restore();
+        }
+      },
+    },
+    {
+      id: 'B', name: 'B. 만화 잉크 ×2', cost: 1, dur: 1500,
+      desc: '총구에서 표적까지 잉크 속도선이 쭉 그어지고, 망점 터짐 위로 굵은 ×2 가 튀어나온다. 이어서 탄알 두 개가 차례로 쾅쾅 찍힌다 · 저: 망점 없음',
+      draw(g, t, q) {
+        bg(g, '#f3ead6'); cardDraw(g);
+        const a = 1 - seg(t, 0.82, 0.96);
+        const sk = ease.out(seg(t, 0.02, 0.22));
+        const ang = Math.atan2(TY - M.y, TX - M.x);
+        if (a > 0) {
+          g.save(); g.translate(M.x, M.y); g.rotate(ang);
+          const L = Math.hypot(TX - M.x, TY - M.y) + 20;
+          g.strokeStyle = `rgba(30,20,11,${a})`; g.lineCap = 'round';
+          [-10, -5, 0, 5, 10].forEach((o, i) => { g.lineWidth = i === 2 ? 2.4 : 1.2; g.beginPath(); g.moveTo(4 + Math.abs(o) * 1.5, o); g.lineTo((4 + Math.abs(o) * 1.5) + (L - Math.abs(o) * 3) * sk, o * 0.3); g.stroke(); });
+          g.restore();
+        }
+        const pop = seg(t, 0.2, 0.34);
+        const cx = 244, cy = 132;
+        if (pop > 0 && a > 0) {
+          if (q.on(1)) {
+            g.fillStyle = `rgba(179,38,30,${0.55 * a})`;
+            const R = ease.back(pop);
+            DOTS.forEach(([x, y]) => { const d = 1 - Math.hypot(x, y) / 40; g.beginPath(); g.arc(cx + x * R, cy + y * R * 0.8, Math.max(0.2, 2.6 * d * R), 0, 7); g.fill(); });
+          }
+          const s = ease.back(pop) * (pop < 1 ? 1 : 1 + Math.sin(t * 40) * 0.02);
+          g.save(); g.globalAlpha = a; g.translate(cx, cy - 6); g.rotate(-0.15); g.scale(s, s);
+          g.font = '800 40px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+          g.lineWidth = 8; g.strokeStyle = '#1e140b'; g.strokeText('×2', 0, 0);
+          g.fillStyle = '#b3261e'; g.fillText('×2', 2, 2); g.fillStyle = '#f2c14e'; g.fillText('×2', 0, 0);
+          g.restore();
+        }
+        [0.38, 0.5].forEach((st, i) => {
+          const k = seg(t, st, st + 0.08); if (k <= 0 || a <= 0) return;
+          const s = k < 1 ? 2.2 - 1.2 * ease.out(k) : 1;
+          g.save(); g.globalAlpha = a; bullet(g, 220 + i * 26, 170, s, -0.3); g.restore();
+          if (k < 1) { g.strokeStyle = `rgba(30,20,11,${(1 - k) * a})`; g.lineWidth = 1.5; for (let j = 0; j < 6; j++) { const an = j * 1.05; g.beginPath(); g.moveTo(220 + i * 26 + Math.cos(an) * 12, 170 + Math.sin(an) * 12); g.lineTo(220 + i * 26 + Math.cos(an) * (16 + 6 * k), 170 + Math.sin(an) * (16 + 6 * k)); g.stroke(); } }
+        });
+        seat(g, TX, TY, env(t, 0.05, 0.2, 0.82, 0.96), '');
+      },
+    },
+    {
+      id: 'C', name: 'C. 가늠자 정렬 (3D)', cost: 2, dur: 2000,
+      desc: '카드가 총구 쪽으로 원근 기울어지고, 가까운 가늠자(크고 흐림)와 먼 가늠쇠(작고 또렷)가 서로 다른 속도로 흔들리다 표적 위에서 한 줄로 맞는다. 맞는 순간 깊이 고리가 두 번 밀려난다 · 저: 흐림·안개 없음',
+      draw(g, t, q) {
+        bg(g);
+        const lift = ease.out(seg(t, 0, 0.2)) * (1 - ease.inOut(seg(t, 0.8, 1)));
+        if (q.on(1) && lift > 0) {
+          const gr = g.createLinearGradient(TX, TY, card.x, H);
+          gr.addColorStop(0, `rgba(201,219,224,${0.18 * lift})`); gr.addColorStop(1, 'rgba(201,219,224,0)');
+          g.fillStyle = gr; g.fillRect(0, 0, W, H);
+        }
+        const cx = card.x + card.w / 2, cy = card.y + card.h / 2;
+        g.save();
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.roundRect(card.x + 4 + 6 * lift, card.y + 5 + 8 * lift, card.w, card.h, 9); g.fill();
+        g.translate(cx, cy); g.transform(1 - 0.12 * lift, -0.1 * lift, 0.08 * lift, 1, 0, 0); g.scale(1 + 0.08 * lift, 1 + 0.08 * lift); g.translate(-cx, -cy);
+        cardDraw(g);
+        g.restore();
+        const a = env(t, 0.08, 0.22, 0.78, 0.92);
+        if (a <= 0) return;
+        seat(g, TX, TY, a, '표적');
+        const k = ease.inOut(seg(t, 0.1, 0.55));
+        const w = (1 - k);
+        const sx = Math.sin(t * 23) * 22 * w, sy = Math.cos(t * 17) * 14 * w;
+        // 먼 가늠쇠 (깊이 0.3 → 덜 흔들림)
+        const fx = TX + sx * 0.3, fy = TY + sy * 0.3;
+        g.save(); g.globalAlpha = a; g.fillStyle = '#1e1a16';
+        g.fillRect(fx - 1.6, fy + 1, 3.2, 26); g.beginPath(); g.arc(fx, fy + 1, 1.8, 0, 7); g.fill();
+        g.restore();
+        // 가까운 가늠자 (깊이 1 → 크게 흔들림, 흐림)
+        const nx = TX + sx, ny = TY + sy + 6 + 50 * seg(t, 0.78, 0.92);
+        g.save(); g.globalAlpha = a;
+        if (q.on(2)) g.filter = 'blur(1.5px)';
+        g.fillStyle = '#14100c';
+        g.beginPath(); g.moveTo(nx - 70, ny); g.lineTo(nx - 7, ny); g.arc(nx, ny, 7, Math.PI, 0, true); g.lineTo(nx + 70, ny); g.lineTo(nx + 76, H + 20); g.lineTo(nx - 76, H + 20); g.closePath(); g.fill();
+        g.restore();
+        // 정렬 순간 깊이 고리 두 번
+        [0.55, 0.66].forEach((st) => {
+          const r = seg(t, st, st + 0.16); if (r <= 0 || r >= 1) return;
+          g.strokeStyle = `rgba(242,193,78,${(1 - r) * a})`; g.lineWidth = 2 * (1 - r) + 0.5;
+          g.beginPath(); g.ellipse(TX, TY, 10 + 34 * ease.out(r), (10 + 34 * ease.out(r)) * 0.62, 0, 0, 7); g.stroke();
+        });
+        const lab = seg(t, 0.6, 0.7);
+        if (lab > 0) { g.save(); g.globalAlpha = a * lab; g.fillStyle = '#f2c14e'; g.font = '700 14px sans-serif'; g.textAlign = 'center'; g.fillText('2', TX + 22, TY - 14); g.restore(); }
+      },
+    },
+    {
+      id: 'D', name: 'D. 렌즈 번쩍·조준선', cost: 3, dur: 1700,
+      desc: '가늠자에 햇빛이 번쩍 맺히고, 총구에서 표적까지 따뜻한 조준선이 빛을 머금고 뻗는다. 표적 둘레에 모서리 괄호가 조여 잠기고 붉은 핏방울 두 개가 차례로 뜬다 · 저: 번쩍임·빛 번짐·먼지 없이 선과 괄호만',
+      draw(g, t, q) {
+        bg(g); cardDraw(g);
+        const S = art(144, 176);
+        const gk = env(t, 0, 0.06, 0.12, 0.26);
+        if (gk > 0) {
+          g.save();
+          if (q.on(1)) {
+            g.globalCompositeOperation = 'lighter';
+            const gr = g.createRadialGradient(S.x, S.y, 0, S.x, S.y, 26 * gk);
+            gr.addColorStop(0, `rgba(255,250,230,${gk})`); gr.addColorStop(1, 'rgba(255,200,120,0)');
+            g.fillStyle = gr; g.beginPath(); g.arc(S.x, S.y, 26 * gk, 0, 7); g.fill();
+          }
+          g.fillStyle = `rgba(255,252,236,${gk})`;
+          [[34, 1.6], [16, 1.2]].forEach(([L, w], i) => { g.save(); g.translate(S.x, S.y); g.rotate(i * Math.PI / 4 + t); for (let j = 0; j < 2; j++) { g.rotate(Math.PI / 2); g.beginPath(); g.moveTo(-L * gk, 0); g.lineTo(0, -w); g.lineTo(L * gk, 0); g.lineTo(0, w); g.closePath(); g.fill(); } g.restore(); });
+          g.restore();
+        }
+        const a = env(t, 0.12, 0.14, 0.8, 0.95);
+        const lk = ease.out(seg(t, 0.14, 0.34));
+        const ex = lerp(M.x, TX, lk), ey = lerp(M.y, TY, lk);
+        seat(g, TX, TY, a, '');
+        if (a > 0) {
+          g.save(); g.lineCap = 'round';
+          if (q.on(1)) { g.globalCompositeOperation = 'lighter'; g.strokeStyle = `rgba(255,170,80,${0.25 * a})`; g.lineWidth = 7; g.beginPath(); g.moveTo(M.x, M.y); g.lineTo(ex, ey); g.stroke(); }
+          g.globalCompositeOperation = 'source-over';
+          g.strokeStyle = `rgba(255,225,160,${0.9 * a})`; g.lineWidth = 1.2; g.beginPath(); g.moveTo(M.x, M.y); g.lineTo(ex, ey); g.stroke();
+          g.restore();
+          if (q.on(1)) MOTES.slice(0, q.n(30)).forEach((p) => {
+            if (p.k > lk) return;
+            const x = lerp(M.x, TX, p.k) + Math.sin(p.ph + t * 4) * 2, y = lerp(M.y, TY, p.k) + p.off + Math.cos(p.ph + t * 3) * 2;
+            g.fillStyle = `rgba(255,236,190,${0.6 * a * Math.abs(Math.sin(p.ph + t * 8))})`; g.beginPath(); g.arc(x, y, 0.6 * p.s, 0, 7); g.fill();
+          });
+        }
+        const bk = ease.out(seg(t, 0.3, 0.52));
+        if (a > 0 && bk > 0) {
+          const d = lerp(34, 16, bk), L = 7;
+          g.strokeStyle = `rgba(242,193,78,${a})`; g.lineWidth = 2;
+          [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sy]) => { const x = TX + sx * d, y = TY + sy * d; g.beginPath(); g.moveTo(x - sx * L, y); g.lineTo(x, y); g.lineTo(x, y - sy * L); g.stroke(); });
+          const lockF = env(t, 0.52, 0.54, 0.56, 0.64);
+          if (lockF > 0) { g.fillStyle = `rgba(255,240,200,${0.5 * lockF * a})`; g.fillRect(TX - 16, TY - 16, 32, 32); }
+        }
+        [0.56, 0.66].forEach((st, i) => {
+          const k = seg(t, st, st + 0.1); if (k <= 0 || a <= 0) return;
+          const x = TX - 9 + i * 18, y = TY + 30 - 4 * ease.back(k);
+          g.save(); g.globalAlpha = a; g.translate(x, y); g.scale(ease.back(k), ease.back(k));
+          g.fillStyle = '#c0392b'; g.beginPath(); g.moveTo(0, -7); g.bezierCurveTo(5, -1, 5, 5, 0, 5); g.bezierCurveTo(-5, 5, -5, -1, 0, -7); g.fill();
+          g.restore();
+        });
+      },
+    },
+  ],
+});
+</script></body></html>

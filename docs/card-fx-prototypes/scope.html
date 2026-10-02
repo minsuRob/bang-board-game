@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>조준경 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389): 그림 칸 (40~210, 95~270). 모자 쓴 사내가 왼쪽에서 소총을 겨눈다.
+  모자 (40~95, 100~130), 얼굴 (60~95, 130~160), 소총 총열 (90,182)→(210,170) 거의 수평,
+  조준경 통 (105~170, 152~168), 대물렌즈 (172,160), 접안부 (105,162), 손 (145,200).
+  오른쪽 위 배경 (150~210, 110~160)은 노을빛 해. 해가 대물렌즈에 반사되는 빛과
+  "렌즈 안에서 먼 사람이 당겨져 보이는" 거리 -1 을 노렸다. 장착 카드라 끝에 자리에 붙는다.
+  소리: 렌즈 돌리는 짧은 끼릭 2번 + 초점 맞을 때 맑은 팅.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const CX = card.x + card.w / 2, CY = card.y + card.h / 2;
+const LENS = art(172, 160);
+
+function poly(g, pts) { g.beginPath(); pts.forEach(([x, y], i) => { const p = art(x, y); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); }
+function body(g, glint) {
+  const s = art(185, 135); g.fillStyle = '#f2c98a'; g.beginPath(); g.arc(s.x, s.y, 13, 0, 7); g.fill();
+  g.fillStyle = '#6b4a2a'; poly(g, [[38, 120], [96, 112], [100, 130], [36, 134]]); g.fill();     // 모자
+  g.fillStyle = '#c99a6e'; poly(g, [[60, 130], [96, 130], [94, 160], [62, 162]]); g.fill();     // 얼굴
+  g.fillStyle = '#7a5a3a'; poly(g, [[40, 160], [100, 160], [110, 270], [40, 270]]); g.fill();  // 몸
+  g.fillStyle = '#4a3220'; poly(g, [[88, 178], [210, 166], [210, 174], [90, 188]]); g.fill();   // 총열
+  g.fillStyle = '#2a2018'; poly(g, [[104, 154], [170, 150], [170, 166], [104, 170]]); g.fill(); // 조준경
+  g.fillStyle = glint ? '#fff6d6' : '#5d7a8a'; g.beginPath(); g.ellipse(LENS.x, LENS.y, 2, 3, 0, 0, 7); g.fill();
+  g.fillStyle = '#c99a6e'; poly(g, [[135, 188], [160, 186], [162, 210], [138, 212]]); g.fill(); // 손
+}
+function settle(g, k) {
+  if (k <= 0 || k >= 1) return; const p = 3 + ease.out(k) * 14;
+  g.strokeStyle = `rgba(242,193,78,${(1 - k) * 0.85})`; g.lineWidth = 2 * (1 - k) + 0.5;
+  g.beginPath(); g.roundRect(card.x - p, card.y - p, card.w + p * 2, card.h + p * 2, 8 + p); g.stroke();
+}
+function cowboy(g, x, y, s, col) {
+  g.save(); g.translate(x, y); g.scale(s, s); g.fillStyle = col || '#2a1d12';
+  g.fillRect(-4, -10, 8, 14); g.beginPath(); g.arc(0, -13, 3.2, 0, 7); g.fill();
+  g.fillRect(-7, -17, 14, 1.6); g.fillRect(-3.5, -20, 7, 3.5); g.fillRect(-4, 4, 3, 10); g.fillRect(1, 4, 3, 10); g.restore();
+}
+const MOTES = (() => { const r = rng(17); return Array.from({ length: 40 }, () => ({ x: r() * W, y: r() * H, r: 0.5 + r() * 1.5, p: r() * 6.28 })); })();
+const GHOSTS = [[0.35, 6, '#ffd36a'], [0.6, 10, '#9fd0ff'], [0.85, 4, '#ffb070'], [1.2, 14, '#c7a4ff'], [1.5, 7, '#ffe6a0']];
+
+FxKit.mount({
+  kind: 'scope', title: '조준경 연출 시안',
+  lead: '다른 사람을 볼 때 거리 1 가까워짐. 렌즈·조준선·먼 사람이 당겨지는 장면. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 렌즈 속 당겨 보기', cost: 2, dur: 2000,
+      desc: '화면이 어두워지며 대물렌즈에서 둥근 시야가 커지고, 지평선의 먼 사람이 조준선 안으로 당겨져 커진다. 거리 3→2 · 저: 비네트·렌즈 반사 단색',
+      draw(g, t, q) {
+        bg(g);
+        drawCard(g, '조준경', (g) => body(g, t > 0.08 && t < 0.2));
+        const open = ease.out(seg(t, 0.12, 0.34)) * (1 - ease.in(seg(t, 0.74, 0.92)));
+        if (open <= 0.001) { settle(g, seg(t, 0.86, 1)); return; }
+        const cx = lerp(LENS.x, 168, open), cy = lerp(LENS.y, 100, open), R = 70 * open;
+        g.save(); g.fillStyle = `rgba(10,7,4,${0.72 * open})`; g.beginPath(); g.rect(0, 0, W, H); g.moveTo(cx + R, cy); g.arc(cx, cy, R, 0, Math.PI * 2, true); g.fill('evenodd'); g.restore();
+        g.save(); g.beginPath(); g.arc(cx, cy, R, 0, 7); g.clip();
+        if (q.on(1)) { const sky = g.createLinearGradient(0, cy - R, 0, cy + R); sky.addColorStop(0, '#f2c98a'); sky.addColorStop(0.55, '#e9a860'); sky.addColorStop(0.56, '#a8754a'); sky.addColorStop(1, '#7a5233'); g.fillStyle = sky; }
+        else g.fillStyle = '#d9a46a';
+        g.fillRect(cx - R, cy - R, R * 2, R * 2);
+        if (!q.on(1)) { g.fillStyle = '#8a5f3c'; g.fillRect(cx - R, cy + R * 0.1, R * 2, R); }
+        const zk = ease.inOut(seg(t, 0.36, 0.68)), s = lerp(0.45, 1.5, zk);
+        cowboy(g, cx + 8 - zk * 8, cy + R * 0.1 + 2 * s, s);
+        g.strokeStyle = 'rgba(20,14,8,0.9)'; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(cx - R, cy); g.lineTo(cx - 5, cy); g.moveTo(cx + 5, cy); g.lineTo(cx + R, cy); g.moveTo(cx, cy - R); g.lineTo(cx, cy - 5); g.moveTo(cx, cy + 5); g.lineTo(cx, cy + R); g.stroke();
+        for (let i = -3; i <= 3; i++) if (i) { g.beginPath(); g.moveTo(cx + i * R / 4, cy - 2); g.lineTo(cx + i * R / 4, cy + 2); g.stroke(); }
+        g.fillStyle = 'rgba(20,14,8,0.85)'; g.font = '600 11px ui-monospace,monospace'; g.textAlign = 'center';
+        g.fillText(zk < 0.5 ? '거리 3' : '거리 2', cx, cy + R * 0.72);
+        if (q.on(1)) { const gr = g.createRadialGradient(cx, cy, R * 0.6, cx, cy, R); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,0.55)'); g.fillStyle = gr; g.fillRect(cx - R, cy - R, R * 2, R * 2); }
+        g.restore();
+        g.strokeStyle = '#1e140b'; g.lineWidth = 4; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke();
+        g.strokeStyle = 'rgba(200,180,140,0.6)'; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, R + 2.5, 0, 7); g.stroke();
+      },
+    },
+    {
+      id: 'B', name: 'B. 3D 테이블 거리 당기기', cost: 2, dur: 2100,
+      desc: '카드가 테이블에 눕듯 원근으로 기울고, 앞쪽 지평선까지 줄 선 좌석 표가 한 칸씩 미끄러져 다가온다. 카드가 다시 일어나 착지 · 저: 좌석 3개, 바닥 선 줄임',
+      draw(g, t, q) {
+        bg(g);
+        const lay = ease.inOut(seg(t, 0.02, 0.22)) * (1 - ease.inOut(seg(t, 0.72, 0.88)));
+        const hy = 26, fy = 200, vx = 150;
+        if (lay > 0.01) {
+          g.strokeStyle = `rgba(200,160,100,${0.35 * lay})`; g.lineWidth = 1;
+          const nl = q.on(1) ? 9 : 5;
+          for (let i = 0; i < nl; i++) { const x = lerp(-60, 360, i / (nl - 1)); g.beginPath(); g.moveTo(vx + (x - vx) * 0.08, hy); g.lineTo(x, fy); g.stroke(); }
+          for (let z = 1; z <= 6; z++) { const y = hy + (fy - hy) / (z * 0.9 + 0.1) * 0.35; g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+        }
+        const pull = ease.inOut(seg(t, 0.3, 0.62));
+        const N = q.on(1) ? 4 : 3;
+        for (let i = N; i >= 1; i--) {
+          const z = i + 0.6 - pull, y = hy + (fy - hy) * 0.35 / (z * 0.9 + 0.1) - 4, s = 1.4 / z;
+          const a = lay * Math.min(1, seg(z, 0.6, 1.2) + 0.0001);
+          if (a <= 0.01) continue;
+          g.globalAlpha = a; cowboy(g, vx + (i % 2 ? -1 : 1) * 46 / z, y, s * 1.4, '#efe2c6');
+          g.fillStyle = '#f2c14e'; g.font = `600 ${Math.max(8, 13 * s)}px ui-monospace,monospace`; g.textAlign = 'center';
+          g.fillText(String(Math.max(1, i - Math.round(pull))), vx + (i % 2 ? -1 : 1) * 46 / z, y - 26 * s); g.globalAlpha = 1;
+        }
+        const sy = lerp(1, 0.42, lay), ty = lay * 40, lift = 10 * Math.sin(Math.PI * seg(t, 0.72, 0.95));
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.ellipse(CX + lift * 0.4, card.y + card.h + 4 - (1 - sy) * card.h * 0.1 + ty * 0.2, card.w * 0.55 + lift, 6 + lay * 4, 0, 0, 7); g.fill();
+        g.save(); g.translate(CX, card.y + card.h + ty * 0.1 - lift); g.scale(1, sy); // 눕힌 카드. 2D 라 위쪽 좁아짐 대신 위 절반을 어둡게 해 원근을 흉내 낸다
+        g.translate(-CX, -(card.y + card.h)); drawCard(g, '조준경', (g) => body(g));
+        if (lay > 0.01) { g.fillStyle = `rgba(20,12,6,${lay * 0.35})`; g.beginPath(); g.roundRect(card.x, card.y, card.w, card.h * 0.5, 8); g.fill(); }
+        g.restore();
+        if (pull > 0 && pull < 1) { g.globalAlpha = Math.sin(pull * Math.PI); g.fillStyle = '#f2c14e'; g.font = '700 18px sans-serif'; g.textAlign = 'center'; g.fillText('−1', CX, 22); g.globalAlpha = 1; }
+        settle(g, seg(t, 0.9, 1));
+      },
+    },
+    {
+      id: 'C', name: 'C. 사실풍 렌즈 반짝', cost: 3, dur: 1600,
+      desc: '그림 속 해가 대물렌즈에 반사되어 번쩍이고, 가로로 긴 빛줄기와 무지개 고스트가 가운데를 지나며 떠다니는 먼지가 빛난다 · 저: 고스트 2개, 먼지·발광 없음',
+      draw(g, t, q, f) {
+        bg(g);
+        drawCard(g, '조준경', (g) => body(g, t < 0.6));
+        const k = seg(t, 0.05, 0.85), a = Math.sin(Math.PI * k);
+        if (a <= 0) { settle(g, seg(t, 0.82, 1)); return; }
+        const lx = LENS.x, ly = LENS.y;
+        g.save(); if (q.on(1)) g.globalCompositeOperation = 'lighter';
+        if (q.on(1)) {
+          const gr = g.createRadialGradient(lx, ly, 0, lx, ly, 40); gr.addColorStop(0, `rgba(255,250,230,${a})`); gr.addColorStop(0.2, `rgba(255,210,120,${a * 0.6})`); gr.addColorStop(1, 'rgba(255,150,60,0)');
+          g.fillStyle = gr; g.beginPath(); g.arc(lx, ly, 40, 0, 7); g.fill();
+          const st = g.createLinearGradient(lx - 140, 0, lx + 140, 0); st.addColorStop(0, 'rgba(255,220,160,0)'); st.addColorStop(0.5, `rgba(255,240,210,${a * 0.8})`); st.addColorStop(1, 'rgba(255,220,160,0)');
+          g.fillStyle = st; g.fillRect(lx - 140, ly - 1.5, 280, 3);
+        } else { g.fillStyle = `rgba(255,240,200,${a})`; g.beginPath(); g.arc(lx, ly, 5, 0, 7); g.fill(); g.fillRect(lx - 60, ly - 1, 120, 2); }
+        g.strokeStyle = `rgba(255,248,225,${a})`; g.lineWidth = 1.2; const sp = 8 + 14 * a, rot = t * 1.5;
+        for (let i = 0; i < 4; i++) { const an = rot + i * Math.PI / 4; g.beginPath(); g.moveTo(lx - Math.cos(an) * sp, ly - Math.sin(an) * sp); g.lineTo(lx + Math.cos(an) * sp, ly + Math.sin(an) * sp); g.stroke(); }
+        const dx = CX - lx, dy = CY - ly, gn = q.on(1) ? GHOSTS.length : 2;
+        for (let i = 0; i < gn; i++) { const [p, r, c] = GHOSTS[i]; g.globalAlpha = a * 0.35; g.fillStyle = c; g.beginPath(); g.arc(lx + dx * p * 2, ly + dy * p * 2, r, 0, 7); g.fill(); }
+        g.globalAlpha = 1;
+        if (q.on(2)) MOTES.forEach((m) => { const tw = 0.5 + 0.5 * Math.sin(m.p + f * 0.15); g.fillStyle = `rgba(255,236,190,${a * tw * 0.6})`; g.beginPath(); g.arc(m.x + t * 10, m.y - t * 6, m.r, 0, 7); g.fill(); });
+        g.restore();
+        settle(g, seg(t, 0.82, 1));
+      },
+    },
+    {
+      id: 'D', name: 'D. 미니멀 조준선 고정', cost: 1, dur: 1300,
+      desc: '화면 가장자리에서 가는 조준선 넷이 미끄러져 카드 한가운데서 만나고, 큰 괄호가 카드 크기로 조여 고정된다. "−1" 눈금 · 저: 그대로',
+      draw(g, t, q) {
+        bg(g);
+        drawCard(g, '조준경', (g) => body(g));
+        const k = ease.out(seg(t, 0, 0.4)), fade = 1 - seg(t, 0.75, 0.95);
+        if (fade <= 0) return;
+        g.strokeStyle = `rgba(242,193,78,${0.85 * fade})`; g.lineWidth = 1;
+        const gap = lerp(60, 6, k);
+        g.beginPath();
+        g.moveTo(lerp(0, CX - gap, k) - 40 * (1 - k), CY); g.lineTo(CX - gap, CY);
+        g.moveTo(CX + gap, CY); g.lineTo(lerp(W, CX + gap, k) + 40 * (1 - k), CY);
+        g.moveTo(CX, CY - gap); g.lineTo(CX, lerp(0, CY - gap, k) - 30 * (1 - k));
+        g.moveTo(CX, CY + gap); g.lineTo(CX, lerp(H, CY + gap, k) + 30 * (1 - k));
+        g.stroke();
+        for (let i = 1; i <= 3; i++) { const d = gap + i * 10 * k; g.beginPath(); g.moveTo(CX - d, CY - 2); g.lineTo(CX - d, CY + 2); g.moveTo(CX + d, CY - 2); g.lineTo(CX + d, CY + 2); g.stroke(); }
+        const bk = ease.back(seg(t, 0.25, 0.6)), p = lerp(46, 3, bk), L = 12;
+        g.lineWidth = 2;
+        [[card.x - p, card.y - p, 1, 1], [card.x + card.w + p, card.y - p, -1, 1], [card.x - p, card.y + card.h + p, 1, -1], [card.x + card.w + p, card.y + card.h + p, -1, -1]].forEach(([x, y, sx, sy]) => { g.beginPath(); g.moveTo(x, y + sy * L); g.lineTo(x, y); g.lineTo(x + sx * L, y); g.stroke(); });
+        const lk = seg(t, 0.45, 0.6);
+        if (lk > 0) { g.fillStyle = `rgba(242,193,78,${fade * lk})`; g.font = '600 12px ui-monospace,monospace'; g.textAlign = 'left'; g.fillText('거리 −1', card.x + card.w + 8, card.y + 12); }
+      },
+    },
+  ],
+});
+</script></body></html>

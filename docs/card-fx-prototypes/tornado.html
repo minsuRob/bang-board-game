@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>토네이도 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389):
+  - 그림 칸 x 40~210, y 90~260. 누런 흙바람 하늘
+  - 깔때기: 위 오른쪽 (150,95) 에서 넓게(반폭 ~40) 시작해 아래 (118,215) 에서 가늘어진다. 살짝 S 자로 휜다
+  - 왼쪽 위에 빨려 올라간 집 (60,125), 가운데 울타리 조각 (115,165)
+  - 깔때기 끝 (118,215) 에 흙먼지·잔해, 오른쪽 아래에 바람을 등지고 선 여자 (165,225)
+  - 아래 기호: 1장 버림 · 2장 받음 · 모두 표적
+  노린 것: 깔때기가 카드 밖으로 자라 판 전체를 휘감는다(A). 규칙(모두 1장 버리고 2장 받음)은
+  카드가 회오리에 빨려 섞였다가 두 배로 돌아오는 것으로 보인다(B, D).
+  소리 아이디어: 낮은 바람 소용돌이(필터 건 잡음이 높아졌다 낮아짐) + 카드 펄럭임 여러 겹.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const S = card.w / 250;
+const CX = card.x + card.w / 2, CY = card.y + card.h / 2;
+const TAU = Math.PI * 2;
+const TIP = art(118, 215); // 깔때기 끝
+
+const SEAT_DEG = [130, 186, 242, 298, 354, 410];
+const seatAt = (deg) => { const a = deg * Math.PI / 180; return { x: 150 + Math.cos(a) * 132, y: 105 + Math.sin(a) * 88 }; };
+const SEATS = SEAT_DEG.map(seatAt);
+function seats(g, a) {
+  if (a <= 0) return;
+  SEATS.forEach((p) => { g.globalAlpha = a; g.fillStyle = 'rgba(30,20,11,0.55)'; g.strokeStyle = '#c8902f'; g.lineWidth = 1.5; g.beginPath(); g.arc(p.x, p.y, 7, 0, TAU); g.fill(); g.stroke(); });
+  g.globalAlpha = 1;
+}
+
+// 깔때기 중심선: v 0(위) → 1(끝)
+const funnelAt = (v) => ({ x: lerp(150, 118, v) + Math.sin(v * 3.2) * 10, y: lerp(95, 215, v), r: lerp(40, 5, Math.pow(v, 0.8)) });
+function scene(g, swirl) {
+  const sw = swirl || 0;
+  g.fillStyle = '#d9b07a'; const top = art(40, 90); g.fillRect(card.x, top.y, card.w, card.h);
+  g.fillStyle = '#c99862'; const gr = art(40, 200); g.fillRect(card.x, gr.y, card.w, card.h);
+  // 깔때기: 가로 타원을 겹겹이
+  for (let i = 0; i <= 14; i++) {
+    const v = i / 14; const f = funnelAt(v); const p = art(f.x, f.y);
+    g.strokeStyle = `rgba(90,70,55,${0.5 + v * 0.3})`; g.lineWidth = 1.2;
+    g.beginPath(); g.ellipse(p.x + Math.sin(sw * 8 + v * 6) * 1.5, p.y, f.r * S, f.r * S * 0.22, 0, 0, TAU); g.stroke();
+  }
+  // 집
+  const h = art(60, 125); g.save(); g.translate(h.x, h.y); g.rotate(-0.5 + sw * 2); g.fillStyle = '#7a5a3a'; g.fillRect(-6, -3, 12, 9); g.beginPath(); g.moveTo(-8, -3); g.lineTo(0, -10); g.lineTo(8, -3); g.closePath(); g.fill(); g.restore();
+  // 여자
+  const w = art(165, 225); g.fillStyle = '#3a2a20'; g.beginPath(); g.moveTo(w.x - 6, w.y + 16); g.lineTo(w.x - 2, w.y - 8); g.lineTo(w.x + 4, w.y - 8); g.lineTo(w.x + 10, w.y + 16); g.closePath(); g.fill();
+  g.beginPath(); g.arc(w.x + 1, w.y - 11, 3, 0, TAU); g.fill(); g.beginPath(); g.ellipse(w.x + 1, w.y - 13, 6, 1.5, 0.2, 0, TAU); g.fill();
+}
+const draw = (g, swirl) => drawCard(g, '토네이도', (c) => scene(c, swirl));
+function mini(g, x, y, rot, sx, s, faceUp) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(sx * (s || 1), s || 1);
+  const up = faceUp != null ? faceUp : sx < 0;
+  g.fillStyle = up ? '#efe2c6' : '#8b2a1e'; g.strokeStyle = '#2a1a10'; g.lineWidth = 0.8;
+  g.beginPath(); g.roundRect(-5, -7, 10, 14, 1.5); g.fill(); g.stroke();
+  if (!up) { g.strokeStyle = '#d8a44a'; g.strokeRect(-3, -5, 6, 10); } else { g.fillStyle = '#1e140b'; g.fillRect(-4, -6, 8, 2.5); }
+  g.restore();
+}
+
+// ---------- A: 그림 장면 — 깔때기가 카드 밖으로 자라 판을 휘감는다 ----------
+const A_DEB = (() => { const r = rng(88); return Array.from({ length: 40 }, () => ({ r0: 20 + r() * 120, ph: r() * TAU, sp: 2 + r() * 3, h: r(), kind: r() < 0.3 ? 1 : 0, sz: 1 + r() * 2.5 })); })();
+function A(g, t, q, f) {
+  const grow = ease.out(seg(t, 0.05, 0.35)) * (1 - ease.in(seg(t, 0.7, 0.95)));
+  g.save(); if (q.on(2)) shake(g, grow * 1, t);
+  bg(g);
+  seats(g, Math.min(seg(t, 0, 0.1), 1 - seg(t, 0.85, 1)));
+  // 바람 고리: 판 가운데 큰 소용돌이 (먼 쪽 → 카드 → 가까운 쪽)
+  const rot = t * 14;
+  const rings = q.n(10) < 4 ? 4 : q.n(10);
+  const ringAt = (i) => { const u = i / rings; const R = lerp(60, 150, u) * grow; return { R, ry: R * 0.42, cy: CY + 30 - u * 70, a: (1 - u * 0.6) * grow }; };
+  const arcs = (front) => { for (let i = 0; i < rings; i++) { const r = ringAt(i); if (r.R < 2) continue; g.strokeStyle = `rgba(150,120,90,${r.a * 0.55})`; g.lineWidth = 2.5 - i / rings; const s0 = rot * (1 + i * 0.1) % TAU; g.beginPath(); if (front) g.ellipse(CX, r.cy, r.R, r.ry, 0, s0 % Math.PI, s0 % Math.PI + 2.2); else g.ellipse(CX, r.cy, r.R, r.ry, 0, Math.PI + s0 % Math.PI, Math.PI + s0 % Math.PI + 2.2); g.stroke(); } };
+  arcs(false);
+  // 카드는 바람에 흔들리고 깔때기가 위로 솟는다
+  g.save(); const wob = Math.sin(t * 40) * 0.03 * grow; g.translate(CX, CY); g.rotate(wob); g.translate(-CX, -CY); draw(g, t * grow);
+  g.restore();
+  // 그림 속 깔때기 끝에서 위로 솟는 바람 기둥 (카드 밖까지)
+  if (grow > 0) {
+    for (let i = 0; i < 18; i++) {
+      const v = i / 17; const y = lerp(TIP.y, card.y - 30 * grow, v); const r = lerp(3, 46, Math.pow(v, 1.3)) * grow; const x = TIP.x + Math.sin(v * 3 + t * 10) * 8 * v + (CX - TIP.x) * v;
+      g.strokeStyle = `rgba(120,95,70,${0.35 + v * 0.35})`; g.lineWidth = 1.4; g.beginPath(); g.ellipse(x, y, r, r * 0.25, 0, rot + v * 3, rot + v * 3 + 4.2); g.stroke();
+    }
+  }
+  arcs(true);
+  // 잔해: 판자·흙덩이가 소용돌이를 따라 돌다 바깥으로 튕겨 나간다
+  A_DEB.slice(0, q.n(A_DEB.length)).forEach((d) => {
+    if (grow <= 0) return;
+    const fling = seg(t, 0.65, 0.95);
+    const a = d.ph + t * d.sp * 6; const R = d.r0 * grow + fling * 120;
+    const x = CX + Math.cos(a) * R, y = CY + 20 - d.h * 70 * grow + Math.sin(a) * R * 0.42;
+    g.globalAlpha = (1 - fling) * Math.min(1, grow * 2);
+    g.save(); g.translate(x, y); g.rotate(a * 2);
+    if (d.kind) { g.fillStyle = '#6b4a2a'; g.fillRect(-d.sz * 2, -0.8, d.sz * 4, 1.6); } else { g.fillStyle = '#8a6a48'; g.beginPath(); g.arc(0, 0, d.sz * 0.6, 0, TAU); g.fill(); }
+    g.restore();
+  });
+  g.globalAlpha = 1;
+  g.restore();
+}
+
+// ---------- B: 3D 나선 — 자리마다 한 장이 빨려 올라 섞이고, 두 장씩 돌아온다 ----------
+const B_UP = SEATS.map((p, i) => ({ p, i, t0: 0.06 + i * 0.03 }));
+const B_DOWN = (() => { const out = []; SEATS.forEach((p, i) => { for (let c = 0; c < 2; c++) out.push({ p, c, t0: 0.56 + i * 0.025 + c * 0.03, ph: (i * 2 + c) / 12 * TAU }); }); return out; })();
+function B(g, t, q) {
+  bg(g);
+  seats(g, Math.min(seg(t, 0, 0.08), 1 - seg(t, 0.88, 1)));
+  const spinK = ease.inOut(seg(t, 0.12, 0.62)); const yaw = spinK * TAU * 2; // 카드가 세로축으로 두 바퀴
+  const swirl = Math.sin(seg(t, 0.05, 0.8) * Math.PI);
+  // 나선 위의 카드 조각들: (ang, h) → 화면. 뒤(sin<0)는 카드 뒤에, 앞은 카드 앞에 그린다
+  const items = [];
+  B_UP.forEach((u) => {
+    const k = seg(t, u.t0, u.t0 + 0.5); if (k <= 0 || k >= 1) return;
+    const e = ease.inOut(Math.min(1, k * 1.4));
+    const ang = u.i / 6 * TAU + k * TAU * 1.6; const R = lerp(0, 58, Math.min(1, k * 3)) + 8; const h = e * 70;
+    const sx = lerp(u.p.x, CX + Math.cos(ang) * R, Math.min(1, k * 2.5)), sy = lerp(u.p.y, CY + 30 + Math.sin(ang) * R * 0.35 - h, Math.min(1, k * 2.5));
+    items.push({ x: sx, y: sy, z: Math.sin(ang), rot: ang, flip: Math.cos(ang * 2), a: 1 - seg(k, 0.85, 1), s: 0.9 + Math.sin(ang) * 0.25 });
+  });
+  B_DOWN.forEach((d) => {
+    const k = seg(t, d.t0, d.t0 + 0.26); if (k <= 0 || k >= 1) return;
+    const e = ease.out(k); const ang = d.ph + k * 3;
+    const ox = CX + Math.cos(ang) * 40, oy = CY - 40 + Math.sin(ang) * 14; const tx = d.p.x + (d.c - 0.5) * 8, ty = d.p.y - 12;
+    const x = lerp(ox, tx, e), y = lerp(oy, ty, e) - Math.sin(k * Math.PI) * 30;
+    items.push({ x, y, z: k > 0.4 ? 1 : Math.sin(ang), rot: (1 - k) * 4, flip: Math.cos(k * Math.PI * 3), a: 1, s: 1 + Math.sin(k * Math.PI) * 0.4 });
+  });
+  const drawItem = (it) => { g.globalAlpha = it.a; if (q.on(1)) { g.fillStyle = 'rgba(0,0,0,0.2)'; g.beginPath(); g.ellipse(it.x, it.y + 16, 4 * it.s, 1.5, 0, 0, TAU); g.fill(); } mini(g, it.x, it.y, it.rot, it.flip, it.s); g.globalAlpha = 1; };
+  // 바람 기둥 뒷면
+  const col = (front) => { if (swirl <= 0.01) return; for (let i = 0; i < (q.on(1) ? 10 : 5); i++) { const v = i / 9; const y = CY + 50 - v * 110; const r = (20 + v * 45) * swirl; const s0 = t * 18 + v * 4; g.strokeStyle = `rgba(190,160,120,${0.25 + 0.25 * swirl})`; g.lineWidth = 1.5; g.beginPath(); g.ellipse(CX, y, r, r * 0.25, 0, front ? s0 % Math.PI : Math.PI + s0 % Math.PI, (front ? s0 % Math.PI : Math.PI + s0 % Math.PI) + 2.6); g.stroke(); } };
+  col(false);
+  items.filter((it) => it.z < 0).forEach(drawItem);
+  // 카드: 세로축 회전 (가로 폭 = cos). 뒷면이 보일 때는 뒷면 색
+  g.save(); const cx = Math.cos(yaw); const lift = swirl * 8;
+  if (q.on(2) && swirl > 0) { g.fillStyle = `rgba(0,0,0,${0.3 * swirl})`; g.beginPath(); g.ellipse(CX, card.y + card.h + 6, card.w * 0.5 * Math.max(0.2, Math.abs(cx)), 5, 0, 0, TAU); g.fill(); }
+  g.translate(CX, CY - lift); g.scale(Math.abs(cx) < 0.02 ? 0.02 : cx, 1); g.translate(-CX, -CY);
+  if (cx >= 0) draw(g, t * swirl); else { g.fillStyle = '#8b2a1e'; g.strokeStyle = '#8b5a2b'; g.lineWidth = 3; g.beginPath(); g.roundRect(card.x, card.y, card.w, card.h, 8); g.fill(); g.stroke(); g.strokeStyle = '#d8a44a'; g.lineWidth = 2; g.strokeRect(card.x + 10, card.y + 10, card.w - 20, card.h - 20); }
+  if (q.on(1)) { g.fillStyle = `rgba(255,255,255,${(1 - Math.abs(cx)) * 0.25})`; g.beginPath(); g.roundRect(card.x, card.y, card.w, card.h, 8); g.fill(); }
+  g.restore();
+  col(true);
+  items.filter((it) => it.z >= 0).forEach(drawItem);
+}
+
+// ---------- C: 만화 잉크 — 휘이잉~ 붓질 소용돌이 ----------
+const C_TXT = ['휘', '이', '잉', '~'];
+function C(g, t, q, f) {
+  bg(g, '#f3ead6');
+  const k = seg(t, 0.04, 0.85); const on = Math.sin(k * Math.PI);
+  // 카드가 바람에 흔들린다
+  g.save(); g.translate(CX, card.y + card.h); g.rotate(Math.sin(t * 30) * 0.05 * on); g.translate(-CX, -(card.y + card.h)); draw(g, t * on); g.restore();
+  if (on <= 0.01) return;
+  // 붓질 나선: 굵기가 변하는 잉크 선 여러 개
+  const n = q.n(7) < 3 ? 3 : q.n(7);
+  for (let i = 0; i < n; i++) {
+    const base = i / n * TAU + t * 9; const R0 = 60 + i * 9;
+    g.strokeStyle = '#1e140b'; g.lineCap = 'round';
+    for (let s = 0; s < 10; s++) {
+      const a0 = base + s * 0.14, a1 = a0 + 0.14; const r0 = R0 + s * 4, r1 = R0 + (s + 1) * 4;
+      g.lineWidth = Math.sin(s / 9 * Math.PI) * 3.5 * on + 0.3;
+      g.beginPath(); g.moveTo(CX + Math.cos(a0) * r0, CY + Math.sin(a0) * r0 * 0.6); g.lineTo(CX + Math.cos(a1) * r1, CY + Math.sin(a1) * r1 * 0.6); g.stroke();
+    }
+  }
+  // 낙서 카드: 바람에 돌며 판 둘레를 지나간다
+  for (let i = 0; i < q.n(8); i++) {
+    const a = i / 8 * TAU + t * 7; const R = 100 + Math.sin(i * 2.1) * 20;
+    const x = CX + Math.cos(a) * R, y = CY + Math.sin(a) * R * 0.62;
+    g.save(); g.translate(x, y); g.rotate(a * 2 + i); g.globalAlpha = on; g.fillStyle = '#fffaf0'; g.strokeStyle = '#1e140b'; g.lineWidth = 1.5; g.beginPath(); g.rect(-5, -7, 10, 14); g.fill(); g.stroke(); g.beginPath(); g.moveTo(-3, -3); g.lineTo(3, -3); g.moveTo(-3, 0); g.lineTo(2, 0); g.stroke(); g.restore();
+  }
+  g.globalAlpha = 1;
+  // 휘이잉~ : 카드 위를 크게 돌아간다
+  C_TXT.forEach((ch, i) => {
+    const pk = seg(t, 0.1 + i * 0.06, 0.24 + i * 0.06); if (pk <= 0) return;
+    const a = -2.6 + i * 0.5 + t * 1.5; const x = CX + Math.cos(a) * 112, y = CY + Math.sin(a) * 82;
+    g.save(); g.translate(x, y); g.rotate(a + Math.PI / 2); const s = ease.back(pk) * on; g.scale(s, s);
+    g.font = '800 22px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    g.lineWidth = 5; g.strokeStyle = '#1e140b'; g.strokeText(ch, 0, 0); g.fillStyle = '#9ec3c9'; g.fillText(ch, 0, 0);
+    g.restore();
+  });
+}
+
+// ---------- D: 미니멀 UI — 순환 화살표와 자리마다 −1 · +2 ----------
+function D(g, t, q) {
+  bg(g, '#1c1510'); draw(g);
+  const a = seg(t, 0, 0.1) * (1 - seg(t, 0.84, 1)); if (a <= 0) return;
+  g.save(); g.globalAlpha = a;
+  // 카드 둘레 순환 화살표 두 개
+  const rot = ease.inOut(seg(t, 0.05, 0.8)) * TAU * 1.5;
+  g.strokeStyle = '#9ec3c9'; g.lineWidth = 2.5; g.lineCap = 'round';
+  [0, Math.PI].forEach((o) => {
+    const a0 = rot + o, a1 = a0 + 2.4; g.beginPath(); g.ellipse(CX, CY, 76, 78, 0, a0, a1); g.stroke();
+    const hx = CX + Math.cos(a1) * 76, hy = CY + Math.sin(a1) * 78, ta = a1 + Math.PI / 2;
+    g.fillStyle = '#9ec3c9'; g.beginPath(); g.moveTo(hx + Math.cos(ta) * 6, hy + Math.sin(ta) * 6); g.lineTo(hx + Math.cos(ta + 2.4) * 5, hy + Math.sin(ta + 2.4) * 5); g.lineTo(hx + Math.cos(ta - 2.4) * 5, hy + Math.sin(ta - 2.4) * 5); g.closePath(); g.fill();
+  });
+  // 자리마다: 한 장이 가운데로 빠지고(−1), 두 장이 들어온다(+2)
+  SEATS.forEach((p, i) => {
+    const o1 = seg(t, 0.12 + i * 0.03, 0.32 + i * 0.03), i1 = seg(t, 0.45 + i * 0.03, 0.62 + i * 0.03);
+    g.strokeStyle = '#6d5a43'; g.lineWidth = 1.2; g.beginPath(); g.arc(p.x, p.y, 8, 0, TAU); g.stroke();
+    if (o1 > 0 && o1 < 1) { const e = ease.in(o1); g.globalAlpha = a * (1 - e); g.fillStyle = '#e85a3c'; g.fillRect(lerp(p.x, CX, e) - 2.5, lerp(p.y, CY, e) - 3.5, 5, 7); g.globalAlpha = a; }
+    for (let c = 0; c < 2; c++) { const k = seg(i1, c * 0.3, 0.7 + c * 0.3); if (k <= 0) continue; const e = ease.out(k); g.fillStyle = '#9ec3c9'; g.fillRect(lerp(CX, p.x + (c - 0.5) * 7, e) - 2.5, lerp(CY, p.y - 1, e) - 3.5, 5, 7); }
+    g.font = '600 10px sans-serif'; g.textAlign = 'center';
+    if (o1 > 0.3 && i1 <= 0) { g.fillStyle = '#e85a3c'; g.fillText('−1', p.x, p.y - 12); }
+    if (i1 > 0.5) { g.fillStyle = '#9ec3c9'; g.fillText('+2', p.x, p.y - 12); }
+  });
+  g.restore();
+}
+
+FxKit.mount({
+  kind: 'tornado', title: '토네이도 연출 시안',
+  lead: '그림 속 깔때기(끝이 왼쪽 아래)가 카드 밖으로 자라 판을 휘감고, 모두의 손패 한 장이 빨려 섞였다가 두 장씩 돌아온다. 칸을 누르면 다시.',
+  concepts: [
+    { id: 'A', name: 'A. 그림 장면 · 깔때기가 판을 휘감음', cost: 2, dur: 2000, draw: A,
+      desc: '그림 속 깔때기 끝에서 바람 기둥이 카드 밖으로 솟고, 판 크기의 바람 고리가 카드 앞뒤로 돌며 판자·흙덩이가 소용돌이치다 바깥으로 튕겨 나간다 · 저: 고리·잔해 수 줄고 흔들림 없음' },
+    { id: 'B', name: 'B. 3D 나선 · 섞였다 돌아오는 카드', cost: 3, dur: 2300, draw: B,
+      desc: '자리마다 한 장이 나선을 타고 카드 둘레를 돌며 올라가고(뒤쪽은 카드에 가림), 카드는 세로축으로 두 바퀴 돌아 뒷면이 비치며, 끝에 두 장씩 자리로 내려앉는다 · 저: 그림자·광택 없음, 바람 기둥 반만' },
+    { id: 'C', name: 'C. 만화 잉크 · 휘이잉~', cost: 1, dur: 1700, draw: C,
+      desc: '굵기가 변하는 붓질 나선이 카드를 감고, 낙서 카드가 판 둘레를 돌며, "휘이잉~"이 카드 위를 크게 돌아간다. 카드는 바닥을 축으로 흔들림 · 저: 붓질·낙서 카드 수만 줄어듦' },
+    { id: 'D', name: 'D. 미니멀 UI · −1 +2', cost: 1, dur: 1800, draw: D,
+      desc: '카드 둘레에 순환 화살표 두 개가 돌고, 자리마다 붉은 한 장이 가운데로 빠지며 −1, 이어서 푸른 두 장이 날아와 +2 · 저: 같음(원래 가벼움)' },
+  ],
+});
+</script></body></html>

@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>맥주 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389)
+  - 거품 넘치는 맥주잔: 몸통 x 95~150, y 200~262. 손잡이는 왼쪽(x≈95), 거품은 y≈190 에서 오른쪽(x≈145)으로 흘러넘친다
+  - 둥근 나무 탁자: 가운데 (130,240), 가로 x 60~225
+  - 왼쪽 뒤 의자 등받이 x 55~110, y 150~195 / 오른쪽 위 벽 빗살 x 140~230, y 85~150
+  - 동전: (80,218) (72,228) (175,250) (190,258) / 카드 두 장: (185,222) 근처
+  → 그림의 주인공은 넘치는 거품. 거품이 솟아 하트로 뭉치는 것(A), 잔 부딪힘(B), 꿀꺽 만화(C), 하트 게이지(D).
+  소리: 잔 부딪히는 '팅' + 거품 '쏴아' 짧게, 끝에 '꿀꺽' 한 번 (gen-sfx: 고음 사인 2개 + 핑크 노이즈 감쇠)
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+
+// ---- 공용 그림 ----------------------------------------------------------
+function heartPath(g, x, y, s) {
+  g.beginPath();
+  g.moveTo(x, y + 0.5 * s);
+  g.bezierCurveTo(x - 0.1 * s, y + 0.35 * s, x - 0.5 * s, y + 0.1 * s, x - 0.5 * s, y - 0.15 * s);
+  g.bezierCurveTo(x - 0.5 * s, y - 0.45 * s, x - 0.1 * s, y - 0.5 * s, x, y - 0.25 * s);
+  g.bezierCurveTo(x + 0.1 * s, y - 0.5 * s, x + 0.5 * s, y - 0.45 * s, x + 0.5 * s, y - 0.15 * s);
+  g.bezierCurveTo(x + 0.5 * s, y + 0.1 * s, x + 0.1 * s, y + 0.35 * s, x, y + 0.5 * s);
+  g.closePath();
+}
+/** 하트 곡선 위 점 (대략 -1~1) */
+const heartPt = (u) => ({ x: Math.pow(Math.sin(u), 3), y: -(13 * Math.cos(u) - 5 * Math.cos(2 * u) - 2 * Math.cos(3 * u) - Math.cos(4 * u)) / 16 });
+function plusOne(g, x, y, a, size) {
+  if (a <= 0) return;
+  g.save(); g.globalAlpha = a; g.font = `700 ${size || 14}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 3.5; g.strokeStyle = '#3a1d0e'; g.strokeText('+1', x, y); g.fillStyle = '#ffe9a8'; g.fillText('+1', x, y); g.restore();
+}
+/** 맥주잔. (cx,cy) 몸통 가운데, s 배율, foam 거품 높이(0~1 기본, 더 크면 솟음) */
+function mug(g, cx, cy, s, foam) {
+  g.save(); g.translate(cx, cy); g.scale(s, s);
+  g.lineWidth = 1.4 / Math.max(0.6, s * 0.6); g.strokeStyle = '#6e4a22';
+  g.beginPath(); g.ellipse(-11, 1, 5, 6.5, 0, 0, 7); g.stroke(); // 손잡이(왼쪽)
+  g.fillStyle = '#e2a537'; g.beginPath(); g.roundRect(-10, -9, 20, 20, 2); g.fill(); g.stroke();
+  g.fillStyle = 'rgba(255,240,190,0.55)'; g.fillRect(-6, -7, 2.5, 16); g.fillRect(1, -7, 2, 16);
+  const fh = foam == null ? 1 : foam;
+  g.fillStyle = '#fbf6ea';
+  [[-7, -10, 4.2], [-2, -11.5, 5], [4, -10.5, 4.6], [8.5, -9, 3.6]].forEach(([x, y, r]) => { g.beginPath(); g.arc(x, y - (fh - 1) * 2, r * Math.min(1.4, fh), 0, 7); g.fill(); });
+  g.beginPath(); g.ellipse(10.5, -5 + fh * 1.5, 2.2, 3.5 * fh, 0, 0, 7); g.fill(); // 오른쪽으로 흘러넘친 거품
+  g.restore();
+}
+function beerArt(g, o) {
+  o = o || {};
+  g.fillStyle = '#eadbb8'; g.fillRect(card.x, card.y, card.w, card.h);
+  g.strokeStyle = 'rgba(120,95,60,0.35)'; g.lineWidth = 1; // 벽 빗살
+  for (let i = 0; i < 6; i++) { const a = art(150 + i * 14, 85), b = art(230, 100 + i * 9); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+  const ch = art(55, 150), ch2 = art(110, 195); // 의자 등받이
+  g.strokeStyle = '#9a8a72'; g.lineWidth = 2; g.beginPath(); g.roundRect(ch.x, ch.y, ch2.x - ch.x, ch2.y - ch.y, 5); g.stroke();
+  const tc = art(132, 240); g.fillStyle = '#d6b783'; g.beginPath(); g.ellipse(tc.x, tc.y, 31, 13, 0, 0, 7); g.fill();
+  g.strokeStyle = '#a5824e'; g.lineWidth = 1; g.stroke();
+  g.fillStyle = '#c99a3a'; [[80, 218], [72, 228], [175, 250], [190, 258]].forEach(([px, py]) => { const p = art(px, py); g.beginPath(); g.ellipse(p.x, p.y, 2.6, 1.4, 0, 0, 7); g.fill(); });
+  const cc = art(188, 224); g.save(); g.translate(cc.x, cc.y); g.rotate(0.35); g.fillStyle = '#5b4632'; g.fillRect(-5, -3, 10, 6); g.restore();
+  if (!o.noMug) { const m = art(122, 232); mug(g, m.x, m.y, 1, o.foam); }
+}
+const MUG = art(122, 232);
+
+// ---- A. 거품이 솟아 하트로 ---------------------------------------------
+const FOAM = (() => { const r = rng(21); return Array.from({ length: 40 }, (_, i) => ({ dx: (r() - 0.5) * 18, rise: 0.3 + r() * 0.7, r: 3 + r() * 3.5, u: (i / 40) * Math.PI * 2 + r() * 0.1, w: r() * 6.28, d: r() * 0.08 })); })();
+const BUB = (() => { const r = rng(5); return Array.from({ length: 30 }, () => ({ x: (r() - 0.5) * 16, sp: 40 + r() * 60, d: r() * 0.4, r: 0.6 + r() * 1.4, w: r() * 6.28 })); })();
+function drawA(g, t, q) {
+  bg(g);
+  const glow = Math.sin(seg(t, 0, 0.5) * Math.PI);
+  drawCard(g, '맥주', (g) => beerArt(g, { foam: 1 + 0.5 * glow }));
+  const top = { x: MUG.x - 1, y: MUG.y - 12 };
+  const hc = { x: 150, y: 62 - 10 * ease.out(seg(t, 0.7, 1)) };
+  // 잔 속에서 올라오는 기포
+  BUB.slice(0, q.n(30)).forEach((b) => {
+    const k = seg(t, 0.05 + b.d * 0.6, 0.75); if (k <= 0 || k >= 1) return;
+    const x = top.x + b.x + Math.sin(b.w + k * 9) * 2, y = MUG.y + 8 - k * b.sp;
+    g.strokeStyle = `rgba(255,250,235,${(1 - k) * 0.9})`; g.lineWidth = 0.8; g.beginPath(); g.arc(x, y, b.r, 0, 7); g.stroke();
+  });
+  // 거품 덩어리: 솟음 → 하트 자리로 모임
+  const rise = ease.out(seg(t, 0.08, 0.42)), gather = ease.inOut(seg(t, 0.42, 0.68)), fade = seg(t, 0.7, 0.85);
+  if (t > 0.08 && fade < 1) {
+    if (q.on(1) && gather > 0.3) { const gr = g.createRadialGradient(hc.x, hc.y, 2, hc.x, hc.y, 40); gr.addColorStop(0, `rgba(255,230,160,${0.45 * gather * (1 - fade)})`); gr.addColorStop(1, 'rgba(255,230,160,0)'); g.fillStyle = gr; g.fillRect(hc.x - 40, hc.y - 40, 80, 80); }
+    FOAM.slice(0, q.n(40)).forEach((p) => {
+      const sx = top.x + p.dx + Math.sin(p.w + t * 14) * 2 * rise, sy = top.y - rise * 70 * p.rise;
+      const hp = heartPt(p.u), tx = hc.x + hp.x * 22, ty = hc.y + hp.y * 22;
+      const kk = ease.inOut(seg(t, 0.42 + p.d, 0.68 + p.d * 0.5));
+      const x = lerp(sx, tx, kk), y = lerp(sy, ty, kk);
+      g.fillStyle = `rgba(252,247,234,${1 - fade})`; g.beginPath(); g.arc(x, y, p.r * (1 - 0.35 * kk), 0, 7); g.fill();
+      if (q.on(2)) { g.strokeStyle = `rgba(200,170,110,${0.5 * (1 - fade)})`; g.lineWidth = 0.6; g.stroke(); }
+    });
+  }
+  // 흘러내리는 방울 (잔 옆)
+  const dk = seg(t, 0.25, 0.65);
+  if (dk > 0 && dk < 1) { g.fillStyle = `rgba(252,247,234,${1 - dk})`; [[-9, 0], [11, 0.15], [5, 0.3]].forEach(([dx, d]) => { const k = seg(dk, d, 1); g.beginPath(); g.ellipse(MUG.x + dx, MUG.y - 8 + k * 16, 1.6, 2.4 + k * 2, 0, 0, 7); g.fill(); }); }
+  // 하트 + +1
+  const hk = seg(t, 0.66, 0.78), out = seg(t, 0.86, 1);
+  if (hk > 0 && out < 1) {
+    const s = 34 * (0.8 + 0.25 * ease.back(hk)) * (1 + 0.2 * out);
+    g.save(); g.globalAlpha = hk * (1 - out);
+    heartPath(g, hc.x, hc.y, s); g.fillStyle = '#d8433b'; g.fill(); g.lineWidth = 2; g.strokeStyle = '#fff3d6'; g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.ellipse(hc.x - s * 0.22, hc.y - s * 0.18, s * 0.08, s * 0.05, -0.6, 0, 7); g.fill();
+    g.restore();
+    plusOne(g, hc.x + 28, hc.y - 6 - out * 8, hk * (1 - out));
+  }
+}
+
+// ---- B. 건배 (3D) ------------------------------------------------------
+const DROPS = (() => { const r = rng(77); return Array.from({ length: 46 }, () => { const a = r() * Math.PI * 2, s = 40 + r() * 90; return { vx: Math.cos(a) * s, vy: -40 - r() * 80, vz: (r() - 0.5) * 260, r: 1 + r() * 2.2 }; }); })();
+function drawB(g, t, q) {
+  bg(g);
+  const clinkT = 0.36, clink = { x: 150, y: 70 };
+  // 카드가 탁자에서 들린다: 그림자 멀어지고 위쪽이 뒤로 눕는 원근
+  const lift = Math.sin(seg(t, 0.02, 0.95) * Math.PI);
+  const cx = card.x + card.w / 2, cy = card.y + card.h / 2;
+  g.save(); g.globalAlpha = 0.45 * lift; g.fillStyle = '#120a04';
+  g.beginPath(); g.ellipse(cx + 6 * lift, cy + 10 * lift, card.w * 0.55, card.h * 0.5, 0, 0, 7); g.fill(); g.restore();
+  g.save(); g.translate(cx, card.y + card.h); g.transform(1, 0, -0.08 * lift, 1 - 0.1 * lift, 0, -8 * lift); g.scale(1 + 0.05 * lift, 1 + 0.05 * lift); g.translate(-cx, -(card.y + card.h));
+  drawCard(g, '맥주', (g) => beerArt(g, { foam: 1 + 0.6 * seg(t, clinkT, clinkT + 0.1) * (1 - seg(t, 0.6, 0.9)) }));
+  if (q.on(1)) { const gr = g.createLinearGradient(card.x, card.y, card.x, card.y + card.h); gr.addColorStop(0, `rgba(255,220,150,${0.25 * lift})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(card.x, card.y, card.w, card.h); }
+  g.restore();
+  // 거품 방울: 원근 투영, 깊이 순서로
+  const pk = seg(t, clinkT, clinkT + 0.5);
+  if (pk > 0 && pk < 1) {
+    const f = 220;
+    const list = DROPS.slice(0, q.n(46)).map((d) => { const z = d.vz * pk; const sc = f / (f + z); return { x: clink.x + d.vx * pk * sc, y: clink.y + (d.vy * pk + 160 * pk * pk) * sc, sc, r: d.r, z }; }).sort((a, b) => b.z - a.z);
+    list.forEach((p) => { g.fillStyle = `rgba(253,248,236,${(1 - pk) * Math.min(1, p.sc)})`; g.beginPath(); g.arc(p.x, p.y, Math.max(0.3, p.r * p.sc * (1.2 - pk * 0.5)), 0, 7); g.fill(); });
+  }
+  // 두 잔이 앞쪽(크게)에서 들어와 부딪힘 → 다시 앞으로 빠짐
+  const inK = ease.out(seg(t, 0.0, clinkT)), outK = ease.in(seg(t, 0.55, 0.85));
+  if (outK < 1) {
+    [-1, 1].forEach((side) => {
+      const dep = 1 - inK + outK; // 0 = 부딪는 자리, 1 = 카메라 앞
+      const recoil = Math.sin(seg(t, clinkT, clinkT + 0.12) * Math.PI) * 6;
+      const x = clink.x + side * (12 + recoil + dep * 120), y = clink.y + 6 + dep * 150, s = 1.6 + dep * 2.2;
+      g.save(); g.globalAlpha = seg(t, 0, 0.08); g.translate(x, y); g.rotate(side * (-0.35 + 0.25 * dep)); if (side > 0) g.scale(-1, 1);
+      mug(g, 0, 0, s, 1.1); g.restore();
+    });
+  }
+  // 부딪히는 순간 반짝
+  const fl = seg(t, clinkT, clinkT + 0.1);
+  if (fl > 0 && fl < 1) {
+    g.save(); if (q.on(2)) g.globalCompositeOperation = 'lighter';
+    g.strokeStyle = `rgba(255,248,215,${1 - fl})`; g.lineWidth = 2; g.lineCap = 'round';
+    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 + 0.2, r0 = 6 + fl * 10, r1 = r0 + 8 + (i % 2) * 8; g.beginPath(); g.moveTo(clink.x + Math.cos(a) * r0, clink.y + Math.sin(a) * r0); g.lineTo(clink.x + Math.cos(a) * r1, clink.y + Math.sin(a) * r1); g.stroke(); }
+    g.restore();
+  }
+  // 하트가 안쪽에서 앞으로 다가온다 (작게 → 크게)
+  const hk = seg(t, 0.5, 1);
+  if (hk > 0 && hk < 1) {
+    const sc = 0.4 + ease.out(hk) * 1.6, a = Math.min(1, hk * 4) * (1 - seg(hk, 0.65, 1));
+    g.save(); g.globalAlpha = a; heartPath(g, 150, 100 - 20 * hk, 22 * sc); g.fillStyle = '#d8433b'; g.fill(); g.lineWidth = 2; g.strokeStyle = '#fff3d6'; g.stroke(); g.restore();
+    plusOne(g, 150, 100 - 20 * hk + 2, a, 10 + 6 * sc);
+  }
+}
+
+// ---- C. 만화 꿀꺽! -----------------------------------------------------
+function drawC(g, t, q) {
+  bg(g, '#3a2816');
+  const pop = seg(t, 0, 0.25);
+  const sy = pop < 1 ? 1 + Math.sin(pop * Math.PI * 2) * 0.08 * (1 - pop) : 1;
+  const cx = card.x + card.w / 2, by = card.y + card.h;
+  // 집중선
+  const lk = seg(t, 0.04, 0.5);
+  if (lk > 0 && lk < 1) {
+    g.strokeStyle = `rgba(250,236,200,${(1 - lk) * 0.85})`; g.lineCap = 'round';
+    const n = q.n(28);
+    for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 + 0.13 * (i % 3), r0 = 78 + lk * 20 + (i % 4) * 6, r1 = r0 + 18 + (i % 5) * 6; g.lineWidth = 1 + (i % 3); g.beginPath(); g.moveTo(cx + Math.cos(a) * r0 * 1.2, 105 + Math.sin(a) * r0 * 0.75); g.lineTo(cx + Math.cos(a) * r1 * 1.2, 105 + Math.sin(a) * r1 * 0.75); g.stroke(); }
+  }
+  g.save(); g.translate(cx, by); g.scale(2 - sy, sy); g.translate(-cx, -by);
+  drawCard(g, '맥주', (g) => beerArt(g, { foam: 1 + 0.4 * Math.sin(seg(t, 0.05, 0.5) * Math.PI) }));
+  g.restore();
+  // 망점 거품 (중 이상)
+  if (q.on(1)) {
+    const fk = seg(t, 0.08, 0.6);
+    if (fk > 0 && fk < 1) { g.fillStyle = `rgba(255,252,240,${1 - fk})`; for (let i = 0; i < 18; i++) { const a = -Math.PI / 2 + (i - 9) * 0.16, d = 10 + fk * (30 + (i % 4) * 8); g.beginPath(); g.arc(MUG.x + Math.cos(a) * d, MUG.y - 12 + Math.sin(a) * d, 2.4 - (i % 3) * 0.5, 0, 7); g.fill(); } }
+  }
+  // 꿀꺽!
+  const wk = seg(t, 0.08, 0.7);
+  if (wk > 0 && wk < 1) {
+    const s = wk < 0.15 ? 0.4 + ease.back(wk / 0.15) * 0.6 : 1, a = 1 - seg(wk, 0.75, 1);
+    g.save(); g.globalAlpha = a; g.translate(68, 72); g.rotate(-0.22); g.scale(s, s);
+    g.font = '900 26px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    g.lineWidth = 7; g.strokeStyle = '#1e140b'; g.strokeText('꿀꺽!', 0, 0); g.fillStyle = '#ffd34d'; g.fillText('꿀꺽!', 0, 0);
+    g.restore();
+  }
+  // 잉크 하트 도장
+  const hk = seg(t, 0.32, 0.5), out = seg(t, 0.82, 1);
+  if (hk > 0 && out < 1) {
+    const s = 40 * (hk < 1 ? 1.6 - 0.6 * ease.back(hk) : 1);
+    g.save(); g.globalAlpha = 1 - out; g.translate(214, 68 - out * 10); g.rotate(0.15);
+    heartPath(g, 0, 0, s); g.fillStyle = '#e04a3a'; g.fill(); g.lineJoin = 'round'; g.lineWidth = 4; g.strokeStyle = '#1e140b'; g.stroke();
+    g.fillStyle = '#fff'; g.beginPath(); g.ellipse(-s * 0.2, -s * 0.18, s * 0.07, s * 0.045, -0.6, 0, 7); g.fill();
+    g.font = '900 16px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 4; g.strokeStyle = '#1e140b'; g.strokeText('+1', s * 0.55, s * 0.4); g.fillStyle = '#fff'; g.fillText('+1', s * 0.55, s * 0.4);
+    g.restore();
+    if (hk >= 1 && t < 0.62) { const k = seg(t, 0.5, 0.62); g.strokeStyle = `rgba(30,20,11,${1 - k})`; g.lineWidth = 2; for (let i = 0; i < 6; i++) { const a = i * 1.05, r0 = 26 + k * 10; g.beginPath(); g.moveTo(214 + Math.cos(a) * r0, 68 + Math.sin(a) * r0); g.lineTo(214 + Math.cos(a) * (r0 + 6), 68 + Math.sin(a) * (r0 + 6)); g.stroke(); } }
+  }
+}
+
+// ---- D. 하트 잔 채우기 (미니멀) ----------------------------------------
+const DBUB = (() => { const r = rng(9); return Array.from({ length: 16 }, () => ({ x: (r() - 0.5) * 36, sp: 0.6 + r() * 0.8, d: r() })); })();
+function drawD(g, t, q) {
+  bg(g);
+  drawCard(g, '맥주', (g) => beerArt(g));
+  const inK = ease.out(seg(t, 0, 0.15)), outK = ease.in(seg(t, 0.8, 1));
+  if (outK >= 1) return;
+  // 카드를 살짝 어둡게 덮어 하트를 띄운다
+  g.fillStyle = `rgba(20,12,6,${0.45 * inK * (1 - outK)})`; g.beginPath(); g.roundRect(card.x, card.y, card.w, card.h, 8); g.fill();
+  const cx = 150, cy = 100 + outK * 20, s = 60 * (0.85 + 0.15 * inK) * (1 - 0.6 * outK);
+  const fill = ease.inOut(seg(t, 0.12, 0.6));
+  g.save(); g.globalAlpha = inK * (1 - outK);
+  heartPath(g, cx, cy, s); g.save(); g.clip();
+  const top = cy + s * 0.5 - fill * s * 1.02, waveA = 2.2 * (1 - seg(t, 0.55, 0.7));
+  g.beginPath(); g.moveTo(cx - s, cy + s);
+  for (let x = -s; x <= s; x += 4) g.lineTo(cx + x, top + Math.sin(x * 0.18 + t * 30) * waveA);
+  g.lineTo(cx + s, cy + s); g.closePath();
+  if (q.on(1)) { const gr = g.createLinearGradient(0, top, 0, cy + s * 0.5); gr.addColorStop(0, '#f6c04e'); gr.addColorStop(1, '#c97a1c'); g.fillStyle = gr; } else g.fillStyle = '#e2a537';
+  g.fill();
+  DBUB.slice(0, q.n(16)).forEach((b) => { const k = ((t * 3 * b.sp + b.d) % 1); const y = cy + s * 0.5 - k * (cy + s * 0.5 - top); if (y < top + 2) return; g.fillStyle = 'rgba(255,245,210,0.7)'; g.beginPath(); g.arc(cx + b.x * (s / 60), y, 1.1, 0, 7); g.fill(); });
+  const cap = seg(t, 0.52, 0.64); // 거품 머리
+  if (cap > 0) { g.fillStyle = '#fbf6ea'; for (let i = -3; i <= 3; i++) { g.beginPath(); g.arc(cx + i * s * 0.14, top + 1, s * 0.09 * cap, 0, 7); g.fill(); } }
+  g.restore();
+  const full = seg(t, 0.6, 0.72), pulse = Math.sin(full * Math.PI);
+  heartPath(g, cx, cy, s * (1 + 0.08 * pulse)); g.lineWidth = 2.5; g.strokeStyle = full > 0 ? `rgb(${Math.round(lerp(251, 230, full))},${Math.round(lerp(240, 80, full))},${Math.round(lerp(220, 60, full))})` : '#fbf0dc'; g.stroke();
+  g.restore();
+  // +1 알약
+  const pk = seg(t, 0.62, 0.74);
+  if (pk > 0) {
+    const a = pk * (1 - outK), y = cy + s * 0.62 + 6;
+    g.save(); g.globalAlpha = a; g.fillStyle = '#d8433b'; g.beginPath(); g.roundRect(cx - 18, y - 9, 36, 18, 9); g.fill();
+    g.fillStyle = '#fff6e0'; g.font = '700 12px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('+1', cx, y + 0.5); g.restore();
+  }
+}
+
+FxKit.mount({
+  kind: 'beer', title: '맥주 연출 시안',
+  lead: '목숨 1 회복. 그림 속 넘치는 거품이 주인공이다. 칸을 누르면 다시 본다.',
+  concepts: [
+    { id: 'A', name: 'A. 거품이 하트로', cost: 2, dur: 1800, draw: drawA,
+      desc: '잔에서 거품이 솟아오르고 기포가 오르다가, 거품 덩어리가 위에서 하트 모양으로 뭉쳐 붉은 하트 +1 이 된다 · 저: 거품 덩어리·기포 수 1/4, 뒤 후광 없음' },
+    { id: 'B', name: 'B. 건배 (3D)', cost: 3, dur: 1700, draw: drawB,
+      desc: '카드가 탁자에서 들려 뒤로 눕고, 화면 앞쪽에서 큰 잔 둘이 날아와 카드 위에서 팅 부딪힌다. 거품 방울이 원근을 따라 흩어지고 하트가 앞으로 다가온다 · 저: 방울 1/4, 카드 빛·반짝 합성 없음' },
+    { id: 'C', name: 'C. 만화 꿀꺽!', cost: 1, dur: 1400, draw: drawC,
+      desc: '카드가 통통 튀며 집중선이 퍼지고, 손글씨 "꿀꺽!" 과 검은 테두리 하트 도장 +1 이 쾅 찍힌다 · 저: 집중선 1/4, 망점 거품 없음' },
+    { id: 'D', name: 'D. 하트 잔 채우기', cost: 1, dur: 1500, draw: drawD,
+      desc: '카드 위에 하트 윤곽이 뜨고 그 속이 맥주로 출렁이며 차오른다. 거품 머리가 얹히면 하트가 붉게 맥박 치고 +1 알약이 붙는다 · 저: 단색 맥주, 기포 1/4' },
+  ],
+});
+</script></body></html>

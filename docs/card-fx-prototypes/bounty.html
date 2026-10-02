@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>포상금 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389 기준)
+  - 그림 칸: x 38~212, y 85~258. 크림색 바탕
+  - 오른쪽 위에서 검은 양복 소매 + 흰 소맷부리 손 (≈178,100) 이 돈자루 목을 쥐고 있다
+  - 돈자루: 묶은 목 (126,118), 몸통 가운데 (115,175) 반지름 ≈48, 한가운데 '$'
+  - 아래 왼쪽에서 펼친 손바닥 (112,240) 이 자루를 받으려 한다
+  노린 것: 자루를 건네는 순간(A), 수배 전단이 핀으로 박혔다가 받는 사람에게 붙는 것(B), 금화 비(C), 조준선·보상 표시(D).
+  포상금은 남 앞에 놓는 카드라 B 는 전단이 좌석 표식으로 날아가 붙는다.
+  소리: A·C 는 동전 '짤랑'(고음 사인 몇 개 + 빠른 감쇠, 무작위 간격), B 는 종이 '팍' + 핀 '틱', D 는 조준 '삑'.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const CX = card.x + card.w / 2, CY = card.y + card.h / 2, S = card.w / 250;
+
+function plane(g, o, draw) {
+  const f = 360, cz = Math.cos(o.rz || 0), sz = Math.sin(o.rz || 0), cx = Math.cos(o.rx || 0), sx = Math.sin(o.rx || 0), cy = Math.cos(o.ry || 0), sy = Math.sin(o.ry || 0);
+  const pt = (x, y) => { const X = x * cz - y * sz, Y = x * sz + y * cz; const Y1 = Y * cx, Z1 = Y * sx; const X2 = X * cy + Z1 * sy, Z2 = -X * sy + Z1 * cy; const s = f / Math.max(40, f + Z2 + (o.z || 0)); return { x: o.x + X2 * s, y: o.y + Y1 * s }; };
+  const a = pt(-o.w / 2, -o.h / 2), b = pt(o.w / 2, -o.h / 2), c = pt(-o.w / 2, o.h / 2);
+  const A = (b.x - a.x) / o.w, B = (b.y - a.y) / o.w, C = (c.x - a.x) / o.h, D = (c.y - a.y) / o.h;
+  const front = A * D - B * C > 0;
+  if (draw) { g.save(); g.transform(A, B, C, D, a.x + A * o.w / 2 + C * o.h / 2, a.y + B * o.w / 2 + D * o.h / 2); draw(front); g.restore(); }
+  return { pt, front };
+}
+function seat(g, x, y, a, ring) {
+  if (a <= 0) return;
+  g.save(); g.globalAlpha *= a;
+  g.fillStyle = '#3a2a1a'; g.strokeStyle = '#c8902f'; g.lineWidth = 1.5;
+  g.beginPath(); g.arc(x, y, 11, 0, 7); g.fill(); g.stroke();
+  g.fillStyle = '#b39b74'; g.beginPath(); g.arc(x, y - 3, 3.4, 0, 7); g.fill();
+  g.beginPath(); g.ellipse(x, y + 6, 6, 4, 0, Math.PI, 0); g.fill();
+  if (ring > 0 && ring < 1) { g.strokeStyle = `rgba(242,193,78,${1 - ring})`; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 11 + ring * 16, 0, 7); g.stroke(); }
+  g.restore();
+}
+
+// ----- 그림 흉내 -----
+/** 돈자루 (원본 좌표 기준 가운데 (115,175)). dy 원본 px, sq 찌그러짐 */
+function bag(g, dy, sq) {
+  const c = art(115, 175 + dy), r = 48 * S;
+  g.save(); g.translate(c.x, c.y + r * (1 - sq)); g.scale(1 + (1 - sq) * 0.6, sq); g.translate(-c.x, -c.y - r * (1 - sq));
+  g.fillStyle = '#c9a46a'; g.strokeStyle = '#7a5a30'; g.lineWidth = 1;
+  g.beginPath(); g.ellipse(c.x, c.y, r * 0.95, r, 0, 0, 7); g.fill(); g.stroke();
+  const n = art(126, 118 + dy);
+  g.beginPath(); g.moveTo(c.x - r * 0.35, c.y - r * 0.8); g.lineTo(n.x - 5 * S, n.y); g.lineTo(n.x + 9 * S, n.y - 2 * S); g.lineTo(c.x + r * 0.45, c.y - r * 0.8); g.fill(); g.stroke();
+  g.fillStyle = '#6b4a2f'; g.fillRect(n.x - 8 * S, n.y + 8 * S, 18 * S, 4 * S);
+  g.fillStyle = '#3b2a12'; g.font = `700 ${Math.round(r * 0.9)}px serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('$', c.x, c.y + 2);
+  g.restore();
+}
+function bountyArt(o) {
+  o = o || {};
+  return (g) => {
+    const a = art(38, 85), b = art(212, 258);
+    g.fillStyle = '#f1e6c9'; g.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    const hy = o.handDy || 0;
+    const poly = (pts, c, dy) => { g.fillStyle = c; g.beginPath(); pts.forEach(([x, y], i) => { const p = art(x, y + (dy || 0)); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.fill(); };
+    poly([[250, 70], [212, 76], [196, 104], [208, 126], [250, 120]], '#2c2f3a', hy);
+    poly([[200, 96], [210, 92], [214, 118], [204, 122]], '#f4f1ea', hy);
+    const hp = art(182, 104 + hy); g.fillStyle = '#e1b48f'; g.beginPath(); g.ellipse(hp.x, hp.y, 16 * S, 12 * S, -0.3, 0, 7); g.fill();
+    poly([[38, 258], [38, 236], [80, 240], [92, 258]], '#2c2f3a');
+    const lp = art(112, 242); g.fillStyle = '#e1b48f'; g.beginPath(); g.ellipse(lp.x, lp.y, 30 * S, 9 * S, -0.15, 0, 7); g.fill();
+    for (let i = 0; i < 4; i++) { const f = art(128 + i * 8, 232 - i * 2); g.beginPath(); g.ellipse(f.x, f.y, 3 * S, 9 * S, 0.5, 0, 7); g.fill(); }
+    bag(g, o.bagDy || 0, o.sq || 1);
+  };
+}
+const TITLE = '포상금';
+
+const POP = (() => { const r = rng(41); return Array.from({ length: 8 }, () => ({ vx: (r() - 0.5) * 90, vy: -50 - r() * 40, sp: r() * 10 })); })();
+const RAIN = (() => { const r = rng(43); return Array.from({ length: 44 }, () => ({ x: 20 + r() * 260, y0: -20 - r() * 70, b: r() * 0.4, sp: 6 + r() * 10, floor: 184 + r() * 18, front: r() > 0.5, glint: r() > 0.7, ph: r() * 6 })); })();
+
+function coin(g, x, y, r, spin, a, grad) {
+  const w = Math.abs(Math.cos(spin)) * r + 0.6;
+  g.save(); g.globalAlpha *= a;
+  g.fillStyle = '#9a7020'; g.beginPath(); g.ellipse(x + 0.8, y, w, r, 0, 0, 7); g.fill();
+  if (grad) { const gr = g.createLinearGradient(x - w, y - r, x + w, y + r); gr.addColorStop(0, '#fff1b0'); gr.addColorStop(0.5, '#e2b23e'); gr.addColorStop(1, '#a67a1c'); g.fillStyle = gr; } else g.fillStyle = '#e2b23e';
+  g.beginPath(); g.ellipse(x, y, w, r, 0, 0, 7); g.fill();
+  if (w > r * 0.5) { g.fillStyle = 'rgba(122,84,20,0.7)'; g.font = `700 ${Math.round(r * 1.3)}px serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.save(); g.translate(x, y); g.scale(w / r, 1); g.fillText('$', 0, 0.5); g.restore(); }
+  g.restore();
+}
+function glint(g, x, y, s, a) {
+  g.save(); g.globalAlpha *= a; g.fillStyle = '#fff8dc'; g.beginPath();
+  g.moveTo(x, y - s); g.lineTo(x + s * 0.2, y - s * 0.2); g.lineTo(x + s, y); g.lineTo(x + s * 0.2, y + s * 0.2); g.lineTo(x, y + s); g.lineTo(x - s * 0.2, y + s * 0.2); g.lineTo(x - s, y); g.lineTo(x - s * 0.2, y - s * 0.2); g.fill(); g.restore();
+}
+/** 수배 전단 (가운데 기준 60×78) */
+function poster(g) {
+  const w = 60, h = 78;
+  g.fillStyle = '#e8d6a8'; g.strokeStyle = '#6b4a2f'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(-w / 2, -h / 2); g.lineTo(w / 2, -h / 2 + 1); g.lineTo(w / 2 - 1, h / 2); g.lineTo(-w / 2 + 2, h / 2 - 1); g.closePath(); g.fill(); g.stroke();
+  g.fillStyle = '#3b2a12'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = '900 13px serif'; g.fillText('수 배', 0, -h / 2 + 11);
+  g.fillStyle = '#8a6a44'; g.beginPath(); g.arc(0, -6, 9, 0, 7); g.fill(); g.beginPath(); g.ellipse(0, 12, 15, 9, 0, Math.PI, 0); g.fill();
+  g.fillStyle = '#3b2a12'; g.font = '700 9px sans-serif'; g.fillText('포상금', 0, h / 2 - 18); g.font = '900 12px serif'; g.fillText('$ 500', 0, h / 2 - 7);
+}
+
+FxKit.mount({
+  kind: 'bounty',
+  title: '포상금 연출 시안',
+  lead: '현상금이 걸린다. 남 앞에 놓는 카드라 B 는 수배 전단이 받는 사람 좌석으로 날아가 붙는다. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 돈자루 건네기 (그림 조각)', cost: 1, dur: 1500,
+      desc: '그림 속 손이 쥔 돈자루를 놓아 아래 손바닥으로 툭 떨어지고, 찌그러지며 금화 몇 닢이 튀어 반짝인다 · 저: 금화 둘, 광택 없음',
+      draw(g, t, q) {
+        bg(g);
+        const drop = ease.in(seg(t, 0.12, 0.32));
+        const bagDy = lerp(-26, 0, drop);
+        const sqk = seg(t, 0.32, 0.5); const sq = 1 - Math.sin(sqk * Math.PI) * 0.14 * (1 - sqk * 0.5);
+        const handDy = -8 * ease.out(seg(t, 0.14, 0.3)) * (1 - ease.inOut(seg(t, 0.5, 0.85)));
+        drawCard(g, TITLE, bountyArt({ bagDy, sq, handDy }));
+        const k = seg(t, 0.33, 0.85);
+        if (k > 0 && k < 1) {
+          const top = art(124, 128); const n = q.n(POP.length);
+          for (let i = 0; i < n; i++) { const p = POP[i]; const x = top.x + p.vx * k, y = top.y + p.vy * k + 160 * k * k; coin(g, x, y, 4.5, p.sp + k * 14, 1 - seg(k, 0.7, 1), q.on(1)); if (q.on(1) && i % 3 === 0) glint(g, x + 2, y - 3, 4 * Math.sin(k * Math.PI), 1 - k); }
+          g.save(); g.globalAlpha = Math.sin(seg(t, 0.32, 0.7) * Math.PI); g.font = '700 12px sans-serif'; g.fillStyle = '#f2c14e'; g.textAlign = 'left'; g.fillText('짤랑', card.x + card.w + 8, card.y + card.h - 26); g.restore();
+        }
+      },
+    },
+    {
+      id: 'B', name: 'B. 수배 전단 핀 (3D)', cost: 2, dur: 2000,
+      desc: '먼 데서 빙글 돌며 날아온 수배 전단이 카드에 철썩 붙고 핀이 앞에서 박힌다. 전단이 떨어져 나가 받는 사람 좌석에 붙는다 · 저: 그림자·펄럭임 없이',
+      draw(g, t, q, f) {
+        bg(g);
+        drawCard(g, TITLE, bountyArt());
+        const sx = 272, sy = 44;
+        seat(g, sx, sy, seg(t, 0.5, 0.6) * (1 - seg(t, 0.94, 1)), seg(t, 0.84, 0.98));
+        const inK = ease.out(seg(t, 0, 0.28));
+        const slap = seg(t, 0.28, 0.36);
+        const fly = ease.inOut(seg(t, 0.64, 0.86));
+        const flutter = q.on(1) ? Math.sin(f * 0.5) * 0.08 * seg(t, 0.36, 0.5) * (1 - seg(t, 0.6, 0.64)) : 0;
+        const px = lerp(lerp(30, CX, inK), sx, fly), py = lerp(lerp(20, CY - 6, inK), sy, fly) - Math.sin(fly * Math.PI) * 24;
+        const o = { x: px, y: py, w: 60, h: 78, rx: (1 - inK) * 1.2 + flutter + fly * 0.6, ry: (1 - inK) * -Math.PI * 2 + fly * 0.8, rz: lerp(0.5, -0.06, inK) + fly * 0.8, z: lerp(700, 0, inK) - Math.sin(slap * Math.PI) * 20 + fly * 300 };
+        const vis = 1 - seg(t, 0.86, 0.92);
+        if (t > 0 && vis > 0) {
+          if (q.on(1) && t > 0.2 && fly < 1) { g.save(); g.globalAlpha = 0.3 * inK * vis * (1 - fly); g.fillStyle = '#000'; if (q.on(2)) { g.shadowColor = '#000'; g.shadowBlur = 6; } g.beginPath(); g.roundRect(px - 27 + 3, py - 37 + 4 + fly * 10, 56, 76, 2); g.fill(); g.restore(); }
+          g.save(); g.globalAlpha = vis; const pl = plane(g, o, () => poster(g));
+          // 핀
+          const pin = seg(t, 0.36, 0.46);
+          if (pin > 0) {
+            const head = pl.pt(0, -30); const s = lerp(3, 1, ease.in(pin));
+            g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.arc(head.x + 1.5 * s, head.y + 2 * s, 3.4 * s, 0, 7); g.fill();
+            g.fillStyle = '#c0392b'; g.strokeStyle = '#5a1a12'; g.lineWidth = 1; g.beginPath(); g.arc(head.x, head.y, 3.4 * s, 0, 7); g.fill(); g.stroke();
+            g.fillStyle = '#f08070'; g.beginPath(); g.arc(head.x - s, head.y - s, 1.1 * s, 0, 7); g.fill();
+          }
+          g.restore();
+        }
+        if (slap > 0 && slap < 1) { g.strokeStyle = `rgba(243,231,206,${1 - slap})`; g.lineWidth = 1.5; for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; const r0 = 44 + slap * 14; g.beginPath(); g.moveTo(CX + Math.cos(a) * r0, CY + Math.sin(a) * r0 * 1.2); g.lineTo(CX + Math.cos(a) * (r0 + 8), CY + Math.sin(a) * (r0 + 8) * 1.2); g.stroke(); } }
+        const tk = seg(t, 0.4, 0.58);
+        if (tk > 0 && tk < 1) { g.save(); g.globalAlpha = 1 - tk; g.font = '700 14px sans-serif'; g.fillStyle = '#f2c14e'; g.strokeStyle = '#1e140b'; g.lineWidth = 4; g.textAlign = 'center'; g.strokeText('탁!', CX + 46, CY - 46); g.fillText('탁!', CX + 46, CY - 46); g.restore(); }
+      },
+    },
+    {
+      id: 'C', name: 'C. 금화 비 (사실풍 입자)', cost: 3, dur: 1800,
+      desc: '금화가 판 위로 쏟아져 팽글팽글 돌며 떨어지고 테이블에 튕긴다. 일부는 카드 앞, 일부는 뒤. 반짝임이 스친다 · 저: 금화 11닢, 광택·반짝임 없음',
+      draw(g, t, q, f) {
+        bg(g);
+        const fade = 1 - seg(t, 0.8, 1);
+        const n = q.n(RAIN.length);
+        const pos = (c) => {
+          const k = t - c.b; if (k <= 0) return null;
+          const fallT = 0.32; let y, bounced = false;
+          if (k < fallT) y = c.y0 + (c.floor - c.y0) * (k / fallT) * (k / fallT);
+          else { const bk = seg(k, fallT, fallT + 0.14); y = c.floor - Math.sin(bk * Math.PI) * 10; bounced = true; }
+          return { x: c.x + (bounced ? seg(k, fallT, fallT + 0.2) * 6 : 0), y, spin: c.ph + (bounced ? c.sp * fallT + seg(k, fallT, fallT + 0.4) * 3 : c.sp * k) };
+        };
+        const layer = (front) => {
+          for (let i = 0; i < n; i++) { const c = RAIN[i]; if (c.front !== front) continue; const p = pos(c); if (!p) continue; const r = front ? 5.5 : 4; const yy = front ? p.y : p.y - 12; coin(g, p.x, yy, r, p.spin, fade, q.on(1)); if (q.on(1) && c.glint) { const gk = Math.sin((t * 6 + c.ph) * Math.PI); if (gk > 0.6) { g.save(); if (q.on(2)) g.globalCompositeOperation = 'lighter'; glint(g, p.x + 2, yy - 3, 5 * (gk - 0.6) * 2.5, fade); g.restore(); } } }
+        };
+        layer(false);
+        drawCard(g, TITLE, bountyArt());
+        layer(true);
+      },
+    },
+    {
+      id: 'D', name: 'D. 조준선 표식 (미니멀 UI)', cost: 1, dur: 1500,
+      desc: '붉은 조준 원이 좁혀 들어와 모서리 괄호가 카드에 딱 물리고, 아래에 "뱅!에 맞히면 쏜 사람 +1장" 칩 · 저: 차이 없음',
+      draw(g, t) {
+        bg(g);
+        drawCard(g, TITLE, bountyArt());
+        const env = 1 - seg(t, 0.78, 1);
+        if (env <= 0) return;
+        const k = ease.out(seg(t, 0, 0.3));
+        const R = lerp(140, 82, k);
+        g.save(); g.globalAlpha = env * seg(t, 0, 0.08);
+        g.strokeStyle = '#d0643a'; g.lineWidth = 1.5;
+        g.beginPath(); g.arc(CX, CY, R, 0, 7); g.stroke();
+        g.setLineDash([4, 5]); g.beginPath(); g.arc(CX, CY, R - 8, k * 2, k * 2 + 7); g.stroke(); g.setLineDash([]);
+        [[0, -1], [0, 1], [-1, 0], [1, 0]].forEach(([dx, dy]) => { g.beginPath(); g.moveTo(CX + dx * (R + 10), CY + dy * (R + 10)); g.lineTo(CX + dx * (R - 14), CY + dy * (R - 14)); g.stroke(); });
+        const lock = ease.back(seg(t, 0.26, 0.38)), off = lerp(16, 3, lock), L = 14;
+        if (lock > 0) {
+          g.lineWidth = 3; g.globalAlpha = env * Math.min(1, lock * 2);
+          [[card.x, card.y, 1, 1], [card.x + card.w, card.y, -1, 1], [card.x, card.y + card.h, 1, -1], [card.x + card.w, card.y + card.h, -1, -1]].forEach(([x, y, sx, sy]) => { const X = x - sx * off, Y = y - sy * off; g.beginPath(); g.moveTo(X, Y + sy * L); g.lineTo(X, Y); g.lineTo(X + sx * L, Y); g.stroke(); });
+        }
+        const chip = seg(t, 0.36, 0.48);
+        if (chip > 0) {
+          g.globalAlpha = env * chip; const y = lerp(196, 190, ease.out(chip));
+          g.fillStyle = 'rgba(27,18,11,0.9)'; g.beginPath(); g.roundRect(CX - 78, y - 9, 156, 18, 9); g.fill();
+          g.fillStyle = '#f3e7ce'; g.font = '500 10.5px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('뱅!에 맞히면 쏜 사람 +1장', CX, y + 0.5);
+          g.fillStyle = '#d0643a'; g.font = '700 11px sans-serif'; g.fillText('포상금', CX, 20);
+        }
+        g.restore();
+      },
+    },
+  ],
+});
+</script></body></html>

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>윈체스터 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389): 레버액션 소총이 오른쪽 아래 개머리판 → 왼쪽 위 총구로 길게 놓였다.
+  총구 (46,94) · 총열과 아래 탄창관 (42~138, 93~178) · 은색 기관부 (126~154, 166~206, 탄피 나오는 구멍 136,172)
+  · 레버 고리 (145,207), 레버 축 (142,198) · 개머리판 (148~206, 204~268) · 사정거리 동그라미 "5" (125,308)
+  노린 것: 가장 멀리 쏘는 총. 레버를 젖혀 탄피를 튕겨 내는 "착-착" 리듬과, 지평선 끝까지 닿는 조준·고리.
+  소리: 레버 '착'(아래) '칵'(위) 두 번, 탄피가 바닥에 '팅그르'. 조준경 시안은 낮은 바람 소리 + 고정될 때 '틱'.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+
+const BLUE = '#2f4c80';
+const P = (g, pts) => { g.beginPath(); pts.forEach(([x, y], i) => { const p = art(x, y); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); };
+const rotAt = (g, px, py, a) => { const p = art(px, py); g.translate(p.x, p.y); g.rotate(a); g.translate(-p.x, -p.y); };
+const clipCard = (g) => { g.beginPath(); g.rect(card.x + 2, card.y + 22, card.w - 4, card.h - 24); g.clip(); };
+function badge(g, n) {
+  const c = art(125, 308);
+  g.strokeStyle = '#2a1c10'; g.lineWidth = 1; g.beginPath(); g.arc(c.x, c.y, 8.5, 0, 7); g.stroke();
+  g.beginPath(); g.moveTo(c.x - 11, c.y); g.lineTo(c.x + 11, c.y); g.stroke();
+  g.fillStyle = '#2a1c10'; g.font = '600 11px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(n, c.x, c.y + 0.5); g.textBaseline = 'alphabetic';
+}
+const _img = {};
+function cardImg(key, fn) { if (_img[key]) return _img[key]; const c = document.createElement('canvas'); c.width = W * 2; c.height = H * 2; const x = c.getContext('2d'); x.setTransform(2, 0, 0, 2, 0, 0); fn(x); return (_img[key] = c); }
+
+// 윈체스터 (원본 좌표)
+const BARREL = [[42, 93], [50, 95], [138, 170], [132, 178]];
+const RECV = [[126, 166], [142, 168], [154, 196], [144, 206], [132, 200]];
+const STOCK = [[148, 204], [162, 206], [206, 252], [204, 268], [180, 262], [152, 226]];
+const LPIV = [142, 198], MZ = [46, 94], PORT = [138, 172];
+function lever(g, a) {
+  g.save(); rotAt(g, LPIV[0], LPIV[1], a || 0);
+  const p0 = art(...LPIV), p1 = art(150, 218), c = art(146, 210);
+  g.strokeStyle = '#1e140b'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(p0.x, p0.y); g.lineTo(p1.x, p1.y); g.stroke();
+  g.beginPath(); g.ellipse(c.x, c.y, 2.6, 3.4, -0.5, 0, 7); g.stroke(); g.restore();
+}
+function rifle(g, o) {
+  o = o || {};
+  g.fillStyle = '#1e140b'; P(g, BARREL); g.fill(); P(g, STOCK); g.fill();
+  const a = art(48, 100), b = art(128, 174); g.strokeStyle = '#1e140b'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+  g.fillStyle = '#d9cbb0'; P(g, RECV); g.fill(); g.strokeStyle = '#1e140b'; g.lineWidth = 0.8; g.stroke();
+  lever(g, o.lever);
+  g.strokeStyle = '#efe2c6'; g.lineWidth = 0.5; const s0 = art(165, 214), s1 = art(198, 250); g.beginPath(); g.moveTo(s0.x, s0.y); g.lineTo(s1.x, s1.y); g.stroke();
+}
+const face = (g) => drawCard(g, '윈체스터', (x) => { rifle(x); badge(x, '5'); }, { band: BLUE });
+const faceO = (o) => (g) => drawCard(g, '윈체스터', (x) => { rifle(x, o); badge(x, '5'); }, { band: BLUE });
+const M = art(...MZ), RC = art(140, 186);
+const AIM = Math.atan2(M.y - RC.y, M.x - RC.x);
+
+function shell(g, x, y, a) { g.save(); g.translate(x, y); g.rotate(a); g.fillStyle = '#d2a447'; g.fillRect(-3.5, -1.3, 7, 2.6); g.fillStyle = '#8e6a2a'; g.fillRect(-3.5, -1.6, 1, 3.2); g.restore(); }
+// A 레버 두 번
+const CYC = [0.08, 0.36];
+// C 고리 5개, 먼지
+const RINGS = [0, 1, 2, 3, 4].map((i) => ({ rx: 34 + i * 30, d: 0.3 + i * 0.07 }));
+const MOTES = (() => { const r = rng(51); return Array.from({ length: 36 }, () => ({ a: r() * 6.283, rr: 0.2 + r() * 1.1, up: 10 + r() * 50, z: r(), d: r() * 0.3 })); })();
+// D 필름 입자
+const GRAIN = (() => { const r = rng(61); return Array.from({ length: 260 }, () => [r() * W, r() * H, r() > 0.6]); })();
+
+FxKit.mount({
+  kind: 'winchester', title: '윈체스터 연출 시안',
+  lead: '윈체스터(사정거리 5, 가장 멀리) 장착. 레버액션 리듬과 "지평선 끝까지" 를 보여 준다. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 레버 착-착, 탄피 튕기기', cost: 2, dur: 1700,
+      desc: '그림 속 레버가 아래로 젖혀졌다 올라오기를 두 번, 그때마다 놋쇠 탄피가 돌며 튀어 카드 밖으로 떨어지고 연기 한 줄. 끝에 총열을 타고 총구까지 빛 · 저: 연기·반짝 없이 레버와 탄피만',
+      draw(g, t, q) {
+        bg(g);
+        let lv = 0, nudge = 0;
+        CYC.forEach((c) => { const k = seg(t, c, c + 0.22); if (k > 0 && k < 1) { lv = Math.sin(k * Math.PI) * 0.95; nudge = Math.sin(k * Math.PI * 2) * 0.6; } });
+        g.save(); g.translate(nudge, -Math.abs(nudge) * 0.5);
+        faceO({ lever: lv })(g);
+        g.restore();
+        const port = art(...PORT);
+        CYC.forEach((c, i) => {
+          const k = seg(t, c + 0.09, c + 0.5); if (k <= 0 || k >= 1) return;
+          const T = k * 0.9, vx = 46 + i * 14, vy = -92 + i * 10, x = port.x + vx * T, y = port.y + vy * T + 200 * T * T;
+          shell(g, x, y, k * (12 + i * 3));
+          if (q.on(1)) { const s = seg(k, 0, 0.5); if (s < 1) { g.strokeStyle = `rgba(200,190,175,${(1 - s) * 0.45})`; g.lineWidth = 1.5 + s * 2; g.beginPath(); g.moveTo(port.x, port.y); g.quadraticCurveTo(port.x + 4, port.y - 10 * s, port.x - 2 + Math.sin(s * 6) * 3, port.y - 22 * s); g.stroke(); } }
+        });
+        const gl = seg(t, 0.68, 0.92);
+        if (gl > 0 && gl < 1) {
+          const x = lerp(RC.x, M.x, ease.inOut(gl)), y = lerp(RC.y, M.y, ease.inOut(gl));
+          g.save(); clipCard(g); g.beginPath(); P(g, BARREL); g.clip(); g.fillStyle = 'rgba(240,244,255,0.95)'; g.beginPath(); g.arc(x, y, 3.5, 0, 7); g.fill(); g.restore();
+          if (q.on(1) && gl > 0.8) { const s = Math.sin((gl - 0.8) / 0.2 * Math.PI) * 7; g.fillStyle = '#fffbe8'; g.beginPath(); for (let i = 0; i < 8; i++) { const r = i % 2 ? s * 0.2 : s; g.lineTo(M.x + Math.cos(i * Math.PI / 4) * r, M.y + Math.sin(i * Math.PI / 4) * r); } g.closePath(); g.fill(); }
+        }
+      },
+    },
+    {
+      id: 'B', name: 'B. 망원 조준경', cost: 2, dur: 2000,
+      desc: '총구에서 동그란 조준경이 커지며 화면이 어두워지고, 렌즈 안 카드가 확대돼 흔들리다 십자선 눈금 1~5 가 차례로 켜지고 붉은 점이 "틱" 고정, 렌즈가 활짝 열리며 끝난다 · 저: 어두운 덮개·확대 없이 고리와 십자선만',
+      draw(g, t, q) {
+        bg(g); face(g);
+        if (t >= 0.96) return;
+        const grow = ease.out(seg(t, 0, 0.22)), open = ease.in(seg(t, 0.72, 0.96));
+        const sway = (1 - seg(t, 0.55, 0.62)) * grow;
+        const cx = lerp(M.x, 150, grow) + Math.sin(t * 17) * 3 * sway, cy = lerp(M.y, 100, grow) + Math.cos(t * 13) * 2 * sway;
+        const R = lerp(4, 62, grow) + open * 220;
+        const al = 1 - open;
+        if (q.on(1)) {
+          // 렌즈 속 확대
+          g.save(); g.beginPath(); g.arc(cx, cy, R, 0, 7); g.clip();
+          const z = 1 + 0.4 * grow * (1 - open); g.translate(cx, cy); g.scale(z, z); g.translate(-cx, -cy); bg(g); face(g); g.restore();
+          // 덮개
+          g.save(); g.fillStyle = `rgba(8,5,3,${0.82 * al})`; g.beginPath(); g.rect(0, 0, W, H); g.moveTo(cx + R, cy); g.arc(cx, cy, R, 0, 7, true); g.fill('evenodd'); g.restore();
+          if (q.on(2)) { const v = g.createRadialGradient(cx, cy, R * 0.7, cx, cy, R); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(0,0,0,${0.5 * al})`); g.fillStyle = v; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.fill(); }
+        }
+        g.save(); g.globalAlpha = al;
+        g.strokeStyle = '#1e140b'; g.lineWidth = 2.5; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke();
+        g.strokeStyle = 'rgba(242,193,78,0.9)'; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, R - 2, 0, 7); g.stroke();
+        // 십자선
+        g.strokeStyle = 'rgba(30,20,11,0.9)'; g.lineWidth = 1; g.beginPath(); g.moveTo(cx - R, cy); g.lineTo(cx + R, cy); g.moveTo(cx, cy - R); g.lineTo(cx, cy + R); g.stroke();
+        // 눈금 1~5 (아래 세로선을 따라 — 멀수록 낙차)
+        for (let i = 1; i <= 5; i++) {
+          const k = seg(t, 0.24 + i * 0.05, 0.3 + i * 0.05); if (k <= 0) continue;
+          const y = cy + i * R / 6.2, w = (6 - i * 0.6) * ease.back(k);
+          g.strokeStyle = `rgba(242,193,78,${k})`; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - w, y); g.lineTo(cx + w, y); g.stroke();
+          g.fillStyle = `rgba(242,193,78,${k})`; g.font = '600 8px sans-serif'; g.textAlign = 'left'; g.fillText(String(i), cx + w + 3, y + 3);
+        }
+        // 고정
+        const lk = seg(t, 0.58, 0.66);
+        if (lk > 0) {
+          const y = cy + 5 * R / 6.2; g.fillStyle = '#d9412b'; g.beginPath(); g.arc(cx, y, 1.8 + (1 - lk) * 3, 0, 7); g.fill();
+          if (lk < 1) { g.strokeStyle = `rgba(217,65,43,${1 - lk})`; g.lineWidth = 1; g.beginPath(); g.arc(cx, y, 3 + lk * 10, 0, 7); g.stroke(); }
+          g.fillStyle = '#f2c14e'; g.font = '600 10px sans-serif'; g.textAlign = 'center'; g.fillText('사정거리 5', cx, cy - R * 0.55);
+        }
+        g.restore();
+      },
+    },
+    {
+      id: 'C', name: 'C. 일어서는 카드 + 바닥 고리 5겹', cost: 3, dur: 2200,
+      desc: '테이블에 누워 있던 카드가 원근으로 일어서고, 발밑에서 바닥 고리 다섯 겹이 차례로 퍼져 화면 밖까지 닿는다. 고리 뒤쪽 반은 카드 뒤로 가려져 깊이가 보이고 먼지가 떠오른다 · 저: 고리 빛 번짐·먼지 없이 선만',
+      draw(g, t, q) {
+        bg(g);
+        const stand = ease.back(seg(t, 0.04, 0.34)), rotX = lerp(1.3, 0, stand);
+        const fade = 1 - seg(t, 0.8, 1), cx = 150, cy = card.y + card.h;
+        const ringK = (r) => ease.out(seg(t, r.d, r.d + 0.22));
+        const ring = (half) => RINGS.forEach((r, i) => {
+          const k = ringK(r); if (k <= 0) return;
+          const prev = i ? RINGS[i - 1].rx : 10, rx = lerp(prev, r.rx, k), ry = rx * 0.28, a = fade * (0.35 + 0.65 * (1 - i * 0.12));
+          g.save();
+          if (q.on(2)) { g.globalCompositeOperation = 'lighter'; g.strokeStyle = `rgba(242,193,78,${a * 0.35})`; g.lineWidth = 5; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, half ? 0 : Math.PI, half ? Math.PI : Math.PI * 2); g.stroke(); g.globalCompositeOperation = 'source-over'; }
+          g.strokeStyle = `rgba(242,193,78,${a})`; g.lineWidth = 1.3; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, half ? 0 : Math.PI, half ? Math.PI : Math.PI * 2); g.stroke();
+          if (half && k > 0.6) { g.fillStyle = `rgba(239,226,198,${fade * (k - 0.6) / 0.4})`; g.font = '600 9px sans-serif'; g.textAlign = 'center'; g.fillText(String(i + 1), cx + rx * 0.72, cy + ry * 0.69 + 9); }
+          g.restore();
+        });
+        // 바닥 띠 (고)
+        if (q.on(1)) { const k = ringK(RINGS[4]); if (k > 0) { const gr = g.createRadialGradient(cx, cy, 0, cx, cy, 160); gr.addColorStop(0, `rgba(242,193,78,${0.18 * fade})`); gr.addColorStop(1, 'rgba(242,193,78,0)'); g.save(); g.translate(cx, cy); g.scale(1, 0.28); g.translate(-cx, -cy); g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, 160 * k, 0, 7); g.fill(); g.restore(); } }
+        ring(false);
+        // 카드 그림자: 누웠을 땐 넓게, 서면 가늘게
+        g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.ellipse(cx, cy + 2, card.w / 2 + 4, lerp(card.h * 0.12, 5, stand), 0, 0, 7); g.fill();
+        // 원근 카드 (아래 모서리 축)
+        const img = cardImg('face', face), N = q.on(1) ? 40 : 14, f = 300;
+        const proj = (y) => { const l = y - cy; const z = -l * Math.sin(rotX); const s = f / (f + z); return { y: cy + l * Math.cos(rotX) * s, s }; };
+        for (let i = 0; i < N; i++) {
+          const y0 = card.y - 2 + (card.h + 4) * i / N, y1 = card.y - 2 + (card.h + 4) * (i + 1) / N, p0 = proj(y0), p1 = proj(y1), w = (card.w + 6) * (p0.s + p1.s) / 2;
+          g.drawImage(img, (card.x - 3) * 2, y0 * 2, (card.w + 6) * 2, (y1 - y0) * 2, cx - w / 2, p0.y, w, p1.y - p0.y + 0.6);
+        }
+        ring(true);
+        // 먼지 (깊이: 가까운 것은 크고 밝다)
+        if (q.on(1)) MOTES.slice(0, q.n(MOTES.length)).forEach((m) => {
+          const k = seg(t, 0.3 + m.d, 1); if (k <= 0 || k >= 1) return;
+          const rx = m.rr * 140, x = cx + Math.cos(m.a) * rx, y = cy + Math.sin(m.a) * rx * 0.28 - m.up * ease.out(k);
+          g.fillStyle = `rgba(255,230,180,${Math.sin(k * Math.PI) * (0.25 + m.z * 0.5)})`; g.beginPath(); g.arc(x, y, 0.6 + m.z * 1.5, 0, 7); g.fill();
+        });
+      },
+    },
+    {
+      id: 'D', name: 'D. 무성영화 서부극', cost: 2, dur: 2000,
+      desc: '세피아로 바래며 동그란 아이리스가 총으로 좁혀지고, 장식 테두리 자막 "윈체스터 · 지평선 끝까지, 사정거리 5" 가 뜬 뒤 아이리스가 열리며 색이 돌아온다. 필름 입자·긁힘 · 저: 세피아 합성 없이 반투명 갈색 덮개, 입자 줄임',
+      draw(g, t, q, f) {
+        const env = seg(t, 0, 0.1) * (1 - seg(t, 0.84, 1));
+        const jy = env > 0.3 && f % 7 === 0 ? 1.5 : 0;
+        g.save(); g.translate(0, jy);
+        bg(g); face(g);
+        g.restore();
+        if (env <= 0) return;
+        // 세피아
+        g.save();
+        if (q.on(1)) { g.globalCompositeOperation = 'color'; g.fillStyle = `rgba(112,82,46,${env})`; g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over'; }
+        else { g.fillStyle = `rgba(112,82,46,${0.35 * env})`; g.fillRect(0, 0, W, H); }
+        g.restore();
+        // 아이리스
+        const irisIn = ease.inOut(seg(t, 0.04, 0.3)), irisOut = ease.in(seg(t, 0.7, 0.92));
+        const ic = art(118, 170), R = lerp(200, 40, irisIn) + irisOut * 200;
+        g.fillStyle = `rgba(10,8,6,${env})`; const ix = lerp(150, ic.x, irisIn * (1 - irisOut)), iy = lerp(105, ic.y, irisIn * (1 - irisOut));
+        g.beginPath(); g.rect(0, 0, W, H); g.moveTo(ix + R, iy); g.arc(ix, iy, R, 0, 7, true); g.fill('evenodd');
+        // 자막 카드
+        const tc = seg(t, 0.34, 0.68);
+        if (tc > 0 && tc < 1) {
+          const a = Math.min(1, tc * 6, (1 - tc) * 6);
+          g.save(); g.globalAlpha = a; g.fillStyle = '#0c0a08'; g.fillRect(30, 50, 240, 110);
+          g.strokeStyle = '#e6dcc8'; g.lineWidth = 1.5; g.strokeRect(38, 58, 224, 94); g.lineWidth = 0.6; g.strokeRect(42, 62, 216, 86);
+          for (const [x, y] of [[42, 62], [258, 62], [42, 148], [258, 148]]) { g.beginPath(); g.arc(x, y, 4, 0, 7); g.stroke(); }
+          g.fillStyle = '#f0e8d6'; g.textAlign = 'center'; g.font = '600 22px serif'; g.fillText('윈체스터', 150, 98);
+          g.font = '400 12px serif'; g.fillText('지평선 끝까지 — 사정거리 5', 150, 124);
+          g.restore();
+        }
+        // 필름 입자·긁힘
+        const r = rng(f * 13 + 1), n = q.n(GRAIN.length), off = Math.floor(r() * GRAIN.length);
+        for (let i = 0; i < n; i++) { const [x, y, lt] = GRAIN[(i + off) % GRAIN.length]; g.fillStyle = lt ? `rgba(255,250,240,${0.25 * env})` : `rgba(20,16,12,${0.5 * env})`; g.fillRect((x + f * 37) % W, (y + f * 53) % H, 1, 1); }
+        if (r() > 0.45) { const x = r() * W; g.strokeStyle = `rgba(240,230,210,${0.35 * env})`; g.lineWidth = 1; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + r() * 4 - 2, H); g.stroke(); }
+        if (q.on(2)) { const v = g.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.7); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(0,0,0,${0.55 * env})`); g.fillStyle = v; g.fillRect(0, 0, W, H); }
+      },
+    },
+  ],
+});
+</script></body></html>

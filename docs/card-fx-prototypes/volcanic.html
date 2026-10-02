@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>볼캐닉 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389): 레버액션 권총 한 자루가 왼쪽 아래 → 오른쪽 위로 비스듬히 놓였다.
+  총구 (195,117) · 긴 총열·탄창관 (110~195, 112~171) · 은색 기관부 (95~125, 158~190)
+  · 방아쇠 고리 2개 (88,198)(92,212) · 손잡이 (60~100, 166~240) · 아래 사정거리 동그라미 "1" (125,308)
+  노린 것: 사정거리는 1뿐이지만 "뱅!을 몇 번이든" 이 핵심이다. 고리가 뻗는 느낌보다 연사(빠른 리듬)를 앞세운다.
+  소리: 짧은 레버 '착' + 마른 총성 '탕' 을 70ms 간격으로 6~7번, 마지막만 꼬리 잔향. 장착 순간은 '철컥' 한 번.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+
+const BLUE = '#2f4c80';
+const P = (g, pts) => { g.beginPath(); pts.forEach(([x, y], i) => { const p = art(x, y); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); };
+const rotAt = (g, px, py, a) => { const p = art(px, py); g.translate(p.x, p.y); g.rotate(a); g.translate(-p.x, -p.y); };
+const angOf = (a, b) => { const p = art(a[0], a[1]), r = art(b[0], b[1]); return Math.atan2(r.y - p.y, r.x - p.x); };
+const clipCard = (g) => { g.beginPath(); g.rect(card.x + 2, card.y + 22, card.w - 4, card.h - 24); g.clip(); };
+function badge(g, n) {
+  const c = art(125, 308);
+  g.strokeStyle = '#2a1c10'; g.lineWidth = 1; g.beginPath(); g.arc(c.x, c.y, 8.5, 0, 7); g.stroke();
+  g.beginPath(); g.moveTo(c.x - 11, c.y); g.lineTo(c.x + 11, c.y); g.stroke();
+  g.fillStyle = '#2a1c10'; g.font = '600 11px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(n, c.x, c.y + 0.5); g.textBaseline = 'alphabetic';
+}
+const _img = {};
+function cardImg(key, fn) { if (_img[key]) return _img[key]; const c = document.createElement('canvas'); c.width = W * 2; c.height = H * 2; const x = c.getContext('2d'); x.setTransform(2, 0, 0, 2, 0, 0); fn(x); return (_img[key] = c); }
+
+// 볼캐닉 권총 (원본 좌표)
+const BAR = [[108, 160], [187, 112], [195, 121], [117, 171]];
+const FRM = [[98, 166], [118, 158], [126, 178], [112, 190], [94, 190]];
+const GRIP = [[66, 182], [100, 166], [98, 190], [84, 205], [78, 240], [62, 240], [60, 214]];
+const MZ = [195, 117];
+const DIR = angOf([112, 165], MZ);
+function gun(g, tone) {
+  g.fillStyle = tone || '#1e140b'; P(g, BAR); g.fill(); P(g, GRIP); g.fill();
+  g.fillStyle = tone ? tone : '#d9cbb0'; P(g, FRM); g.fill(); g.strokeStyle = '#1e140b'; g.lineWidth = 1; g.stroke();
+  if (!tone) { g.strokeStyle = '#efe2c6'; g.lineWidth = 0.6; const a = art(116, 166), b = art(190, 119); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+  g.strokeStyle = tone || '#1e140b'; g.lineWidth = 1.4;
+  for (const [x, y] of [[88, 198], [92, 212]]) { const p = art(x, y); g.beginPath(); g.arc(p.x, p.y, 2.4, 0, 7); g.stroke(); }
+}
+const face = (g) => drawCard(g, '볼캐닉', (x) => { gun(x); badge(x, '1'); }, { band: BLUE });
+const faceNoGun = (g) => drawCard(g, '볼캐닉', (x) => badge(x, '1'), { band: BLUE });
+
+function flashStar(g, x, y, a, s, q) {
+  g.save(); g.translate(x, y); g.rotate(a);
+  if (q.on(1)) {
+    g.globalCompositeOperation = 'lighter';
+    const gr = g.createRadialGradient(4 * s, 0, 0, 4 * s, 0, 16 * s); gr.addColorStop(0, 'rgba(255,250,220,0.95)'); gr.addColorStop(0.4, 'rgba(255,190,80,0.6)'); gr.addColorStop(1, 'rgba(255,110,30,0)');
+    g.fillStyle = gr; g.beginPath(); g.ellipse(5 * s, 0, 16 * s, 9 * s, 0, 0, 7); g.fill();
+  }
+  g.fillStyle = '#fff2b8'; g.beginPath();
+  for (let i = 0; i < 10; i++) { const k = i * Math.PI / 5; const r = i % 2 ? 2.4 * s : (i === 0 ? 13 : 6) * s; g.lineTo(Math.cos(k) * r, Math.sin(k) * r); }
+  g.closePath(); g.fill(); g.restore();
+}
+
+// A 의 발사 시각 7번 (점점 빨라지는 연사)
+const SHOTS = [0.08, 0.17, 0.25, 0.32, 0.38, 0.44, 0.5];
+// B 의 깊이 먼지
+const MOTES = (() => { const r = rng(31); return Array.from({ length: 40 }, () => ({ x: r() * W, y: 40 + r() * 160, z: 0.3 + r() * 0.7, ph: r() * 6.28 })); })();
+// C 의 집중선
+const RAYS = (() => { const r = rng(5); return Array.from({ length: 30 }, () => ({ a: r() * 6.283, r0: 70 + r() * 30, len: 30 + r() * 70, w: 1 + r() * 2.5 })); })();
+const TANG = [[220, 46, -0.2], [252, 86, 0.15], [214, 112, -0.1], [262, 140, 0.2], [42, 60, -0.15], [56, 150, 0.12]];
+
+FxKit.mount({
+  kind: 'volcanic', title: '볼캐닉 연출 시안',
+  lead: '볼캐닉(사정거리 1, 뱅! 무제한) 장착. 고리보다 "연사 리듬" 으로 다른 총과 구분한다. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 연사 스트로브', cost: 2, dur: 1500,
+      desc: '그림 속 총이 제자리에서 7번 연달아 불을 뿜으며 들썩이고, 옆에 "뱅! ×7"이 올라가다 ∞로 바뀐다 · 저: 섬광 번짐·흔들림 없이 별 모양 섬광만',
+      draw(g, t, q) {
+        bg(g);
+        const m = art(...MZ);
+        let rec = 0, n = 0;
+        SHOTS.forEach((s) => { const k = seg(t, s, s + 0.07); if (k > 0 && k < 1) rec = Math.max(rec, 1 - k); if (t >= s) n++; });
+        g.save();
+        if (q.on(2)) shake(g, rec * 1.3, t);
+        faceNoGun(g);
+        g.save(); clipCard(g); g.translate(-Math.cos(DIR) * rec * 3, -Math.sin(DIR) * rec * 3); rotAt(g, 70, 215, -rec * 0.09); gun(g); g.restore();
+        SHOTS.forEach((s, i) => {
+          const k = seg(t, s, s + 0.06); if (k <= 0 || k >= 1) return;
+          flashStar(g, m.x, m.y, DIR + ((i % 3) - 1) * 0.08, 1 - k * 0.6, q);
+          // 짧은 예광선 (사정거리 1: 화면 끝까지 가지 않는다)
+          const L = 30 + k * 30;
+          g.strokeStyle = `rgba(255,236,170,${1 - k})`; g.lineWidth = 1.5; g.beginPath();
+          g.moveTo(m.x + Math.cos(DIR) * (8 + L * 0.5), m.y + Math.sin(DIR) * (8 + L * 0.5)); g.lineTo(m.x + Math.cos(DIR) * (8 + L), m.y + Math.sin(DIR) * (8 + L)); g.stroke();
+        });
+        g.restore();
+        // 카운터
+        const a = 1 - seg(t, 0.86, 1);
+        if (n > 0 && a > 0) {
+          g.save(); g.globalAlpha = a; g.textAlign = 'center';
+          const inf = seg(t, 0.6, 0.7);
+          g.fillStyle = '#efe2c6'; g.font = '600 15px sans-serif'; g.fillText('뱅!', 246, 74);
+          if (inf < 1) { const pop = 1 + rec * 0.35; g.save(); g.translate(246, 100); g.scale(pop, pop); g.globalAlpha = a * (1 - inf); g.fillStyle = '#f2c14e'; g.font = '700 22px sans-serif'; g.fillText('×' + n, 0, 0); g.restore(); }
+          if (inf > 0) { const s = ease.back(inf); g.save(); g.translate(246, 104); g.scale(s, s); g.fillStyle = '#f2c14e'; g.font = '700 34px serif'; g.fillText('∞', 0, 0); g.restore(); }
+          g.restore();
+        }
+        // 사정거리 1 고리 (가까이 한 겹)
+        const r = seg(t, 0.62, 1);
+        if (r > 0 && r < 1) { g.strokeStyle = `rgba(242,193,78,${(1 - r) * 0.8})`; g.lineWidth = 1.5; g.beginPath(); g.ellipse(150, 168, 50 + r * 18, 12 + r * 4, 0, 0, 7); g.stroke(); }
+      },
+    },
+    {
+      id: 'B', name: 'B. 들리는 카드 + 금속 광택', cost: 3, dur: 1800,
+      desc: '카드가 테이블에서 원근으로 들려 앞으로 기울고, 총 위로 은빛 광택이 쓸고 지나가며 총구에서 반짝, 주변 먼지가 깊이별로 떠다닌다 · 저: 먼지·광택 그라데이션 없이 흰 띠 하나',
+      draw(g, t, q) {
+        bg(g);
+        const lift = Math.sin(seg(t, 0, 0.85) * Math.PI);
+        const img = cardImg('face', face);
+        // 테이블 그림자
+        g.fillStyle = `rgba(0,0,0,${0.25 + lift * 0.2})`; g.beginPath(); g.ellipse(150 + lift * 8, 176 + lift * 6, 48 + lift * 10, 6 + lift * 4, 0, 0, 7); g.fill();
+        // 깊이 먼지 (뒤쪽)
+        const mot = (front) => MOTES.slice(0, q.n(MOTES.length)).forEach((p) => {
+          if ((p.z > 0.65) !== front) return;
+          const a = Math.sin(seg(t, 0.05, 0.95) * Math.PI) * 0.6 * p.z;
+          const x = p.x + Math.sin(p.ph + t * 4) * 6 * p.z, y = p.y - t * 30 * p.z;
+          g.fillStyle = `rgba(255,230,180,${a})`; g.beginPath(); g.arc(x, y, 0.6 + p.z * 1.6, 0, 7); g.fill();
+        });
+        mot(false);
+        // 원근 기울임: 위쪽이 다가오며 커진다 (가로 띠 여러 장)
+        const th = -0.5 * lift, N = q.on(1) ? 40 : 14, f = 320, py = card.y + card.h, cx = card.x + card.w / 2;
+        const proj = (y) => { const l = y - py; const z = -l * Math.sin(th); const s = f / (f + z); return { y: py + l * Math.cos(th) * s - lift * 10, s: s * (1 + lift * 0.08) }; };
+        for (let i = 0; i < N; i++) {
+          const y0 = card.y - 2 + (card.h + 4) * i / N, y1 = card.y - 2 + (card.h + 4) * (i + 1) / N;
+          const p0 = proj(y0), p1 = proj(y1), s = (p0.s + p1.s) / 2, w = (card.w + 6) * s;
+          g.drawImage(img, (card.x - 3) * 2, y0 * 2, (card.w + 6) * 2, (y1 - y0) * 2, cx - w / 2, p0.y, w, p1.y - p0.y + 0.6);
+        }
+        // 광택 띠 (카드 화면 위치에서)
+        const sw = seg(t, 0.25, 0.6);
+        if (sw > 0 && sw < 1) {
+          const top = proj(card.y).y, bot = proj(card.y + card.h).y, x = lerp(card.x - 30, card.x + card.w + 30, ease.inOut(sw));
+          g.save(); g.beginPath(); g.rect(card.x - 8, top, card.w + 16, bot - top); g.clip();
+          if (q.on(1)) {
+            g.globalCompositeOperation = 'lighter';
+            const gr = g.createLinearGradient(x - 16, 0, x + 16, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(220,235,255,0.75)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+            g.fillStyle = gr;
+          } else g.fillStyle = 'rgba(255,255,255,0.4)';
+          g.beginPath(); g.moveTo(x - 10, bot); g.lineTo(x + 6, bot); g.lineTo(x + 26, top); g.lineTo(x + 10, top); g.closePath(); g.fill();
+          g.restore();
+        }
+        mot(true);
+        // 총구 반짝
+        const sp = seg(t, 0.55, 0.8);
+        if (sp > 0 && sp < 1) {
+          const m0 = art(...MZ), p = proj(m0.y), x = cx + (m0.x - cx) * p.s, y = p.y, s = Math.sin(sp * Math.PI) * 9;
+          g.save(); g.translate(x, y); g.rotate(sp * 1.5); g.fillStyle = '#fffbe8';
+          g.beginPath(); for (let i = 0; i < 8; i++) { const r = i % 2 ? s * 0.18 : s; const k = i * Math.PI / 4; g.lineTo(Math.cos(k) * r, Math.sin(k) * r); } g.closePath(); g.fill(); g.restore();
+        }
+      },
+    },
+    {
+      id: 'C', name: 'C. 만화 잉크 "탕탕탕"', cost: 2, dur: 1600,
+      desc: '총구 쪽 집중선 위로 잉크 테두리 "탕!" 말풍선이 여섯 번 연달아 터지고, 끝에 붉은 도장 "뱅! 무제한" · 저: 망점·흔들림 없이 집중선 몇 줄과 말풍선만',
+      draw(g, t, q, f) {
+        bg(g);
+        const paper = Math.min(1, seg(t, 0, 0.06) * 1) * (1 - seg(t, 0.8, 1));
+        g.fillStyle = `rgba(243,234,214,${paper})`; g.fillRect(0, 0, W, H);
+        const m = art(...MZ);
+        const beat = (i) => seg(t, 0.06 + i * 0.07, 0.06 + i * 0.07 + 0.3);
+        let kick = 0; for (let i = 0; i < 6; i++) { const k = seg(t, 0.06 + i * 0.07, 0.1 + i * 0.07); if (k > 0 && k < 1) kick = 1 - k; }
+        // 망점 바탕
+        if (q.on(1)) { const a = Math.sin(seg(t, 0, 0.75) * Math.PI) * 0.35; if (a > 0.01) { g.fillStyle = `rgba(178,38,30,${a})`; for (let y = 4; y < H; y += 8) for (let x = (y / 8) % 2 ? 4 : 0; x < W; x += 8) { const d = Math.hypot(x - m.x, y - m.y); const r = Math.max(0, 2.6 - d / 70); if (r > 0.2) { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); } } } }
+        // 집중선
+        const ra = seg(t, 0, 0.06) * (1 - seg(t, 0.5, 0.7));
+        if (ra > 0) { g.strokeStyle = `rgba(30,20,11,${ra})`; RAYS.slice(0, q.n(RAYS.length)).forEach((r) => { g.lineWidth = r.w; g.beginPath(); g.moveTo(m.x + Math.cos(r.a) * r.r0, m.y + Math.sin(r.a) * r.r0); g.lineTo(m.x + Math.cos(r.a) * (r.r0 + r.len), m.y + Math.sin(r.a) * (r.r0 + r.len)); g.stroke(); }); }
+        g.save(); if (q.on(2)) shake(g, kick * 1.5, t); face(g); g.restore();
+        // 탕! 말풍선
+        TANG.forEach(([x, y, rot], i) => {
+          const k = beat(i); if (k <= 0 || k >= 1) return;
+          const s = k < 0.15 ? 0.3 + k / 0.15 * 0.9 : 1.2 - Math.min(0.2, (k - 0.15));
+          g.save(); g.translate(x, y); g.rotate(rot); g.scale(s, s); g.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1;
+          g.beginPath(); for (let j = 0; j < 18; j++) { const a = j * Math.PI / 9; const r = j % 2 ? 11 : 19 + ((j * 7 + i) % 4); g.lineTo(Math.cos(a) * r * 1.25, Math.sin(a) * r); } g.closePath();
+          g.fillStyle = '#f2c14e'; g.fill(); g.strokeStyle = '#1e140b'; g.lineWidth = 2; g.stroke();
+          g.fillStyle = '#1e140b'; g.font = '800 14px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('탕!', 0, 1); g.textBaseline = 'alphabetic';
+          g.restore();
+        });
+        // 도장
+        const st = seg(t, 0.55, 1);
+        if (st > 0 && st < 1) {
+          const s = st < 0.12 ? 2.2 - st / 0.12 * 1.2 : 1; g.save(); g.translate(150, 190); g.rotate(-0.06); g.scale(s, s); g.globalAlpha = st > 0.75 ? (1 - st) / 0.25 : 1;
+          g.strokeStyle = '#b3261e'; g.lineWidth = 2.5; g.strokeRect(-58, -13, 116, 24); g.fillStyle = '#b3261e'; g.font = '800 15px sans-serif'; g.textAlign = 'center'; g.fillText('뱅! 무제한', 0, 5); g.restore();
+        }
+      },
+    },
+    {
+      id: 'D', name: 'D. 미니멀 장착 HUD', cost: 1, dur: 1300,
+      desc: '카드 네 모서리에 괄호가 물리고, 아래 사정거리 칸 5개 중 1칸만 켜진 뒤 ∞ 기호가 한 획으로 그려진다 · 저: 그대로 (원래 선과 글자뿐)',
+      draw(g, t) {
+        bg(g); face(g);
+        const a = 1 - seg(t, 0.82, 1);
+        if (a <= 0) return;
+        g.save(); g.globalAlpha = a;
+        // 모서리 괄호
+        const s = ease.out(seg(t, 0, 0.2)), o = lerp(18, 4, s), L = 10;
+        g.strokeStyle = '#f2c14e'; g.lineWidth = 1.5;
+        for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+          const x = sx < 0 ? card.x - o : card.x + card.w + o, y = sy < 0 ? card.y - o : card.y + card.h + o;
+          g.beginPath(); g.moveTo(x, y - sy * L); g.lineTo(x, y); g.lineTo(x - sx * L, y); g.stroke();
+        }
+        g.fillStyle = '#f2c14e'; g.font = '500 10px sans-serif'; g.textAlign = 'left'; g.fillText('무기 장착', card.x + card.w + 12, card.y + 8);
+        // 사정거리 칸
+        for (let i = 0; i < 5; i++) {
+          const x = 30 + i * 13, y = 98, on = i === 0 && t > 0.22;
+          const k = seg(t, 0.18 + i * 0.03, 0.26 + i * 0.03);
+          g.globalAlpha = a * k;
+          if (on) { g.fillStyle = '#f2c14e'; g.fillRect(x, y, 10, 10); } else { g.strokeStyle = 'rgba(242,193,78,0.5)'; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, 9, 9); }
+        }
+        g.globalAlpha = a * seg(t, 0.2, 0.3); g.fillStyle = '#b39b74'; g.font = '500 9px sans-serif'; g.fillText('사정거리 1', 30, 92);
+        // ∞ 한 획
+        const d = seg(t, 0.35, 0.65);
+        if (d > 0) {
+          g.globalAlpha = a; g.strokeStyle = '#f2c14e'; g.lineWidth = 2.2; g.lineCap = 'round'; g.beginPath();
+          const n = Math.floor(60 * d);
+          for (let i = 0; i <= n; i++) { const u = i / 60 * Math.PI * 2; const den = 1 + Math.sin(u) * Math.sin(u); const x = 250 + 22 * Math.cos(u) / den, y = 104 + 22 * Math.sin(u) * Math.cos(u) / den; i ? g.lineTo(x, y) : g.moveTo(x, y); }
+          g.stroke();
+          g.globalAlpha = a * seg(t, 0.55, 0.7); g.fillStyle = '#efe2c6'; g.font = '500 10px sans-serif'; g.textAlign = 'center'; g.fillText('뱅! 제한 없음', 250, 132);
+        }
+        g.restore();
+      },
+    },
+  ],
+});
+</script></body></html>

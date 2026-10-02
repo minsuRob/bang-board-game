@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>반디도스 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389):
+  - 그림 칸 x 35~215, y 85~265. 노을 하늘 아래 무법자 셋이 말을 타고 보는 사람 쪽으로 달려온다
+  - 모자: 왼쪽 (90,118) 갈색, 가운데 (120,112) 검정, 오른쪽 (160,115) 갈색
+  - 말: 왼쪽 흰 말 (60~120, 140~250), 가운데 밤색 말 (100~170, 140~265), 오른쪽 누런 말 (150~215, 140~250)
+  - 아래쪽 (40~215, 180~265) 은 흙먼지 구름
+  - 아래 기호: 모두 표적 (손패 2장 버리기 또는 목숨 1)
+  노린 것: 그림이 "몰려오는 무리 + 흙먼지". 무리가 카드에서 뛰쳐나와 판 사방으로 흩어지고(A),
+  모든 자리의 손패 두 장이 털려 날아가며(B, D), 무성영화 추격 장면으로도 해 본다(C).
+  소리 아이디어: 말발굽 다그닥 여러 겹(좌우 패닝) + 휘파람 한 번 + 카드 휙휙.
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const S = card.w / 250;
+const CX = card.x + card.w / 2, CY = card.y + card.h / 2;
+const TAU = Math.PI * 2;
+
+const SEAT_DEG = [130, 186, 242, 298, 354, 410];
+const seatAt = (deg) => { const a = deg * Math.PI / 180; return { x: 150 + Math.cos(a) * 132, y: 105 + Math.sin(a) * 88 }; };
+const SEATS = SEAT_DEG.map(seatAt);
+function seats(g, a, col) {
+  if (a <= 0) return;
+  SEATS.forEach((p, i) => { g.globalAlpha = a; g.fillStyle = col ? col(i) : 'rgba(30,20,11,0.55)'; g.strokeStyle = '#c8902f'; g.lineWidth = 1.5; g.beginPath(); g.arc(p.x, p.y, 7, 0, TAU); g.fill(); g.stroke(); });
+  g.globalAlpha = 1;
+}
+
+const RIDERS = [{ hx: 90, hy: 118, horse: '#ece4d6', hat: '#7a4a28' }, { hx: 120, hy: 112, horse: '#a4592a', hat: '#1e1a17' }, { hx: 160, hy: 115, horse: '#d8a44a', hat: '#7a4a28' }];
+// 앞에서 본 말 탄 사람. (0,0) 이 모자, s 는 크기
+function riderFront(g, x, y, s, r, gait) {
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.fillStyle = r.horse; g.beginPath(); g.ellipse(0, 46, 13, 20, 0, 0, TAU); g.fill(); // 말 가슴
+  g.beginPath(); g.ellipse(0, 30, 6, 16, 0, 0, TAU); g.fill(); // 말 머리 (앞으로)
+  g.strokeStyle = r.horse; g.lineWidth = 4; [-7, 7].forEach((lx, i) => { const sw = Math.sin(gait + i * Math.PI) * 5; g.beginPath(); g.moveTo(lx, 58); g.lineTo(lx + sw * 0.3, 74 + sw); g.stroke(); });
+  g.fillStyle = '#5a4434'; g.beginPath(); g.ellipse(0, 14, 9, 12, 0, 0, TAU); g.fill(); // 사람 몸
+  g.fillStyle = '#b98b62'; g.beginPath(); g.arc(0, 4, 4.5, 0, TAU); g.fill();
+  g.fillStyle = r.hat; g.beginPath(); g.ellipse(0, 0, 13, 3, 0, 0, TAU); g.fill(); g.fillRect(-5.5, -7, 11, 7);
+  g.restore();
+}
+function scene(g) {
+  const sky = art(35, 85); g.fillStyle = '#e8a35c'; g.fillRect(card.x, sky.y, card.w, card.h);
+  RIDERS.forEach((r, i) => { const p = art(r.hx, r.hy); riderFront(g, p.x, p.y, S * 2.2, r, i * 2); });
+  g.fillStyle = 'rgba(200,170,130,0.85)'; [[70, 240, 30], [125, 250, 36], [180, 240, 30]].forEach(([x, y, r]) => { const p = art(x, y); g.beginPath(); g.arc(p.x, p.y, r * S, 0, TAU); g.fill(); });
+}
+const draw = (g) => drawCard(g, '반디도스', scene);
+function back(g, x, y, rot, sx) { // 카드 뒷면 작은 것. sx 는 뒤집힘 폭 (cos)
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(sx, 1);
+  g.fillStyle = Math.abs(sx) < 0.02 ? '#5a1d14' : sx > 0 ? '#8b2a1e' : '#efe2c6'; g.strokeStyle = '#2a1a10'; g.lineWidth = 0.8;
+  g.beginPath(); g.roundRect(-5, -7, 10, 14, 1.5); g.fill(); g.stroke();
+  if (sx > 0) { g.strokeStyle = '#d8a44a'; g.strokeRect(-3, -5, 6, 10); }
+  g.restore();
+}
+
+// ---------- A: 그림 장면 — 무리가 카드에서 뛰쳐나와 사방으로 ----------
+const A_DUST = (() => { const r = rng(19); return Array.from({ length: 30 }, () => ({ a: r() * TAU, sp: 70 + r() * 80, r0: 6 + r() * 6, r1: 18 + r() * 22, d: r() * 0.25 })); })();
+// 무리 6기: 자리마다 하나씩 달려가 손패를 낚아채고 사라진다
+const A_PATH = SEATS.map((p, i) => ({ to: p, r: RIDERS[i % 3], t0: 0.08 + (i % 3) * 0.05 + Math.floor(i / 3) * 0.08 }));
+function A(g, t, q, f) {
+  g.save(); if (q.on(2)) shake(g, Math.sin(seg(t, 0.05, 0.7) * Math.PI) * 1.2, t);
+  bg(g); draw(g);
+  seats(g, Math.min(seg(t, 0, 0.1), 1 - seg(t, 0.82, 1)));
+  // 흙먼지가 카드 아래에서 판 전체로 번진다
+  A_DUST.slice(0, q.n(A_DUST.length)).forEach((d) => {
+    const k = seg(t, 0.04 + d.d, 0.95); if (k <= 0 || k >= 1) return;
+    const e = ease.out(k); const x = CX + Math.cos(d.a) * d.sp * e, y = card.y + card.h - 10 + Math.sin(d.a) * d.sp * e * 0.6; const r = lerp(d.r0, d.r1, e); const a = (1 - k) * 0.45;
+    if (q.on(1)) { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(205,170,125,${a})`); gr.addColorStop(1, 'rgba(205,170,125,0)'); g.fillStyle = gr; } else g.fillStyle = `rgba(205,170,125,${a * 0.6})`;
+    g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  });
+  // 기수: 카드 가운데에서 자리로 달려가며 커지고(다가옴), 손패 2장을 채 간다
+  A_PATH.slice(0, q.n(6) < 3 ? 3 : 6).forEach((p, i) => {
+    const k = seg(t, p.t0, p.t0 + 0.5); if (k <= 0 || k >= 1) return;
+    const out = ease.inOut(Math.min(1, k * 1.6)); const back2 = ease.in(seg(k, 0.65, 1));
+    const x = lerp(CX, p.to.x, out) + (p.to.x - CX) * back2 * 0.6, y = lerp(CY, p.to.y, out) + (p.to.y - CY) * back2 * 0.6;
+    const s = (0.25 + out * 0.45) * (1 - back2 * 0.4); g.globalAlpha = 1 - back2;
+    // 털린 카드 두 장이 기수 뒤에 펄럭이며 따라간다
+    if (k > 0.55) for (let c = 0; c < 2; c++) back(g, x - (p.to.x - CX) * 0.08 - 6 + c * 9, y - 14 - c * 3 + Math.sin(f * 0.5 + c) * 2, (c - 0.5) * 0.6, Math.cos(f * 0.3 + c));
+    riderFront(g, x, y - 30 * s, s, p.r, f * 0.9 + i);
+    g.globalAlpha = 1;
+  });
+  g.restore();
+}
+
+// ---------- B: 3D 손패 털기 — 모든 자리의 두 장이 뒤집히며 카드로 빨려 든다 ----------
+const B_CARDS = (() => { const r = rng(42); const out = []; SEATS.forEach((p, i) => { for (let c = 0; c < 2; c++) out.push({ s: p, c, i, t0: 0.22 + i * 0.05 + c * 0.03, spin: 2 + r() * 2, hz: 40 + r() * 30, tilt: (r() - 0.5) * 0.8 }); }); return out; })();
+function B(g, t, q) {
+  bg(g);
+  seats(g, Math.min(seg(t, 0, 0.1), 1 - seg(t, 0.85, 1)));
+  const lift = Math.sin(seg(t, 0.15, 0.85) * Math.PI); // 카드가 들려 "자루"처럼 받는다
+  const gulp = B_CARDS.reduce((m, c) => { const k = seg(t, c.t0 + 0.3, c.t0 + 0.36); return k > 0 && k < 1 ? Math.max(m, 1 - k) : m; }, 0);
+  // 카드 그림자
+  if (lift > 0.01) { if (q.on(2)) g.filter = `blur(${(lift * 3).toFixed(1)}px)`; g.fillStyle = `rgba(0,0,0,${0.4 - lift * 0.15})`; g.beginPath(); g.roundRect(card.x + lift * 6, card.y + lift * 10, card.w, card.h, 8); g.fill(); g.filter = 'none'; }
+  const cards = B_CARDS.slice(0, q.n(B_CARDS.length) < 6 ? 6 : q.n(B_CARDS.length));
+  // 자리에 펼쳐진 손패 두 장 (털리기 전까지)
+  const show = seg(t, 0.03, 0.15);
+  cards.forEach((c) => {
+    if (t >= c.t0 || show <= 0) return;
+    const dx = (c.c - 0.5) * 7; g.globalAlpha = show; back(g, c.s.x + dx, c.s.y - 14, (c.c - 0.5) * 0.4, 1); g.globalAlpha = 1;
+  });
+  // 날아가는 카드: 그림자는 판 위에, 카드는 높이 z 만큼 위에서 뒤집히며 커졌다 작아진다
+  const fly = cards.map((c) => {
+    const k = seg(t, c.t0, c.t0 + 0.32); if (k <= 0 || k >= 1) return null;
+    const e = ease.inOut(k); const sx = c.s.x + (c.c - 0.5) * 7, sy = c.s.y - 14;
+    const gx = lerp(sx, CX, e), gy = lerp(sy, CY, e); const z = Math.sin(k * Math.PI) * c.hz + lift * 10 * k;
+    return { c, k, gx, gy, z };
+  }).filter(Boolean);
+  if (q.on(1)) fly.forEach((p) => { g.fillStyle = `rgba(0,0,0,${0.25 * (1 - p.k)})`; g.beginPath(); g.ellipse(p.gx, p.gy + 6, 5, 2, 0, 0, TAU); g.fill(); });
+  // 카드 본체 (들림 + 받을 때 꿀꺽)
+  g.save(); const s = 1 + lift * 0.08 + gulp * 0.05; g.translate(CX, CY - lift * 10); g.scale(s, s); g.translate(-CX, -CY); draw(g);
+  if (q.on(1) && lift > 0.05) { const gr = g.createLinearGradient(card.x, card.y, card.x + card.w, card.y + card.h); gr.addColorStop(0, `rgba(255,255,255,${lift * 0.22})`); gr.addColorStop(0.5, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.roundRect(card.x, card.y, card.w, card.h, 8); g.fill(); }
+  g.restore();
+  fly.forEach((p) => {
+    const sc = (1 + p.z / 50) * (1 - ease.in(seg(p.k, 0.8, 1)) * 0.7);
+    g.save(); g.translate(p.gx, p.gy - p.z); g.scale(sc, sc); back(g, 0, 0, p.c.tilt * (1 - p.k), Math.cos(p.k * p.c.spin * Math.PI)); g.restore();
+  });
+}
+
+// ---------- C: 무성영화 — 조리개가 열리고 무리가 가로질러 달린다 ----------
+function C(g, t, q, f) {
+  const jy = q.on(1) && f % 9 === 0 ? 1.5 : 0;
+  g.save(); g.translate(0, jy);
+  const fx = seg(t, 0, 0.08) * (1 - seg(t, 0.88, 1));
+  bg(g); draw(g);
+  if (fx > 0) { g.fillStyle = `rgba(58,49,40,${0.45 * fx})`; g.fillRect(0, 0, W, H); } // 세피아로 바랜 화면
+  // 무리가 화면 앞을 왼쪽에서 오른쪽으로 가로지른다 (원근: 앞줄 크고 빠르게, 뒷줄 작고 느리게)
+  const run = seg(t, 0.12, 0.78);
+  if (run > 0 && run < 1) {
+    [[0.6, 168, 1.0, 3], [1.0, 192, 1.35, 3]].forEach(([sz, y, sp, n]) => {
+      for (let i = 0; i < n; i++) {
+        const x = -60 + (run * sp * 420) - i * 34 * sz;
+        if (x < -40 || x > W + 40) continue;
+        g.save(); g.translate(x, y + Math.abs(Math.sin(f * 0.7 + i)) * -2 * sz); g.scale(sz, sz); g.fillStyle = '#16120e';
+        g.beginPath(); g.ellipse(0, 0, 14, 6, 0, 0, TAU); g.fill(); g.beginPath(); g.moveTo(10, -3); g.lineTo(19, -12); g.lineTo(22, -10); g.lineTo(14, 2); g.fill();
+        g.lineWidth = 2; g.strokeStyle = '#16120e'; for (let l = 0; l < 4; l++) { const sw = Math.sin(f * 0.7 + l * 1.6 + i) * 4; g.beginPath(); g.moveTo(-9 + l * 6, 4); g.lineTo(-9 + l * 6 + sw, 13); g.stroke(); }
+        g.beginPath(); g.ellipse(0, -10, 3.2, 5.5, 0, 0, TAU); g.fill(); g.beginPath(); g.arc(0.5, -17, 2.8, 0, TAU); g.fill(); g.beginPath(); g.ellipse(0.5, -19, 7, 1.6, 0, 0, TAU); g.fill(); g.fillRect(-2.5, -24, 6, 5);
+        g.restore();
+      }
+    });
+  }
+  // 자막 카드
+  const sk = seg(t, 0.52, 0.8);
+  if (sk > 0 && sk < 1) {
+    const a = Math.min(1, sk * 5) * (1 - seg(sk, 0.85, 1));
+    g.fillStyle = `rgba(12,10,8,${a * 0.92})`; g.fillRect(40, 64, 220, 82); g.strokeStyle = `rgba(230,220,200,${a})`; g.lineWidth = 1.5; g.strokeRect(47, 71, 206, 68);
+    g.fillStyle = `rgba(240,232,214,${a})`; g.textAlign = 'center'; g.font = '500 17px serif'; g.fillText('반디도스가 나타났다!', 150, 100); g.font = '400 11px serif'; g.fillText('손패 두 장을 내놓거나, 목숨을 내놓아라', 150, 122);
+  }
+  g.restore();
+  // 필름 입자 · 긁힘 (고·중)
+  if (fx > 0 && q.on(1)) {
+    const r = rng(f * 13 + 1); g.fillStyle = `rgba(20,16,12,${0.5 * fx})`; for (let i = 0; i < q.n(220); i++) g.fillRect(r() * W, r() * H, 1, 1);
+    if (r() > 0.5) { g.strokeStyle = `rgba(240,230,210,${0.35 * fx})`; g.lineWidth = 1; const x = r() * W; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + r() * 4 - 2, H); g.stroke(); }
+  }
+  // 조리개: 처음에 열리고 끝에 열린 채 사라진다 (검은 고리)
+  const iris = ease.out(seg(t, 0, 0.14)) * 1 + 0; const ia = 1 - seg(t, 0.84, 1);
+  if (ia > 0) {
+    const R = lerp(20, 190, iris);
+    g.fillStyle = `rgba(0,0,0,${ia})`; g.beginPath(); g.rect(0, 0, W, H); g.arc(CX, CY, R, 0, TAU, true); g.fill('evenodd');
+    if (q.on(2)) { const v = g.createRadialGradient(CX, CY, R * 0.5, CX, CY, R); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(0,0,0,${0.6 * ia})`); g.fillStyle = v; g.fillRect(0, 0, W, H); }
+  }
+}
+
+// ---------- D: 미니멀 UI — 발굽 자국이 판을 돌고 자리마다 −2 ----------
+function D(g, t, q) {
+  bg(g, '#1c1510'); draw(g);
+  const a = seg(t, 0, 0.1) * (1 - seg(t, 0.82, 1)); if (a <= 0) return;
+  g.save(); g.globalAlpha = a;
+  // 발굽 자국: 판 둘레 타원을 따라 한 쌍씩 찍힌다
+  const steps = q.n(40) < 16 ? 16 : q.n(40); const head = ease.inOut(seg(t, 0.05, 0.75));
+  for (let i = 0; i < steps; i++) {
+    const u = i / steps; if (u > head) break;
+    const ang = (SEAT_DEG[0] - 20 + u * 320) * Math.PI / 180; const side = i % 2 ? 1 : -1;
+    const nx = Math.cos(ang), ny = Math.sin(ang);
+    const x = 150 + nx * (110 + side * 4), y = 105 + ny * (72 + side * 3);
+    const fade = 1 - Math.min(1, (head - u) * 2.5);
+    g.fillStyle = `rgba(242,193,78,${0.25 + fade * 0.75})`;
+    g.save(); g.translate(x, y); g.rotate(ang + Math.PI); g.beginPath(); g.arc(0, 0, 2.6, 0.3, Math.PI * 2 - 0.3); g.lineTo(0, 0); g.closePath(); g.fill(); g.restore();
+  }
+  // 자리: 발굽이 지나가면 작은 카드 두 장이 빠져나가고 −2
+  SEATS.forEach((p, i) => {
+    const pass = 0.05 + ((SEAT_DEG[i] - SEAT_DEG[0] + 20) / 320) * 0.7;
+    const k = seg(t, pass, pass + 0.18);
+    g.strokeStyle = '#6d5a43'; g.lineWidth = 1.2; g.beginPath(); g.arc(p.x, p.y, 8, 0, TAU); g.stroke();
+    for (let c = 0; c < 2; c++) {
+      const ck = seg(k, c * 0.2, 0.8 + c * 0.2); const x = p.x + (c - 0.5) * 6 + ck * (p.x - 150) * 0.15, y = p.y - 2 - ck * 12;
+      g.globalAlpha = a * (1 - ck); g.fillStyle = '#efe2c6'; g.fillRect(x - 2.5, y - 3.5, 5, 7);
+    }
+    g.globalAlpha = a;
+    if (k > 0) { g.fillStyle = '#e85a3c'; g.font = '600 10px sans-serif'; g.textAlign = 'center'; g.fillText('−2', p.x, p.y + 3.5); }
+  });
+  g.restore();
+}
+
+FxKit.mount({
+  kind: 'bandidos', title: '반디도스 연출 시안',
+  lead: '그림 속 말 탄 무법자 셋과 흙먼지로 "무리가 몰려와 모두의 손패를 털어 간다"를 보인다. 칸을 누르면 다시.',
+  concepts: [
+    { id: 'A', name: 'A. 그림 장면 · 사방으로 돌진', cost: 2, dur: 2000, draw: A,
+      desc: '흙먼지가 카드 아래에서 판 전체로 번지고, 기수 여섯이 카드에서 뛰쳐나와 커지며 자리마다 달려가 카드 두 장을 채 간다 · 저: 기수 셋, 먼지 단색·개수 줄어듦, 흔들림 없음' },
+    { id: 'B', name: 'B. 3D 손패 털기 · 빨려 드는 카드', cost: 3, dur: 2200, draw: B,
+      desc: '카드가 판에서 들리고, 여섯 자리의 손패 두 장씩이 높이(그림자와 간격)를 가지고 뒤집히며 가운데 카드로 빨려 들어 꿀꺽 삼켜진다 · 저: 그림자 블러·광택·카드 그림자 없음, 장 수 줄어듦' },
+    { id: 'C', name: 'C. 무성영화 · 추격 장면', cost: 2, dur: 2200, draw: C,
+      desc: '조리개가 열리며 세피아 화면 앞으로 무리 그림자가 두 줄 원근으로 가로질러 달리고, "반디도스가 나타났다!" 자막 카드가 뜬다 · 저: 필름 입자·흔들림·조리개 비네트 없음' },
+    { id: 'D', name: 'D. 미니멀 UI · 발굽 자국', cost: 1, dur: 1800, draw: D,
+      desc: '발굽 자국이 판 둘레를 돌며 찍히고, 지나간 자리마다 작은 카드 두 장이 빠져나가며 −2 가 뜬다 · 저: 발굽 수만 줄어듦' },
+  ],
+});
+</script></body></html>

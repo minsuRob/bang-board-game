@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>포커 연출 시안</title>
+<!--
+  원본 그림 메모 (250×389 기준)
+  - 그림 칸: x 38~212, y 85~258. 나무 탁자를 위에서 비스듬히 본 장면
+  - 탁자 위에 트럼프가 흩어져 있다: ♦ (95,178), ♠ (132,150), ♥ (168,158), ♣ (70,215), 오른쪽 끝 ♣ (205,178)
+  - 위 오른쪽에 동전 무더기 (160~190, 95~105), 왼쪽 위에 지폐, 아래쪽에 검은 권총 (95~220, 228~250)
+  노린 것: 모두가 한 장씩 내놓는 판. 사방 좌석에서 카드가 엎어진 채 날아와 모이기(A), 칩 쌓기(B),
+  그림 속 카드가 하나씩 엎어졌다 돌아오기(C), 무성영화 자막(D).
+  소리: 카드 '착착'(기존 card_draw 를 빠르게 여러 번), 칩 '딸깍'(짧은 플라스틱 클릭 + 쌓일수록 음 높이 올림).
+-->
+</head><body>
+<script src="_kit.js"></script>
+<script>
+const { W, H, card, rng, seg, lerp, ease, art, bg, drawCard, shake } = FxKit;
+const CX = card.x + card.w / 2, CY = card.y + card.h / 2, S = card.w / 250;
+
+function plane(g, o, draw) {
+  const f = 360, cz = Math.cos(o.rz || 0), sz = Math.sin(o.rz || 0), cx = Math.cos(o.rx || 0), sx = Math.sin(o.rx || 0), cy = Math.cos(o.ry || 0), sy = Math.sin(o.ry || 0);
+  const pt = (x, y) => { const X = x * cz - y * sz, Y = x * sz + y * cz; const Y1 = Y * cx, Z1 = Y * sx; const X2 = X * cy + Z1 * sy, Z2 = -X * sy + Z1 * cy; const s = f / Math.max(40, f + Z2 + (o.z || 0)); return { x: o.x + X2 * s, y: o.y + Y1 * s }; };
+  const a = pt(-o.w / 2, -o.h / 2), b = pt(o.w / 2, -o.h / 2), c = pt(-o.w / 2, o.h / 2);
+  const A = (b.x - a.x) / o.w, B = (b.y - a.y) / o.w, C = (c.x - a.x) / o.h, D = (c.y - a.y) / o.h;
+  const front = A * D - B * C > 0;
+  if (draw) { g.save(); g.transform(A, B, C, D, a.x + A * o.w / 2 + C * o.h / 2, a.y + B * o.w / 2 + D * o.h / 2); draw(front); g.restore(); }
+  return { pt, front };
+}
+
+// ----- 그림 흉내 -----
+const ART_CARDS = [
+  { x: 70, y: 215, r: -0.4, s: '♣', red: false },
+  { x: 95, y: 178, r: -0.2, s: '♦', red: true },
+  { x: 132, y: 150, r: -0.1, s: '♠', red: false },
+  { x: 168, y: 158, r: 0.1, s: '♥', red: true },
+  { x: 205, y: 178, r: 0.3, s: '♣', red: false },
+];
+/** 작은 트럼프 앞/뒷면 (가운데 기준 w×h) */
+function mini(g, w, h, faceUp, sym, red) {
+  g.fillStyle = faceUp ? '#f6f0e4' : '#7a2a24'; g.strokeStyle = faceUp ? '#9a8a70' : '#3a120e'; g.lineWidth = 0.8;
+  g.beginPath(); g.roundRect(-w / 2, -h / 2, w, h, Math.min(w, h) * 0.12); g.fill(); g.stroke();
+  if (faceUp) { g.fillStyle = red ? '#c0392b' : '#1e140b'; g.font = `${Math.round(h * 0.42)}px serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(sym, 0, h * 0.03); }
+  else { g.strokeStyle = 'rgba(239,226,198,0.45)'; g.strokeRect(-w / 2 + w * 0.14, -h / 2 + h * 0.1, w * 0.72, h * 0.8); g.beginPath(); g.moveTo(0, -h * 0.3); g.lineTo(w * 0.2, 0); g.lineTo(0, h * 0.3); g.lineTo(-w * 0.2, 0); g.closePath(); g.stroke(); }
+}
+function pokerArt(o) {
+  o = o || {};
+  return (g) => {
+    const a = art(38, 85), b = art(212, 258);
+    g.fillStyle = '#8a5b35'; g.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    g.strokeStyle = 'rgba(90,55,28,0.6)'; g.lineWidth = 0.8;
+    for (let i = 0; i < 7; i++) { const p = art(38, 95 + i * 25); g.beginPath(); g.moveTo(a.x, p.y); g.quadraticCurveTo(a.x + 40, p.y + 4, b.x, p.y - 3); g.stroke(); }
+    const bill = art(55, 100); g.fillStyle = '#7d9a6a'; g.save(); g.translate(bill.x, bill.y); g.rotate(-0.3); g.fillRect(-12, -6, 24, 12); g.restore();
+    const hop = o.hop || 0;
+    [[160, 104, '#b8b8b0'], [176, 100, '#d4a84a'], [190, 97, '#c8c8c0']].forEach(([x, y, c], i) => { const p = art(x, y); g.fillStyle = c; g.beginPath(); g.ellipse(p.x, p.y - hop * (i % 2 ? 4 : 2.5), 6 * S * 1.4, 3 * S * 1.4, 0, 0, 7); g.fill(); });
+    const gun = (pts) => { g.fillStyle = '#25201c'; g.beginPath(); pts.forEach(([x, y], i) => { const p = art(x, y); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.fill(); };
+    gun([[95, 244], [175, 232], [178, 240], [98, 250]]); gun([[172, 228], [222, 226], [228, 252], [196, 256], [180, 242]]);
+    ART_CARDS.forEach((c, i) => {
+      const p = art(c.x, c.y); const fl = o.flip ? o.flip[i] : 0; // 0 앞면 → 1 뒷면 (한 바퀴의 반)
+      const sx = Math.cos(fl * Math.PI);
+      g.save(); g.translate(p.x, p.y); g.rotate(c.r); g.scale(Math.max(0.02, Math.abs(sx)), 1);
+      mini(g, 34 * S, 46 * S, sx >= 0, c.s, c.red);
+      g.restore();
+      if (o.glow && o.glow[i] > 0) { g.save(); g.translate(p.x, p.y); g.rotate(c.r); g.strokeStyle = `rgba(242,193,78,${o.glow[i]})`; g.lineWidth = 1.5; g.strokeRect(-17 * S - 2, -23 * S - 2, 34 * S + 4, 46 * S + 4); g.restore(); }
+    });
+  };
+}
+const TITLE = '포커';
+
+const SEATS = [[-20, 30], [150, -40], [320, 30], [330, 170], [150, 250], [-30, 175]];
+const PILE = (() => { const r = rng(51); return SEATS.map((_, i) => ({ dx: (i - 2.5) * 13 + (r() - 0.5) * 4, rz: (r() - 0.5) * 0.5, b: 0.04 + i * 0.06 })); })();
+const CHIPS = (() => { const r = rng(53); const cols = ['#c0392b', '#f3ede0', '#2f5d8a', '#1e1e1e']; const out = []; for (let i = 0; i < 16; i++) { const left = i % 2 === 0; out.push({ left, j: Math.floor(i / 2), col: cols[Math.floor(r() * 4)], fx: left ? -40 - r() * 30 : W + 40 + r() * 30, fy: 40 + r() * 120, jit: (r() - 0.5) * 2 }); } return out; })();
+const GRAIN = (() => { const r = rng(57); return Array.from({ length: 160 }, () => [r() * W, r() * H, r()]); })();
+
+function chip(g, x, y, col, grad) {
+  g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.ellipse(x, y + 3.5, 13, 4.6, 0, 0, 7); g.fill();
+  g.fillStyle = col; g.fillRect(x - 13, y - 0.5, 26, 3.5);
+  g.beginPath(); g.ellipse(x, y + 3, 13, 4.6, 0, 0, Math.PI); g.fill();
+  if (grad) { const gr = g.createLinearGradient(x - 13, 0, x + 13, 0); gr.addColorStop(0, 'rgba(0,0,0,0.3)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.15)'); gr.addColorStop(1, 'rgba(0,0,0,0.35)'); g.fillStyle = gr; g.fillRect(x - 13, y - 0.5, 26, 3.5); }
+  g.fillStyle = col; g.beginPath(); g.ellipse(x, y, 13, 4.6, 0, 0, 7); g.fill();
+  g.strokeStyle = col === '#f3ede0' ? '#c0392b' : '#f3ede0'; g.lineWidth = 1.2; g.setLineDash([3, 4]); g.beginPath(); g.ellipse(x, y, 10.5, 3.6, 0, 0, 7); g.stroke(); g.setLineDash([]);
+}
+
+FxKit.mount({
+  kind: 'poker',
+  title: '포커 연출 시안',
+  lead: '다른 모두가 손패 한 장씩을 엎어서 내놓는 판. 칸을 누르면 다시 본다.',
+  concepts: [
+    {
+      id: 'A', name: 'A. 사방에서 엎어 모이기 (3D)', cost: 3, dur: 2000,
+      desc: '판 바깥 좌석들에서 카드가 한 장씩 들려 날아오며 뒤집혀 엎어진 채 카드 앞에 부채꼴로 깔리고, 모여서 밑으로 쓸려 들어간다 · 저: 3장만, 공중 그림자 없음',
+      draw(g, t, q) {
+        bg(g);
+        drawCard(g, TITLE, pokerArt());
+        const n = Math.max(3, q.n(SEATS.length));
+        const gather = ease.inOut(seg(t, 0.68, 0.92));
+        const vis = 1 - seg(t, 0.82, 0.95);
+        for (let i = 0; i < n; i++) {
+          const p = PILE[i], [sx, sy] = SEATS[i];
+          const k = seg(t, p.b, p.b + 0.32); if (k <= 0 || vis <= 0) continue;
+          const e = ease.out(k);
+          const tx = lerp(CX + p.dx, CX, gather), ty = lerp(184, 176, gather);
+          const x = lerp(sx, tx, e), y = lerp(sy, ty, e) - Math.sin(e * Math.PI) * 30;
+          const z = -Math.sin(e * Math.PI) * 110;
+          if (q.on(1) && k < 1) { g.fillStyle = `rgba(0,0,0,${0.25 * Math.sin(e * Math.PI)})`; g.beginPath(); g.ellipse(lerp(sx, tx, e) + 6, lerp(sy, ty, e) + 10, 14, 5, 0, 0, 7); g.fill(); }
+          g.save(); g.globalAlpha = vis;
+          plane(g, { x, y, w: 30, h: 42, rx: lerp(0.2, 1.05, e), ry: lerp(0, Math.PI, e), rz: lerp(p.rz * 3, p.rz * (1 - gather), e), z }, (front) => mini(g, 30, 42, front, '♠♥♦♣'[i % 4], i % 2 === 1));
+          g.restore();
+          if (k >= 1 && t < p.b + 0.42) { const tk = seg(t, p.b + 0.32, p.b + 0.42); g.strokeStyle = `rgba(243,231,206,${1 - tk})`; g.lineWidth = 1.2; g.beginPath(); g.ellipse(tx, ty + 6, 16 + tk * 8, 4 + tk * 2, 0, 0, 7); g.stroke(); }
+        }
+      },
+    },
+    {
+      id: 'B', name: 'B. 칩 쌓기 (사실풍)', cost: 2, dur: 1800,
+      desc: '양옆에서 칩이 포물선으로 날아와 딸깍딸깍 두 기둥으로 쌓이고, 마지막 한 개가 굴러가다 쓰러진다 · 저: 기둥당 2개, 테 광택 없음',
+      draw(g, t, q) {
+        bg(g);
+        drawCard(g, TITLE, pokerArt());
+        const per = Math.max(2, q.n(8));
+        const fade = 1 - seg(t, 0.82, 1);
+        if (fade <= 0) return;
+        g.save(); g.globalAlpha = fade;
+        const towers = [card.x - 26, card.x + card.w + 26], base = 186;
+        for (let side = 0; side < 2; side++) {
+          const list = CHIPS.filter((c) => c.left === (side === 0)).slice(0, per);
+          list.forEach((c, j) => {
+            const b = 0.04 + j * (0.5 / per) + side * 0.02; const k = seg(t, b, b + 0.16); if (k <= 0) return;
+            const e = ease.out(k), tx = towers[side] + c.jit, ty = base - j * 4;
+            const x = lerp(c.fx, tx, e), y = lerp(c.fy, ty, e) - Math.sin(e * Math.PI) * 50;
+            chip(g, x, y, c.col, q.on(1));
+          });
+        }
+        // 굴러가는 마지막 칩
+        const r = seg(t, 0.6, 0.84);
+        if (r > 0) {
+          const x = lerp(towers[1], towers[1] + 40, ease.out(r)), y = base + 6;
+          g.save(); g.translate(x, y - 8 * (1 - r)); g.rotate(lerp(Math.PI / 2 - 0.2, 0, ease.in(r)) * (r < 1 ? 1 : 0));
+          const sq = lerp(0.35, 1, ease.in(r)); g.scale(1, sq); chip(g, 0, 0, '#c8902f', q.on(1)); g.restore();
+        }
+        g.restore();
+      },
+    },
+    {
+      id: 'C', name: 'C. 그림 속 카드 엎기 (그림 조각)', cost: 1, dur: 1500,
+      desc: '그림 속 탁자의 트럼프가 왼쪽부터 하나씩 뒤집혀 엎어지고, 동전이 들썩인 뒤 차례로 다시 앞면이 된다 · 저: 테두리 빛 없음',
+      draw(g, t, q) {
+        bg(g);
+        const flip = ART_CARDS.map((_, i) => { const a = ease.inOut(seg(t, 0.06 + i * 0.07, 0.18 + i * 0.07)); const b = ease.inOut(seg(t, 0.62 + i * 0.05, 0.74 + i * 0.05)); return a - b; });
+        const glow = q.on(1) ? ART_CARDS.map((_, i) => Math.sin(seg(t, 0.2 + i * 0.07, 0.6 + i * 0.05) * Math.PI) * 0.9) : null;
+        const hop = Math.abs(Math.sin(seg(t, 0.4, 0.6) * Math.PI * 3)) * (1 - seg(t, 0.4, 0.6));
+        drawCard(g, TITLE, pokerArt({ flip, glow, hop }));
+        const tx = seg(t, 0.12, 0.22) * (1 - seg(t, 0.55, 0.68));
+        if (tx > 0) { g.save(); g.globalAlpha = tx; g.fillStyle = 'rgba(27,18,11,0.85)'; g.beginPath(); g.roundRect(CX - 44, 184, 88, 18, 9); g.fill(); g.fillStyle = '#f3e7ce'; g.font = '500 10.5px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('모두 한 장씩', CX, 193.5); g.restore(); }
+      },
+    },
+    {
+      id: 'D', name: 'D. 무성영화 자막', cost: 2, dur: 2200,
+      desc: '세피아로 바랜 화면이 동그랗게 열리고 장식 테 자막 "모두, 한 장씩 내놓으시오." 뒤로 카드 네 장이 뚝뚝 끊기는 12프레임으로 밀려온다 · 저: 필름 입자·긁힘·세피아 막 없음',
+      draw(g, t, q, f) {
+        bg(g);
+        const env = seg(t, 0, 0.1) * (1 - seg(t, 0.86, 1));
+        drawCard(g, TITLE, pokerArt());
+        // 12fps 로 끊긴 카드 밀기
+        const tq = Math.floor(t * 2200 / 83) * 83 / 2200;
+        const push = seg(tq, 0.56, 0.8), out = seg(tq, 0.8, 0.9);
+        if (push > 0 && out < 1) {
+          const from = [[-30, 150], [330, 150], [-30, 190], [330, 190]];
+          from.forEach(([fx, fy], i) => { const k = seg(push, i * 0.12, 0.6 + i * 0.12); const x = lerp(fx, CX + (i - 1.5) * 18, k), y = lerp(fy, 186, k); g.save(); g.globalAlpha = 1 - out; g.translate(x, y); g.rotate((i - 1.5) * 0.12); mini(g, 22, 30, false); g.restore(); });
+        }
+        if (q.on(1) && env > 0) { g.fillStyle = `rgba(120,80,30,${0.32 * env})`; g.fillRect(0, 0, W, H); }
+        // 자막판
+        const tc = seg(t, 0.16, 0.22) * (1 - seg(t, 0.5, 0.56));
+        if (tc > 0) {
+          const flick = 0.92 + 0.08 * Math.sin(f * 3.1);
+          g.save(); g.globalAlpha = tc * flick;
+          g.fillStyle = '#15100b'; g.fillRect(36, 52, 228, 106);
+          g.strokeStyle = '#d9c9a3'; g.lineWidth = 1.5; g.strokeRect(44, 60, 212, 90); g.lineWidth = 0.8; g.strokeRect(48, 64, 204, 82);
+          [[44, 60], [256, 60], [44, 150], [256, 150]].forEach(([x, y]) => { g.beginPath(); g.arc(x, y, 3, 0, 7); g.fillStyle = '#d9c9a3'; g.fill(); });
+          g.fillStyle = '#efe2c6'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.font = 'italic 600 17px serif'; g.fillText('모두,', W / 2, 90);
+          g.font = 'italic 500 14px serif'; g.fillText('한 장씩 내놓으시오.', W / 2, 116);
+          g.restore();
+        }
+        if (env > 0) {
+          if (q.on(1)) { const n = q.n(GRAIN.length); const off = (f * 37) % GRAIN.length; g.fillStyle = `rgba(30,20,10,${0.5 * env})`; for (let i = 0; i < n; i++) { const [x, y, s] = GRAIN[(i + off) % GRAIN.length]; g.fillRect((x + f * 13) % W, (y + f * 7) % H, 0.6 + s, 0.6 + s); } }
+          if (q.on(2)) { g.strokeStyle = `rgba(239,226,198,${0.35 * env})`; g.lineWidth = 0.7; for (let i = 0; i < 2; i++) { const x = ((f * (17 + i * 23)) % 280) + 10; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 3, H); g.stroke(); } }
+        }
+        // 아이리스 (열림·닫힘)
+        const open = ease.out(seg(t, 0, 0.14)), close = ease.in(seg(t, 0.84, 0.94)), reopen = ease.out(seg(t, 0.94, 1));
+        const R = lerp(lerp(210 * open, 64, close), 210, reopen);
+        if (R < 205) { g.fillStyle = '#000'; g.beginPath(); g.rect(0, 0, W, H); g.arc(CX, CY, Math.max(0, R), 0, Math.PI * 2, true); g.fill(); }
+      },
+    },
+  ],
+});
+</script></body></html>
