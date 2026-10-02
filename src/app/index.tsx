@@ -1,17 +1,18 @@
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { isFirebaseConfigured } from '@/firebase/config';
 import { characterArt, playingCardArt, type ArtCrop } from '@/game/ui/card-art';
 import { CharacterPortraitImage } from '@/game/ui/CharacterPortraitImage';
 import { codexCounts } from '@/game/ui/codex/codex-model';
 import { FullscreenButton } from '@/game/ui/FullscreenButton';
-import { MENU_PAPER, MenuBackdrop } from '@/game/ui/menu/MenuBackdrop';
+import { MenuBackdrop } from '@/game/ui/menu/MenuBackdrop';
 import { CroppedArt, MenuCard, type MenuCardProps } from '@/game/ui/menu/MenuCard';
 import { WesternFonts } from '@/game/ui/menu/western-fonts';
-import { QualityToggle, qualityHint, useFxQuality } from '@/game/ui/QualityPicker';
+import { SettingsSheet, useSettingsSummary } from '@/game/ui/settings/SettingsSheet';
+import { themedStyles, useColors } from '@/game/ui/theme/use-theme';
 import { Spacing } from '@/constants/theme';
 
 const CODEX = codexCounts();
@@ -25,15 +26,34 @@ const FAN_TILT = [-13, -4, 6, 14];
 const FAN_DROP = [18, -6, 2, 22];
 const GRID_TILT = [-3, 2, -2, 3];
 
-const INK = '#2b1d10';
-const INK_SOFT = '#4a3420';
-const RED = '#a8261b';
+/** 카드 앞면은 늘 종이라 테마와 상관없이 잉크로 그린다 */
+const CARD_INK = '#2b1d10';
+
+// 설정 카드 그림: 톱니바퀴
+const GEAR_TEETH = Array.from({ length: 10 }, (_, i) => {
+  const t = (i / 10) * Math.PI * 2;
+  const p = (r: number) => `${(50 + Math.cos(t) * r).toFixed(1)} ${(50 + Math.sin(t) * r).toFixed(1)}`;
+  return `M${p(27)}L${p(40)}`;
+}).join(' ');
+
+function GearArt() {
+  return (
+    <Svg width="62%" height="62%" viewBox="0 0 100 100">
+      <Path d={GEAR_TEETH} stroke={CARD_INK} strokeWidth={11} strokeLinecap="round" opacity={0.85} />
+      <Circle cx={50} cy={50} r={26} stroke={CARD_INK} strokeWidth={9} fill="none" opacity={0.85} />
+      <Circle cx={50} cy={50} r={8} fill="#b3261e" />
+    </Svg>
+  );
+}
 
 export default function HomeScreen() {
   const router = useRouter();
   const online = isFirebaseConfigured();
   const [code, setCode] = useState('');
-  const quality = useFxQuality();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const summary = useSettingsSummary();
+  const styles = useStyles();
+  const c = useColors();
   const { width } = useWindowDimensions();
 
   const fan = width >= FAN_MIN_WIDTH;
@@ -85,14 +105,11 @@ export default function HomeScreen() {
   };
   const settings: MenuCardProps = {
     width: cardW,
-    title: '연출 화질',
-    desc: qualityHint(quality),
+    title: '설정',
+    desc: `${summary}\n화질과 낮·밤 화면`,
     corner: 'J♣',
-    children: (
-      <View style={styles.settings}>
-        <QualityToggle scale={k} fontFamily={WesternFonts.label} />
-      </View>
-    ),
+    art: <GearArt />,
+    onPress: () => setSettingsOpen(true),
   };
 
   // 부채꼴은 가운데에 AI 카드가 오게, 2×2 는 AI 카드가 먼저 오게 놓는다
@@ -101,7 +118,6 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="dark" />
       <MenuBackdrop />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.hero}>
@@ -138,7 +154,7 @@ export default function HomeScreen() {
               value={code}
               onChangeText={(t) => setCode(t.toUpperCase().slice(0, 6))}
               placeholder="방 코드로 참가"
-              placeholderTextColor="rgba(43,29,16,0.45)"
+              placeholderTextColor={c.textMuted}
               autoCapitalize="characters"
               style={styles.input}
               accessibilityLabel="방 코드"
@@ -164,12 +180,13 @@ export default function HomeScreen() {
 
       {/* 흐름 밖에 띄운다. 첫 화면에서는 늘 오른쪽 위다. */}
       <FullscreenButton style={styles.fullscreen} />
+      {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: MENU_PAPER },
+const useStyles = themedStyles((c) => ({
+  screen: { flex: 1, backgroundColor: c.background },
   fullscreen: { position: 'absolute', top: Spacing.two, right: Spacing.two },
   container: {
     flexGrow: 1,
@@ -180,39 +197,38 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   hero: { alignItems: 'center', gap: Spacing.one },
-  // 하늘 수채 위에 잉크로 찍는다. 종이색 번짐을 둘러 구름 위에서도 읽히게 한다
+  // 하늘 수채 위에 잉크로 찍는다. 바탕색 번짐을 둘러 구름 위에서도 읽히게 한다 (다크는 밤빛 위 밝은 글자)
   title: {
-    color: INK,
+    color: c.heading,
     fontWeight: '900',
     letterSpacing: 3,
     fontFamily: WesternFonts.title,
-    textShadowColor: 'rgba(246,239,224,0.95)',
+    textShadowColor: c.veil,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 18,
   },
-  bang: { color: RED },
+  bang: { color: c.accent },
   subtitle: {
-    color: INK_SOFT,
+    color: c.textMuted,
     fontSize: 15,
     fontWeight: '700',
     fontFamily: WesternFonts.body,
-    textShadowColor: 'rgba(246,239,224,0.95)',
+    textShadowColor: c.veil,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
   },
   fan: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, justifyContent: 'center' },
-  settings: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   joinRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   input: {
     width: 240,
-    backgroundColor: 'rgba(251,246,234,0.85)',
+    backgroundColor: c.field,
     borderWidth: 1.5,
-    borderColor: 'rgba(43,29,16,0.45)',
+    borderColor: c.chipBorder,
     borderRadius: 999,
     paddingHorizontal: 22,
     paddingVertical: 12,
-    color: INK,
+    color: c.text,
     fontSize: 18,
     letterSpacing: 6,
     fontFamily: WesternFonts.type,
@@ -243,12 +259,12 @@ const styles = StyleSheet.create({
   chipText: { color: '#fff', fontSize: 14, fontWeight: '900', fontFamily: WesternFonts.label },
   notes: { gap: 4, maxWidth: 460, alignItems: 'center' },
   note: {
-    color: INK_SOFT,
+    color: c.textMuted,
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',
-    textShadowColor: 'rgba(246,239,224,0.95)',
+    textShadowColor: c.veil,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 6,
   },
-});
+}));

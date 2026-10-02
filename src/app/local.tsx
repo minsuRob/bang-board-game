@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
 import { AI_TIERS, AI_TIER_LABEL } from '@/game/ai';
 import type { AiTier } from '@/game/ai/types';
@@ -12,13 +11,13 @@ import { MenuBackdrop } from '@/game/ui/menu/MenuBackdrop';
 import {
   InkLink,
   PaperHeading,
-  PaperInk,
   PaperSection,
   PaperSheet,
-  paperText,
+  usePaperText,
   StampButton,
 } from '@/game/ui/menu/PaperUi';
 import { SavedGames } from '@/game/ui/SavedGames';
+import { themedStyles } from '@/game/ui/theme/use-theme';
 import { Spacing } from '@/constants/theme';
 
 const COUNTS = [4, 5, 6, 7];
@@ -38,10 +37,11 @@ export default function LocalSetupScreen() {
   const [valley, setValley] = useState(false);
   const [goldrush, setGoldrush] = useState(false);
   const [seed, setSeed] = useState(() => Math.floor(Date.now() % 100000));
+  const styles = useStyles();
+  const paperText = usePaperText();
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="dark" />
       <MenuBackdrop veil={0.55} />
       <ScrollView contentContainerStyle={styles.container}>
         <PaperSheet>
@@ -143,11 +143,12 @@ export default function LocalSetupScreen() {
 }
 
 function Row({ children }: { children: React.ReactNode }) {
+  const styles = useStyles();
   return <View style={styles.row}>{children}</View>;
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: PaperInk.paper },
+const useStyles = themedStyles((c) => ({
+  screen: { flex: 1, backgroundColor: c.background },
   container: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -163,4 +164,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
   },
-});
+}));

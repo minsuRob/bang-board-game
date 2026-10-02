@@ -7,15 +7,17 @@
 
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { getSaveBackend, saveSummary, savedAtLabel, SAVE_FORMAT, type SaveMeta } from '@/game/save';
 import { formatElapsed } from '@/game/ui/GameClock';
-import { PaperInk, PaperSection } from '@/game/ui/menu/PaperUi';
+import { themedStyles } from '@/game/ui/theme/use-theme';
+import { PaperSection } from '@/game/ui/menu/PaperUi';
 import { Spacing } from '@/constants/theme';
 
 export function SavedGames() {
   const router = useRouter();
+  const styles = useStyles();
   const [saves, setSaves] = useState<SaveMeta[]>([]);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,31 +88,31 @@ export function SavedGames() {
   );
 }
 
-const styles = StyleSheet.create({
-  error: { color: PaperInk.red, fontSize: 12 },
+const useStyles = themedStyles((c) => ({
+  error: { color: c.accent, fontSize: 12 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: PaperInk.rule,
-    backgroundColor: 'rgba(201,162,90,0.12)',
+    borderColor: c.rule,
+    backgroundColor: c.hover,
     padding: Spacing.two,
   },
   info: { flex: 1, gap: 2 },
-  summary: { color: PaperInk.ink, fontSize: 13, fontWeight: '800' },
-  sub: { color: PaperInk.inkSoft, fontSize: 11 },
+  summary: { color: c.text, fontSize: 13, fontWeight: '800' },
+  sub: { color: c.textMuted, fontSize: 11 },
   button: {
     paddingHorizontal: Spacing.two + 2,
     paddingVertical: Spacing.one,
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: 'rgba(43,29,16,0.55)',
+    borderColor: c.chipBorder,
   },
-  resume: { backgroundColor: PaperInk.ink, borderColor: PaperInk.ink },
-  danger: { borderColor: PaperInk.red, backgroundColor: 'rgba(168,38,27,0.1)' },
+  resume: { backgroundColor: c.selected, borderColor: c.selectedBorder },
+  danger: { borderColor: c.accent, backgroundColor: 'rgba(168,38,27,0.1)' },
   disabled: { opacity: 0.4 },
-  buttonText: { color: PaperInk.ink, fontSize: 12, fontWeight: '800' },
-  resumeText: { color: PaperInk.sheet },
-});
+  buttonText: { color: c.text, fontSize: 12, fontWeight: '800' },
+  resumeText: { color: c.onSelected },
+}));

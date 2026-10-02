@@ -6,7 +6,7 @@
  * 바깥이나 닫기를 누르면 닫힌다. 모양은 CharacterDetailModal 을 따랐다.
  */
 
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useStore } from 'zustand';
 
 import { CARD_DEFS } from '../../data/cards.base';
@@ -18,9 +18,9 @@ import { SUIT_GLYPH, type CardDef, type CardKind, type Suit } from '../../data/t
 import { chipFor } from '../card-symbols';
 import { CARD_FX } from '../fx/card-fx';
 import { fxQuality } from '../fx/quality';
-import { PaperInk } from '../menu/PaperUi';
 import { WesternFonts } from '../menu/western-fonts';
 import { PaperPlaque, plaque } from '../PaperPlaque';
+import { themedStyles, useColors } from '../theme/use-theme';
 import { CodexFace } from './CodexFaces';
 import { deckSpread, roleCounts, setLabel, type CodexItem } from './codex-model';
 import { ruleNotes } from './rule-notes';
@@ -36,8 +36,8 @@ const EQUIP_LABEL: Record<string, string> = {
   eliminated: '제거된 사람 앞에 놓는 장비',
 };
 
-function suitColor(suit: Suit): string {
-  return suit === 'hearts' || suit === 'diamonds' ? Colors.suitRed : PaperInk.ink;
+function suitColor(suit: Suit, ink: string): string {
+  return suit === 'hearts' || suit === 'diamonds' ? Colors.suitRed : ink;
 }
 
 function cardKindLabel(def: CardDef): string {
@@ -61,7 +61,7 @@ function bodyText(item: CodexItem): string {
   }
 }
 
-function factsOf(item: CodexItem): Fact[] {
+function factsOf(item: CodexItem, ink: string): Fact[] {
   switch (item.tab) {
     case 'cards': {
       const def = CARD_DEFS[item.id];
@@ -72,7 +72,7 @@ function factsOf(item: CodexItem): Fact[] {
         ...spread.bySuit.map((s) => ({
           label: SUIT_GLYPH[s.suit],
           value: `${s.ranks}  (${s.count}장)`,
-          color: suitColor(s.suit),
+          color: suitColor(s.suit, ink),
         })),
       ];
       if (def.countsAs) facts.push({ label: '취급', value: `${CARD_DEFS[def.countsAs].nameKo} 카드로도 친다` });
@@ -110,6 +110,8 @@ export function CodexDetail({
   onPlayFx: () => void;
   onClose: () => void;
 }) {
+  const styles = useStyles();
+  const c = useColors();
   const quality = useStore(fxQuality, (s) => s.quality);
   const fx = item.tab === 'cards' ? CARD_FX[item.id as CardKind] : undefined;
   // 빗나감!은 고화질 연출만 있다
@@ -135,7 +137,7 @@ export function CodexDetail({
             <Text style={plaque.text}>{bodyText(item)}</Text>
           </PaperPlaque>
 
-          {factsOf(item).map((f, i) => (
+          {factsOf(item, c.text).map((f, i) => (
             <View key={i} style={styles.fact}>
               <Text style={[styles.factLabel, f.color ? { color: f.color } : null]}>{f.label}</Text>
               <Text style={styles.factValue}>{f.value}</Text>
@@ -191,7 +193,7 @@ export function CodexDetail({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   layer: {
     position: 'absolute',
     top: 0,
@@ -204,30 +206,30 @@ const styles = StyleSheet.create({
     zIndex: 50,
   },
   hidden: { opacity: 0, pointerEvents: 'none' },
-  backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(43,29,16,0.45)' },
+  backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: c.scrim },
   sheet: {
     width: '100%',
     maxWidth: 420,
     maxHeight: '100%',
-    backgroundColor: PaperInk.sheet,
+    backgroundColor: c.surface,
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: PaperInk.rule,
+    borderColor: c.rule,
     padding: Spacing.three,
     gap: Spacing.two,
-    boxShadow: '0 14px 40px rgba(40,25,10,0.4)',
+    boxShadow: `0 14px 40px ${c.shadow}`,
   },
   body: { gap: Spacing.three },
   head: { flexDirection: 'row', gap: Spacing.three, alignItems: 'flex-end', flexWrap: 'wrap' },
   titles: { flex: 1, minWidth: 140, gap: 2 },
-  set: { color: PaperInk.red, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  nameKo: { color: PaperInk.ink, fontSize: 26, fontWeight: '900', fontFamily: WesternFonts.label },
-  name: { color: PaperInk.inkSoft, fontSize: 13, fontStyle: 'italic', fontFamily: WesternFonts.body },
+  set: { color: c.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  nameKo: { color: c.text, fontSize: 26, fontWeight: '900', fontFamily: WesternFonts.label },
+  name: { color: c.textMuted, fontSize: 13, fontStyle: 'italic', fontFamily: WesternFonts.body },
   fact: { flexDirection: 'row', gap: Spacing.three, marginTop: -Spacing.two },
-  factLabel: { color: PaperInk.inkSoft, fontSize: 13, fontWeight: '800', width: 40 },
-  factValue: { color: PaperInk.ink, fontSize: 13, flex: 1, fontVariant: ['tabular-nums'] },
+  factLabel: { color: c.textMuted, fontSize: 13, fontWeight: '800', width: 40 },
+  factValue: { color: c.text, fontSize: 13, flex: 1, fontVariant: ['tabular-nums'] },
   block: { gap: Spacing.one },
-  heading: { color: PaperInk.ink, fontSize: 14, fontWeight: '900', fontFamily: WesternFonts.label },
+  heading: { color: c.text, fontSize: 14, fontWeight: '900', fontFamily: WesternFonts.label },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   symbol: {
     flexDirection: 'row',
@@ -237,22 +239,22 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: PaperInk.rule,
-    backgroundColor: 'rgba(201,162,90,0.15)',
+    borderColor: c.rule,
+    backgroundColor: c.hover,
   },
   symbolGlyph: { fontSize: 14, fontWeight: '900' },
-  symbolLabel: { color: Colors.textOnPaper, fontSize: 12, fontWeight: '700' },
-  note: { color: PaperInk.ink, fontSize: 13, lineHeight: 19, fontFamily: WesternFonts.body },
+  symbolLabel: { color: c.text, fontSize: 12, fontWeight: '700' },
+  note: { color: c.text, fontSize: 13, lineHeight: 19, fontFamily: WesternFonts.body },
   actions: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.two },
   button: {
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.one + 2,
     borderRadius: Radius.pill,
     borderWidth: 1.5,
-    borderColor: 'rgba(43,29,16,0.55)',
+    borderColor: c.chipBorder,
   },
-  fxButton: { backgroundColor: PaperInk.ink, borderColor: PaperInk.ink },
-  fxText: { color: PaperInk.sheet, fontSize: 13, fontWeight: '800' },
+  fxButton: { backgroundColor: c.selected, borderColor: c.selectedBorder },
+  fxText: { color: c.onSelected, fontSize: 13, fontWeight: '800' },
   disabled: { opacity: 0.5 },
-  closeText: { color: PaperInk.ink, fontSize: 13, fontWeight: '700' },
-});
+  closeText: { color: c.text, fontSize: 13, fontWeight: '700' },
+}));

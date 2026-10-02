@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
 import type { CardKind } from '@/game/data/types';
 import { Chip } from '@/game/ui/Chip';
@@ -20,9 +19,10 @@ import {
 } from '@/game/ui/codex/codex-model';
 import { CARD_FX } from '@/game/ui/fx/card-fx';
 import { MenuBackdrop } from '@/game/ui/menu/MenuBackdrop';
-import { InkLink, PaperHeading, PaperInk, PaperSection, PaperSheet, paperText } from '@/game/ui/menu/PaperUi';
+import { InkLink, PaperHeading, PaperSection, PaperSheet, usePaperText } from '@/game/ui/menu/PaperUi';
 import { WesternFonts } from '@/game/ui/menu/western-fonts';
 import { CardFxPreview } from '@/game/ui/PlayedCardSpotlight';
+import { themedStyles, useColors } from '@/game/ui/theme/use-theme';
 import { Spacing } from '@/constants/theme';
 
 /** 이 폭보다 좁으면 격자 카드를 한 단계 작게 */
@@ -31,6 +31,9 @@ const NARROW = 520;
 export default function CardCodexScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const styles = useStyles();
+  const paperText = usePaperText();
+  const c = useColors();
   const tileW = width < NARROW ? CARD_DIMENSIONS.md.width : CARD_DIMENSIONS.lg.width;
 
   const [tab, setTab] = useState<CodexTab>('cards');
@@ -64,7 +67,6 @@ export default function CardCodexScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
       <MenuBackdrop veil={0.6} />
       <ScrollView contentContainerStyle={styles.container}>
         <PaperSheet>
@@ -79,7 +81,7 @@ export default function CardCodexScreen() {
             value={query}
             onChangeText={setQuery}
             placeholder="이름으로 찾기 (한글·원어)"
-            placeholderTextColor={PaperInk.inkMuted}
+            placeholderTextColor={c.textMuted}
             style={styles.search}
             accessibilityLabel="이름으로 찾기"
             autoCorrect={false}
@@ -151,8 +153,8 @@ export default function CardCodexScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: PaperInk.paper },
+const useStyles = themedStyles((c) => ({
+  root: { flex: 1, backgroundColor: c.background },
   container: {
     flexGrow: 1,
     padding: Spacing.three,
@@ -164,13 +166,13 @@ const styles = StyleSheet.create({
   header: { gap: Spacing.two },
   backLink: { alignSelf: 'flex-start' },
   search: {
-    backgroundColor: 'rgba(251,246,234,0.8)',
+    backgroundColor: c.field,
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: 'rgba(43,29,16,0.45)',
+    borderColor: c.chipBorder,
     paddingHorizontal: 18,
     paddingVertical: 10,
-    color: PaperInk.ink,
+    color: c.text,
     fontSize: 15,
     fontFamily: WesternFonts.body,
   },
@@ -180,18 +182,18 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignSelf: 'flex-start',
     borderWidth: 2,
-    borderColor: PaperInk.ink,
+    borderColor: c.selectedBorder,
     borderRadius: 6,
     overflow: 'hidden',
   },
   tab: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
-  tabActive: { backgroundColor: PaperInk.ink },
-  tabText: { color: PaperInk.ink, fontSize: 15, fontWeight: '900', fontFamily: WesternFonts.label },
-  tabTextActive: { color: PaperInk.sheet },
+  tabActive: { backgroundColor: c.selected },
+  tabText: { color: c.text, fontSize: 15, fontWeight: '900', fontFamily: WesternFonts.label },
+  tabTextActive: { color: c.onSelected },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   empty: { textAlign: 'center', paddingVertical: Spacing.five },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  tile: { borderRadius: 8, boxShadow: '0 4px 10px rgba(60,40,20,0.18)' },
+  tile: { borderRadius: 8, boxShadow: `0 4px 10px ${c.shadow}` },
   pressed: { opacity: 0.75, transform: [{ scale: 0.97 }] },
   fxLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 60, pointerEvents: 'box-none' },
-});
+}));

@@ -1,9 +1,14 @@
 /**
  * 뱅! 서부극 테마.
  *
- * 게임 테이블은 항상 어두운 살롱 톤으로 고정한다. 원본 SC2 아케이드 맵의
- * 레이아웃 캡처(reference/sc2-arcade/images/screenshot_25aad3a471f5.jpg)처럼
- * 낡은 종이/나무 질감 위에 카드가 놓인 느낌을 색으로만 흉내낸다.
+ * 색은 두 갈래다.
+ * - `Colors`: 판(3D 테이블 텍스처·지오메트리, 2D 좌석·테이블, 카드 앞면)이 쓰는 고정 팔레트.
+ *   게임 테이블은 늘 어두운 살롱 톤이다. 원본 SC2 아케이드 맵의 레이아웃 캡처
+ *   (reference/sc2-arcade/images/screenshot_25aad3a471f5.jpg)처럼 낡은 종이/나무 질감 위에
+ *   카드가 놓인 느낌을 색으로만 흉내낸다.
+ * - `Palettes.light` / `Palettes.dark`: 그 밖의 UI(메뉴, 버튼, 기록, 팝업)가 쓰는 테마 팔레트.
+ *   라이트는 종이와 잉크, 다크는 밤 살롱이다. UI 는 `useColors()` / `themedStyles()`
+ *   (src/game/ui/theme/use-theme.ts)로 읽어야 설정에서 테마를 바꿀 때 같이 바뀐다.
  */
 
 import '@/global.css';
@@ -56,6 +61,102 @@ export const Colors = {
 } as const;
 
 export type ThemeColor = keyof typeof Colors;
+
+/** 테마 팔레트. 판 팔레트의 이름을 그대로 쓰고, UI 에만 필요한 이름을 더한다 */
+export type ThemeColors = { [K in ThemeColor]: string } & {
+  /** 판 위에 얹는 반투명 패널 (기록·채팅·아래 막대·이름표) */
+  panel: string;
+  panelBorder: string;
+  /** 고른 칩·칸. 라이트는 잉크 도장, 다크는 갈색 바탕에 금 테두리 */
+  selected: string;
+  selectedBorder: string;
+  onSelected: string;
+  /** 시작·차례 마치기 같은 주 행동의 빨간 도장 */
+  accent: string;
+  accentShadow: string;
+  onAccent: string;
+  /** 팝업 뒤를 덮는 막 */
+  scrim: string;
+  /** 제목 글자 */
+  heading: string;
+  /** 괘선, 옅은 테두리 */
+  rule: string;
+  /** 고르지 않은 칩 */
+  chip: string;
+  chipBorder: string;
+  hover: string;
+  /** 입력칸 바탕 */
+  field: string;
+  /** 그림자 색 */
+  shadow: string;
+  /** 첫 화면 수채 그림 위에 덮는 색 */
+  veil: string;
+};
+
+const dark: ThemeColors = {
+  ...Colors,
+  panel: 'rgba(28, 19, 11, 0.92)',
+  panelBorder: '#5C452C',
+  selected: Colors.cardBrown,
+  selectedBorder: Colors.highlight,
+  onSelected: Colors.paper,
+  accent: '#B3261E',
+  accentShadow: '#5E140F',
+  onAccent: '#FBF6EA',
+  scrim: 'rgba(0, 0, 0, 0.6)',
+  heading: Colors.text,
+  rule: 'rgba(243, 231, 206, 0.22)',
+  chip: 'rgba(58, 42, 26, 0.7)',
+  chipBorder: 'rgba(243, 231, 206, 0.3)',
+  hover: 'rgba(242, 193, 78, 0.14)',
+  field: 'rgba(20, 12, 6, 0.6)',
+  shadow: 'rgba(0, 0, 0, 0.5)',
+  veil: '#140C06',
+};
+
+const light: ThemeColors = {
+  ...Colors,
+  background: '#F3EAD6',
+  surface: '#FBF6EA',
+  surfaceRaised: '#EFE3C8',
+  text: '#2B1D10',
+  textMuted: '#6A5238',
+  sheriff: '#A8780A',
+  deputy: '#2F6AA8',
+  outlaw: '#A8261B',
+  renegade: '#6A43B0',
+  hp: '#B7791F',
+  danger: '#B3261E',
+  success: '#2F7A3E',
+  activeTurn: '#2F8A3E',
+  presenceActive: '#2F8A3E',
+  presenceAway: '#B7791F',
+  presenceLeft: '#B3261E',
+  highlight: '#9A6A1C',
+  border: 'rgba(43, 29, 16, 0.3)',
+  overlay: 'rgba(43, 29, 16, 0.45)',
+  panel: 'rgba(251, 246, 234, 0.94)',
+  panelBorder: 'rgba(43, 29, 16, 0.28)',
+  selected: '#2B1D10',
+  selectedBorder: '#2B1D10',
+  onSelected: '#FBF6EA',
+  accent: '#A8261B',
+  accentShadow: '#5E140F',
+  onAccent: '#FBF6EA',
+  scrim: 'rgba(43, 29, 16, 0.45)',
+  heading: '#2B1D10',
+  rule: 'rgba(43, 29, 16, 0.3)',
+  chip: 'rgba(251, 246, 234, 0.6)',
+  chipBorder: 'rgba(43, 29, 16, 0.55)',
+  hover: 'rgba(201, 162, 90, 0.22)',
+  field: 'rgba(251, 246, 234, 0.85)',
+  shadow: 'rgba(60, 40, 20, 0.22)',
+  veil: '#F3EAD6',
+};
+
+export type Scheme = 'light' | 'dark';
+
+export const Palettes: Record<Scheme, ThemeColors> = { light, dark };
 
 export const Fonts = Platform.select({
   ios: { sans: 'system-ui', serif: 'ui-serif', rounded: 'ui-rounded', mono: 'ui-monospace' },

@@ -5,11 +5,14 @@ import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { preloadArt } from '@/game/ui/art-preload';
-import { Colors } from '@/constants/theme';
+import { useColors, useScheme } from '@/game/ui/theme/use-theme';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const scheme = useScheme();
+  const c = useColors();
+
   useEffect(() => {
     SplashScreen.hideAsync();
     // 첫 화면에 있는 동안 카드·보드 그림을 전부 받아 둔다
@@ -18,11 +21,11 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <StatusBar style="light" />
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: Colors.background },
+          contentStyle: { backgroundColor: c.background },
         }}
       />
     </GestureHandlerRootView>
