@@ -21,7 +21,7 @@ import { shuffle, type RngState } from '../engine/rng';
 import { nextInt } from '../engine/rng';
 import { sampleRoles, type Beliefs } from './belief';
 import { evaluate } from './evaluate';
-import { beliefsFor, scoreAction } from './policy';
+import { beliefsFor, isBetrayal, isHopelessDuel, scoreAction } from './policy';
 
 /** 후보를 몇 개까지 시뮬레이션할지 */
 const TOP_CANDIDATES = 5;
@@ -171,7 +171,12 @@ export function chooseHard(
     .map((action) => ({ action, score: scoreAction(view, me, action, beliefs) }))
     .sort((a, b) => b.score - a.score);
 
-  const candidates = ranked.slice(0, TOP_CANDIDATES);
+  // 시뮬레이션은 역할을 지어내므로, 같은 편이 적으로 뽑힌 표본 몇 개가 휴리스틱을
+  // 뒤집을 수 있다. 같은 편을 해치는 수와 반드시 지는 결투는 처음부터 빼 둔다.
+  const sane = ranked.filter(
+    (c) => !isBetrayal(view, me, c.action, beliefs) && !isHopelessDuel(view, me, c.action),
+  );
+  const candidates = (sane.length > 0 ? sane : ranked).slice(0, TOP_CANDIDATES);
   if (budget <= 0) return candidates[0].action;
 
   let rng: RngState = { seed: (seed ^ view.seq * 2654435761) | 0, n: 0 };

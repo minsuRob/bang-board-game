@@ -136,8 +136,9 @@ describe('AI 대전', () => {
       }
     }
     const rate = (t: string) => wins[t] / Math.max(1, seats[t]);
+    // 18판으로는 상과 하만 가른다. 중 > 하는 판 수가 넉넉한 아래 테스트가 본다.
     expect(rate('hard')).toBeGreaterThan(rate('easy'));
-    expect(rate('medium')).toBeGreaterThan(rate('easy'));
+    expect(rate('hard')).toBeGreaterThanOrEqual(rate('medium'));
   });
 
   it('중 난이도가 하 난이도보다 확실히 강하다', () => {

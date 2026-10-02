@@ -21,7 +21,7 @@ import {
   type PlayerId,
 } from '../engine';
 import { isHidden } from '../engine/view';
-import { handLimitOf, isRepeatAbility, isSwapAbility, turnDirectionOf } from '../engine/hooks';
+import { canUseCardAs, handLimitOf, isRepeatAbility, isSwapAbility, turnDirectionOf } from '../engine/hooks';
 import { rightNeighborOf } from '../engine/distance';
 import { CHARACTER_VALUE } from './draft';
 import { scoreGold } from './gold-policy';
@@ -108,6 +108,30 @@ export function isBetrayal(view: GameState, me: PlayerId, action: Action, belief
     return !hasKind(eq, 'jail') && !hasKind(eq, 'dynamite');
   }
   return false;
+}
+
+/**
+ * 결투에서 맞받아 낼 수 있는 카드 수. 결투를 거는 데 쓰는 카드는 빼고 센다.
+ * 빗나감!을 뱅!으로 내는 능력(캘러미티 자넷)도 Modifier 훅으로 함께 센다.
+ */
+function duelAmmo(view: GameState, me: PlayerId, spent: CardId): number {
+  return playerOf(view, me).hand.filter(
+    (c) => c !== spent && !isHidden(c) && canUseCardAs(view, me, kindOf(c), 'bang'),
+  ).length;
+}
+
+/**
+ * 반드시 지는 결투인가.
+ *
+ * 내 손에 맞받아 낼 카드가 한 장도 없고 상대 손에 카드가 있으면, 상대가 뱅!을
+ * 한 장이라도 쥐었을 때 목숨만 잃는다. 이길 길이 없으니 하·중·상 모두 걸지 않는다.
+ */
+export function isHopelessDuel(view: GameState, me: PlayerId, action: Action): boolean {
+  if (action.type !== 'playCard' || !action.target || action.target === me) return false;
+  const kind = action.as ?? safeKind(action.card);
+  if (kind !== 'duel') return false;
+  const target = playerOf(view, action.target);
+  return target.hand.length > 0 && duelAmmo(view, me, action.card) === 0;
 }
 
 /** 손패에서 이 종류의 카드를 몇 장 들고 있는가 */
@@ -315,8 +339,11 @@ function scorePlay(
     case 'duel': {
       if (!target) return -10;
       if (friend) return -12;
+      if (isHopelessDuel(view, me, action)) return -15;
+      // 상대 손이 비었으면 뱅!을 낼 수 없으니 반드시 이긴다
+      if (target.hand.length === 0) return 16 * enemy;
       // 내 손의 뱅!이 많을수록 이길 가능성이 높다
-      const myBangs = countKind(view, me, 'bang');
+      const myBangs = duelAmmo(view, me, action.card);
       const edge = myBangs - Math.min(2, target.hand.length / 2);
       return 10 * enemy + edge * 3;
     }

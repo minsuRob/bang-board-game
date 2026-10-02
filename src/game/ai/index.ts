@@ -16,7 +16,7 @@ import { nextInt, type RngState } from '../engine/rng';
 import { chooseDraft } from './draft';
 import { chooseHard } from './hard';
 import type { Beliefs, InferDepth } from './belief';
-import { beliefsFor, isBetrayal, scoreAction } from './policy';
+import { beliefsFor, isBetrayal, isHopelessDuel, scoreAction } from './policy';
 import type { AiContext, AiTier } from './types';
 
 /** 난이도별 시뮬레이션 표본 수 */
@@ -92,7 +92,9 @@ function chooseFallible(
 
   const roll = nextInt(rng, 1000);
   if (roll.value / 1000 < mistakeChance) {
-    const sane = legal.filter((a) => !isBetrayal(view, me, a, beliefs));
+    const sane = legal.filter(
+      (a) => !isBetrayal(view, me, a, beliefs) && !isHopelessDuel(view, me, a),
+    );
     const pool = sane.length > 0 ? sane : legal;
     return pool[nextInt(roll.rng, pool.length).value];
   }

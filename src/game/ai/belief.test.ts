@@ -6,7 +6,7 @@ import { actorsOf, kindOf, reduce, type Action, type GameEvent, type GameState }
 import { viewFor } from '../engine/view';
 import { analyze, hostility, type InferDepth } from './belief';
 import { decide } from './index';
-import { isBetrayal, scoreAction } from './policy';
+import { isBetrayal, isHopelessDuel, scoreAction } from './policy';
 
 const ROLES_7: Role[] = ['sheriff', 'deputy', 'outlaw', 'outlaw', 'deputy', 'outlaw', 'renegade'];
 
@@ -278,5 +278,74 @@ describe('하 난이도의 최소한의 분별', () => {
     expect(finished).toBeGreaterThanOrEqual(20);
     expect(deputyAttacks).toBeGreaterThan(20);
     expect(attacks).toBe(0);
+  });
+});
+
+/**
+ * 무법자 둘이 쓰러진 5인 판. p0 보안관의 차례이고, 카드 가져오기는 마쳤다.
+ * p1 부관, p2 배신자(사람). p2 는 보안관만, p1 은 p2 만 쏴 왔다.
+ */
+function endgame(hand: CardKind[], targetHand = 4): GameState {
+  let state = table(['sheriff', 'deputy', 'renegade', 'outlaw', 'outlaw']);
+  state = eliminate(eliminate(state, 'p3'), 'p4');
+  const used = new Map<CardKind, number>();
+  const take = (kind: CardKind) => {
+    const n = used.get(kind) ?? 0;
+    used.set(kind, n + 1);
+    return cardOfKind(kind, n);
+  };
+  const myHand = hand.map(take);
+  const theirs = Array.from({ length: targetHand }, () => take('beer'));
+  return {
+    ...withLog(state, [shoot('p2', 'p0'), shoot('p1', 'p2'), shoot('p2', 'p0'), shoot('p1', 'p2')]),
+    awaiting: null,
+    stack: [{ k: 'playPhase', pid: 'p0' }],
+    turn: { ...state.turn, active: 'p0', phase: 'play', drawn: true, bangsPlayed: 0 },
+    players: state.players.map((p) => {
+      if (p.id === 'p0') return { ...p, hand: myHand, equipment: [] };
+      if (p.id === 'p1') return { ...p, hp: 1, hand: [take('missed')], equipment: [] };
+      if (p.id === 'p2') return { ...p, hand: theirs, equipment: [] };
+      return p;
+    }),
+  } as GameState;
+}
+
+describe('상 난이도도 같은 편을 해치지 않는다', () => {
+  it('보안관은 사람만 쏜 부관을 시뮬레이션 잡음으로 쏘지 않는다', () => {
+    const state = endgame(['bang', 'bang', 'missed', 'beer']);
+    for (let seed = 0; seed < 40; seed++) {
+      const action = decide(state, 'p0', 'hard', seed);
+      expect(action && 'target' in action ? action.target : undefined).not.toBe('p1');
+    }
+  });
+});
+
+describe('반드시 지는 결투는 걸지 않는다', () => {
+  const isDuel = (a: Action | null) => a?.type === 'playCard' && kindOf(a.card) === 'duel';
+
+  it('뱅!이 없으면 손패가 있는 상대에게 결투를 걸지 않는다', () => {
+    const state = endgame(['duel', 'beer']);
+    for (const tier of ['easy', 'medium', 'hard'] as const) {
+      for (let seed = 0; seed < 20; seed++) {
+        expect(isDuel(decide(state, 'p0', tier, seed))).toBe(false);
+      }
+    }
+  });
+
+  it('상대 손이 비었으면 결투를 건다', () => {
+    const state = endgame(['duel', 'beer'], 0);
+    const view = viewFor(state, 'p0');
+    const b = analyze(view, 'p0');
+    const duel = { type: 'playCard' as const, pid: 'p0', card: state.players[0].hand[0], target: 'p2' };
+    expect(scoreAction(view, 'p0', duel, b)).toBeGreaterThan(10);
+  });
+
+  it('뱅!이 있으면 모르는 확률의 결투로 본다', () => {
+    const state = endgame(['duel', 'bang', 'bang']);
+    const view = viewFor(state, 'p0');
+    const b = analyze(view, 'p0');
+    const duel = { type: 'playCard' as const, pid: 'p0', card: state.players[0].hand[0], target: 'p2' };
+    expect(isHopelessDuel(view, 'p0', duel)).toBe(false);
+    expect(scoreAction(view, 'p0', duel, b)).toBeGreaterThan(0);
   });
 });
