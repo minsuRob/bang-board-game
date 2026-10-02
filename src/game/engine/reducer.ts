@@ -80,6 +80,7 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
         target2: action.target2,
         extra: action.extra,
         ability: action.ability,
+        also: action.also,
       });
       break;
     }

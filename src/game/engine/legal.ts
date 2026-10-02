@@ -20,6 +20,7 @@ import {
 } from './cards';
 import { canReachAtRange, canReachWithBang, distance } from './distance';
 import {
+  allowsDoubleBang,
   anytimeAbilitiesOf,
   bangLimitOf,
   canPlayCard,
@@ -46,6 +47,7 @@ export function actionKey(action: Action): string {
         action.pick ? (action.pick.zone === 'hand' ? `h${action.pick.index}` : `e${action.pick.card}`) : '',
         action.target2 ?? '',
         action.extra ?? '',
+        action.also ?? '',
         action.ability ?? '',
       ].join('|');
     case 'respond': {
@@ -322,12 +324,24 @@ function playPhaseActions(state: GameState, pid: PlayerId): Action[] {
           const aims = unique(me.hand).filter(
             (c) => c !== card && kindOf(c) === 'aim' && canPlayCard(state, pid, 'aim', c, false),
           );
+          // 저격수: 뱅!으로 쓸 수 있는 두 번째 카드를 함께 버린다. 같은 쌍은 한 번만 연다.
+          const partners = allowsDoubleBang(state)
+            ? unique(me.hand).filter(
+                (c) =>
+                  c > card &&
+                  canUseCardAs(state, pid, kindOf(c), 'bang') &&
+                  canPlayCard(state, pid, 'bang', c, false),
+              )
+            : [];
           for (const t of seatedPlayers(state)) {
             if (t.id === pid || !t.alive) continue;
             if (canReachWithBang(state, pid, t.id) && !immuneToCard(state, t.id, card, pid)) {
               out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
               for (const extra of aims) {
                 out.push({ type: 'playCard', pid, card, as: explicit, target: t.id, extra });
+              }
+              for (const also of partners) {
+                out.push({ type: 'playCard', pid, card, as: explicit, target: t.id, also });
               }
             }
           }

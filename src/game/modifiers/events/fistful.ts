@@ -113,6 +113,9 @@ const ambush: Modifier = { id: 'event:ambush', from: 'event', fixedDistance: 1 }
 /** 올가미 — 앞에 놓인 카드는 효과가 없다 */
 const lasso: Modifier = { id: 'event:lasso', from: 'event', disablesEquipment: true };
 
+/** 저격수 — 뱅! 2장을 함께 버려 한 사람을 쏜다. 뱅! 1회이고, 빗나감! 2장으로만 막는다 */
+const sniper: Modifier = { id: 'event:sniper', from: 'event', allowsDoubleBang: true };
+
 /** 판사 — 앞에 내려놓는 카드(파랑)를 낼 수 없다 */
 const theJudge: Modifier = {
   id: 'event:theJudge',
@@ -140,7 +143,7 @@ export const FISTFUL_EVENT_MODIFIERS: Record<FistfulEventId, Modifier> = {
   ranch,
   ricochet: ev('ricochet'),
   russianRoulette,
-  sniper: ev('sniper'),
+  sniper,
   theJudge,
   vendetta,
   fistfulOfCards,

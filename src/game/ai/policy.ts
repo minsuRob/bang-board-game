@@ -181,6 +181,11 @@ function scorePlay(
       s += Math.min(3, countKind(view, me, 'bang') - 1);
       // 조준을 함께 내면 한 방이 두 배다. 대신 조준 한 장을 쓴다
       if (action.extra) s += target.hp <= 2 ? 14 * enemy : 5 * enemy - 3;
+      // 저격수: 빗나감 2장을 요구한다. 두 번째 카드 값을 치른다
+      if (action.also !== undefined) {
+        const second = safeKind(action.also);
+        s += (target.hand.length <= 2 ? 8 : 4) * enemy - (second ? cardValue(second) : 6) * 0.8;
+      }
       // 능력으로 내는 뱅!(블랙 플라워 등)은 낼 카드의 값어치를 치른다
       if (action.ability) {
         const own = safeKind(action.card);

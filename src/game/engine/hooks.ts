@@ -55,6 +55,11 @@ export function firstOutRevival(state: GameState): { hp: number; cards: number }
   return eventModifier(state)?.revivesFirstOut ?? null;
 }
 
+/** 뱅! 2장을 한 번에 쓰는 저격이 열려 있는가 */
+export function allowsDoubleBang(state: GameState): boolean {
+  return eventModifier(state)?.allowsDoubleBang === true;
+}
+
 /** 숙취처럼 캐릭터 능력을 통째로 죽이는 효과가 걸려 있는가 */
 export function characterAbilitiesDisabled(state: GameState): boolean {
   return eventModifier(state)?.disablesCharacterAbilities === true;

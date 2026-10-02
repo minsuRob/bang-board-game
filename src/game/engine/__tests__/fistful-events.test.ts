@@ -257,3 +257,25 @@ describe('망자', () => {
     expect(p(s, 'b').alive).toBe(false);
   });
 });
+
+describe('저격수', () => {
+  it('뱅! 2장을 함께 내는 수가 열리고, 같은 쌍은 한 번만 연다', () => {
+    const s = table('sniper', { hand: ['bang', 'bang'] })();
+    const pairs = legalActions(s, 'a').filter((x) => x.type === 'playCard' && x.also && x.target === 'b');
+    expect(pairs).toHaveLength(1);
+  });
+
+  it('두 장 모두 버리고, 빗나감! 2장을 요구하며, 뱅! 1회로 친다', () => {
+    let s = table('sniper', { hand: ['bang', 'bang'] }, { hand: ['missed', 'missed'] })();
+    const play = legalActions(s, 'a').find((x) => x.type === 'playCard' && x.also && x.target === 'b')!;
+    s = reduce(s, play);
+    expect(p(s, 'a').hand).toHaveLength(0);
+    expect(s.turn.bangsPlayed).toBe(1);
+    expect(s.awaiting).toMatchObject({ k: 'missed', pid: 'b', remaining: 2 });
+  });
+
+  it('이벤트가 없으면 열리지 않는다', () => {
+    const s = table('blessing', { hand: ['bang', 'bang'] })();
+    expect(legalActions(s, 'a').some((x) => x.type === 'playCard' && x.also)).toBe(false);
+  });
+});

@@ -182,4 +182,6 @@ export type Modifier = {
   discardsToDeck?: boolean;
   /** 가장 먼저 제거된 사람이 자기 차례에 이 목숨·카드로 돌아온다. 한 판에 한 번 (망자) */
   revivesFirstOut?: { hp: number; cards: number };
+  /** 뱅! 2장을 함께 버려 빗나감! 2장이 필요한 뱅! 1회로 쓸 수 있다 (저격수) */
+  allowsDoubleBang?: boolean;
 };

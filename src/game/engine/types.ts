@@ -410,6 +410,8 @@ export type Action =
       target2?: PlayerId;
       /** 조준: 뱅!과 함께 내는 카드 */
       extra?: CardId;
+      /** 저격수(한줌의 카드): 함께 버리는 두 번째 뱅! */
+      also?: CardId;
       /** 차례당 한 번 능력으로 낼 때 그 능력 key (블랙 플라워·더 스팟·엉클 윌) */
       ability?: string;
     }

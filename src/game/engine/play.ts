@@ -41,6 +41,8 @@ export type PlayOptions = {
   target2?: PlayerId;
   extra?: CardId;
   ability?: string;
+  /** 저격수: 함께 버리는 두 번째 뱅! */
+  also?: CardId;
 };
 
 /** 이 능력 key 가 뱅! 횟수를 쓰지 않는 추가 뱅!인가 (블랙 플라워) */
@@ -131,6 +133,20 @@ export function applyPlayCard(
     });
   }
 
+  // 저격수: 두 번째 뱅!도 손을 떠난다. 둘이 합쳐 뱅! 1회다.
+  if (opts.also) {
+    const also = opts.also;
+    cur = updatePlayer(cur, pid, (p) => ({ ...p, hand: p.hand.filter((c) => c !== also) }));
+    cur = toDiscard(cur, [also]);
+    cur = log(cur, {
+      t: 'playCard',
+      pid,
+      card: also,
+      target,
+      text: `${ga(nameOf(cur, pid))} 저격수로 ${eul(CARD_DEFS[kindOf(also)].nameKo)} 함께 냈다.`,
+    });
+  }
+
   // 패닝은 차례당 한 번인 뱅!으로 친다. 추가 뱅!(블랙 플라워)은 횟수를 쓰지 않는다.
   if ((as === 'bang' || as === 'fanning') && !isExtraBang(cur, pid, opts.ability)) {
     cur = { ...cur, turn: { ...cur.turn, bangsPlayed: cur.turn.bangsPlayed + 1 } };
@@ -138,10 +154,13 @@ export function applyPlayCard(
 
   if (as === 'bang' && target) frames.push(...onPlayBangFrames(cur, pid, target));
   frames.push(
-    ...effectFrames(cur, pid, as, target, opts, card).map((f) =>
-      // 탈출·믹 디펜더: 뱅!이 아닌 갈색 카드의 대상은 피할 기회를 얻는다
-      target && SINGLE_TARGET_EVADABLE.includes(f.k) ? withEvade(cur, target, pid, as, f) : f,
-    ),
+    ...effectFrames(cur, pid, as, target, opts, card)
+      // 저격수: 빗나감! 2장으로만 막는다 (슬랩 더 킬러면 그대로 2장 이상)
+      .map((f) => (opts.also && f.k === 'bang' ? { ...f, missesRequired: Math.max(2, f.missesRequired) } : f))
+      .map((f) =>
+        // 탈출·믹 디펜더: 뱅!이 아닌 갈색 카드의 대상은 피할 기회를 얻는다
+        target && SINGLE_TARGET_EVADABLE.includes(f.k) ? withEvade(cur, target, pid, as, f) : f,
+      ),
   );
   frames.push(...onOtherPlaysCardFrames(cur, pid, as));
   return pushSeq(cur, frames);

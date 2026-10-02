@@ -140,6 +140,8 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     () =>
       allLegal.filter((a) => {
         if (a.type !== 'playCard') return true;
+        // 저격수 수는 하단 바에서 켰을 때만 쓴다 (아직 켜는 단추가 없다)
+        if (a.also !== undefined) return false;
         return abilityOf(a) === (armedAbility?.key ?? null);
       }),
     [allLegal, armedAbility, abilityOf],
