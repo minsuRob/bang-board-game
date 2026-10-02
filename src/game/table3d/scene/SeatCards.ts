@@ -2,7 +2,7 @@
  * 보드 슬롯의 직업·캐릭터 카드.
  *
  * 캐릭터는 늘 앞면. 직업은 공개(보안관·탈락자)면 앞면, 아니면 뒷면이다.
- * 내 직업은 숨긴 채로 내 쪽을 향해 비스듬히 세운다. 나에게만 앞면이 보인다.
+ * 내 직업은 숨긴 것이라도 앞면으로 슬롯에 놓는다. 화면은 내 것이라 남에게는 보이지 않는다.
  *
  * 숨은 정보: 남의 역할은 view 에서 가려져 있을 수 있다. roleRevealed 가 아니면
  * 앞면 머티리얼을 아예 붙이지 않는다.
@@ -21,12 +21,6 @@ import {
 } from '../materials/card-materials';
 import { PORTRAIT_WINDOW } from '../materials/textures';
 import { CardHandle, IDLE_POSE, type Pose } from './CardHandle';
-
-/**
- * 내 직업 카드를 세우는 각도. 가까운 변을 경첩 삼아 먼 변을 내 쪽으로 든다.
- * 앞면은 나(카메라)를 보고, 테이블의 남들에게는 뒷면만 보인다.
- */
-const PEEK = 0.95;
 
 type SeatPair = { role: CardHandle; character: CardHandle; portrait: THREE.Mesh };
 
@@ -65,19 +59,7 @@ export class SeatCards {
       const roleFace = revealed || self ? roleFaceMaterial(p.role) : roleBackMaterial();
       pair.role.dress(roleFace, roleBackMaterial());
       const at = seat.slots.role;
-      let rolePose: Pose = { ...base, pos: [at[0], 0.014, at[2]], flip: revealed ? 0 : Math.PI };
-      if (self && !revealed) {
-        // 가까운 변은 제자리, 중심을 위로 올리고 바깥쪽으로 조금 당긴다
-        const half = (CARD_SIZE.h * scale) / 2;
-        const lift = half * Math.sin(PEEK);
-        const slide = half * (1 - Math.cos(PEEK));
-        rolePose = {
-          ...rolePose,
-          pos: [at[0] - seat.inward[0] * slide, 0.014 + lift, at[2] - seat.inward[2] * slide],
-          pitch: PEEK,
-          flip: 0,
-        };
-      }
+      const rolePose: Pose = { ...base, pos: [at[0], 0.014, at[2]], flip: revealed || self ? 0 : Math.PI };
       pair.role.show(true);
       this.move(pair.role, rolePose, snap);
 
