@@ -10,6 +10,7 @@
 import { scanInstalled } from './lib.mjs';
 
 import { CARD_DEFS } from '../../src/game/data/cards.base';
+import { GOLD_CARD_KINDS } from '../../src/game/data/cards.goldrush';
 import { CHARACTER_IDS } from '../../src/game/data/characters';
 import { EVENTS } from '../../src/game/data/events';
 import { ROLE_LABEL } from '../../src/game/data/roles';
@@ -20,6 +21,7 @@ const EXPECTED: Record<string, string[]> = {
   캐릭터: CHARACTER_IDS.map((id) => `cards/character/${id}.png`),
   역할: Object.keys(ROLE_LABEL).map((r) => `cards/role/${r}.png`),
   이벤트: Object.keys(EVENTS).map((id) => `cards/event/${id}.png`),
+  '골드 장비': GOLD_CARD_KINDS.map((k) => `cards/gold/${k}.png`),
   뒷면: ['cards/back.png'],
   보드: ['board/felt.jpg', 'board/player-board.webp'],
 };

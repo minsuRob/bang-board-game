@@ -2,7 +2,7 @@
  * 그림이 없는 골드 장비·직업 카드 앞면, 그리고 도감 항목 하나를 알맞은 앞면으로 그리는 CodexFace.
  *
  * 플레잉 카드·캐릭터·이벤트는 게임에서 쓰는 컴포넌트를 그대로 쓴다.
- * 골드 장비와 직업은 그림 폴더가 없어서 종이 카드에 글자로 그린다 (직업은 그림이 있으면 그림).
+ * 골드 장비와 직업은 그림이 있으면 그림, 없으면 종이 카드에 글자로 그린다.
  */
 
 import { Image, StyleSheet, Text, View } from 'react-native';
@@ -11,7 +11,7 @@ import { GOLD_CARD_DEFS } from '../../data/cards.goldrush';
 import { EVENTS } from '../../data/events';
 import { ROLE_LABEL } from '../../data/roles';
 import type { CardKind, GoldCardKind, Role } from '../../data/types';
-import { roleArt } from '../card-art';
+import { goldCardArt, roleArt } from '../card-art';
 import { CARD_DIMENSIONS, CardView } from '../CardView';
 import { CharacterCard } from '../CharacterCard';
 import { EventCardFace } from '../EventCardFace';
@@ -32,6 +32,12 @@ const GOLD_BLACK = '#1E1814';
 
 export function GoldCardFace({ kind, width }: { kind: GoldCardKind; width: number }) {
   const def = GOLD_CARD_DEFS[kind];
+  const art = goldCardArt(kind);
+  if (art) {
+    return (
+      <Image source={art} style={[styles.art, { width, height: Math.round(width * CARD_RATIO) }]} resizeMode="cover" accessibilityLabel={def.nameKo} />
+    );
+  }
   const small = width < 110;
   return (
     <View

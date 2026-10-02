@@ -12,7 +12,7 @@
 import { Asset } from 'expo-asset';
 import type { ImageSourcePropType } from 'react-native';
 
-import type { CardKind, CharacterId, EventCardId, Role } from '../data/types';
+import type { CardKind, CharacterId, EventCardId, GoldCardKind, Role } from '../data/types';
 
 type AssetMap = Record<string, ImageSourcePropType>;
 
@@ -135,6 +135,11 @@ export function roleArt(role: Role): ImageSourcePropType | null {
 
 export function eventArt(id: EventCardId): ImageSourcePropType | null {
   return card(`event/${id}.png`);
+}
+
+/** 골드 러시 장비 카드 (플레잉 카드와 따로 cards/gold/ 에 둔다. 금덩이 값이 그림에 인쇄돼 있다) */
+export function goldCardArt(kind: GoldCardKind): ImageSourcePropType | null {
+  return card(`gold/${kind}.png`);
 }
 
 export function cardBackArt(): ImageSourcePropType | null {
