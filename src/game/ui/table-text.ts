@@ -73,7 +73,7 @@ export function bottomStatus(view: GameState, viewer: PlayerId, api: TableApi): 
   if (api.armed) {
     const ab = api.playAsAbilities.find((x) => x.key === api.armed);
     if (ab?.status) return ab.status;
-    const name = ab ? CARD_DEFS[ab.as].nameKo : '능력';
+    const name = ab?.as ? CARD_DEFS[ab.as].nameKo : '능력';
     return `${ro(name)} 낼 카드를 고른다 (Esc 취소)`;
   }
   // 서부의 법: 보여 준 카드를 내기 전에는 차례를 마칠 수 없다

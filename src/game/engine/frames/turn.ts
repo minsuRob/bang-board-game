@@ -24,6 +24,7 @@ import {
   updatePlayer,
 } from '../cards';
 import {
+  beforeDrawFrames,
   drawCountOf,
   drawPhaseOverride,
   firstOutRevival,
@@ -133,6 +134,8 @@ export function resolveDrawPhase(state: GameState, frame: Frame & { k: 'drawPhas
   const count = drawCountOf(cur, pid);
   const frames: Frame[] = [];
 
+  // 율 그리너: 가져오기 전에 손패가 많은 사람들에게서 1장씩 받는다
+  frames.push(...beforeDrawFrames(cur, pid));
   const override = drawPhaseOverride(cur, pid, count);
   if (override) {
     frames.push(...override);

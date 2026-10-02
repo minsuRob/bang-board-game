@@ -77,6 +77,12 @@ export function CharacterDetail({
         </View>
       </View>
       <Text style={[styles.ability, compact && styles.abilityCompact]}>{character.ability}</Text>
+      {/* 그레고리 덱이 빌린 기본판 캐릭터 */}
+      {(player.borrowed ?? []).map((c) => (
+        <Text key={c} style={[styles.ability, compact && styles.abilityCompact]}>
+          빌린 능력 · {CHARACTERS[c].nameKo}: {CHARACTERS[c].ability}
+        </Text>
+      ))}
     </View>
   );
 }

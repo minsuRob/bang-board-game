@@ -21,7 +21,8 @@ import {
   type PlayerId,
 } from '../engine';
 import { isHidden } from '../engine/view';
-import { handLimitOf } from '../engine/hooks';
+import { handLimitOf, isRepeatAbility, isSwapAbility } from '../engine/hooks';
+import { CHARACTER_VALUE } from './draft';
 import { scoreGold } from './gold-policy';
 import {
   analyze,
@@ -125,6 +126,11 @@ export function scoreAction(
 ): number {
   switch (action.type) {
     case 'playCard':
+      if (isSwapAbility(view, me, action.ability)) return scoreSwap(view, me, action, beliefs);
+      // 리 반 클리프: 뱅! 한 장을 치르고 같은 효과를 한 번 더 낸다
+      if (isRepeatAbility(view, me, action.ability)) {
+        return scorePlay(view, me, action, beliefs) - cardValue('bang') * 0.8;
+      }
       return scorePlay(view, me, action, beliefs);
     case 'respond':
       return scoreRespond(view, me, action, beliefs);
@@ -151,6 +157,27 @@ export function scoreAction(
 // ---------------------------------------------------------------------------
 // 카드 사용
 // ---------------------------------------------------------------------------
+
+/**
+ * 플린트 웨스트우드: 덜 아까운 카드 1장을 주고 무작위로 2장을 받는다.
+ * 손패가 많은 적에게서 빼앗을수록 좋고, 같은 편의 손은 건드리지 않는다.
+ */
+function scoreSwap(
+  view: GameState,
+  me: PlayerId,
+  action: Action & { type: 'playCard' },
+  beliefs: Beliefs,
+): number {
+  if (!action.target) return -10;
+  const target = playerOf(view, action.target);
+  const enemy = hostility(view, me, target.id, beliefs, situation(view, me, beliefs));
+  if (enemy < FRIEND) return -8;
+  const given = safeKind(action.card);
+  const cost = given ? cardValue(given) : 5;
+  const taken = Math.min(2, target.hand.length);
+  // 무작위로 받는 카드 한 장의 값어치는 대략 4
+  return taken * 4 - cost * 1.2 + 3 * enemy + Math.min(2, target.hand.length - 2);
+}
 
 function scorePlay(
   view: GameState,
@@ -387,6 +414,7 @@ function scoreRespond(
       }
       if (a.purpose === 'rattlesnake') return suit === 'spades' ? -50 : 50;
       if (a.purpose === 'coloradoBill') return suit === 'spades' ? 50 : -50;
+      if (a.purpose === 'terenKill') return suit === 'spades' ? -50 : 50;
       return suit === 'hearts' ? 50 : -50;
     }
 
@@ -474,6 +502,20 @@ function scoreRespond(
     case 'newIdentity':
       // 목숨이 2 이하로 떨어졌으면 새 신분이 이득이다
       return choice.c === 'yes' ? (my.hp <= 2 ? 20 : -10) : 0;
+
+    // ----- 와일드 웨스트 쇼 -----
+    case 'borrowCharacters': {
+      // 빌린 능력이 평균보다 못하면 새로 뽑는다
+      if (choice.c !== 'yes') return 0;
+      const avg = a.current.reduce((n, c) => n + (CHARACTER_VALUE[c] ?? 5), 0) / a.current.length;
+      return 6.2 - avg;
+    }
+    case 'giveCard': {
+      // 가장 덜 아까운 카드를 준다
+      if (choice.c !== 'card') return 0;
+      const kind = safeKind(choice.card);
+      return kind ? 10 - cardValue(kind) : 0;
+    }
 
     case 'declareSuit': {
       if (choice.c !== 'suit') return 0;

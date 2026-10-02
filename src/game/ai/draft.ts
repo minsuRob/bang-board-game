@@ -10,7 +10,7 @@ import { playerOf, type Action, type GameState, type PlayerId } from '../engine'
 import { nextInt, type RngState } from '../engine/rng';
 
 /** 대략적인 캐릭터 세기 (10점 만점) */
-const CHARACTER_VALUE: Record<CharacterId, number> = {
+export const CHARACTER_VALUE: Record<CharacterId, number> = {
   willyTheKid: 9,
   slabTheKiller: 8,
   jourdonnais: 8,

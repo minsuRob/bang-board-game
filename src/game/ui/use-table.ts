@@ -8,6 +8,7 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { CARD_DEFS } from '../data/cards.base';
+import { CHARACTERS } from '../data/characters';
 import { eul, ga } from '../engine/josa';
 import type { CardId, CardKind, CharacterId, Suit } from '../data/types';
 import {
@@ -16,6 +17,8 @@ import {
   legalActions,
   isExplicitAbility,
   playAnyAsAbilitiesOf,
+  repeatAbilitiesOf,
+  swapAbilitiesOf,
   type Action,
   type Choice,
   type GameState,
@@ -95,10 +98,10 @@ export type TableApi = {
   abilities: { key: string; label: string; cards: CardId[] }[];
   useAbility: (key: string, cards: CardId[]) => void;
   /**
-   * 켜고 끄는 사용법. 손의 아무 카드나 다른 종류로 내는 능력(엉클 윌)과
-   * 한줌의 카드 이벤트의 저격수·리코체. 이번 차례에 쓸 수 있는 것만
+   * 켜고 끄는 사용법. 손의 아무 카드나 다른 종류로 내는 능력(엉클 윌), 맞바꾸기(플린트 웨스트우드),
+   * 갈색 카드 한 번 더(리 반 클리프), 한줌의 카드 이벤트의 저격수·리코체. 이번 차례에 쓸 수 있는 것만
    */
-  playAsAbilities: { key: string; label: string; as: CardKind; status?: string }[];
+  playAsAbilities: { key: string; label: string; as?: CardKind; status?: string }[];
   /** 켜 둔 playAs 능력. 켜져 있으면 손패는 그 능력으로만 낸다 */
   armed: string | null;
   arm: (key: string | null) => void;
@@ -136,12 +139,42 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     () => (view && viewer ? playAnyAsAbilitiesOf(view, viewer) : []),
     [view, viewer],
   );
+  // 와일드 웨스트 쇼: 플린트의 맞바꾸기, 리 반 클리프의 한 번 더. 이것도 켜야만 쓴다.
+  // 맞바꾸기는 카드를 내는 게 아니라서, 모르고 누르면 카드가 남의 손으로 가 버린다.
+  const turnModes = useMemo(() => {
+    if (!view || !viewer) return [];
+    const out: { key: string; label: string; status: string }[] = [];
+    for (const ab of swapAbilitiesOf(view, viewer)) {
+      out.push({
+        key: ab.key,
+        label: `능력 · ${ab.label}`,
+        status: '줄 카드를 고르고, 맞바꿀 상대를 지목한다 (Esc 취소)',
+      });
+    }
+    const last = view.turn.lastBrown;
+    if (last) {
+      const name = CARD_DEFS[last].nameKo;
+      for (const ab of repeatAbilitiesOf(view, viewer)) {
+        out.push({
+          key: ab.key,
+          label: `능력 · ${name} 한 번 더`,
+          status: `버릴 뱅!을 고른다 — ${eul(name)} 한 번 더 낸다 (Esc 취소)`,
+        });
+      }
+    }
+    return out.filter((m) => allLegal.some((a) => a.type === 'playCard' && a.ability === m.key));
+  }, [view, viewer, allLegal]);
+
   // 이 액션이 어느 차례당 한 번 능력으로 내는 것인가. 조건이 붙은 능력(블랙 플라워·더 스팟)은
   // 액션에 ability 가 적혀 있고, 엉클 윌은 '다른 종류로 냈다'로 알아본다.
   const abilityOf = useCallback(
     (a: Action): string | null => {
       if (a.type !== 'playCard') return null;
-      if (a.ability) return playAs.some((ab) => ab.key === a.ability) ? a.ability : null;
+      if (a.ability) {
+        const known =
+          playAs.some((ab) => ab.key === a.ability) || turnModes.some((m) => m.key === a.ability);
+        return known ? a.ability : null;
+      }
       if (a.as === undefined || a.as === kindOf(a.card)) return null;
       return playAs.find((ab) => !isExplicitAbility(ab) && ab.as === a.as)?.key ?? null;
     },
@@ -160,6 +193,7 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
       ...playAs
         .filter((ab) => allLegal.some((a) => abilityOf(a) === ab.key))
         .map((ab) => ({ key: ab.key, label: `능력 · ${ab.label}`, as: ab.as })),
+      ...turnModes,
       ...eventModes.map((m) => ({
         key: m,
         label: EVENT_MODE_INFO[m].label,
@@ -167,14 +201,15 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
         status: EVENT_MODE_INFO[m].status,
       })),
     ],
-    [playAs, allLegal, abilityOf, eventModes],
+    [playAs, allLegal, abilityOf, eventModes, turnModes],
   );
   const armedLive = armedFor && armedFor.turn === turnId ? armedFor.key : null;
   const armedAbility = armedLive
     ? playAs.find((ab) => ab.key === armedLive && playAsAbilities.some((x) => x.key === ab.key))
     : undefined;
+  const armedTurnMode = turnModes.find((m) => m.key === armedLive)?.key ?? null;
   const armedMode = eventModes.find((m) => m === armedLive) ?? null;
-  const armed = armedAbility?.key ?? armedMode ?? null;
+  const armed = armedAbility?.key ?? armedTurnMode ?? armedMode ?? null;
 
   const legal = useMemo<Action[]>(
     () =>
@@ -184,9 +219,9 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
         const mode = eventModeOf(a);
         if (armedMode) return mode === armedMode;
         if (mode) return false;
-        return abilityOf(a) === (armedAbility?.key ?? null);
+        return abilityOf(a) === (armedAbility?.key ?? armedTurnMode ?? null);
       }),
-    [allLegal, armedAbility, armedMode, abilityOf],
+    [allLegal, armedAbility, armedTurnMode, armedMode, abilityOf],
   );
 
   // 리코체: 상대를 지목한 뒤 그 앞의 카드가 여럿이면 어느 것을 노릴지 한 번 더 고른다
@@ -633,6 +668,22 @@ function buildPrompt(view: GameState): Prompt | null {
         cardOptions: a.options,
         canPass: true,
         passLabel: a.picked.length > 0 ? `${a.picked.length}장 바꾼다 (W)` : '바꾸지 않는다 (W)',
+      };
+    case 'borrowCharacters':
+      return {
+        ...base,
+        title: '그레고리 덱',
+        hint: `지금 빌린 능력: ${a.current.map((c) => CHARACTERS[c].nameKo).join(', ')} · 새로 2명을 뽑을까`,
+        yesNo: true,
+        canPass: true,
+        passLabel: '그대로 둔다 (W)',
+      };
+    case 'giveCard':
+      return {
+        ...base,
+        title: `율 그리너 — ${nameOf(view, a.to)}`,
+        hint: '손패가 더 많아 카드 1장을 줘야 한다. 줄 카드를 고른다',
+        cardOptions: a.options,
       };
     case 'ricochet':
       return {

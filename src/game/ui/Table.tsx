@@ -209,6 +209,9 @@ export function Table({ view, viewer, api, clock }: TableProps) {
                 </Text>
                 <Text style={styles.ability} numberOfLines={3}>
                   {CHARACTERS[me.character].ability}
+                  {me.borrowed?.length
+                    ? ` · 빌린 능력: ${me.borrowed.map((c) => CHARACTERS[c].nameKo).join(', ')}`
+                    : ''}
                 </Text>
               </View>
 

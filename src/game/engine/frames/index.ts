@@ -79,6 +79,12 @@ import {
 } from './turn';
 import { resolveCheckWin } from './win';
 import {
+  resolveBorrowCharacters,
+  resolveGifts,
+  respondBorrowCharacters,
+  respondGifts,
+} from './wildwest';
+import {
   resolveBandidos,
   resolveEvelyn,
   resolveLemonadeJim,
@@ -211,6 +217,10 @@ export function resolveFrame(state: GameState, frame: Frame): GameState {
       return resolveSavedOffer(state, frame);
     case 'savedReward':
       return resolveSavedReward(state, frame);
+    case 'borrowCharacters':
+      return resolveBorrowCharacters(state, frame);
+    case 'gifts':
+      return resolveGifts(state, frame);
     default: {
       const never: never = frame;
       throw new Error(`해결기가 없는 프레임: ${JSON.stringify(never)}`);
@@ -281,6 +291,10 @@ export function respondToFrame(state: GameState, frame: Frame, choice: Choice): 
       return respondDutchWill(state, frame, choice);
     case 'goldUse':
       return respondGoldUse(state, frame, choice);
+    case 'borrowCharacters':
+      return respondBorrowCharacters(state, frame, choice);
+    case 'gifts':
+      return respondGifts(state, frame, choice);
     default:
       throw new Error(`${frame.k} 프레임은 응답을 받지 않는다`);
   }

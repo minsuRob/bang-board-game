@@ -24,6 +24,7 @@ import { generalStoreQueue } from './frames/cards';
 import {
   canUseCardAs,
   immuneToCard,
+  isRepeatAbility,
   onPutInPlayFrames,
   outgoingBangMissesOf,
   playAnyAsAbilitiesOf,
@@ -97,6 +98,13 @@ export function applyPlayCard(
   // 카드를 손에서 뗀다.
   cur = updatePlayer(cur, pid, (p) => ({ ...p, hand: p.hand.filter((c) => c !== card) }));
 
+  // 리 반 클리프가 다시 낼 수 있는 '방금 낸 갈색 카드'. 다시 낸 효과는 또 다시 내지 못한다.
+  const repeat = isRepeatAbility(cur, pid, opts.ability);
+  const lastBrown = def.category === 'brown' && !repeat ? as : undefined;
+  // JSON 왕복에서 undefined 필드가 남지 않게, 없으면 키를 뺀다
+  const { lastBrown: _prev, ...turnRest } = cur.turn;
+  cur = { ...cur, turn: lastBrown ? { ...turnRest, lastBrown } : turnRest };
+
   const frames: Frame[] = [];
   if (def.category === 'blue') {
     cur = equipBlueCard(cur, pid, card, as, target);
@@ -120,7 +128,7 @@ export function applyPlayCard(
     as: as === own ? undefined : as,
     target,
     text:
-      `${ga(nameOf(cur, pid))}${ricochet ? ' 리코체로' : ''} ${played} 냈다` +
+      `${ga(nameOf(cur, pid))}${ricochet ? ' 리코체로' : ''}${repeat ? ' 한 번 더,' : ''} ${played} 냈다` +
       (target ? ` → ${nameOf(cur, target)}.` : '.'),
   });
 

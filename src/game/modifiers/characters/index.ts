@@ -102,3 +102,5 @@ export { SUZY_REASON } from './suzy-lafayette';
 export { UNCLE_WILL_ABILITY } from './uncle-will';
 export { BLACK_FLOWER_ABILITY } from './black-flower';
 export { DER_SPOT_ABILITY } from './der-spot-burst-ringer';
+export { FLINT_WESTWOOD_ABILITY } from './flint-westwood';
+export { LEE_VAN_KLIFF_ABILITY } from './lee-van-kliff';

@@ -11,6 +11,7 @@ import {
   cardOf,
   drawFromDeck,
   effectiveSuit,
+  giveCards,
   inPlay,
   log,
   nameOf,
@@ -21,7 +22,7 @@ import {
   toDiscard,
   updatePlayer,
 } from '../cards';
-import { judgementPeekOf, turnDirectionOf } from '../hooks';
+import { judgementCardTaker, judgementPeekOf, turnDirectionOf } from '../hooks';
 import type { Choice, Frame, GameState, JudgementPurpose, PlayerId } from '../types';
 import { skipRestOfTurn } from './turn';
 import { ga, neun } from '../josa';
@@ -33,6 +34,7 @@ const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
   jail: '감옥',
   rattlesnake: '방울뱀',
   coloradoBill: '콜로라도 빌',
+  terenKill: '테렌 킬',
   donBell: '돈 벨',
   vendetta: '복수',
 };
@@ -59,6 +61,14 @@ function markUnavoidable(state: GameState): GameState {
     }
   }
   return state;
+}
+
+/** 테렌 킬: 스택의 이 사람 제거 프레임을 거둔다. 살아남았기 때문이다 */
+function markSpared(state: GameState, pid: PlayerId): GameState {
+  return {
+    ...state,
+    stack: state.stack.filter((f) => !(f.k === 'eliminate' && f.target === pid)),
+  };
 }
 
 export function resolveJudgement(
@@ -114,13 +124,24 @@ function applyJudgement(
 ): GameState {
   const suit = effectiveSuit(state, card);
   const inst = cardOf(card);
-  let cur = toDiscard(state, [card, ...discarded]);
+  // 존 페인: 손패가 모자라면 펼친 카드를 버린 더미 대신 손으로 가져간다
+  const taker = judgementCardTaker(state, pid);
+  let cur = toDiscard(state, taker ? discarded : [card, ...discarded]);
   cur = log(cur, {
     t: 'judgement',
     pid,
     card,
     text: `${nameOf(cur, pid)}의 ${PURPOSE_LABEL[purpose]} 판정: ${inst.rank}${SUIT_GLYPH[suit]}`,
   });
+  if (taker) {
+    cur = giveCards(cur, taker, [card]);
+    cur = log(cur, {
+      t: 'johnPain',
+      pid: taker,
+      card,
+      text: `${ga(nameOf(cur, taker))} 펼친 카드를 손에 넣었다.`,
+    });
+  }
 
   switch (purpose) {
     case 'barrel':
@@ -153,6 +174,16 @@ function applyJudgement(
         pid,
         text: `${neun(nameOf(cur, pid))} 붉은 무늬가 나와 차례를 한 번 더 얻었다.`,
       });
+    }
+    case 'terenKill': {
+      if (suit === 'spades') return cur;
+      cur = markSpared(updatePlayer(cur, pid, (x) => ({ ...x, hp: 1 })), pid);
+      cur = log(cur, {
+        t: 'terenKill',
+        pid,
+        text: `${neun(nameOf(cur, pid))} 쓰러지지 않았다. 목숨 1로 버틴다.`,
+      });
+      return pushSeq(cur, [{ k: 'drawCards', pid, count: 1, reason: 'terenKill' }]);
     }
     case 'vendetta': {
       // 돈 벨과 같은 추가 차례 자리를 쓴다. 추가 차례 끝에는 다시 펼치지 않는다

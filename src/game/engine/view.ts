@@ -65,6 +65,11 @@ export function viewFor(state: GameState, pid: PlayerId): GameState {
       };
     }),
     deck: hiddenList(state.deck.length),
+    // 율 그리너에게 줄 카드 후보는 주는 사람의 손패다
+    awaiting:
+      state.awaiting?.k === 'giveCard' && state.awaiting.pid !== pid
+        ? { ...state.awaiting, options: hiddenList(state.awaiting.options.length) }
+        : state.awaiting,
     event: state.event ? { ...state.event, deck: [] } : null,
     // 포커: 모두 엎어 낼 때까지 판돈은 아무에게도 보이지 않는다
     stack: state.stack.map((f) =>

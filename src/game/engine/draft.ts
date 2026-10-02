@@ -11,6 +11,7 @@
 import { CHARACTERS } from '../data/characters';
 import type { CharacterId } from '../data/types';
 import { log, nameOf, push } from './cards';
+import { startingHandOf } from './hooks';
 import { ga } from './josa';
 import type { GameState, PlayerId } from './types';
 
@@ -44,9 +45,10 @@ function finishDraft(state: GameState): GameState {
   const players = state.players.map((p) => {
     const character = d.picked[p.id]!;
     const maxHp = CHARACTERS[character].maxHp + (p.role === 'sheriff' ? 1 : 0);
-    // 시작 손패는 목숨 수만큼, 좌석 순서대로
-    const hand = deck.slice(deck.length - maxHp);
-    deck = deck.slice(0, deck.length - maxHp);
+    // 시작 손패는 목숨 수만큼(빅 스펜서는 5장), 좌석 순서대로
+    const size = startingHandOf(character, maxHp);
+    const hand = deck.slice(deck.length - size);
+    deck = deck.slice(0, deck.length - size);
     const spare = useSpare ? (d.offers[p.id].find((c) => c !== character) ?? null) : null;
     return { ...p, character, spareCharacter: spare, hp: maxHp, maxHp, hand };
   });

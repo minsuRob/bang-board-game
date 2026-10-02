@@ -36,6 +36,12 @@ export type PlayAsAbility = {
   extra?: boolean;
 };
 
+/** 손의 카드 1장을 남의 손에서 무작위로 뽑은 take 장과 맞바꾼다. 차례당 한 번 (플린트 웨스트우드) */
+export type SwapAbility = { key: string; label: string; take: number };
+
+/** from 종류의 카드를 버려 방금 낸 갈색 카드의 효과를 한 번 더 낸다 (리 반 클리프) */
+export type RepeatAbility = { key: string; label: string; from: CardKind };
+
 /** 차례당 한 번 구매 할인 (프리티 루제나) */
 export type GoldDiscount = { key: string; amount: number };
 
@@ -145,6 +151,24 @@ export type Modifier = {
   // --- 기타 -------------------------------------------------------------
   /** 언제든 발동할 수 있는 능력 (시드 케첨) */
   anytime?: AnytimeAbility[];
+
+  // --- 와일드 웨스트 쇼 ----------------------------------------------------
+  /** 시작 손패 장수. 없으면 목숨 수 (빅 스펜서 5) */
+  startingHand?: number;
+  /** 자기 카드 사용 단계에 손의 카드를 남의 손 카드와 맞바꾼다 (플린트 웨스트우드) */
+  swapHand?: SwapAbility;
+  /** 방금 낸 갈색 카드를 한 번 더 낸다 (리 반 클리프) */
+  repeatBrown?: RepeatAbility;
+  /** 남이 버리기 단계에서 버리는 카드를 가져간다 (게리 루터) */
+  takesExcessDiscards?: boolean;
+  /** 차례 시작에 기본판 캐릭터를 이만큼 뽑아 그 능력을 빌린다 (그레고리 덱) */
+  borrowsCharacters?: number;
+  /** 손패가 이 장수 미만이면 누구의 판정 카드든 손으로 가져온다 (존 페인 6) */
+  takesJudgementCards?: number;
+  /** 제거되기 직전에 판정해서 ♠가 아니면 목숨 1로 버틴다 (테렌 킬) */
+  cheatsDeath?: boolean;
+  /** 카드 가져오기 단계의 맨 앞 (율 그리너) */
+  beforeDraw?: (ctx: ModCtx) => Frame[];
 
   // --- 골드 러시 --------------------------------------------------------
   /** 차례를 마칠 때 들 수 있는 손패 한도 (기본 = 목숨, 탄띠 8) */

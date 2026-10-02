@@ -12,15 +12,25 @@ import { SID_KETCHUM_ABILITY } from '../modifiers';
 import {
   cardOf,
   effectiveSuit,
+  giveCards,
   kindOf,
   log,
   nameOf,
+  playerOf,
+  pushSeq,
   putOnDeck,
   toDiscard,
   topFrame,
   updatePlayer,
 } from './cards';
-import { discardsToDeck } from './hooks';
+import {
+  discardsToDeck,
+  excessDiscardTaker,
+  isSwapAbility,
+  onCardTakenFrames,
+  swapAbilitiesOf,
+} from './hooks';
+import { nextInt } from './rng';
 import { applyPick } from './draft';
 import { applyGoldAction } from './gold-actions';
 import { respondToFrame } from './frames';
@@ -28,6 +38,7 @@ import { actionKey, legalActions } from './legal';
 import { applyPlayCard } from './play';
 import { createGame } from './setup';
 import { resolveStack } from './stack';
+import type { CardId } from '../data/types';
 import type { Action, Choice, GameState, JudgementPurpose, PlayerId } from './types';
 import { ga } from './josa';
 
@@ -75,6 +86,11 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
       break;
     }
     case 'playCard': {
+      // 플린트 웨스트우드: 카드를 내는 게 아니라 남의 손 카드와 맞바꾼다
+      if (action.target && isSwapAbility(cur, action.pid, action.ability)) {
+        cur = applySwap(cur, action.pid, action.card, action.target, action.ability!);
+        break;
+      }
       const as = action.as ?? kindOf(action.card);
       cur = applyPlayCard(cur, action.pid, action.card, as, action.target, {
         target2: action.target2,
@@ -104,6 +120,19 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
         ...p,
         hand: p.hand.filter((c) => c !== action.card),
       }));
+      // 게리 루터: 남이 버리는 초과분을 버린 더미 대신 손으로 가져간다
+      const looter = excessDiscardTaker(cur, action.pid);
+      if (looter) {
+        cur = giveCards(cur, looter, [action.card]);
+        cur = log(cur, {
+          t: 'garyLooter',
+          pid: looter,
+          target: action.pid,
+          card: action.card,
+          text: `${ga(nameOf(cur, looter))} ${nameOf(cur, action.pid)}의 버린 카드를 챙겼다.`,
+        });
+        break;
+      }
       // 폐광: 버리기 단계의 카드는 뒷면으로 덱 위에 올린다. 로그에도 카드를 남기지 않는다.
       const toDeck = discardsToDeck(cur);
       cur = toDeck ? putOnDeck(cur, [action.card]) : toDiscard(cur, [action.card]);
@@ -137,6 +166,50 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
       return cur;
   }
   return resolveStack(cur);
+}
+
+/**
+ * 플린트 웨스트우드: 남의 손에서 무작위로 몇 장을 먼저 가져오고, 내 카드 1장을 준다.
+ * 먼저 뽑아야 방금 준 카드를 도로 뽑아 오지 않는다.
+ */
+function applySwap(
+  state: GameState,
+  pid: PlayerId,
+  card: CardId,
+  target: PlayerId,
+  key: string,
+): GameState {
+  const ability = swapAbilitiesOf(state, pid).find((ab) => ab.key === key);
+  if (!ability) return state;
+
+  let cur = updatePlayer(state, pid, (p) => ({
+    ...p,
+    hand: p.hand.filter((c) => c !== card),
+    usedThisTurn: [...p.usedThisTurn, key],
+  }));
+  const taken: CardId[] = [];
+  for (let i = 0; i < ability.take; i++) {
+    const victim = playerOf(cur, target);
+    if (victim.hand.length === 0) break;
+    const rolled = nextInt(cur.rng, victim.hand.length);
+    const pick = victim.hand[rolled.value];
+    cur = updatePlayer({ ...cur, rng: rolled.rng }, target, (p) => ({
+      ...p,
+      hand: p.hand.filter((c) => c !== pick),
+    }));
+    taken.push(pick);
+  }
+  cur = giveCards(cur, pid, taken);
+  cur = giveCards(cur, target, [card]);
+  cur = log(cur, {
+    t: 'flintWestwood',
+    pid,
+    target,
+    amount: taken.length,
+    text: `${ga(nameOf(cur, pid))} ${nameOf(cur, target)}에게 카드 1장을 주고 ${taken.length}장을 가져왔다.`,
+  });
+  // 헨리 블록처럼 손패를 빼앗기면 반응하는 능력
+  return pushSeq(cur, onCardTakenFrames(cur, target, pid));
 }
 
 /** 시드 케첨: 카드 두 장을 버리고 목숨 1 회복 */
@@ -194,7 +267,11 @@ export function defaultAction(state: GameState, pid: PlayerId): Action | null {
   // 서부의 법으로 차례를 못 마치면 그 카드를 낸다.
   // 저격수·리코체 같은 특별한 사용법보다 평범한 사용을 먼저 고른다
   const must = state.turn.mustPlay;
-  const owed = must ? legal.filter((x) => x.type === 'playCard' && x.card === must) : [];
+  const owed = must
+    ? legal.filter(
+        (x) => x.type === 'playCard' && x.card === must && !isSwapAbility(state, pid, x.ability),
+      )
+    : [];
   const forced = owed.find((x) => x.type === 'playCard' && !x.also && !x.pick) ?? owed[0];
   if (forced) return forced;
 
@@ -220,6 +297,7 @@ function favourableJudgementCard(
     }
     if (purpose === 'rattlesnake') return suit === 'spades' ? 0 : 1;
     if (purpose === 'coloradoBill') return suit === 'spades' ? 1 : 0;
+    if (purpose === 'terenKill') return suit === 'spades' ? 0 : 1;
     return suit === 'hearts' ? 1 : 0;
   };
   return [...options].sort((x, y) => score(y) - score(x))[0];

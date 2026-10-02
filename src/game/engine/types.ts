@@ -50,6 +50,8 @@ export type Player = {
   nuggets?: number;
   /** 골드 러시 장비(검정)와 앞에 놓인 수배. 파랑 카드와 영역이 따로라 강탈·캣 발루가 닿지 않는다 */
   goldEquipment?: GoldCardId[];
+  /** 그레고리 덱이 차례 시작에 뽑아 능력을 빌린 기본판 캐릭터 */
+  borrowed?: CharacterId[];
 };
 
 export type GameConfig = {
@@ -74,6 +76,8 @@ export type TurnState = {
   extraTurnFor?: PlayerId | null;
   /** 서부의 법(한줌의 카드): 낼 수 있으면 이번 차례에 반드시 내야 하는 카드 */
   mustPlay?: CardId;
+  /** 이번 차례에 방금 낸 갈색 카드의 종류. 다른 카드를 내면 바뀐다 (리 반 클리프) */
+  lastBrown?: CardKind;
 };
 
 /** 골드 러시 장비 덱. 플레잉 카드와 섞이지 않는다 */
@@ -126,7 +130,9 @@ export type JudgementPurpose =
   /** 돈 벨: 차례 끝에 ♥·♦ 면 차례를 한 번 더 */
   | 'donBell'
   /** 복수(한줌의 카드): 차례 끝에 ♥ 면 차례를 한 번 더 */
-  | 'vendetta';
+  | 'vendetta'
+  /** 테렌 킬: 제거되기 직전에 ♠ 가 아니면 목숨 1로 버틴다 */
+  | 'terenKill';
 
 // ---------------------------------------------------------------------------
 // 효과 스택 프레임
@@ -207,7 +213,8 @@ export type Frame =
       savedAsked?: boolean;
     }
   | { k: 'checkDeath'; target: PlayerId; source: PlayerId | null }
-  | { k: 'eliminate'; target: PlayerId; killer: PlayerId | null }
+  /** lastChance: 제거 직전 판정(테렌 킬)을 이미 걸었다 */
+  | { k: 'eliminate'; target: PlayerId; killer: PlayerId | null; lastChance?: boolean }
   | { k: 'eliminateCleanup'; target: PlayerId }
   | { k: 'bountyOrPenalty'; killer: PlayerId | null; victim: PlayerId }
   // 카드 이동
@@ -276,6 +283,11 @@ export type Frame =
   | { k: 'lawOfTheWest'; pid: PlayerId; card: CardId }
   /** 리코체: target 앞의 card 를 노린다. target 이 빗나감!을 내지 않으면 버려진다 */
   | { k: 'ricochet'; source: PlayerId; target: PlayerId; card: CardId }
+  // 와일드 웨스트 쇼
+  /** 그레고리 덱: 기본판 캐릭터를 count 명 뽑아 능력을 빌린다. 이미 빌린 게 있으면 바꿀지 묻는다 */
+  | { k: 'borrowCharacters'; pid: PlayerId; count: number }
+  /** 율 그리너: 손패가 pid 보다 많은 사람이 1장씩 준다. queue 는 처음 해결될 때 정한다 */
+  | { k: 'gifts'; pid: PlayerId; queue?: PlayerId[] }
   // 승리 판정
   | { k: 'checkWin' };
 
@@ -354,7 +366,11 @@ export type PendingInput =
   /** 목장: 더 버릴 카드를 고르거나 pass 로 확정한다 */
   | { k: 'ranch'; pid: PlayerId; options: CardId[]; picked: CardId[] }
   /** 리코체: 노려진 카드를 지키려면 빗나감!을 낸다 */
-  | { k: 'ricochet'; pid: PlayerId; source: PlayerId; card: CardId; options: CardId[] };
+  | { k: 'ricochet'; pid: PlayerId; source: PlayerId; card: CardId; options: CardId[] }
+  /** 그레고리 덱: 빌린 캐릭터를 새로 뽑을지 */
+  | { k: 'borrowCharacters'; pid: PlayerId; current: CharacterId[] }
+  /** 율 그리너: to 에게 줄 손패 1장 */
+  | { k: 'giveCard'; pid: PlayerId; to: PlayerId; options: CardId[] };
 
 // ---------------------------------------------------------------------------
 // 로그

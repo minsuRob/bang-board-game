@@ -26,6 +26,7 @@ import { saversFor } from './valley';
 import {
   anytimeAbilitiesOf,
   canPlayCard,
+  cheatsDeath,
   goldAbilitiesOf,
   onBeerPlayedFrames,
   onDamagedFrames,
@@ -207,6 +208,14 @@ export function resolveEliminate(
   state: GameState,
   frame: Frame & { k: 'eliminate' },
 ): GameState {
+  const target = playerOf(state, frame.target);
+  // 테렌 킬: 제거되기 직전에 판정한다. ♠가 아니면 판정이 이 프레임을 거둔다 (frames/judgement.ts)
+  if (target.alive && !frame.lastChance && cheatsDeath(state, target.id)) {
+    return pushSeq(replaceTop(state, { ...frame, lastChance: true }), [
+      { k: 'judgement', pid: target.id, purpose: 'terenKill', candidates: [] },
+    ]);
+  }
+
   let cur = popFrame(state);
   const p = playerOf(cur, frame.target);
   if (!p.alive) return cur;

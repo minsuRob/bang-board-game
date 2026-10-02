@@ -33,6 +33,8 @@ export {
   anytimeAbilitiesOf,
   isExplicitAbility,
   playAnyAsAbilitiesOf,
+  repeatAbilitiesOf,
+  swapAbilitiesOf,
   playableAs,
 } from './hooks';
 export { viewFor, isHidden, roleVisibleTo, HIDDEN_CARD } from './view';

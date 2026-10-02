@@ -9,12 +9,14 @@ import { CHARACTER_MODIFIERS, equipmentModifier, EVENT_MODIFIERS } from '../modi
 import { CARD_DEFS } from '../data/cards.base';
 import { GOLD_MODIFIERS } from '../modifiers/goldrush';
 import { goldKindOf } from '../data/cards.goldrush';
-import type { CardId, CardKind } from '../data/types';
+import type { CardId, CardKind, CharacterId } from '../data/types';
 import { kindOf, playerOf } from './cards';
 import { goldEquipOf } from './gold';
 import type {
   AnytimeAbility,
   GoldAbility,
+  RepeatAbility,
+  SwapAbility,
   GoldDiscount,
   ModCtx,
   Modifier,
@@ -79,7 +81,15 @@ export function getModifiers(state: GameState, pid: PlayerId): Modifier[] {
   const mods: Modifier[] = [];
 
   if (!characterAbilitiesDisabled(state)) {
-    mods.push(CHARACTER_MODIFIERS[p.character]);
+    const own = CHARACTER_MODIFIERS[p.character];
+    mods.push(own);
+    // 그레고리 덱이 빌린 캐릭터. 지금 캐릭터가 빌리는 능력을 가졌을 때만 남는다 (새로운 신분)
+    if (own.borrowsCharacters) {
+      for (const c of p.borrowed ?? []) {
+        const m = CHARACTER_MODIFIERS[c];
+        if (!m.borrowsCharacters) mods.push(m);
+      }
+    }
   }
   if (!equipmentDisabled(state)) {
     for (const card of p.equipment) {
@@ -197,6 +207,95 @@ export function playAnyAsAbilitiesOf(
   return getModifiers(state, pid)
     .flatMap((m) => (m.playAnyAs ? [m.playAnyAs] : []))
     .filter((ab) => includeUsed || !used.includes(ab.key));
+}
+
+/** 이번 차례에 아직 쓸 수 있는 맞바꾸기 능력 (플린트 웨스트우드) */
+export function swapAbilitiesOf(state: GameState, pid: PlayerId): SwapAbility[] {
+  const used = playerOf(state, pid).usedThisTurn;
+  return uniqueByKey(getModifiers(state, pid).flatMap((m) => (m.swapHand ? [m.swapHand] : []))).filter(
+    (ab) => !used.includes(ab.key),
+  );
+}
+
+/** 이 key 가 맞바꾸기 능력인가. 카드를 내는 것이 아니라서 따로 다룬다 */
+export function isSwapAbility(state: GameState, pid: PlayerId, key: string | undefined): boolean {
+  if (!key) return false;
+  return getModifiers(state, pid).some((m) => m.swapHand?.key === key);
+}
+
+/** 방금 낸 갈색 카드를 한 번 더 내는 능력 (리 반 클리프) */
+export function repeatAbilitiesOf(state: GameState, pid: PlayerId): RepeatAbility[] {
+  return uniqueByKey(getModifiers(state, pid).flatMap((m) => (m.repeatBrown ? [m.repeatBrown] : [])));
+}
+
+/** 이 key 가 갈색 카드를 다시 내는 능력인가 */
+export function isRepeatAbility(state: GameState, pid: PlayerId, key: string | undefined): boolean {
+  if (!key) return false;
+  return getModifiers(state, pid).some((m) => m.repeatBrown?.key === key);
+}
+
+function uniqueByKey<T extends { key: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter((x) => (seen.has(x.key) ? false : (seen.add(x.key), true)));
+}
+
+/** 시작 손패 장수 (빅 스펜서). 캐릭터만 보면 된다 */
+export function startingHandOf(character: CharacterId, maxHp: number): number {
+  return CHARACTER_MODIFIERS[character].startingHand ?? maxHp;
+}
+
+/** 빌릴 캐릭터 수 (그레고리 덱). 0 이면 빌리지 않는다 */
+export function borrowCountOf(state: GameState, pid: PlayerId): number {
+  return Math.max(0, ...getModifiers(state, pid).map((m) => m.borrowsCharacters ?? 0));
+}
+
+/** 이 사람이 제거 직전 판정으로 버틸 수 있는가 (테렌 킬) */
+export function cheatsDeath(state: GameState, pid: PlayerId): boolean {
+  return getModifiers(state, pid).some((m) => m.cheatsDeath === true);
+}
+
+/**
+ * discarder 가 버리기 단계에서 버리는 카드를 가져갈 사람 (게리 루터).
+ * 여럿이면 discarder 다음 자리부터 먼저 만나는 사람.
+ */
+export function excessDiscardTaker(state: GameState, discarder: PlayerId): PlayerId | null {
+  for (const id of othersFrom(state, discarder)) {
+    if (getModifiers(state, id).some((m) => m.takesExcessDiscards)) return id;
+  }
+  return null;
+}
+
+/**
+ * 판정 카드를 손으로 가져갈 사람 (존 페인). 판정한 사람부터 자리 순으로 본다.
+ * 손패가 한도 미만일 때만 가져간다.
+ */
+export function judgementCardTaker(state: GameState, judged: PlayerId): PlayerId | null {
+  for (const id of [judged, ...othersFrom(state, judged)]) {
+    const p = playerOf(state, id);
+    if (!p.alive || p.ghost) continue;
+    for (const m of getModifiers(state, id)) {
+      if (m.takesJudgementCards !== undefined && p.hand.length < m.takesJudgementCards) return id;
+    }
+  }
+  return null;
+}
+
+/** pid 다음 자리부터 한 바퀴, 살아 있는 다른 사람들 */
+function othersFrom(state: GameState, pid: PlayerId): PlayerId[] {
+  const n = state.players.length;
+  const seat = playerOf(state, pid).seat;
+  const out: PlayerId[] = [];
+  for (let i = 1; i < n; i++) {
+    const p = state.players[(seat + i) % n];
+    if (p.alive && !p.ghost) out.push(p.id);
+  }
+  return out;
+}
+
+/** 카드 가져오기 단계 맨 앞의 프레임 (율 그리너) */
+export function beforeDrawFrames(state: GameState, pid: PlayerId): Frame[] {
+  const ctx = ctxOf(state, pid);
+  return getModifiers(state, pid).flatMap((m) => m.beforeDraw?.(ctx) ?? []);
 }
 
 /** 언제든 쓸 수 있는 능력 목록 */
