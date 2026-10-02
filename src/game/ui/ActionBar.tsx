@@ -69,7 +69,7 @@ export function ActionBar({
             <Button label="취소 (Esc)" onPress={() => onArm(null)} />
           ) : (
             playAs.map((ab) => (
-              <Button key={ab.key} label={`능력 · ${ab.label}`} onPress={() => onArm(ab.key)} />
+              <Button key={ab.key} label={ab.label} onPress={() => onArm(ab.key)} />
             ))
           ))}
         {canEndTurn && <Button label="차례 마치기 (Q)" onPress={onEndTurn} primary />}
