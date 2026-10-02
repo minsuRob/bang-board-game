@@ -3,7 +3,7 @@
  *
  * 낼 수 있는 카드만 밝게 보인다. 숫자키 1~0 으로도 고를 수 있다
  * (원본 맵 v0.12 단축키 계승).
- * 새로 들어온 카드는 칸이 벌어지며 솟아올라 뒤집힌다 (HandArrival).
+ * 새로 들어온 카드는 칸이 벌어지고 덱에서 날아와 꽂히며 뒤집힌다 (HandArrival).
  */
 
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -49,8 +49,10 @@ export function Hand({ cards, playable, selected, onSelect, discardable, showInd
         return (
           <View key={card} style={styles.slot}>
             <HandArrival
+              card={card}
               phase={arrivals.phase(card)}
               order={arrivals.order(card)}
+              fromDeck={arrivals.fromDeck(card)}
               fresh={arrivals.fresh(card)}
               gap={Spacing.two}
               onSettled={() => arrivals.settled(card)}>

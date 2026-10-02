@@ -235,8 +235,26 @@ export class Sequencer {
 
     h.driven = true;
     h.snap(from);
-    const shadow = fx.shadow();
     const start = now + this.ms(cmd.delayMs ?? 0);
+
+    // 덱에서 내 손으로: 손패 줄 오버레이가 덱 자리에서부터 날려 온다. 3D 카드는 띄우지 않고
+    // 비행 시간만큼 자리를 지켜 연출 페이싱은 그대로 둔다
+    if (cmd.from?.z === 'deck' && cmd.to?.z === 'hand' && world.isViewer(cmd.to.pid) && !cmd.via && cmd.style !== 'reveal') {
+      h.show(false);
+      this.timeline.add({
+        start,
+        dur: this.ms(flightMs(cmd.style)),
+        update: () => {},
+        done: () => {
+          h.driven = false;
+        },
+      });
+      const card = cmd.card;
+      this.timeline.add({ start, dur: 0, update: () => {}, done: () => markLanded(card, true) });
+      return;
+    }
+
+    const shadow = fx.shadow();
 
     const segments: { a: Pose; b: Pose; ms: number; lift: number; ease: (t: number) => number; hold?: number }[] = [];
     const style = cmd.style;

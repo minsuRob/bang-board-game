@@ -17,12 +17,14 @@ import { ActionBar } from '../ui/ActionBar';
 import { EventAbilityPanel } from '../ui/EventAbilityPanel';
 import { GoldPanel } from '../ui/GoldPanel';
 import { DraftPanel } from '../ui/DraftPanel';
+import { HandFlights } from '../ui/HandFlights';
+import { setDeckMeasure } from '../ui/hand-arrival';
 import { useChatUnread } from '../ui/ChatPanel';
 import { SidePanel } from '../ui/SidePanel';
 import { bottomStatus, handleHandTap, statusMessage } from '../ui/table-text';
 import type { TableApi } from '../ui/use-table';
 import { Canvas } from './canvas/Canvas';
-import { anchorsStore, seatKey } from './core/anchors-store';
+import { ANCHOR_DECK, anchorsStore, seatKey } from './core/anchors-store';
 import { budgetFor, getDeviceTier } from './core/device-tier';
 import { dragStore } from './core/drag-store';
 import { startFxBridge } from './core/fx-bridge';
@@ -80,6 +82,24 @@ export function Table3D({ view, viewer, api, clock }: Table3DProps) {
   const measureOrigin = () => {
     tableRef.current?.measureInWindow((x, y) => dragStore.setState({ origin: { x, y } }));
   };
+
+  // 새 손패는 3D 덱이 화면에 비친 자리에서부터 날아온다
+  useEffect(
+    () =>
+      setDeckMeasure(
+        () =>
+          new Promise((resolve) => {
+            const table = tableRef.current;
+            if (!table) return resolve(null);
+            table.measureInWindow((x, y) => {
+              const p = anchorsStore.getState().points[ANCHOR_DECK];
+              if (!p?.visible) return resolve(null);
+              resolve({ x: x + p.x - DECK_SCREEN.w / 2, y: y + p.y - DECK_SCREEN.h / 2, ...DECK_SCREEN });
+            });
+          }),
+      ),
+    [],
+  );
 
   const onDragStart = (card: CardId) => {
     if (api.playable.has(card) && api.targetsFor(card).length > 0) api.select(card);
@@ -252,9 +272,13 @@ export function Table3D({ view, viewer, api, clock }: Table3DProps) {
           </Pressable>
         </View>
       )}
+      <HandFlights />
     </View>
   );
 }
+
+/** 덱이 화면에 비친 대략의 크기. 날아오는 카드가 이 크기에서 시작해 손패 크기로 커진다 */
+const DECK_SCREEN = { w: 48, h: 68 };
 
 class GlBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };

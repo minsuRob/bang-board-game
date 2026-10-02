@@ -6,7 +6,7 @@
  * 착석 순서는 그대로 유지해서 거리 감각은 잃지 않게 한다.
  */
 
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   Image,
   ImageBackground,
@@ -40,6 +40,7 @@ import { AttackBadges } from './AttackBadges';
 import { CardView } from './CardView';
 import { CharacterPortraitImage } from './CharacterPortraitImage';
 import { Hand } from './Hand';
+import { HandFlights, useDeckAnchor } from './HandFlights';
 import { useChatUnread } from './ChatPanel';
 import { SidePanel } from './SidePanel';
 import type { TableApi } from './use-table';
@@ -103,6 +104,8 @@ export function TableMobile({
   const event = view.event?.current ? EVENTS[view.event.current] : null;
   const eventImage = view.event?.current ? eventArt(view.event.current) : null;
   const back = cardBackArt();
+  const deck = useRef<View>(null);
+  useDeckAnchor(deck);
   const wood = woodArt();
 
   return (
@@ -153,13 +156,15 @@ export function TableMobile({
 
           <View style={styles.center}>
             <Pile label={`덱 ${view.deck.length}`}>
-              {back ? (
-                <Image source={back} style={styles.cardBackArt} resizeMode="cover" />
-              ) : (
-                <View style={styles.cardBack}>
-                  <Text style={styles.cardBackMark}>✷</Text>
-                </View>
-              )}
+              <View ref={deck} collapsable={false}>
+                {back ? (
+                  <Image source={back} style={styles.cardBackArt} resizeMode="cover" />
+                ) : (
+                  <View style={styles.cardBack}>
+                    <Text style={styles.cardBackMark}>✷</Text>
+                  </View>
+                )}
+              </View>
             </Pile>
             <Pile label={`버린 더미 ${view.discard.length}`}>
               {top ? <CardView card={top} size="sm" /> : <View style={styles.emptyPile} />}
@@ -256,6 +261,7 @@ export function TableMobile({
           </Pressable>
         </View>
       )}
+      <HandFlights />
     </View>
   );
 }

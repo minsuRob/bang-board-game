@@ -4,7 +4,7 @@
  * 위로 8px 끌면 드래그가 시작되고 카드는 3D 로 넘어간다. 옆으로 먼저 끌면 스크롤이다.
  * 탭은 예전 흐름(Pressable) 그대로다.
  *
- * 새로 들어온 카드는 3D 카드가 화면 아래로 빠진 뒤 이 줄에서 솟아오른다 (HandArrival).
+ * 덱에서 뽑은 카드는 덱 자리에서 이 줄로 날아와 꽂힌다. 다른 곳에서 온 카드는 3D 카드가 화면 아래로 빠진 뒤 솟아오른다 (HandArrival).
  */
 
 import { useCallback, useState } from 'react';
@@ -81,8 +81,10 @@ export function DragHand({
             }}>
             <View style={styles.slot}>
               <HandArrival
+                card={card}
                 phase={phase}
                 order={arrivals.order(card)}
+                fromDeck={arrivals.fromDeck(card)}
                 fresh={arrivals.fresh(card)}
                 gap={Spacing.two}
                 onSettled={() => arrivals.settled(card)}>

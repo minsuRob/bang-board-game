@@ -20,6 +20,7 @@ import { GoldPanel } from './GoldPanel';
 import { DraftPanel } from './DraftPanel';
 import { feltArt, woodArt } from './card-art';
 import { Hand } from './Hand';
+import { HandFlights } from './HandFlights';
 import { PlayerSeat } from './PlayerSeat';
 import { PlayedCardSpotlight } from './PlayedCardSpotlight';
 import { SidePanel } from './SidePanel';
@@ -233,6 +234,7 @@ export function Table({ view, viewer, api, clock }: TableProps) {
           </>
         )}
       </View>
+      <HandFlights />
     </View>
   );
 }

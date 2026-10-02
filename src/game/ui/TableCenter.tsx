@@ -2,24 +2,30 @@
  * 테이블 한가운데 — 덱, 버린 더미, 지금 걸린 이벤트.
  */
 
+import { useRef } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { EVENTS } from '../data/events';
 import type { GameState } from '../engine';
 import { eventArt } from './card-art';
 import { CardBack, CardView } from './CardView';
+import { useDeckAnchor } from './HandFlights';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 export function TableCenter({ view, message }: { view: GameState; message: string }) {
   const top = view.discard[view.discard.length - 1];
   const event = view.event?.current ? EVENTS[view.event.current] : null;
   const eventImage = view.event?.current ? eventArt(view.event.current) : null;
+  const deck = useRef<View>(null);
+  useDeckAnchor(deck);
 
   return (
     <View style={styles.center}>
       <View style={styles.piles}>
         <View style={styles.pile}>
-          <CardBack size="md" />
+          <View ref={deck} collapsable={false}>
+            <CardBack size="md" />
+          </View>
           <Text style={styles.pileLabel}>덱 {view.deck.length}</Text>
         </View>
         <View style={styles.pile}>

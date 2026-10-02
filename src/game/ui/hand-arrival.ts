@@ -2,8 +2,10 @@
  * 손패에 새로 들어온 카드.
  *
  * 손패를 앞 렌더와 견주어 새로 생긴 카드를 "도착"으로 잡는다. 뽑기·잡화점·강탈 … 어디서 왔든 같다.
- * 3D 판에서는 덱에서 날아간 3D 카드가 화면 아래로 빠지는 순간(Sequencer 가 markLanded)을 기다렸다가
- * 손패 자리에서 솟아오르게 한다. 신호가 끝내 오지 않으면(빨리 감기·연출 생략) 스스로 드러낸다.
+ * 덱에서 온 카드는 덱 자리에서 뒷면으로 떨어져 나와 손패 칸까지 날아와 뒤집힌다 (HandFlights 오버레이).
+ * 3D 판은 Sequencer 가 덱→내 손 비행을 3D 로 그리지 않고 바로 markLanded(fromDeck) 한다.
+ * 다른 곳(잡화점·강탈 …)에서 온 카드는 3D 카드가 화면 아래로 빠진 뒤 손패 자리에서 솟아오른다.
+ * 신호가 끝내 오지 않으면(빨리 감기·연출 생략) 스스로 드러낸다.
  *
  * 새로 들어온 카드는 hover 하거나 누르거나 차례가 바뀔 때까지 "새 카드" 표시를 단다.
  */
@@ -14,11 +16,65 @@ import { createStore } from 'zustand/vanilla';
 
 import type { CardId } from '../data/types';
 
-/** 3D 카드가 내 손 자리에 닿은 시각 */
-export const handLanding = createStore<{ landed: Record<CardId, number> }>(() => ({ landed: {} }));
+/** 3D 카드가 내 손 자리에 닿은 시각. fromDeck 이면 손패 줄이 덱에서부터 날려 온다 */
+export const handLanding = createStore<{ landed: Record<CardId, number>; fromDeck: Record<CardId, boolean> }>(
+  () => ({ landed: {}, fromDeck: {} }),
+);
 
-export function markLanded(card: CardId) {
-  handLanding.setState((s) => ({ landed: { ...s.landed, [card]: Date.now() } }));
+export function markLanded(card: CardId, fromDeck = false) {
+  handLanding.setState((s) => ({
+    landed: { ...s.landed, [card]: Date.now() },
+    fromDeck: { ...s.fromDeck, [card]: fromDeck },
+  }));
+}
+
+/** 창 좌표 사각형 */
+export type ScreenBox = { x: number; y: number; w: number; h: number };
+
+/**
+ * 덱이 지금 화면 어디에 있는지 재는 함수. 판(3D·2D·모바일)이 하나 걸어 둔다.
+ * 스크롤·카메라로 덱이 움직이므로 위치가 아니라 재는 방법을 둔다.
+ */
+type DeckMeasure = () => Promise<ScreenBox | null>;
+let deckMeasure: DeckMeasure | null = null;
+
+/** 건 함수를 돌려준다. 정리할 때 같은 함수일 때만 지운다 (판이 겹쳐 바뀔 때) */
+export function setDeckMeasure(fn: DeckMeasure): () => void {
+  deckMeasure = fn;
+  return () => {
+    if (deckMeasure === fn) deckMeasure = null;
+  };
+}
+
+export function measureDeck(): Promise<ScreenBox | null> {
+  return deckMeasure ? deckMeasure().catch(() => null) : Promise.resolve(null);
+}
+
+/** 덱에서 손패 칸까지 날아오는 시간 */
+export const FLIGHT_MS = 460;
+
+/** 덱에서 손패 칸으로 날아가는 중인 카드. HandFlights 오버레이가 그린다 */
+export type HandFlight = {
+  card: CardId;
+  from: ScreenBox;
+  to: ScreenBox;
+  /** 칸에 닿았다. 칸이 진짜 카드를 드러낸다 */
+  onLand: () => void;
+};
+
+export const handFlights = createStore<{ flights: Record<CardId, HandFlight> }>(() => ({ flights: {} }));
+
+export function launchFlight(f: HandFlight) {
+  handFlights.setState((s) => ({ flights: { ...s.flights, [f.card]: f } }));
+}
+
+export function finishFlight(card: CardId) {
+  handFlights.setState((s) => {
+    if (!s.flights[card]) return s;
+    const flights = { ...s.flights };
+    delete flights[card];
+    return { flights };
+  });
 }
 
 /** 2D 판에서 여러 장이 들어올 때 한 장씩 벌리는 간격 */
@@ -32,6 +88,8 @@ export type HandArrivals = {
   phase: (card: CardId) => ArrivalPhase;
   /** entering 카드가 몇 번째로 들어오는가 (소리·지연을 벌리는 데 쓴다) */
   order: (card: CardId) => number;
+  /** 덱에서 날아와야 하는가. 2D 는 출처를 모르므로 늘 그렇다 */
+  fromDeck: (card: CardId) => boolean;
   /** 등장 애니메이션이 끝났다 */
   settled: (card: CardId) => void;
   fresh: (card: CardId) => boolean;
@@ -56,6 +114,7 @@ export function useHandArrivals(
   const [incoming, setIncoming] = useState<Record<CardId, Arrival>>({});
   const [fresh, setFresh] = useState<ReadonlySet<CardId>>(() => new Set());
   const landed = useStore(handLanding, (s) => s.landed);
+  const deckLanded = useStore(handLanding, (s) => s.fromDeck);
 
   if (seen.cards !== cards || seen.owner !== owner || seen.resetKey !== resetKey) {
     const sameOwner = seen.owner === owner;
@@ -102,6 +161,12 @@ export function useHandArrivals(
   };
   // 3D 신호를 따로 받은 카드는 이미 벌어져 들어온다. 2D 만 순번만큼 늦춘다
   const order = (card: CardId) => (waitFor3d ? 0 : (incoming[card]?.order ?? 0));
+  // 3D 는 착지 신호가 덱 출처라고 알려 줄 때만. 상한으로 풀린 카드는 솟아오르기로 들어온다
+  const fromDeck = (card: CardId) => {
+    if (!waitFor3d) return true;
+    const v = incoming[card];
+    return Boolean(v && (landed[card] ?? 0) > v.after && deckLanded[card]);
+  };
   const settled = useCallback((card: CardId) => {
     setIncoming((cur) => {
       if (!cur[card]) return cur;
@@ -120,7 +185,7 @@ export function useHandArrivals(
     });
   }, []);
 
-  return { phase, order, settled, fresh: isFresh, clearFresh };
+  return { phase, order, fromDeck, settled, fresh: isFresh, clearFresh };
 }
 
 type Arrival = {

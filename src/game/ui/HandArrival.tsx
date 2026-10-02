@@ -2,7 +2,9 @@
  * 손패 칸 하나를 감싸 새로 들어온 카드를 등장시킨다 (hand-arrival.ts).
  *
  * waiting  : 칸 폭 0. 옆 카드가 아직 밀리지 않는다 (3D 카드가 날아오는 중)
- * entering : 칸이 벌어지며 옆 카드가 밀리고, 카드가 아래에서 솟아 뒷면→앞면으로 뒤집힌다.
+ * entering : 칸이 벌어지며 옆 카드가 밀린다.
+ *            덱에서 온 카드는 칸이 다 벌어지면 덱 자리에서 뒷면으로 날아와(HandFlights) 꽂히며 뒤집힌다.
+ *            덱 위치를 모르거나 다른 곳에서 온 카드는 아래에서 솟아 뒷면→앞면으로 뒤집힌다.
  *            앞면이 드러나는 순간 '사락' 소리. 금빛 테두리가 번쩍였다 잦아든다
  * idle     : 그대로 그린다 (모든 값이 1 이라 애니메이션 층은 아무것도 바꾸지 않는다)
  *
@@ -22,19 +24,33 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import type { CardId } from '../data/types';
 import { CARD_DIMENSIONS, CardBack, type CardSize } from './CardView';
-import { ARRIVAL_STAGGER_MS, type ArrivalPhase } from './hand-arrival';
+import {
+  ARRIVAL_STAGGER_MS,
+  FLIGHT_MS,
+  finishFlight,
+  launchFlight,
+  measureDeck,
+  type ArrivalPhase,
+} from './hand-arrival';
+import { measureView } from './HandFlights';
 import { playSfx } from './sfx';
 import { Colors } from '@/constants/theme';
 
 const WIDEN_MS = 220;
 const RISE_MS = 360;
 const FLIP_MS = 130;
+/** 오버레이가 끝내 닿았다고 알리지 않으면(오버레이가 없는 화면) 이만큼 뒤에 그냥 드러낸다 */
+const LAND_GRACE_MS = 600;
 
 export type HandArrivalProps = {
+  card: CardId;
   phase: ArrivalPhase;
   /** 2D 에서 몇 번째로 들어오는가. 이만큼 늦게 시작한다 */
   order?: number;
+  /** 덱에서 날아온다 */
+  fromDeck?: boolean;
   /** 새 카드 표시 (금빛 점) */
   fresh?: boolean;
   size?: CardSize;
@@ -44,7 +60,17 @@ export type HandArrivalProps = {
   children: ReactNode;
 };
 
-export function HandArrival({ phase, order = 0, fresh, size = 'md', gap, onSettled, children }: HandArrivalProps) {
+export function HandArrival({
+  card,
+  phase,
+  order = 0,
+  fromDeck,
+  fresh,
+  size = 'md',
+  gap,
+  onSettled,
+  children,
+}: HandArrivalProps) {
   const dim = CARD_DIMENSIONS[size];
   const hidden = phase !== 'idle';
   // 0: 칸 접힘, 1: 칸 펼침
@@ -53,28 +79,79 @@ export function HandArrival({ phase, order = 0, fresh, size = 'md', gap, onSettl
   const rise = useSharedValue(hidden ? 0 : 1);
   // 0: 뒷면, 1: 앞면 (0.5 에서 갈아입는다)
   const flip = useSharedValue(hidden ? 0 : 1);
+  // 0: 칸 안 카드를 감춘다 (덱에서 날아오는 동안)
+  const shown = useSharedValue(1);
   const glow = useSharedValue(0);
   const started = useRef(false);
+  const box = useRef<View>(null);
 
   useEffect(() => {
     if (phase !== 'entering' || started.current) return;
     started.current = true;
     const delay = order * ARRIVAL_STAGGER_MS;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let alive = true;
+    let landed = false;
     const done = () => onSettled();
+
     widen.value = withDelay(delay, withTiming(1, { duration: WIDEN_MS, easing: Easing.out(Easing.cubic) }));
-    rise.value = withDelay(delay, withTiming(1, { duration: RISE_MS, easing: Easing.out(Easing.back(1.6)) }));
-    flip.value = withDelay(
-      delay + RISE_MS * 0.35,
-      withTiming(1, { duration: FLIP_MS * 2, easing: Easing.inOut(Easing.quad) }, (finished) => {
-        if (finished) runOnJS(done)();
-      }),
-    );
-    glow.value = withDelay(
-      delay + RISE_MS * 0.35 + FLIP_MS,
-      withSequence(withTiming(1, { duration: 120 }), withTiming(0, { duration: 520 })),
-    );
-    const sound = setTimeout(() => playSfx('card_draw'), delay + RISE_MS * 0.35 + FLIP_MS);
-    return () => clearTimeout(sound);
+
+    // 아래에서 솟아 뒤집힌다 (되돌림)
+    const riseIn = (wait: number) => {
+      rise.value = withDelay(wait, withTiming(1, { duration: RISE_MS, easing: Easing.out(Easing.back(1.6)) }));
+      flip.value = withDelay(
+        wait + RISE_MS * 0.35,
+        withTiming(1, { duration: FLIP_MS * 2, easing: Easing.inOut(Easing.quad) }, (finished) => {
+          if (finished) runOnJS(done)();
+        }),
+      );
+      flash(wait + RISE_MS * 0.35 + FLIP_MS);
+    };
+    const flash = (wait: number) => {
+      glow.value = withDelay(wait, withSequence(withTiming(1, { duration: 120 }), withTiming(0, { duration: 520 })));
+      timers.push(setTimeout(() => playSfx('card_draw'), wait));
+    };
+
+    // 덱에서 날아온 카드가 칸에 닿았다. 앞면으로 꽂힌다
+    const land = () => {
+      if (!alive || landed) return;
+      landed = true;
+      finishFlight(card);
+      rise.value = 1;
+      flip.value = 1;
+      shown.value = 1;
+      flash(0);
+      done();
+    };
+
+    if (!fromDeck) {
+      riseIn(delay);
+    } else {
+      // 칸이 다 벌어진 뒤 자리를 재고 날린다. 그 사이엔 칸 안을 비워 둔다
+      shown.value = 0;
+      rise.value = 1;
+      timers.push(
+        setTimeout(() => {
+          void Promise.all([measureDeck(), measureView(box.current)]).then(([from, to]) => {
+            if (!alive) return;
+            if (!from || !to) {
+              shown.value = 1;
+              rise.value = 0;
+              riseIn(0);
+              return;
+            }
+            launchFlight({ card, from, to, onLand: land });
+            timers.push(setTimeout(land, FLIGHT_MS + LAND_GRACE_MS));
+          });
+        }, delay + WIDEN_MS),
+      );
+    }
+
+    return () => {
+      alive = false;
+      timers.forEach(clearTimeout);
+      finishFlight(card);
+    };
     // 한 번만 시작한다. 콜백이 바뀌어도 다시 돌리지 않는다
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
@@ -85,6 +162,7 @@ export function HandArrival({ phase, order = 0, fresh, size = 'md', gap, onSettl
     opacity: widen.value > 0.01 ? 1 : 0,
   }));
   const body = useAnimatedStyle(() => ({
+    opacity: shown.value,
     transform: [{ translateY: (1 - rise.value) * 48 }, { scale: 0.9 + 0.1 * rise.value }],
   }));
   const front = useAnimatedStyle(() => ({
@@ -100,10 +178,12 @@ export function HandArrival({ phase, order = 0, fresh, size = 'md', gap, onSettl
   return (
     <Animated.View style={[styles.slot, slot]}>
       <Animated.View style={body}>
-        <Animated.View style={front}>{children}</Animated.View>
-        <Animated.View pointerEvents="none" style={[styles.back, back]}>
-          <CardBack size={size} />
-        </Animated.View>
+        <View ref={box} collapsable={false} style={{ width: dim.width, height: dim.height }}>
+          <Animated.View style={front}>{children}</Animated.View>
+          <Animated.View pointerEvents="none" style={[styles.back, back]}>
+            <CardBack size={size} />
+          </Animated.View>
+        </View>
         <Animated.View
           pointerEvents="none"
           style={[styles.ring, { width: dim.width, height: dim.height }, ring]}
