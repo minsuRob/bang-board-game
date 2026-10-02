@@ -11,6 +11,9 @@
  * 드러난 부관이면 캐릭터 카드 위에 부관 별을 단다.
  * 연출이 붙은 카드(fx/card-fx.ts)는 카드가 올라선 직후 소리와 화면 효과가 같은 틱에 터진다.
  * 첫 메뉴에서 고화질을 골랐고 Skia 가 준비됐으면 Skia 연출(fx/skia), 아니면 일반 연출(RN Animated).
+ *
+ * 캣 발루·강탈·리코체는 낸 카드가 사라진 뒤 결과를 한 번 더 띄운다. 공개된 카드면 그 카드,
+ * 손패에서 뽑았으면 뒷면이다. 결과가 낸 카드를 덮지 않게 차례를 기다린다.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -26,7 +29,7 @@ import { fxPacing } from '../store/fx-pacing';
 import { roleArt } from './card-art';
 import { CAN_HOVER, cardPeek, setPeek } from './card-peek';
 import { CharacterCard } from './CharacterCard';
-import { CARD_DIMENSIONS, CardView } from './CardView';
+import { CARD_DIMENSIONS, CardBack, CardView } from './CardView';
 import { EventCardFace } from './EventCardFace';
 import { cardFxFor, type CardFx } from './fx/card-fx';
 import { GUNSHOT_MS, GunshotFx, recoilStyle, screenFlashStyle } from './fx/GunshotFx';
@@ -46,7 +49,7 @@ import {
 import { PaperPlaque, plaque } from './PaperPlaque';
 import { PickSpotlight } from './PickSpotlight';
 import { playSfx, preloadSfx } from './sfx';
-import { pickSpotlight, revealedEventOf } from './spotlight-pick';
+import { isTakeEvent, pickSpotlight, revealedEventOf, takenCardOf } from './spotlight-pick';
 import type { TableApi } from './use-table';
 import { Colors, Spacing } from '@/constants/theme';
 
@@ -99,6 +102,13 @@ function useFxStage() {
 
 export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSpotlightProps) {
   const [shown, setShown] = useState<GameEvent | null>(null);
+  // 지금 떠 있는 것과, 그 뒤에 띄울 결과 하나 (캣 발루·강탈의 결과)
+  const shownRef = useRef<GameEvent | null>(null);
+  const pending = useRef<GameEvent | null>(null);
+  const show = (e: GameEvent | null) => {
+    shownRef.current = e;
+    setShown(e);
+  };
   // 처음 그릴 때 이미 있던 로그는 띄우지 않는다
   const seen = useRef<number | null>(null);
   const peek = useStore(cardPeek, (s) => s.card);
@@ -111,6 +121,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
 
   // 개발용 (웹): 주소에 ?fxloop=1 이면 뱅!, ?fxloop=missed 면 빗나감! 연출을 3초마다 되풀이한다.
   // ?fxloop=event 면 하이 눈 이벤트 카드를 한 장씩 돌려 가며 띄운다.
+  // ?fxloop=take 면 캣 발루·강탈 결과(손패 뒷면, 장비 앞면)를 번갈아 띄운다.
   // ?fxloop=hold 면 되풀이하지 않고 globalThis.__shot 으로 진행도를 손으로 멈춰 한 장면씩 본다
   // (__shot.progress.value = 0.2 로 멈추기, __shot.start() 로 한 번 돌리기)
   useEffect(() => {
@@ -131,8 +142,23 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
         const id = HIGHNOON_EVENT_IDS[i++ % HIGHNOON_EVENT_IDS.length];
         return { t: 'event', card: id, text: '연출 시험 — 이벤트', seq: seq++ };
       };
-      setShown(make());
-      const timer = setInterval(() => setShown(make()), EVENT_SHOW_MS + 800);
+      show(make());
+      const timer = setInterval(() => show(make()), EVENT_SHOW_MS + 800);
+      return () => clearInterval(timer);
+    }
+    if (mode === 'take') {
+      const barrel = BASE_DECK.find((c) => c.kind === 'barrel')?.id;
+      const [a, b] = [view.players[0]?.id, view.players[1]?.id];
+      const samples: Omit<GameEvent, 'seq'>[] = [
+        { t: 'catBalou', pid: a, target: b, text: '연출 시험 — 손패를 버리게 했다.' },
+        { t: 'catBalou', pid: a, target: b, card: barrel, text: '연출 시험 — 장비를 버리게 했다.' },
+        { t: 'panic', pid: b, target: a, text: '연출 시험 — 손패를 강탈했다.' },
+      ];
+      let i = 0;
+      let seq = 1_000_000;
+      const make = (): GameEvent => ({ ...samples[i++ % samples.length], seq: seq++ });
+      show(make());
+      const timer = setInterval(() => show(make()), SHOW_MS + 800);
       return () => clearInterval(timer);
     }
     if (mode !== '1' && mode !== 'missed') return;
@@ -144,8 +170,10 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
       isMissed
         ? { t: 'playMissed', card: card.id, text: '연출 시험 — 빗나감!', seq: seq++ }
         : { t: 'playCard', card: card.id, text: '연출 시험 — 뱅!', seq: seq++ };
-    const timer = setInterval(() => setShown(make()), 3400);
+    const timer = setInterval(() => show(make()), 3400);
     return () => clearInterval(timer);
+    // 개발용이라 처음 한 번만 본다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progress, geom]);
 
   useEffect(() => {
@@ -154,11 +182,23 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
     seen.current = lastSeq;
     if (since === null || lastSeq <= since) return;
     const latest = pickSpotlight(view.log, since);
-    if (latest) setShown(latest);
+    if (!latest) return;
+    if (isTakeEvent(latest) && shownRef.current) {
+      pending.current = latest;
+      return;
+    }
+    // 다른 카드가 끼어들면 기다리던 결과는 버린다. 빨리 둘 때 연출이 밀리지 않게
+    pending.current = null;
+    show(latest);
   }, [view.log]);
 
   const shownEvent = shown ? revealedEventOf(shown) : null;
-  const clear = (cur: GameEvent) => setShown((s) => (s === cur ? null : s));
+  const clear = (cur: GameEvent) => {
+    if (shownRef.current !== cur) return;
+    const next = pending.current;
+    pending.current = null;
+    show(next);
+  };
 
 
   // 살펴보던 카드가 손을 떠났다 (냈거나 뺏겼다)
@@ -174,6 +214,14 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
         <View style={[styles.layer, styles.passThrough, (peeking || picking) && styles.hidden]}>
           {shownEvent ? (
             <EventSpot key={`${shown.seq}:${shown.card}`} def={shownEvent} compact={compact} onDone={() => clear(shown)} />
+          ) : isTakeEvent(shown) ? (
+            <TakenSpot
+              key={`${shown.seq}:${shown.t}:${shown.card ?? 'back'}`}
+              event={shown}
+              faces={facesOf(view, viewer, shown)}
+              compact={compact}
+              onDone={() => clear(shown)}
+            />
           ) : (
             <PlayedSpot
               key={`${shown.seq}:${shown.card}`}
@@ -241,8 +289,9 @@ function facesOf(view: GameState, viewer: PlayerId, event: GameEvent): Faces | n
     return { character: p.character, deputy: p.role === 'deputy' && roleVisibleTo(viewer, p) };
   };
   const actor = characterOf(event.pid);
-  // 뱅!·캣 발루·강탈·결투·감옥처럼 남을 겨눈 카드는 대상도 세운다
-  const target = event.t === 'playCard' && event.target && event.target !== event.pid ? characterOf(event.target) : null;
+  // 뱅!·캣 발루·강탈·결투·감옥처럼 남을 겨눈 카드와 그 결과는 대상도 세운다
+  const aimed = event.t === 'playCard' || isTakeEvent(event);
+  const target = aimed && event.target && event.target !== event.pid ? characterOf(event.target) : null;
   // 역마차·맥주·장비처럼 혼자 쓰는 카드, 빗나감!, 인디언·결투에 맞선 뱅!은 낸 사람만
   return actor || target ? { actor, target } : null;
 }
@@ -408,6 +457,48 @@ function CardFxOverlay({
   }
 }
 
+/** 결과 명판 위 줄 */
+const TAKE_TITLE: Record<string, string> = { catBalou: '캣 발루', panic: '강탈', ricochet: '리코체' };
+
+/**
+ * 남의 카드를 버리게·가져간 결과. 공개된 카드면 그 카드, 손패에서 뽑았으면 뒷면을 띄운다.
+ * 명판에는 엔진 로그 글을 그대로 쓴다
+ */
+function TakenSpot({ event, faces, compact, onDone }: { event: GameEvent; faces: Faces | null; compact?: boolean; onDone: () => void }) {
+  const [t] = useState(() => new Animated.Value(0));
+  const done = useRef(onDone);
+  useEffect(() => {
+    done.current = onDone;
+  });
+
+  useEffect(() => {
+    const scale = Math.max(1, fxPacing.getState().timeScale);
+    const anim = Animated.sequence([
+      Animated.spring(t, { toValue: 1, friction: 6, tension: 140, useNativeDriver: NATIVE_DRIVER }),
+      Animated.delay(Math.max(600, SHOW_MS / scale - 400)),
+      Animated.timing(t, { toValue: 0, duration: 220, useNativeDriver: NATIVE_DRIVER }),
+    ]);
+    anim.start(({ finished }) => {
+      if (finished) done.current();
+    });
+    return () => anim.stop();
+  }, [t]);
+
+  const card = takenCardOf(event);
+  const hiddenNote = event.t === 'panic' ? '손에서 가져간 카드' : '손에서 뽑아 버린 카드';
+  return (
+    <Animated.View style={[styles.spot, popStyle(t)]}>
+      <CardSpotlight
+        card={card}
+        meta={card ? (TAKE_TITLE[event.t] ?? '') : `${TAKE_TITLE[event.t] ?? ''} · ${hiddenNote}`}
+        body={event.text}
+        faces={faces}
+        compact={compact}
+      />
+    </Animated.View>
+  );
+}
+
 /** 새로 공개된 이벤트 카드. 낸 카드처럼 튀어 올랐다가, 효과를 읽을 만큼 머문 뒤 사라진다 */
 function EventSpot({ def, compact, onDone }: { def: EventCardDef; compact?: boolean; onDone: () => void }) {
   const [t] = useState(() => new Animated.Value(0));
@@ -475,8 +566,11 @@ function PeekSpot({ card, meta, compact }: { card: CardId; meta: string; compact
 }
 
 type CardSpotlightProps = {
-  card: CardId;
+  /** null 이면 뒷면 (가려진 카드) */
+  card: CardId | null;
   meta: string;
+  /** 명판 본문. 없으면 카드 이름과 효과 */
+  body?: string;
   /** 양옆에 세울 캐릭터 카드 */
   faces?: Faces | null;
   hint?: boolean;
@@ -491,11 +585,12 @@ type CardSpotlightProps = {
   overlay?: React.ReactNode;
 };
 
-function CardSpotlight({ card, meta, faces, hint, compact, cardStyle, anchorRef, cardWrap, overlay }: CardSpotlightProps) {
-  const def = defOf(card);
+function CardSpotlight({ card, meta, body, faces, hint, compact, cardStyle, anchorRef, cardWrap, overlay }: CardSpotlightProps) {
+  const def = card ? defOf(card) : null;
+  const size = compact ? 'lg' : 'xl';
   const cardNode = (
     <Animated.View style={[styles.cardShadow, cardStyle]}>
-      <CardView card={card} size={compact ? 'lg' : 'xl'} />
+      {card ? <CardView card={card} size={size} /> : <CardBack size={size} />}
     </Animated.View>
   );
   const played = (
@@ -528,9 +623,13 @@ function CardSpotlight({ card, meta, faces, hint, compact, cardStyle, anchorRef,
           {meta}
         </Text>
         <Text style={[plaque.text, compact && plaque.textCompact]} numberOfLines={3}>
-          <Text style={plaque.name}>{def.nameKo}</Text>
-          {'  '}
-          {def.text}
+          {body ?? (
+            <>
+              <Text style={plaque.name}>{def?.nameKo}</Text>
+              {'  '}
+              {def?.text}
+            </>
+          )}
         </Text>
       </PaperPlaque>
     </>

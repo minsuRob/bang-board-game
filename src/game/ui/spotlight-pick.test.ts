@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { GameEvent } from '../engine';
 import { HIDDEN_CARD } from '../engine/view';
-import { pickSpotlight, revealedEventOf } from './spotlight-pick';
+import { isTakeEvent, pickSpotlight, revealedEventOf, takenCardOf } from './spotlight-pick';
 
 const ev = (seq: number, t: string, card?: string): GameEvent => ({ t, card, seq, text: t });
 
@@ -38,5 +38,35 @@ describe('revealedEventOf', () => {
   it('이벤트 공개 로그만 카드 정의를 돌려준다', () => {
     expect(revealedEventOf(ev(1, 'event', 'highNoon'))?.isFinal).toBe(true);
     expect(revealedEventOf(ev(1, 'playCard', 'blessing'))).toBeNull();
+  });
+});
+
+describe('남의 카드를 버리게·가져간 결과', () => {
+  const take = (seq: number, t: string, card?: string): GameEvent => ({
+    t,
+    pid: 'p1',
+    target: 'p0',
+    card,
+    seq,
+    text: t,
+  });
+
+  it('손패에서 뽑은 캣 발루·강탈은 뒷면으로 띄운다', () => {
+    for (const t of ['catBalou', 'panic']) {
+      const e = pickSpotlight([take(2, t)], 1);
+      expect(e?.t).toBe(t);
+      expect(isTakeEvent(e!)).toBe(true);
+      expect(takenCardOf(e!)).toBeNull();
+    }
+  });
+
+  it('장비를 버리게 한 캣 발루·리코체는 그 카드를 띄운다', () => {
+    expect(takenCardOf(pickSpotlight([take(2, 'catBalou', 'barrel-1')], 1)!)).toBe('barrel-1');
+    expect(takenCardOf(pickSpotlight([take(2, 'ricochet', 'mustang-1')], 1)!)).toBe('mustang-1');
+  });
+
+  it('가려진 카드는 뒷면, 대상이 없으면 띄우지 않는다', () => {
+    expect(takenCardOf(take(2, 'panic', HIDDEN_CARD))).toBeNull();
+    expect(pickSpotlight([{ ...take(2, 'catBalou'), target: undefined }], 1)).toBeNull();
   });
 });
