@@ -299,8 +299,10 @@ export function respondSteal(
     t: 'catBalou',
     pid: frame.source,
     target: frame.target,
-    ...(fromEquipment ? { card: picked } : {}),
-    text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 ${fromEquipment ? eul(defOf(picked).nameKo) : '카드를'} 버리게 했다.`,
+    // 버린 카드는 버린 더미에 앞면으로 놓이므로 손패에서 뽑았어도 이름을 밝힌다
+    card: picked,
+    ...(fromEquipment ? {} : { fromHand: true }),
+    text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 ${fromEquipment ? eul(defOf(picked).nameKo) : `"${defOf(picked).nameKo}"${eul(defOf(picked).nameKo).slice(-1)}`} 버리게 했다.`,
   });
 }
 

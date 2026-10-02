@@ -229,7 +229,8 @@ function readLog(
       case 'panic':
       case 'catBalou': {
         if (!ev.target || ev.target === actor) break;
-        const removed = ev.card ? kindOf(ev.card) : null;
+        // 손패에서 버리게 한 카드는 공개돼도 떼어 준 장비가 아니다
+        const removed = ev.card && !ev.fromHand ? kindOf(ev.card) : null;
         // 감옥이나 다이너마이트를 떼어 준 것은 구해 준 것이다
         if (removed === 'jail' || removed === 'dynamite') act(actor, ev.target, -RESCUE_WEIGHT);
         else act(actor, ev.target, STEAL_WEIGHT);

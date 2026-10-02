@@ -421,6 +421,8 @@ export type GameEvent = {
    * 이것으로 바꿔 보여 주고, 나머지에게서는 지운다
    */
   secret?: { to: PlayerId[]; card: CardId; text: string };
+  /** 캣 발루가 장비가 아니라 손패에서 뽑아 버렸다. card 는 버린 더미에 앞면으로 놓여 공개된다 */
+  fromHand?: boolean;
   /** 이 로그를 만든 액션의 순번 */
   seq: number;
 };

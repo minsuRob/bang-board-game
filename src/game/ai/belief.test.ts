@@ -131,6 +131,20 @@ describe('역할 추정 — 증거 읽기', () => {
     expect(helped.p4.threatToSheriff).toBe(0);
   });
 
+  it('보안관 손패의 감옥을 버리게 한 것은 구해 준 것이 아니다', () => {
+    const fromHand = [
+      ev('playCard', 'p4', 'p0', cardOfKind('catBalou')),
+      { ...ev('catBalou', 'p4', 'p0', cardOfKind('jail')), fromHand: true },
+    ];
+    const harm = [
+      ev('playCard', 'p4', 'p0', cardOfKind('catBalou')),
+      ev('catBalou', 'p4', 'p0', cardOfKind('barrel')),
+    ];
+    const a = read(withLog(table(), fromHand), 'p0');
+    const b = read(withLog(table(), harm), 'p0');
+    expect(a.p4.probs.deputy).toBeCloseTo(b.p4.probs.deputy);
+  });
+
   it('무법자가 모두 드러나면 남은 사람은 무법자일 수 없다. 확률 합은 늘 1', () => {
     let state = withLog(table(), [shoot('p4', 'p0')]);
     for (const id of ['p2', 'p3', 'p5']) state = eliminate(state, id);
