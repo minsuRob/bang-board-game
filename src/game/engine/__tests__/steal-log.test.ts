@@ -3,11 +3,13 @@
  *
  * 가운데 연출(ui/spotlight-pick)은 로그의 card 로 앞면·뒷면을 고른다.
  * 손패에서 뽑은 카드는 로그에 남기지 않고, 앞에 놓인 장비는 남긴다.
+ * 강탈은 가져간 사람과 빼앗긴 사람에게만 카드 이름을 보여 준다 (viewFor).
  */
 
 import { describe, expect, it } from 'vitest';
 
 import { reduce } from '../reducer';
+import { viewFor } from '../view';
 import { handCard, p, scenario } from './helpers';
 import type { GameState } from '../types';
 
@@ -45,5 +47,18 @@ describe('강탈·캣 발루 로그', () => {
     const e = lastOf(s, kind);
     expect(e?.text).toContain('카드를');
     expect(e?.text).not.toContain('뱅!');
+  });
+
+  it('강탈: 가져간 사람과 빼앗긴 사람만 카드 이름을 본다', () => {
+    const { s } = steal('panic', 'hand');
+    for (const pid of ['p0', 'p1']) {
+      const e = lastOf(viewFor(s, pid), 'panic');
+      expect(e?.text).toContain('"뱅!"을 강탈했다');
+      expect(e?.card).toBeUndefined();
+    }
+    const other = lastOf(viewFor(s, 'p2'), 'panic');
+    expect(other?.text).toContain('카드를 강탈했다');
+    expect(other?.secret).toBeUndefined();
+    expect(JSON.stringify(viewFor(s, 'p2').log)).not.toContain('뱅!');
   });
 });

@@ -416,6 +416,11 @@ export type GameEvent = {
   reveal?: { suit: Suit; hit: boolean; purpose?: JudgementPurpose };
   /** UI 에 그대로 보여줄 한국어 문장 */
   text: string;
+  /**
+   * 몇 사람만 아는 내용 (강탈로 손패에서 가져간 카드). viewFor 가 to 에게만 text·card 를
+   * 이것으로 바꿔 보여 주고, 나머지에게서는 지운다
+   */
+  secret?: { to: PlayerId[]; card: CardId; text: string };
   /** 이 로그를 만든 액션의 순번 */
   seq: number;
 };

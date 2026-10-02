@@ -35,7 +35,7 @@ export function roleVisibleTo(
  * pid 의 눈으로 본 상태.
  *
  * 형태는 GameState 그대로라서 거리 계산·합법 액션 열거가 그대로 돌아간다.
- * 가려지는 것: 남의 손패, 덱, 남은 이벤트 덱, 감춰진 역할.
+ * 가려지는 것: 남의 손패, 덱, 남은 이벤트 덱, 감춰진 역할, 남끼리만 아는 로그.
  * 사카가웨이(와일드 웨스트 쇼)가 걸려 있으면 남의 손패는 펼쳐 둔다. 역할은 그대로 가린다.
  */
 export function viewFor(state: GameState, pid: PlayerId): GameState {
@@ -74,6 +74,12 @@ export function viewFor(state: GameState, pid: PlayerId): GameState {
         ? { ...state.awaiting, options: hiddenList(state.awaiting.options.length) }
         : state.awaiting,
     event: state.event ? { ...state.event, deck: [] } : null,
+    // 강탈로 손패에서 가져간 카드는 가져간 사람과 빼앗긴 사람만 안다
+    log: state.log.map((e) => {
+      if (!e.secret) return e;
+      const { secret, ...rest } = e;
+      return secret.to.includes(pid) ? { ...rest, secret, text: secret.text } : rest;
+    }),
     // 포커: 모두 엎어 낼 때까지 판돈은 아무에게도 보이지 않는다
     stack: state.stack.map((f) =>
       f.k === 'poker' && f.left === undefined ? { ...f, pot: hiddenList(f.pot.length) } : f,

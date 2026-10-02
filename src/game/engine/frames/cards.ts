@@ -277,7 +277,16 @@ export function respondSteal(
       pid: frame.source,
       target: frame.target,
       // 장비는 원래 앞면이라 공개해도 된다. 손패에서 뽑은 카드는 남긴다면 정보가 샌다.
-      ...(fromEquipment ? { card: picked } : {}),
+      // 가져간 사람과 빼앗긴 사람은 무슨 카드인지 안다
+      ...(fromEquipment
+        ? { card: picked }
+        : {
+            secret: {
+              to: [frame.source, frame.target],
+              card: picked,
+              text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 "${defOf(picked).nameKo}"${eul(defOf(picked).nameKo).slice(-1)} 강탈했다.`,
+            },
+          }),
       text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 ${fromEquipment ? eul(defOf(picked).nameKo) : '카드를'} 강탈했다.`,
     });
   }
