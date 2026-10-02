@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
@@ -18,8 +19,11 @@ import {
   type CodexTab,
 } from '@/game/ui/codex/codex-model';
 import { CARD_FX } from '@/game/ui/fx/card-fx';
+import { MenuBackdrop } from '@/game/ui/menu/MenuBackdrop';
+import { InkLink, PaperHeading, PaperInk, PaperSection, PaperSheet, paperText } from '@/game/ui/menu/PaperUi';
+import { WesternFonts } from '@/game/ui/menu/western-fonts';
 import { CardFxPreview } from '@/game/ui/PlayedCardSpotlight';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 
 /** 이 폭보다 좁으면 격자 카드를 한 단계 작게 */
 const NARROW = 520;
@@ -60,67 +64,68 @@ export default function CardCodexScreen() {
 
   return (
     <View style={styles.root}>
+      <StatusBar style="dark" />
+      <MenuBackdrop veil={0.6} />
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} hitSlop={8}>
-            <Text style={styles.back}>← 돌아가기</Text>
-          </Pressable>
-          <Text style={styles.heading}>카드 도감</Text>
-        </View>
+        <PaperSheet>
+          <View style={styles.header}>
+            <View style={styles.backLink}>
+              <InkLink label="← 돌아가기" onPress={back} />
+            </View>
+            <PaperHeading eyebrow="CARD CATALOG" title="카드 도감" />
+          </View>
 
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="이름으로 찾기 (한글·원어)"
-          placeholderTextColor={Colors.textMuted}
-          style={styles.search}
-          accessibilityLabel="이름으로 찾기"
-          autoCorrect={false}
-        />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="이름으로 찾기 (한글·원어)"
+            placeholderTextColor={PaperInk.inkMuted}
+            style={styles.search}
+            accessibilityLabel="이름으로 찾기"
+            autoCorrect={false}
+          />
 
-        <View style={styles.segment} accessibilityRole="tablist">
-          {CODEX_TABS.map((t) => (
-            <Pressable
-              key={t.tab}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: tab === t.tab }}
-              onPress={() => pickTab(t.tab)}
-              style={[styles.tab, tab === t.tab && styles.tabActive]}>
-              <Text style={[styles.tabText, tab === t.tab && styles.tabTextActive]}>{t.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {sets.length > 1 && (
-          <View style={styles.row}>
-            <Chip label="전체" active={set === 'all'} onPress={() => setSet('all')} />
-            {sets.map((s) => (
-              <Chip key={s} label={setLabel(s)} active={set === s} onPress={() => setSet(s)} />
+          <View style={styles.segment} accessibilityRole="tablist">
+            {CODEX_TABS.map((t) => (
+              <Pressable
+                key={t.tab}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: tab === t.tab }}
+                onPress={() => pickTab(t.tab)}
+                style={[styles.tab, tab === t.tab && styles.tabActive]}>
+                <Text style={[styles.tabText, tab === t.tab && styles.tabTextActive]}>{t.label}</Text>
+              </Pressable>
             ))}
           </View>
-        )}
 
-        {sections.length === 0 && <Text style={styles.empty}>찾는 카드가 없다.</Text>}
-
-        {sections.map((section) => (
-          <View key={section.key} style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {section.title} <Text style={styles.count}>{section.items.length}</Text>
-            </Text>
-            <View style={styles.grid}>
-              {section.items.map((item) => (
-                <Pressable
-                  key={item.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={item.nameKo}
-                  onPress={() => open(item)}
-                  style={({ pressed }) => [styles.tile, pressed && styles.pressed]}>
-                  <CodexFace item={item} width={tileW} />
-                </Pressable>
+          {sets.length > 1 && (
+            <View style={styles.row}>
+              <Chip label="전체" active={set === 'all'} onPress={() => setSet('all')} />
+              {sets.map((s) => (
+                <Chip key={s} label={setLabel(s)} active={set === s} onPress={() => setSet(s)} />
               ))}
             </View>
-          </View>
-        ))}
+          )}
+
+          {sections.length === 0 && <Text style={[paperText.hint, styles.empty]}>찾는 카드가 없다.</Text>}
+
+          {sections.map((section) => (
+            <PaperSection key={section.key} title={`${section.title} · ${section.items.length}`}>
+              <View style={styles.grid}>
+                {section.items.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={item.nameKo}
+                    onPress={() => open(item)}
+                    style={({ pressed }) => [styles.tile, pressed && styles.pressed]}>
+                    <CodexFace item={item} width={tileW} />
+                  </Pressable>
+                ))}
+              </View>
+            </PaperSection>
+          ))}
+        </PaperSheet>
       </ScrollView>
 
       {selected && (
@@ -147,48 +152,46 @@ export default function CardCodexScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.background },
+  root: { flex: 1, backgroundColor: PaperInk.paper },
   container: {
     flexGrow: 1,
-    padding: Spacing.four,
-    gap: Spacing.three,
-    maxWidth: 760,
+    padding: Spacing.three,
+    paddingVertical: Spacing.four,
+    maxWidth: 800,
     width: '100%',
     alignSelf: 'center',
   },
   header: { gap: Spacing.two },
-  back: { color: Colors.textMuted, fontSize: 13 },
-  heading: { color: Colors.text, fontSize: 24, fontWeight: '900' },
+  backLink: { alignSelf: 'flex-start' },
   search: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    color: Colors.text,
+    backgroundColor: 'rgba(251,246,234,0.8)',
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: 'rgba(43,29,16,0.45)',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    color: PaperInk.ink,
     fontSize: 15,
+    fontFamily: WesternFonts.body,
   },
+  // 잉크로 테두리를 두른 한 줄 칸. 고른 칸만 잉크로 찬다
   segment: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
-    padding: 4,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.surface,
     alignSelf: 'flex-start',
+    borderWidth: 2,
+    borderColor: PaperInk.ink,
+    borderRadius: 6,
+    overflow: 'hidden',
   },
-  tab: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.md },
-  tabActive: { backgroundColor: Colors.cardBrown, boxShadow: `inset 0 0 0 1px ${Colors.highlight}` },
-  tabText: { color: Colors.textMuted, fontSize: 14, fontWeight: '800' },
-  tabTextActive: { color: Colors.paper },
+  tab: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
+  tabActive: { backgroundColor: PaperInk.ink },
+  tabText: { color: PaperInk.ink, fontSize: 15, fontWeight: '900', fontFamily: WesternFonts.label },
+  tabTextActive: { color: PaperInk.sheet },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  empty: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: Spacing.five },
-  section: { gap: Spacing.two },
-  sectionTitle: { color: Colors.textMuted, fontSize: 12, fontWeight: '800', letterSpacing: 1 },
-  count: { color: Colors.highlight },
+  empty: { textAlign: 'center', paddingVertical: Spacing.five },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  tile: { borderRadius: Radius.md },
-  pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
+  tile: { borderRadius: 8, boxShadow: '0 4px 10px rgba(60,40,20,0.18)' },
+  pressed: { opacity: 0.75, transform: [{ scale: 0.97 }] },
   fxLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 60, pointerEvents: 'box-none' },
 });

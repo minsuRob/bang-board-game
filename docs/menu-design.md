@@ -32,6 +32,19 @@
 | `src/game/ui/menu/western-fonts.ts` | 웹 글꼴 스타일시트 주입, 글꼴 이름 |
 | `src/game/ui/QualityPicker.tsx` | `QualityToggle` (카드 안 두 칸 토글), `useFxQuality`, `qualityHint` |
 | `src/game/ui/card-art.ts` | `menuBackdropArt()` |
+| `src/game/ui/menu/PaperUi.tsx` | 메뉴 화면 공통 종이 장식: `PaperInk` 색, `PaperSheet`, `PaperHeading`, `PaperSection`, `StampButton`, `InkLink` |
+
+### 판 설정 · 카드 도감
+
+첫 화면과 같은 종이 장식을 쓴다 (`src/game/ui/menu/PaperUi.tsx`).
+
+- **바탕:** 같은 수채 그림에 종이색 베일을 덮어 옅게 깐다 (`<MenuBackdrop veil={0.55} />`, 도감은 0.6). 글이 많은 화면이라 그림은 뒤로 물린다
+- **종이 한 장:** 내용은 `PaperSheet` 안에 담는다. 반투명 인쇄 종이, 옅은 잉크 테두리, 그림자
+- **제목:** `PaperHeading` — 위에 Rye 영문 활자(GAME SETUP, CARD CATALOG), 아래 굵은 한글, 밑에 두 줄 괘선
+- **소제목:** `PaperSection` — 소제목 옆으로 점선 괘선이 이어진다
+- **칩:** `src/game/ui/Chip.tsx` — 잉크 테두리 알약. 고르면 잉크 도장처럼 까맣게 찬다. 도감 탭은 같은 모양을 한 줄로 붙였다
+- **시작 버튼:** `StampButton` — 빨간 도장. 안쪽에 점선 테두리, 누르면 눌린다
+- **저장한 판 · 도감 상세 창:** 같은 잉크·종이 색으로 바꿨다 (`SavedGames.tsx`, `codex/CodexDetail.tsx`)
 
 ## 거쳐 온 길
 

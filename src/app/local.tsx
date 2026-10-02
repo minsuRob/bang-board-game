@@ -1,13 +1,25 @@
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AI_TIERS, AI_TIER_LABEL } from '@/game/ai';
 import type { AiTier } from '@/game/ai/types';
 import { EVENT_EXPANSIONS } from '@/game/data/events';
 import { EXPANSION_LABEL, type EventExpansion } from '@/game/data/types';
+import { Chip } from '@/game/ui/Chip';
+import { MenuBackdrop } from '@/game/ui/menu/MenuBackdrop';
+import {
+  InkLink,
+  PaperHeading,
+  PaperInk,
+  PaperSection,
+  PaperSheet,
+  paperText,
+  StampButton,
+} from '@/game/ui/menu/PaperUi';
 import { SavedGames } from '@/game/ui/SavedGames';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 
 const COUNTS = [4, 5, 6, 7];
 
@@ -28,111 +40,104 @@ export default function LocalSetupScreen() {
   const [seed, setSeed] = useState(() => Math.floor(Date.now() % 100000));
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.heading}>판 설정</Text>
+    <View style={styles.screen}>
+      <StatusBar style="dark" />
+      <MenuBackdrop veil={0.55} />
+      <ScrollView contentContainerStyle={styles.container}>
+        <PaperSheet>
+          <PaperHeading eyebrow="GAME SETUP" title="판 설정" />
 
-      <SavedGames />
+          <SavedGames />
 
-      <Section title="인원">
-        <Row>
-          {COUNTS.map((n) => (
-            <Chip key={n} label={`${n}인`} active={players === n} onPress={() => setPlayers(n)} />
-          ))}
-        </Row>
-        <Text style={styles.hint}>
-          {players === 4 && '보안관 1 · 무법자 2 · 배신자 1'}
-          {players === 5 && '보안관 1 · 부관 1 · 무법자 2 · 배신자 1'}
-          {players === 6 && '보안관 1 · 부관 1 · 무법자 3 · 배신자 1'}
-          {players === 7 && '보안관 1 · 부관 2 · 무법자 3 · 배신자 1'}
-        </Text>
-      </Section>
+          <PaperSection title="인원">
+            <Row>
+              {COUNTS.map((n) => (
+                <Chip key={n} label={`${n}인`} active={players === n} onPress={() => setPlayers(n)} />
+              ))}
+            </Row>
+            <Text style={paperText.hint}>
+              {players === 4 && '보안관 1 · 무법자 2 · 배신자 1'}
+              {players === 5 && '보안관 1 · 부관 1 · 무법자 2 · 배신자 1'}
+              {players === 6 && '보안관 1 · 부관 1 · 무법자 3 · 배신자 1'}
+              {players === 7 && '보안관 1 · 부관 2 · 무법자 3 · 배신자 1'}
+            </Text>
+          </PaperSection>
 
-      <Section title="AI 난이도">
-        <Row>
-          {AI_TIERS.map((t) => (
-            <Chip key={t} label={AI_TIER_LABEL[t]} active={tier === t} onPress={() => setTier(t)} />
-          ))}
-        </Row>
-        <Text style={styles.hint}>
-          {tier === 'easy' && '거의 아무렇게나 두지만 죽는 것만은 피한다.'}
-          {tier === 'medium' && '공개된 역할만 보고 정석대로 둔다.'}
-          {tier === 'hard' && '지금까지의 행동에서 감춰진 역할을 추론하고 앞을 내다본다.'}
-        </Text>
-      </Section>
+          <PaperSection title="AI 난이도">
+            <Row>
+              {AI_TIERS.map((t) => (
+                <Chip key={t} label={AI_TIER_LABEL[t]} active={tier === t} onPress={() => setTier(t)} />
+              ))}
+            </Row>
+            <Text style={paperText.hint}>
+              {tier === 'easy' && '거의 아무렇게나 두지만 죽는 것만은 피한다.'}
+              {tier === 'medium' && '공개된 역할만 보고 정석대로 둔다.'}
+              {tier === 'hard' && '지금까지의 행동에서 감춰진 역할을 추론하고 앞을 내다본다.'}
+            </Text>
+          </PaperSection>
 
-      <Section title="상황 카드 확장판">
-        <Row>
-          <Chip label="기본" active={eventExpansion === null} onPress={() => setEventExpansion(null)} />
-          {EVENT_EXPANSIONS.map((x) => (
-            <Chip
-              key={x}
-              label={EXPANSION_LABEL[x]}
-              active={eventExpansion === x}
-              onPress={() => setEventExpansion(x)}
-            />
-          ))}
-        </Row>
-        <Text style={styles.hint}>{EVENT_HINT[eventExpansion ?? 'none']}</Text>
-      </Section>
+          <PaperSection title="상황 카드 확장판">
+            <Row>
+              <Chip label="기본" active={eventExpansion === null} onPress={() => setEventExpansion(null)} />
+              {EVENT_EXPANSIONS.map((x) => (
+                <Chip
+                  key={x}
+                  label={EXPANSION_LABEL[x]}
+                  active={eventExpansion === x}
+                  onPress={() => setEventExpansion(x)}
+                />
+              ))}
+            </Row>
+            <Text style={paperText.hint}>{EVENT_HINT[eventExpansion ?? 'none']}</Text>
+          </PaperSection>
 
-      <Section title="카드·캐릭터 확장판">
-        <Row>
-          <Chip label="그림자의 계곡 없음" active={!valley} onPress={() => setValley(false)} />
-          <Chip label="그림자의 계곡" active={valley} onPress={() => setValley(true)} />
-        </Row>
-        <Text style={styles.hint}>
-          그림자의 계곡은 기본 카드·캐릭터와 함께 사용할 수 있다. 상황 카드 확장판과도 함께 켤 수 있다.
-        </Text>
-        <Row>
-          <Chip label="골드 러시 없음" active={!goldrush} onPress={() => setGoldrush(false)} />
-          <Chip label="골드 러시" active={goldrush} onPress={() => setGoldrush(true)} />
-        </Row>
-        <Text style={styles.hint}>
-          골드 러시는 상처를 입히거나 맥주를 팔아 금덩이를 모으고, 상점에서 장비를 산다. 다른 확장판과 함께 켤 수 있다.
-        </Text>
-      </Section>
+          <PaperSection title="카드·캐릭터 확장판">
+            <Row>
+              <Chip label="그림자의 계곡 없음" active={!valley} onPress={() => setValley(false)} />
+              <Chip label="그림자의 계곡" active={valley} onPress={() => setValley(true)} />
+            </Row>
+            <Text style={paperText.hint}>
+              그림자의 계곡은 기본 카드·캐릭터와 함께 사용할 수 있다. 상황 카드 확장판과도 함께 켤 수 있다.
+            </Text>
+            <Row>
+              <Chip label="골드 러시 없음" active={!goldrush} onPress={() => setGoldrush(false)} />
+              <Chip label="골드 러시" active={goldrush} onPress={() => setGoldrush(true)} />
+            </Row>
+            <Text style={paperText.hint}>
+              골드 러시는 상처를 입히거나 맥주를 팔아 금덩이를 모으고, 상점에서 장비를 산다. 다른 확장판과 함께 켤 수
+              있다.
+            </Text>
+          </PaperSection>
 
-      <Section title="시드">
-        <Row>
-          <Text style={styles.seed}>{seed}</Text>
-          <Chip label="다시 뽑기" active={false} onPress={() => setSeed(Math.floor(Math.random() * 100000))} />
-        </Row>
-        <Text style={styles.hint}>같은 시드는 언제나 같은 판을 만든다.</Text>
-      </Section>
+          <PaperSection title="시드">
+            <Row>
+              <Text style={paperText.value}>{seed}</Text>
+              <Chip label="다시 뽑기" active={false} onPress={() => setSeed(Math.floor(Math.random() * 100000))} />
+            </Row>
+            <Text style={paperText.hint}>같은 시드는 언제나 같은 판을 만든다.</Text>
+          </PaperSection>
 
-      <Pressable
-        style={styles.start}
-        accessibilityRole="button"
-        accessibilityLabel="시작"
-        onPress={() =>
-          router.push({
-            pathname: '/game/[id]',
-            params: {
-              id: 'local',
-              players: String(players),
-              tier,
-              event: eventExpansion ?? 'none',
-              valley: valley ? '1' : '0',
-              goldrush: goldrush ? '1' : '0',
-              seed: String(seed),
-            },
-          })
-        }>
-        <Text style={styles.startText}>시작</Text>
-      </Pressable>
+          <StampButton
+            label="시작"
+            onPress={() =>
+              router.push({
+                pathname: '/game/[id]',
+                params: {
+                  id: 'local',
+                  players: String(players),
+                  tier,
+                  event: eventExpansion ?? 'none',
+                  valley: valley ? '1' : '0',
+                  goldrush: goldrush ? '1' : '0',
+                  seed: String(seed),
+                },
+              })
+            }
+          />
 
-      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={() => router.back()}>
-        <Text style={styles.back}>돌아가기</Text>
-      </Pressable>
-    </ScrollView>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
+          <InkLink label="← 돌아가기" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
+        </PaperSheet>
+      </ScrollView>
     </View>
   );
 }
@@ -141,63 +146,21 @@ function Row({ children }: { children: React.ReactNode }) {
   return <View style={styles.row}>{children}</View>;
 }
 
-function Chip({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ selected: active }}
-      style={[styles.chip, active && styles.chipActive]}>
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: PaperInk.paper },
   container: {
     flexGrow: 1,
-    padding: Spacing.four,
-    gap: Spacing.four,
-    backgroundColor: Colors.background,
-    alignItems: 'stretch',
-    maxWidth: 560,
+    justifyContent: 'center',
+    padding: Spacing.three,
+    paddingVertical: Spacing.five,
+    maxWidth: 600,
     width: '100%',
     alignSelf: 'center',
   },
-  heading: { color: Colors.text, fontSize: 24, fontWeight: '900' },
-  section: { gap: Spacing.two },
-  sectionTitle: { color: Colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  row: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center', flexWrap: 'wrap' },
-  hint: { color: Colors.textMuted, fontSize: 12, lineHeight: 18 },
-  chip: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-  chipActive: { backgroundColor: Colors.cardBrown, borderColor: Colors.highlight },
-  chipText: { color: Colors.textMuted, fontSize: 13, fontWeight: '700' },
-  chipTextActive: { color: Colors.paper },
-  seed: { color: Colors.text, fontSize: 18, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  start: {
-    backgroundColor: Colors.cardBrown,
-    borderRadius: Radius.lg,
-    paddingVertical: Spacing.three,
+  row: {
+    flexDirection: 'row',
+    gap: Spacing.two,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: Colors.highlight,
+    flexWrap: 'wrap',
   },
-  startText: { color: Colors.paper, fontSize: 18, fontWeight: '900' },
-  back: { color: Colors.textMuted, fontSize: 13, textAlign: 'center' },
 });

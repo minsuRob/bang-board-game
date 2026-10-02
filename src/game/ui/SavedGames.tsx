@@ -11,7 +11,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { getSaveBackend, saveSummary, savedAtLabel, SAVE_FORMAT, type SaveMeta } from '@/game/save';
 import { formatElapsed } from '@/game/ui/GameClock';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { PaperInk, PaperSection } from '@/game/ui/menu/PaperUi';
+import { Spacing } from '@/constants/theme';
 
 export function SavedGames() {
   const router = useRouter();
@@ -48,8 +49,7 @@ export function SavedGames() {
   if (saves.length === 0 && !error) return null;
 
   return (
-    <View style={styles.section}>
-      <Text style={styles.title}>저장한 판</Text>
+    <PaperSection title="저장한 판">
       {error && <Text style={styles.error}>{error}</Text>}
       {saves.map((m) => {
         const usable = m.format === SAVE_FORMAT;
@@ -70,7 +70,7 @@ export function SavedGames() {
               onPress={() =>
                 router.push({ pathname: '/game/[id]', params: { id: 'local', save: m.id } })
               }>
-              <Text style={styles.buttonText}>이어 보기</Text>
+              <Text style={[styles.buttonText, styles.resumeText]}>이어 보기</Text>
             </Pressable>
             <Pressable
               style={[styles.button, confirming === m.id && styles.danger]}
@@ -82,37 +82,35 @@ export function SavedGames() {
           </View>
         );
       })}
-    </View>
+    </PaperSection>
   );
 }
 
 const styles = StyleSheet.create({
-  section: { gap: Spacing.two },
-  title: { color: Colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  error: { color: Colors.highlight, fontSize: 12 },
+  error: { color: PaperInk.red, fontSize: 12 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: PaperInk.rule,
+    backgroundColor: 'rgba(201,162,90,0.12)',
     padding: Spacing.two,
   },
   info: { flex: 1, gap: 2 },
-  summary: { color: Colors.text, fontSize: 13, fontWeight: '800' },
-  sub: { color: Colors.textMuted, fontSize: 11 },
+  summary: { color: PaperInk.ink, fontSize: 13, fontWeight: '800' },
+  sub: { color: PaperInk.inkSoft, fontSize: 11 },
   button: {
-    paddingHorizontal: Spacing.two,
+    paddingHorizontal: Spacing.two + 2,
     paddingVertical: Spacing.one,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surfaceRaised,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: 'rgba(43,29,16,0.55)',
   },
-  resume: { backgroundColor: Colors.cardBrown, borderColor: Colors.highlight },
-  danger: { borderColor: Colors.highlight },
+  resume: { backgroundColor: PaperInk.ink, borderColor: PaperInk.ink },
+  danger: { borderColor: PaperInk.red, backgroundColor: 'rgba(168,38,27,0.1)' },
   disabled: { opacity: 0.4 },
-  buttonText: { color: Colors.paper, fontSize: 12, fontWeight: '800' },
+  buttonText: { color: PaperInk.ink, fontSize: 12, fontWeight: '800' },
+  resumeText: { color: PaperInk.sheet },
 });

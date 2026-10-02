@@ -18,6 +18,8 @@ import { SUIT_GLYPH, type CardDef, type CardKind, type Suit } from '../../data/t
 import { chipFor } from '../card-symbols';
 import { CARD_FX } from '../fx/card-fx';
 import { fxQuality } from '../fx/quality';
+import { PaperInk } from '../menu/PaperUi';
+import { WesternFonts } from '../menu/western-fonts';
 import { PaperPlaque, plaque } from '../PaperPlaque';
 import { CodexFace } from './CodexFaces';
 import { deckSpread, roleCounts, setLabel, type CodexItem } from './codex-model';
@@ -35,7 +37,7 @@ const EQUIP_LABEL: Record<string, string> = {
 };
 
 function suitColor(suit: Suit): string {
-  return suit === 'hearts' || suit === 'diamonds' ? Colors.suitRed : Colors.text;
+  return suit === 'hearts' || suit === 'diamonds' ? Colors.suitRed : PaperInk.ink;
 }
 
 function cardKindLabel(def: CardDef): string {
@@ -202,30 +204,30 @@ const styles = StyleSheet.create({
     zIndex: 50,
   },
   hidden: { opacity: 0, pointerEvents: 'none' },
-  backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' },
+  backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(43,29,16,0.45)' },
   sheet: {
     width: '100%',
     maxWidth: 420,
     maxHeight: '100%',
-    backgroundColor: 'rgba(22, 14, 7, 0.97)',
-    borderRadius: Radius.lg,
-    borderWidth: 2,
-    borderColor: Colors.highlight,
+    backgroundColor: PaperInk.sheet,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: PaperInk.rule,
     padding: Spacing.three,
     gap: Spacing.two,
-    boxShadow: '0 6px 18px rgba(0,0,0,0.5)',
+    boxShadow: '0 14px 40px rgba(40,25,10,0.4)',
   },
   body: { gap: Spacing.three },
   head: { flexDirection: 'row', gap: Spacing.three, alignItems: 'flex-end', flexWrap: 'wrap' },
   titles: { flex: 1, minWidth: 140, gap: 2 },
-  set: { color: Colors.highlight, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  nameKo: { color: Colors.text, fontSize: 24, fontWeight: '900' },
-  name: { color: Colors.textMuted, fontSize: 13, fontStyle: 'italic' },
+  set: { color: PaperInk.red, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  nameKo: { color: PaperInk.ink, fontSize: 26, fontWeight: '900', fontFamily: WesternFonts.label },
+  name: { color: PaperInk.inkSoft, fontSize: 13, fontStyle: 'italic', fontFamily: WesternFonts.body },
   fact: { flexDirection: 'row', gap: Spacing.three, marginTop: -Spacing.two },
-  factLabel: { color: Colors.textMuted, fontSize: 13, fontWeight: '800', width: 40 },
-  factValue: { color: Colors.text, fontSize: 13, flex: 1, fontVariant: ['tabular-nums'] },
+  factLabel: { color: PaperInk.inkSoft, fontSize: 13, fontWeight: '800', width: 40 },
+  factValue: { color: PaperInk.ink, fontSize: 13, flex: 1, fontVariant: ['tabular-nums'] },
   block: { gap: Spacing.one },
-  heading: { color: Colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  heading: { color: PaperInk.ink, fontSize: 14, fontWeight: '900', fontFamily: WesternFonts.label },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   symbol: {
     flexDirection: 'row',
@@ -234,21 +236,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     paddingVertical: 2,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.paper,
+    borderWidth: 1,
+    borderColor: PaperInk.rule,
+    backgroundColor: 'rgba(201,162,90,0.15)',
   },
   symbolGlyph: { fontSize: 14, fontWeight: '900' },
   symbolLabel: { color: Colors.textOnPaper, fontSize: 12, fontWeight: '700' },
-  note: { color: Colors.text, fontSize: 13, lineHeight: 19 },
+  note: { color: PaperInk.ink, fontSize: 13, lineHeight: 19, fontFamily: WesternFonts.body },
   actions: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.two },
   button: {
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.one + 2,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: 1.5,
+    borderColor: 'rgba(43,29,16,0.55)',
   },
-  fxButton: { backgroundColor: Colors.cardBrown, borderColor: Colors.highlight },
-  fxText: { color: Colors.paper, fontSize: 13, fontWeight: '800' },
+  fxButton: { backgroundColor: PaperInk.ink, borderColor: PaperInk.ink },
+  fxText: { color: PaperInk.sheet, fontSize: 13, fontWeight: '800' },
   disabled: { opacity: 0.5 },
-  closeText: { color: Colors.text, fontSize: 13, fontWeight: '700' },
+  closeText: { color: PaperInk.ink, fontSize: 13, fontWeight: '700' },
 });

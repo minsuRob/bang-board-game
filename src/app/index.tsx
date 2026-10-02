@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
 import { isFirebaseConfigured } from '@/firebase/config';
@@ -10,7 +10,7 @@ import { codexCounts } from '@/game/ui/codex/codex-model';
 import { FullscreenButton } from '@/game/ui/FullscreenButton';
 import { MENU_PAPER, MenuBackdrop } from '@/game/ui/menu/MenuBackdrop';
 import { CroppedArt, MenuCard, type MenuCardProps } from '@/game/ui/menu/MenuCard';
-import { loadWesternFonts, WesternFonts } from '@/game/ui/menu/western-fonts';
+import { WesternFonts } from '@/game/ui/menu/western-fonts';
 import { QualityToggle, qualityHint, useFxQuality } from '@/game/ui/QualityPicker';
 import { Spacing } from '@/constants/theme';
 
@@ -35,8 +35,6 @@ export default function HomeScreen() {
   const [code, setCode] = useState('');
   const quality = useFxQuality();
   const { width } = useWindowDimensions();
-
-  useEffect(loadWesternFonts, []);
 
   const fan = width >= FAN_MIN_WIDTH;
   const cardW = fan
