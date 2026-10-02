@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import type { AiSpeed, AiTier } from '@/game/ai/types';
 import { setAiSpeed } from '@/firebase/rooms';
+import { eventExpansionOf, expansionsFor, isEventExpansion } from '@/game/data/events';
 import { ROLE_LABEL } from '@/game/data/roles';
 import { makeView, useGameStore, type SeatSetup } from '@/game/store/game-store';
 import { useAiDriver } from '@/game/store/ai-driver';
@@ -39,6 +40,9 @@ export default function GameScreen() {
     id: string;
     players?: string;
     tier?: string;
+    /** 상황 카드 확장판 하나 (highnoon · wildwestshow · fistful). 없거나 none 이면 끈다 */
+    event?: string;
+    /** 예전 주소. event 가 없을 때만 본다 */
     highnoon?: string;
     wildwestshow?: string;
     /** 1이면 그림자의 계곡 카드·캐릭터를 섞는다 */
@@ -95,8 +99,7 @@ export default function GameScreen() {
       return {
         seed: resumed.seed,
         players: saved.config.playerCount,
-        highnoon: saved.config.expansions.includes('highnoon'),
-        wildwestshow: saved.config.expansions.includes('wildwestshow'),
+        event: eventExpansionOf(saved.config.expansions),
         valley: saved.config.expansions.includes('valley'),
         goldrush: saved.config.expansions.includes('goldrush'),
         seats: resumed.seats as SeatSetup[],
@@ -108,8 +111,9 @@ export default function GameScreen() {
     const players = clamp(Number(params.players ?? 5), 4, 7);
     const tier = (params.tier ?? 'medium') as AiTier;
     const seed = Number(params.seed ?? 1) || 1;
-    const highnoon = params.highnoon === '1';
-    const wildwestshow = params.wildwestshow === '1';
+    const legacyEvent =
+      params.highnoon === '1' ? 'highnoon' : params.wildwestshow === '1' ? 'wildwestshow' : null;
+    const event = isEventExpansion(params.event) ? params.event : params.event ? null : legacyEvent;
     const valley = params.valley === '1';
     const goldrush = params.goldrush === '1';
     const seats: SeatSetup[] = Array.from({ length: players }, (_, i) => ({
@@ -120,8 +124,8 @@ export default function GameScreen() {
     }));
     const auto = params.auto === '1';
     // 관전 모드에서는 아무 자리도 조작하지 않는다. 구동기가 전부 대신 둔다.
-    return { seed, players, highnoon, wildwestshow, valley, goldrush, seats, controlled: auto ? [] : ['p0'], auto, resume: undefined };
-  }, [resumed, params.players, params.tier, params.seed, params.highnoon, params.wildwestshow, params.valley, params.goldrush, params.auto]);
+    return { seed, players, event, valley, goldrush, seats, controlled: auto ? [] : ['p0'], auto, resume: undefined };
+  }, [resumed, params.players, params.tier, params.seed, params.event, params.highnoon, params.wildwestshow, params.valley, params.goldrush, params.auto]);
 
   const conn = useRoomConnection(code);
   useOnlineGameSession(code, conn);
@@ -143,12 +147,7 @@ export default function GameScreen() {
       seed: setup.seed,
       config: setup.resume?.config ?? {
         playerCount: setup.players,
-        expansions: [
-          ...(setup.highnoon ? (['highnoon'] as const) : []),
-          ...(setup.wildwestshow ? (['wildwestshow'] as const) : []),
-          ...(setup.valley ? (['valley'] as const) : []),
-          ...(setup.goldrush ? (['goldrush'] as const) : []),
-        ],
+        expansions: expansionsFor(setup),
       },
       seats: setup.seats,
       controlled: setup.controlled,

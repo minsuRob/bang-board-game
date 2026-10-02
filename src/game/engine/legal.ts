@@ -20,6 +20,8 @@ import {
 } from './cards';
 import { canReachAtRange, canReachWithBang, distance } from './distance';
 import {
+  allowsDoubleBang,
+  allowsRicochet,
   anytimeAbilitiesOf,
   bangLimitOf,
   canPlayCard,
@@ -46,6 +48,7 @@ export function actionKey(action: Action): string {
         action.pick ? (action.pick.zone === 'hand' ? `h${action.pick.index}` : `e${action.pick.card}`) : '',
         action.target2 ?? '',
         action.extra ?? '',
+        action.also ?? '',
         action.ability ?? '',
       ].join('|');
     case 'respond': {
@@ -57,6 +60,8 @@ export function actionKey(action: Action): string {
             ? c.suit
             : c.c === 'player'
               ? c.pid
+              : c.c === 'color'
+                ? c.color
               : c.c === 'pick'
                 ? c.pick.zone === 'hand'
                   ? `h${c.pick.index}`
@@ -134,9 +139,13 @@ export function legalActions(state: GameState, pid: PlayerId): Action[] {
 
   const top = topFrame(state);
   if (top?.k === 'playPhase' && state.turn.phase === 'play') {
-    out.push(...playPhaseActions(state, pid));
+    const plays = playPhaseActions(state, pid);
+    out.push(...plays);
     out.push(...goldPlayActions(state, pid));
-    out.push({ type: 'endTurn', pid });
+    // 서부의 법: 보여 준 카드를 낼 수 있는 동안은 차례를 마칠 수 없다.
+    const must = state.turn.mustPlay;
+    const owed = must !== undefined && plays.some((x) => x.type === 'playCard' && x.card === must);
+    if (!owed) out.push({ type: 'endTurn', pid });
   } else if (top?.k === 'discardPhase' && state.turn.phase === 'discard') {
     for (const card of unique(me.hand)) out.push({ type: 'discardCard', pid, card });
   }
@@ -182,6 +191,9 @@ function respondActions(state: GameState, pid: PlayerId): Action[] {
     case 'missed':
     case 'indiansBang':
     case 'duelBang':
+    case 'russianRoulette':
+    case 'ricochet':
+    case 'ranch':
       for (const card of unique(a.options)) {
         out.push({ type: 'respond', pid, choice: { c: 'card', card } });
       }
@@ -223,9 +235,20 @@ function respondActions(state: GameState, pid: PlayerId): Action[] {
       out.push(pass);
       break;
     case 'pedroRamirez':
+    case 'hardLiquor':
     case 'newIdentity':
       out.push({ type: 'respond', pid, choice: { c: 'yes' } });
       out.push(pass);
+      break;
+    case 'bloodBrothers':
+      for (const target of a.targets) {
+        out.push({ type: 'respond', pid, choice: { c: 'player', pid: target } });
+      }
+      out.push(pass);
+      break;
+    case 'peyote':
+      out.push({ type: 'respond', pid, choice: { c: 'color', color: 'red' } });
+      out.push({ type: 'respond', pid, choice: { c: 'color', color: 'black' } });
       break;
     case 'evelyn':
       for (const target of a.targets) {
@@ -260,6 +283,11 @@ function respondActions(state: GameState, pid: PlayerId): Action[] {
         out.push({ type: 'respond', pid, choice: { c: 'suit', suit: suit as Suit } });
       }
       break;
+    default: {
+      // 응답을 하나도 내놓지 못하면 판이 멈춘다. 새 입력 대기를 넣으면 여기서 막힌다
+      const never: never = a;
+      throw new Error(`응답을 만들 수 없는 입력 대기: ${JSON.stringify(never)}`);
+    }
   }
   return out;
 }
@@ -296,17 +324,41 @@ function playPhaseActions(state: GameState, pid: PlayerId): Action[] {
 
       switch (as) {
         case 'bang': {
+          // 리코체: 뱅!을 버려 앞에 놓인 카드를 노린다. 사용이 아니라 버림이라 횟수·거리를 보지 않는다.
+          if (allowsRicochet(state)) {
+            for (const t of seatedPlayers(state)) {
+              if (t.id === pid) continue;
+              for (const e of unique(t.equipment)) {
+                out.push({
+                  type: 'playCard', pid, card, as: explicit, target: t.id,
+                  pick: { zone: 'equipment', card: e },
+                });
+              }
+            }
+          }
           if (!bangsLeft) break;
           // 조준: 뱅!과 함께 낼 수 있는 카드
           const aims = unique(me.hand).filter(
             (c) => c !== card && kindOf(c) === 'aim' && canPlayCard(state, pid, 'aim', c, false),
           );
+          // 저격수: 뱅!으로 쓸 수 있는 두 번째 카드를 함께 버린다. 같은 쌍은 한 번만 연다.
+          const partners = allowsDoubleBang(state)
+            ? unique(me.hand).filter(
+                (c) =>
+                  c > card &&
+                  canUseCardAs(state, pid, kindOf(c), 'bang') &&
+                  canPlayCard(state, pid, 'bang', c, false),
+              )
+            : [];
           for (const t of seatedPlayers(state)) {
             if (t.id === pid || !t.alive) continue;
             if (canReachWithBang(state, pid, t.id) && !immuneToCard(state, t.id, card, pid)) {
               out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
               for (const extra of aims) {
                 out.push({ type: 'playCard', pid, card, as: explicit, target: t.id, extra });
+              }
+              for (const also of partners) {
+                out.push({ type: 'playCard', pid, card, as: explicit, target: t.id, also });
               }
             }
           }

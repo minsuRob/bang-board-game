@@ -6,7 +6,7 @@
  * 시뮬레이션으로 다시 고른다.
  */
 
-import { CARD_DEFS } from '../data/cards.base';
+import { BASE_CARDS_BY_ID, CARD_DEFS } from '../data/cards.base';
 import type { CardId, CardKind, Suit } from '../data/types';
 import { SUITS } from '../data/types';
 import {
@@ -171,6 +171,8 @@ function scorePlay(
   switch (kind) {
     case 'bang': {
       if (!target) return -10;
+      // 리코체: 뱅!을 버려 앞에 놓인 카드 한 장을 노린다
+      if (action.pick?.zone === 'equipment') return scoreRicochet(action.pick.card, friend, enemy);
       if (friend) return -12;
       let s = 12 * enemy;
       // 마지막 한 대면 크게 오른다
@@ -181,6 +183,11 @@ function scorePlay(
       s += Math.min(3, countKind(view, me, 'bang') - 1);
       // 조준을 함께 내면 한 방이 두 배다. 대신 조준 한 장을 쓴다
       if (action.extra) s += target.hp <= 2 ? 14 * enemy : 5 * enemy - 3;
+      // 저격수: 빗나감 2장을 요구한다. 두 번째 카드 값을 치른다
+      if (action.also !== undefined) {
+        const second = safeKind(action.also);
+        s += (target.hand.length <= 2 ? 8 : 4) * enemy - (second ? cardValue(second) : 6) * 0.8;
+      }
       // 능력으로 내는 뱅!(블랙 플라워 등)은 낼 카드의 값어치를 치른다
       if (action.ability) {
         const own = safeKind(action.card);
@@ -354,8 +361,12 @@ function scoreRespond(
         return my.hp > 2 ? -2 : -30;
       }
       const kind = safeKind(choice.card);
-      // 역화는 되쏘기까지 하니 먼저 쓴다. 뱅!을 빗나감으로 쓰는 것(칼라미티 자넷)은 조금 아깝다
-      if (kind === 'backfire') return hostility(view, me, a.source, beliefs, situation(view, me, beliefs)) >= FRIEND ? 28 : 18;
+      // 역화는 되쏘기까지 하니 먼저 쓴다. 뱅!을 빗나감으로 쓰는 것(칼라미티 자넷)은 조금 아깝다.
+      // 쏜 사람이 없는 뱅!(한줌의 카드)에는 되쏠 곳이 없으니 역화를 아낀다
+      if (kind === 'backfire') {
+        if (a.source === null) return 18;
+        return hostility(view, me, a.source, beliefs, situation(view, me, beliefs)) >= FRIEND ? 28 : 18;
+      }
       return kind === 'bang' ? 22 : 25;
     }
 
@@ -469,9 +480,76 @@ function scoreRespond(
       return handSuitCount(view, me, choice.suit) * 10;
     }
 
+    // 한줌의 카드
+    case 'russianRoulette':
+      // 빗나감 한 장으로 목숨 2를 막는다
+      return choice.c === 'card' ? 30 : my.hp <= 2 ? -100 : -40;
+
+    case 'ricochet': {
+      const kind = safeKind(a.card);
+      // 내 앞의 감옥·다이너마이트는 버려지는 편이 낫다
+      if (kind === 'jail' || kind === 'dynamite') return choice.c === 'card' ? -20 : 10;
+      if (choice.c !== 'card') return 0;
+      return (kind ? cardValue(kind) : 5) * 2 - cardValue('missed') - (my.hp <= 2 ? 6 : 0);
+    }
+
+    case 'ranch': {
+      if (choice.c !== 'card') return 3;
+      const kind = safeKind(choice.card);
+      // 평균(대략 5)보다 못한 카드만 바꾼다
+      return kind ? 5 - cardValue(kind) + 1 : 0;
+    }
+
+    case 'hardLiquor': {
+      if (choice.c !== 'yes') return 0;
+      if (my.hp >= my.maxHp) return -20;
+      const d = danger(view, me);
+      return d > 0.6 ? 12 : my.hand.length >= 4 ? 4 : -6;
+    }
+
+    case 'bloodBrothers': {
+      if (choice.c !== 'player') return 0;
+      if (my.hp <= 2) return -20;
+      const t = playerOf(view, choice.pid);
+      const h = hostility(view, me, t.id, beliefs);
+      if (h >= FRIEND) return -15;
+      // 보안관이 살아야 이기는 쪽이면 다친 보안관을 챙긴다
+      const sit = situation(view, me, beliefs);
+      const sheriff = t.id === sit.sheriffId && needsSheriffAlive(view, me, sit) && t.hp <= 2 ? 10 : 0;
+      return (FRIEND - h) * 20 + sheriff + (t.hp === 1 ? 6 : 0) - 2;
+    }
+
+    case 'peyote':
+      if (choice.c !== 'color') return 0;
+      return unseenColorCount(view, me, choice.color);
+
     default:
       return 0;
   }
+}
+
+/** 리코체로 앞의 카드를 노리는 수. 상대가 빗나감!으로 막을 수 있으니 확실하지 않다 */
+function scoreRicochet(card: CardId, friend: boolean, enemy: number): number {
+  const kind = safeKind(card);
+  if (!kind) return -5;
+  const cost = cardValue('bang') * 0.6;
+  if (kind === 'jail' || kind === 'dynamite') return friend ? 9 - cost : -10;
+  if (friend) return -12;
+  return (4 + cardValue(kind)) * enemy - cost - 2;
+}
+
+/** 아직 보지 못한 기본 카드 중 그 색 장수. 피요테에서 더 많은 쪽을 부른다 */
+function unseenColorCount(view: GameState, me: PlayerId, color: 'red' | 'black'): number {
+  const seen = new Set<CardId>(view.discard);
+  for (const p of view.players) for (const c of p.equipment) seen.add(c);
+  for (const c of playerOf(view, me).hand) seen.add(c);
+  let n = 0;
+  for (const c of BASE_CARDS_BY_ID.values()) {
+    if (seen.has(c.id)) continue;
+    const red = c.suit === 'hearts' || c.suit === 'diamonds';
+    if (red === (color === 'red')) n++;
+  }
+  return n;
 }
 
 /**

@@ -146,22 +146,24 @@ export function respondBang(
   }
 
   let cur = discardFromHand(state, frame.target, choice.card);
-  const backfire = kindOf(choice.card) === 'backfire';
+  // 역화는 쏜 사람에게 되돌아간다. 쏜 사람이 없는 뱅!(한줌의 카드)에는 빗나감!으로만 쓴다.
+  const shooter = frame.source;
+  const backfire = kindOf(choice.card) === 'backfire' && shooter !== null && shooter !== frame.target;
   cur = log(cur, {
     t: 'playMissed',
     pid: frame.target,
     card: choice.card,
     text: backfire
-      ? `${ga(nameOf(cur, frame.target))} 역화를 냈다. 총알이 ${nameOf(cur, frame.source)}에게 되돌아간다.`
-      : `${ga(nameOf(cur, frame.target))} 빗나감!을 냈다.`,
+      ? `${ga(nameOf(cur, frame.target))} 역화를 냈다. 총알이 ${nameOf(cur, shooter)}에게 되돌아간다.`
+      : `${ga(nameOf(cur, frame.target))} ${kindOf(choice.card) === 'backfire' ? '역화를' : '빗나감!을'} 냈다.`,
   });
   cur = replaceTop(cur, { ...frame, missesRequired: frame.missesRequired - 1 });
-  if (!backfire || frame.source === frame.target) return cur;
+  if (!backfire) return cur;
   // 역화: 쏜 사람이 뱅!의 표적이 된다. 지금 뱅!의 해결이 끝난 뒤에 쏜다.
   const counter: Frame = {
     k: 'bang',
     source: frame.target,
-    target: frame.source,
+    target: shooter,
     missesRequired: 1,
     cause: 'backfire',
     dodgeChecked: false,

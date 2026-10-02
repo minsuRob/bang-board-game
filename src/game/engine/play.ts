@@ -31,7 +31,7 @@ import {
   onPlayBangFrames,
   withEvade,
 } from './hooks';
-import type { Frame, GameState, PlayerId } from './types';
+import type { Frame, GameState, PlayerId, StealPick } from './types';
 import { eul, ga, ro } from './josa';
 
 /** 대상 한 명을 지목하는 갈색 효과 중 탈출로 피할 수 있는 것 */
@@ -41,6 +41,10 @@ export type PlayOptions = {
   target2?: PlayerId;
   extra?: CardId;
   ability?: string;
+  /** 저격수: 함께 버리는 두 번째 뱅! */
+  also?: CardId;
+  /** 리코체: 뱅!으로 노리는 앞의 카드 */
+  pick?: StealPick;
 };
 
 /** 이 능력 key 가 뱅! 횟수를 쓰지 않는 추가 뱅!인가 (블랙 플라워) */
@@ -102,6 +106,9 @@ export function applyPlayCard(
     cur = toDiscard(cur, [card]);
   }
 
+  // 리코체(한줌의 카드): 뱅!에 앞의 카드가 붙으면 사람이 아니라 그 카드를 노린다.
+  const ricochet = as === 'bang' && target && opts.pick?.zone === 'equipment' ? opts.pick.card : null;
+
   const played =
     as === own
       ? eul(def.nameKo)
@@ -113,9 +120,14 @@ export function applyPlayCard(
     as: as === own ? undefined : as,
     target,
     text:
-      `${ga(nameOf(cur, pid))} ${played} 냈다` +
+      `${ga(nameOf(cur, pid))}${ricochet ? ' 리코체로' : ''} ${played} 냈다` +
       (target ? ` → ${nameOf(cur, target)}.` : '.'),
   });
+
+  if (ricochet && target) {
+    // 버림이지 사용이 아니다. 뱅! 횟수를 쓰지 않고, 뱅!에 반응하는 능력도 울리지 않는다.
+    return pushSeq(cur, [{ k: 'ricochet', source: pid, target, card: ricochet }]);
+  }
 
   // 조준: 뱅!과 함께 낸 카드도 손을 떠난다.
   if (opts.extra) {
@@ -131,6 +143,20 @@ export function applyPlayCard(
     });
   }
 
+  // 저격수: 두 번째 뱅!도 손을 떠난다. 둘이 합쳐 뱅! 1회다.
+  if (opts.also) {
+    const also = opts.also;
+    cur = updatePlayer(cur, pid, (p) => ({ ...p, hand: p.hand.filter((c) => c !== also) }));
+    cur = toDiscard(cur, [also]);
+    cur = log(cur, {
+      t: 'playCard',
+      pid,
+      card: also,
+      target,
+      text: `${ga(nameOf(cur, pid))} 저격수로 ${eul(CARD_DEFS[kindOf(also)].nameKo)} 함께 냈다.`,
+    });
+  }
+
   // 패닝은 차례당 한 번인 뱅!으로 친다. 추가 뱅!(블랙 플라워)은 횟수를 쓰지 않는다.
   if ((as === 'bang' || as === 'fanning') && !isExtraBang(cur, pid, opts.ability)) {
     cur = { ...cur, turn: { ...cur.turn, bangsPlayed: cur.turn.bangsPlayed + 1 } };
@@ -138,10 +164,13 @@ export function applyPlayCard(
 
   if (as === 'bang' && target) frames.push(...onPlayBangFrames(cur, pid, target));
   frames.push(
-    ...effectFrames(cur, pid, as, target, opts, card).map((f) =>
-      // 탈출·믹 디펜더: 뱅!이 아닌 갈색 카드의 대상은 피할 기회를 얻는다
-      target && SINGLE_TARGET_EVADABLE.includes(f.k) ? withEvade(cur, target, pid, as, f) : f,
-    ),
+    ...effectFrames(cur, pid, as, target, opts, card)
+      // 저격수: 빗나감! 2장으로만 막는다 (슬랩 더 킬러면 그대로 2장 이상)
+      .map((f) => (opts.also && f.k === 'bang' ? { ...f, missesRequired: Math.max(2, f.missesRequired) } : f))
+      .map((f) =>
+        // 탈출·믹 디펜더: 뱅!이 아닌 갈색 카드의 대상은 피할 기회를 얻는다
+        target && SINGLE_TARGET_EVADABLE.includes(f.k) ? withEvade(cur, target, pid, as, f) : f,
+      ),
   );
   frames.push(...onOtherPlaysCardFrames(cur, pid, as));
   return pushSeq(cur, frames);

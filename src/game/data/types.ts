@@ -171,7 +171,18 @@ export type Role = 'sheriff' | 'deputy' | 'outlaw' | 'renegade';
 // 이벤트 카드 (하이 눈 등 확장판)
 // ---------------------------------------------------------------------------
 
-export type Expansion = 'highnoon' | 'valley' | 'goldrush' | 'wildwestshow';
+export type Expansion = 'highnoon' | 'valley' | 'goldrush' | 'wildwestshow' | 'fistful';
+
+/** 상황(이벤트) 카드 덱을 들여오는 확장판. 한 판에 하나만 쓴다 */
+export type EventExpansion = Extract<Expansion, 'highnoon' | 'wildwestshow' | 'fistful'>;
+
+export const EXPANSION_LABEL: Record<Expansion, string> = {
+  highnoon: '하이 눈',
+  valley: '그림자의 계곡',
+  goldrush: '골드 러시',
+  wildwestshow: '와일드 웨스트 쇼',
+  fistful: '한줌의 카드',
+};
 
 export type HighNoonEventId =
   | 'blessing' | 'curse' | 'ghostTown' | 'goldRush' | 'hangover'
@@ -182,7 +193,13 @@ export type WildWestShowEventId =
   | 'gag' | 'boneOrchard' | 'darlingValentine' | 'dorothyRage' | 'helenaZontero'
   | 'ladyRoseOfTexas' | 'missSusanna' | 'showdown' | 'sacagaway' | 'wildWestShow';
 
-export type EventCardId = HighNoonEventId | WildWestShowEventId;
+/** 한줌의 카드 (A Fistful of Cards) */
+export type FistfulEventId =
+  | 'abandonedMine' | 'ambush' | 'bloodBrothers' | 'deadMan' | 'hardLiquor'
+  | 'lasso' | 'lawOfTheWest' | 'peyote' | 'ranch' | 'ricochet'
+  | 'russianRoulette' | 'sniper' | 'theJudge' | 'vendetta' | 'fistfulOfCards';
+
+export type EventCardId = HighNoonEventId | WildWestShowEventId | FistfulEventId;
 
 export type EventCardDef = {
   id: EventCardId;
@@ -190,7 +207,7 @@ export type EventCardDef = {
   name: string;
   nameKo: string;
   text: string;
-  /** 이벤트 덱 맨 밑에 고정되는 마지막 카드인가 (하이 눈 · 와일드 웨스트 쇼) */
+  /** 이벤트 덱 맨 밑에 고정되는 마지막 카드인가 (하이 눈 · 와일드 웨스트 쇼 · 한줌의 카드) */
   isFinal?: boolean;
 };
 

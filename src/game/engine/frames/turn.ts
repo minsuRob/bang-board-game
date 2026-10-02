@@ -26,6 +26,7 @@ import {
 import {
   drawCountOf,
   drawPhaseOverride,
+  firstOutRevival,
   onDrawPhaseEndFrames,
   onEventEnterFrames,
   onTurnEndFrames,
@@ -212,6 +213,7 @@ export function resolveAdvanceTurn(
   }
   const dir = turnDirectionOf(cur);
   const ghosts = resurrectsEliminated(cur);
+  const revival = firstOutRevival(cur);
   const n = cur.players.length;
   const fromSeat = playerOf(cur, frame.from).seat;
 
@@ -220,6 +222,21 @@ export function resolveAdvanceTurn(
     const cand = cur.players[seat];
     if (cand.alive || (cand.ghost && heldAsGhost(cand))) {
       return pushSeq(cur, [{ k: 'turnStart', pid: cand.id }]);
+    }
+    const ev = cur.event;
+    if (revival && ev && ev.firstOut === cand.id && !ev.deadManUsed) {
+      // 망자: 가장 먼저 제거된 사람이 자기 차례에 돌아온다. 한 사람, 한 번뿐이다.
+      cur = updatePlayer(cur, cand.id, (x) => ({ ...x, alive: true, ghost: false, hp: revival.hp }));
+      cur = { ...cur, event: { ...ev, deadManUsed: true } };
+      cur = log(cur, {
+        t: 'deadMan',
+        pid: cand.id,
+        text: `${ga(nameOf(cur, cand.id))} 망자로 돌아왔다 (목숨 ${revival.hp}).`,
+      });
+      return pushSeq(cur, [
+        { k: 'drawCards', pid: cand.id, count: revival.cards, reason: 'deadMan' },
+        { k: 'turnStart', pid: cand.id },
+      ]);
     }
     if (ghosts && !cand.ghost) {
       cur = updatePlayer(cur, cand.id, (x) => ({ ...x, ghost: true }));

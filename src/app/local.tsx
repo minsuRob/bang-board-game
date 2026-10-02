@@ -4,16 +4,25 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AI_TIERS, AI_TIER_LABEL } from '@/game/ai';
 import type { AiTier } from '@/game/ai/types';
+import { EVENT_EXPANSIONS } from '@/game/data/events';
+import { EXPANSION_LABEL, type EventExpansion } from '@/game/data/types';
 import { SavedGames } from '@/game/ui/SavedGames';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 const COUNTS = [4, 5, 6, 7];
 
+const EVENT_HINT: Record<EventExpansion | 'none', string> = {
+  none: '상황 카드 없이 기본 규칙으로 한다. 상황 카드 확장판은 한 판에 하나만 고를 수 있다.',
+  highnoon: '하이 눈은 보안관의 두 번째 차례부터 매 라운드 상황 카드가 하나씩 열린다.',
+  wildwestshow: '와일드 웨스트 쇼는 보안관의 두 번째 차례부터 매 라운드 상황 카드가 하나씩 열린다.',
+  fistful: '한줌의 카드는 보안관의 두 번째 차례부터 매 라운드 상황 카드가 하나씩 열린다.',
+};
+
 export default function LocalSetupScreen() {
   const router = useRouter();
   const [players, setPlayers] = useState(5);
   const [tier, setTier] = useState<AiTier>('medium');
-  const [eventExpansion, setEventExpansion] = useState<'none' | 'highnoon' | 'wildwestshow'>('none');
+  const [eventExpansion, setEventExpansion] = useState<EventExpansion | null>(null);
   const [valley, setValley] = useState(false);
   const [goldrush, setGoldrush] = useState(false);
   const [seed, setSeed] = useState(() => Math.floor(Date.now() % 100000));
@@ -53,19 +62,17 @@ export default function LocalSetupScreen() {
 
       <Section title="상황 카드 확장판">
         <Row>
-          <Chip label="기본" active={eventExpansion === 'none'} onPress={() => setEventExpansion('none')} />
-          <Chip label="하이 눈" active={eventExpansion === 'highnoon'} onPress={() => setEventExpansion('highnoon')} />
-          <Chip
-            label="와일드 웨스트 쇼"
-            active={eventExpansion === 'wildwestshow'}
-            onPress={() => setEventExpansion('wildwestshow')}
-          />
+          <Chip label="기본" active={eventExpansion === null} onPress={() => setEventExpansion(null)} />
+          {EVENT_EXPANSIONS.map((x) => (
+            <Chip
+              key={x}
+              label={EXPANSION_LABEL[x]}
+              active={eventExpansion === x}
+              onPress={() => setEventExpansion(x)}
+            />
+          ))}
         </Row>
-        <Text style={styles.hint}>
-          {eventExpansion === 'wildwestshow'
-            ? '와일드 웨스트 쇼는 보안관의 두 번째 차례부터 매 라운드 상황 카드가 하나씩 열린다.'
-            : '하이 눈은 보안관의 두 번째 차례부터 매 라운드 상황 카드가 하나씩 열린다.'}
-        </Text>
+        <Text style={styles.hint}>{EVENT_HINT[eventExpansion ?? 'none']}</Text>
       </Section>
 
       <Section title="카드·캐릭터 확장판">
@@ -104,8 +111,7 @@ export default function LocalSetupScreen() {
               id: 'local',
               players: String(players),
               tier,
-              highnoon: eventExpansion === 'highnoon' ? '1' : '0',
-              wildwestshow: eventExpansion === 'wildwestshow' ? '1' : '0',
+              event: eventExpansion ?? 'none',
               valley: valley ? '1' : '0',
               goldrush: goldrush ? '1' : '0',
               seed: String(seed),

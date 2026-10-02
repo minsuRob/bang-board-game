@@ -7,8 +7,8 @@
 import { CARD_DEFS } from '../data/cards.base';
 import type { CardId } from '../data/types';
 import { ROLE_LABEL } from '../data/roles';
-import type { GameState, PlayerId } from '../engine';
-import { ga, ro } from '../engine/josa';
+import { kindOf, type GameState, type PlayerId } from '../engine';
+import { eul, ga, ro } from '../engine/josa';
 import { CAN_HOVER, cardPeek, setPeek } from './card-peek';
 import type { TableApi } from './use-table';
 
@@ -71,9 +71,15 @@ export function bottomStatus(view: GameState, viewer: PlayerId, api: TableApi): 
   }
   if (api.selected) return '지목할 상대를 고른다 (Esc 취소)';
   if (api.armed) {
-    const as = api.playAsAbilities.find((ab) => ab.key === api.armed)?.as;
-    const name = as ? CARD_DEFS[as].nameKo : '능력';
+    const ab = api.playAsAbilities.find((x) => x.key === api.armed);
+    if (ab?.status) return ab.status;
+    const name = ab ? CARD_DEFS[ab.as].nameKo : '능력';
     return `${ro(name)} 낼 카드를 고른다 (Esc 취소)`;
+  }
+  // 서부의 법: 보여 준 카드를 내기 전에는 차례를 마칠 수 없다
+  const must = view.turn.mustPlay;
+  if (must !== undefined && !api.canEndTurn) {
+    return `서부의 법 — ${eul(CARD_DEFS[kindOf(must)].nameKo)} 내야 차례를 마칠 수 있다`;
   }
   return '낼 카드를 고른다';
 }

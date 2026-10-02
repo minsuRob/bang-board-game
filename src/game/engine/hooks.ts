@@ -30,6 +30,41 @@ export function eventModifier(state: GameState): Modifier | null {
   return id ? EVENT_MODIFIERS[id] : null;
 }
 
+/** 올가미처럼 앞에 놓인 카드의 효과를 통째로 죽이는 효과가 걸려 있는가 */
+export function equipmentDisabled(state: GameState): boolean {
+  return eventModifier(state)?.disablesEquipment === true;
+}
+
+/** 자리 거리 대신 쓰는 고정 거리 (매복). 없으면 null */
+export function fixedDistanceOf(state: GameState): number | null {
+  return eventModifier(state)?.fixedDistance ?? null;
+}
+
+/** 카드 가져오기 단계가 버린 더미에서 가져오는가 (폐광) */
+export function drawsFromDiscard(state: GameState): boolean {
+  return eventModifier(state)?.drawsFromDiscard === true;
+}
+
+/** 버리기 단계의 카드가 덱 위로 가는가 (폐광) */
+export function discardsToDeck(state: GameState): boolean {
+  return eventModifier(state)?.discardsToDeck === true;
+}
+
+/** 망자: 가장 먼저 제거된 사람이 돌아올 때의 목숨·카드. 없으면 null */
+export function firstOutRevival(state: GameState): { hp: number; cards: number } | null {
+  return eventModifier(state)?.revivesFirstOut ?? null;
+}
+
+/** 뱅! 2장을 한 번에 쓰는 저격이 열려 있는가 */
+export function allowsDoubleBang(state: GameState): boolean {
+  return eventModifier(state)?.allowsDoubleBang === true;
+}
+
+/** 뱅!으로 앞에 놓인 카드를 노리는 리코체가 열려 있는가 */
+export function allowsRicochet(state: GameState): boolean {
+  return eventModifier(state)?.allowsRicochet === true;
+}
+
 /** 숙취처럼 캐릭터 능력을 통째로 죽이는 효과가 걸려 있는가 */
 export function characterAbilitiesDisabled(state: GameState): boolean {
   return eventModifier(state)?.disablesCharacterAbilities === true;
@@ -46,13 +81,15 @@ export function getModifiers(state: GameState, pid: PlayerId): Modifier[] {
   if (!characterAbilitiesDisabled(state)) {
     mods.push(CHARACTER_MODIFIERS[p.character]);
   }
-  for (const card of p.equipment) {
-    const m = equipmentModifier(kindOf(card), card);
-    if (m) mods.push(m);
-  }
-  for (const card of goldEquipOf(p)) {
-    const make = GOLD_MODIFIERS[goldKindOf(card)];
-    if (make) mods.push(make(card));
+  if (!equipmentDisabled(state)) {
+    for (const card of p.equipment) {
+      const m = equipmentModifier(kindOf(card), card);
+      if (m) mods.push(m);
+    }
+    for (const card of goldEquipOf(p)) {
+      const make = GOLD_MODIFIERS[goldKindOf(card)];
+      if (make) mods.push(make(card));
+    }
   }
   const ev = eventModifier(state);
   if (ev) mods.push(ev);
@@ -174,7 +211,8 @@ export function anytimeAbilitiesOf(state: GameState, pid: PlayerId): AnytimeAbil
 export function onTargetedByBangFrames(
   state: GameState,
   target: PlayerId,
-  source: PlayerId,
+  /** 쏜 사람. 한줌의 카드처럼 쏜 사람이 없으면 null */
+  source: PlayerId | null,
 ): Frame[] {
   const ctx = ctxOf(state, target);
   return getModifiers(state, target).flatMap((m) => m.onTargetedByBang?.(ctx, source) ?? []);
@@ -253,9 +291,12 @@ export function drawPhaseOverride(
   state: GameState,
   pid: PlayerId,
   count: number,
+  /** 이벤트가 가로챈 가져오기를 거절한 뒤(독한 술)라 이벤트 훅은 건너뛴다 */
+  skipEvent = false,
 ): Frame[] | null {
   const ctx = ctxOf(state, pid);
   for (const m of getModifiers(state, pid)) {
+    if (skipEvent && m.from === 'event') continue;
     const frames = m.drawPhase?.(ctx, count);
     if (frames) return frames;
   }

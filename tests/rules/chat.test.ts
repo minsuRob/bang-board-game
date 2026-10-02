@@ -55,7 +55,7 @@ beforeEach(async () => {
       hostUid: 'alice',
       status: 'playing',
       playerCount: 4,
-      highnoon: false,
+      eventExpansion: null,
       tier: 'medium',
       seats: [
         { uid: 'alice', nick: '앨리스', ai: false },

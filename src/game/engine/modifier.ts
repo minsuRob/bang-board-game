@@ -76,7 +76,7 @@ export type Modifier = {
   /** 내가 뱅! 카드를 낼 때. 뱅! 프레임보다 먼저 해결된다 (콜로라도 빌) */
   onPlayBang?: (ctx: ModCtx, target: PlayerId) => Frame[];
   /** 뱅!의 표적이 될 때 (술통·주르도네) */
-  onTargetedByBang?: (ctx: ModCtx, source: PlayerId) => Frame[];
+  onTargetedByBang?: (ctx: ModCtx, source: PlayerId | null) => Frame[];
 
   // --- 판정 -------------------------------------------------------------
   /** 판정에서 들여다보는 장수 (러키 듀크 2) */
@@ -169,4 +169,21 @@ export type Modifier = {
   turnDirection?: 1 | -1;
   /** 제거된 플레이어도 자기 차례에 되살아난다 (유령도시) */
   resurrectsEliminated?: boolean;
+  /** 앞에 놓인 카드(골드 장비 포함)의 효과를 전부 없앤다 (올가미) */
+  disablesEquipment?: boolean;
+  /**
+   * 자리 거리 대신 쓰는 고정 거리 (매복 1).
+   * 이때는 앞에 놓인 카드의 보정만 더하고 캐릭터 능력의 거리 보정은 무시한다.
+   */
+  fixedDistance?: number;
+  /** 카드 가져오기 단계에서 버린 더미 맨 위부터 가져온다 (폐광) */
+  drawsFromDiscard?: boolean;
+  /** 버리기 단계에서 버린 카드를 뒷면으로 덱 위에 올린다 (폐광) */
+  discardsToDeck?: boolean;
+  /** 가장 먼저 제거된 사람이 자기 차례에 이 목숨·카드로 돌아온다. 한 판에 한 번 (망자) */
+  revivesFirstOut?: { hp: number; cards: number };
+  /** 뱅! 2장을 함께 버려 빗나감! 2장이 필요한 뱅! 1회로 쓸 수 있다 (저격수) */
+  allowsDoubleBang?: boolean;
+  /** 뱅!을 버려 남의 앞에 놓인 카드를 노릴 수 있다 (리코체) */
+  allowsRicochet?: boolean;
 };
