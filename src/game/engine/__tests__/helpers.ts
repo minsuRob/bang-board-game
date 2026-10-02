@@ -17,6 +17,7 @@ import type {
   Suit,
 } from '../../data/types';
 import { CHARACTERS } from '../../data/characters';
+import { EVENTS, eventExpansionOf } from '../../data/events';
 import { createRng } from '../rng';
 import type { Action, GameState, Player, PlayerId } from '../types';
 import { reduce } from '../reducer';
@@ -47,7 +48,7 @@ export type ScenarioSpec = {
   activeSeat?: number;
   phase?: 'draw' | 'play' | 'discard';
   seed?: number;
-  /** 켤 확장판. 'valley' 면 덱이 96장이 된다. event 가 있으면 highnoon 은 자동 */
+  /** 켤 확장판. 'valley' 면 덱이 96장이 된다. event 가 있으면 그 카드의 확장판은 자동 */
   expansions?: Expansion[];
 };
 
@@ -102,9 +103,10 @@ export function scenario(spec: ScenarioSpec): GameState {
   const discard = (spec.discard ?? []).map((c) => takeCard(used, c));
   const forcedTop = (spec.deckTop ?? []).map((c) => takeCard(used, c));
   // 덱은 맨 뒤가 맨 위이므로, 지정한 순서를 뒤집어 붙인다.
+  const given = spec.expansions ?? [];
   const expansions: Expansion[] = [
-    ...(spec.expansions ?? []),
-    ...(spec.event && !spec.expansions?.includes('highnoon') ? (['highnoon'] as Expansion[]) : []),
+    ...given,
+    ...(spec.event && !eventExpansionOf(given) ? [EVENTS[spec.event].expansion] : []),
   ];
   const pool = deckFor(expansions);
   for (const id of used) {
