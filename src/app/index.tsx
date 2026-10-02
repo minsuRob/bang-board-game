@@ -3,9 +3,12 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { isFirebaseConfigured } from '@/firebase/config';
+import { codexCounts } from '@/game/ui/codex/codex-model';
 import { FullscreenButton } from '@/game/ui/FullscreenButton';
 import { QualityPicker } from '@/game/ui/QualityPicker';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+
+const CODEX = codexCounts();
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -68,6 +71,17 @@ export default function HomeScreen() {
             </Text>
           </View>
         )}
+
+        <Pressable
+          style={styles.secondary}
+          accessibilityRole="button"
+          accessibilityLabel="카드 도감"
+          onPress={() => router.push('/cards')}>
+          <Text style={styles.secondaryText}>카드 도감</Text>
+          <Text style={styles.secondaryHint}>
+            카드 {CODEX.cards}종 · 캐릭터 {CODEX.characters}명 · 이벤트 {CODEX.events}장 · 규칙 메모
+          </Text>
+        </Pressable>
 
         <QualityPicker />
       </View>

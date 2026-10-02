@@ -21,12 +21,13 @@ import { useStore } from 'zustand';
 import { BASE_DECK } from '../data/cards.base';
 import { HIGHNOON_EVENT_IDS } from '../data/cards.highnoon';
 import type { CardId, CharacterId, EventCardDef } from '../data/types';
-import { defOf, roleVisibleTo, type GameEvent, type GameState, type PlayerId } from '../engine';
+import { defOf, kindOf, roleVisibleTo, type GameEvent, type GameState, type PlayerId } from '../engine';
 import { fxPacing } from '../store/fx-pacing';
-import { eventArt, roleArt } from './card-art';
+import { roleArt } from './card-art';
 import { CAN_HOVER, cardPeek, setPeek } from './card-peek';
 import { CharacterCard } from './CharacterCard';
 import { CARD_DIMENSIONS, CardView } from './CardView';
+import { EventCardFace } from './EventCardFace';
 import { cardFxFor, type CardFx } from './fx/card-fx';
 import { GUNSHOT_MS, GunshotFx, recoilStyle, screenFlashStyle } from './fx/GunshotFx';
 import { fxQuality } from './fx/quality';
@@ -47,7 +48,7 @@ import { PickSpotlight } from './PickSpotlight';
 import { playSfx, preloadSfx } from './sfx';
 import { pickSpotlight, revealedEventOf } from './spotlight-pick';
 import type { TableApi } from './use-table';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 
 const NATIVE_DRIVER = Platform.OS !== 'web';
 
@@ -61,8 +62,6 @@ const SHOW_MS = 2200;
 /** 이벤트 카드는 효과 글이 길고 판 전체에 걸린다. 1배속에서 떠 있는 시간과, 빨리 둘 때도 지키는 최소 */
 const EVENT_SHOW_MS = 4200;
 const EVENT_MIN_MS = 1800;
-/** 이벤트 스캔 비율 (260×389) */
-const EVENT_RATIO = 260 / 389;
 
 /** 카드가 튀어 오른 뒤 총이 터지기까지 (1배속) */
 const FIRE_DELAY_MS = 180;
@@ -77,6 +76,27 @@ export type PlayedCardSpotlightProps = {
 /** 고화질 총격이 쓰는 무대: 진행도, 총구 자리, 자리를 잴 기준 레이어 */
 type HqStage = { progress: SharedValue<number>; geom: SharedValue<ShotGeom>; layer: React.RefObject<View | null> };
 
+/**
+ * 연출 무대. 소리와 고화질 연출을 미리 불러 두고, 고화질 캔버스 하나와 그 진행도·자리를 쥔다.
+ * 캔버스는 화면마다 하나만 띄워 두고 연출마다 다시 쓴다 (CardFxSkia 머리말 참고)
+ */
+function useFxStage() {
+  // 첫 총성이 늦게 나지 않게 화면에 들어올 때 불러 둔다
+  useEffect(preloadSfx, []);
+  const quality = useStore(fxQuality, (s) => s.quality);
+  useEffect(() => {
+    if (quality === 'high') void loadSkiaFx();
+  }, [quality]);
+
+  const skia = useStore(skiaFx, (s) => s.gunshot);
+  const hqLayer = quality === 'high' ? skia : null;
+  const progress = useSharedValue(0);
+  const geom = useSharedValue<ShotGeom>(EMPTY_GEOM);
+  const layer = useRef<View>(null);
+  const stage: HqStage | null = hqLayer ? { progress, geom, layer } : null;
+  return { hqLayer, progress, geom, layer, stage };
+}
+
 export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSpotlightProps) {
   const [shown, setShown] = useState<GameEvent | null>(null);
   // 처음 그릴 때 이미 있던 로그는 띄우지 않는다
@@ -87,20 +107,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
   // 잡화점·강탈·캣 발루로 고르는 중이면 가운데 창이 가장 앞이다
   const picking = api.prompt?.center ? api.prompt : null;
 
-  // 첫 총성이 늦게 나지 않게 판에 들어올 때 소리와 고화질 연출을 불러 둔다
-  useEffect(preloadSfx, []);
-  const quality = useStore(fxQuality, (s) => s.quality);
-  useEffect(() => {
-    if (quality === 'high') void loadSkiaFx();
-  }, [quality]);
-
-  // 고화질 캔버스는 판마다 하나만 띄워 두고 연출마다 다시 쓴다 (CardFxSkia 머리말 참고)
-  const skia = useStore(skiaFx, (s) => s.gunshot);
-  const hqLayer = quality === 'high' ? skia : null;
-  const progress = useSharedValue(0);
-  const geom = useSharedValue<ShotGeom>(EMPTY_GEOM);
-  const layer = useRef<View>(null);
-  const stage: HqStage | null = hqLayer ? { progress, geom, layer } : null;
+  const { hqLayer, progress, geom, layer, stage } = useFxStage();
 
   // 개발용 (웹): 주소에 ?fxloop=1 이면 뱅!, ?fxloop=missed 면 빗나감! 연출을 3초마다 되풀이한다.
   // ?fxloop=event 면 하이 눈 이벤트 카드를 한 장씩 돌려 가며 띄운다.
@@ -190,6 +197,27 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
         </View>
       )}
       {/* 카드 위에 그려야 총구 섬광이 카드에 가리지 않는다. 쉬는 동안은 비어 있다 */}
+      {hqLayer && <hqLayer.Layer progress={progress} geom={geom} />}
+    </View>
+  );
+}
+
+/**
+ * 판 밖(카드 도감)에서 낸 카드 연출을 한 번 돌려 본다. 화질 설정을 그대로 따른다.
+ * `run` 이 바뀔 때마다 다시 터지고, 0 이면 아무것도 띄우지 않는다.
+ * 부모를 꽉 채우는 레이어라 연출이 그 위에 겹친다.
+ */
+export function CardFxPreview({ card, run, onDone }: { card: CardId; run: number; onDone: () => void }) {
+  const { hqLayer, progress, geom, layer, stage } = useFxStage();
+  const event: GameEvent | null =
+    run > 0 ? { t: kindOf(card) === 'missed' ? 'playMissed' : 'playCard', card, text: '연출 미리보기', seq: run } : null;
+  return (
+    <View ref={layer} style={styles.root}>
+      {event && (
+        <View style={[styles.layer, styles.passThrough]}>
+          <PlayedSpot key={run} event={event} faces={null} stage={stage} onDone={onDone} />
+        </View>
+      )}
       {hqLayer && <hqLayer.Layer progress={progress} geom={geom} />}
     </View>
   );
@@ -422,26 +450,6 @@ function EventSpot({ def, compact, onDone }: { def: EventCardDef; compact?: bool
   );
 }
 
-/** 이벤트 카드 앞면. 그림이 없으면 종이 카드에 이름과 효과를 적는다 */
-function EventCardFace({ def, width }: { def: EventCardDef; width: number }) {
-  const art = eventArt(def.id);
-  const size = { width, height: Math.round(width / EVENT_RATIO) };
-  if (art) {
-    return <Image source={art} style={[styles.eventArt, size]} resizeMode="cover" accessibilityLabel={def.nameKo} />;
-  }
-  return (
-    <View style={[styles.eventFallback, size]}>
-      <Text style={styles.eventFallbackKicker}>이벤트</Text>
-      <Text style={styles.eventFallbackName} numberOfLines={2}>
-        {def.nameKo}
-      </Text>
-      <Text style={styles.eventFallbackEn} numberOfLines={1}>
-        {def.name}
-      </Text>
-    </View>
-  );
-}
-
 /** 손패에서 살펴보는 카드. 손을 떼거나 다시 누를 때까지 떠 있다. 폰은 창을 누르면 닫힌다 */
 function PeekSpot({ card, meta, compact }: { card: CardId; meta: string; compact?: boolean }) {
   const [t] = useState(() => new Animated.Value(0));
@@ -607,18 +615,4 @@ const styles = StyleSheet.create({
   starGlyph: { color: Colors.deputy, fontWeight: '900' },
   plaque: { width: 340, gap: 2 },
   plaqueCompact: { width: 260, gap: 1 },
-  eventArt: { borderRadius: Radius.md },
-  eventFallback: {
-    borderRadius: Radius.md,
-    borderWidth: 2,
-    borderColor: Colors.renegade,
-    backgroundColor: Colors.paper,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    padding: Spacing.two,
-  },
-  eventFallbackKicker: { color: Colors.renegade, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
-  eventFallbackName: { color: Colors.textOnPaper, fontSize: 18, fontWeight: '900', textAlign: 'center' },
-  eventFallbackEn: { color: Colors.cardBrown, fontSize: 11, fontStyle: 'italic' },
 });

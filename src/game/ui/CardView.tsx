@@ -43,6 +43,8 @@ export type CardViewProps = {
   /** 웹 마우스 hover (손패 살펴보기) */
   onHoverIn?: () => void;
   onHoverOut?: () => void;
+  /** 무늬·숫자를 그린다. 도감처럼 종류만 보여 줄 때는 끈다 */
+  showSuit?: boolean;
 };
 
 function CardViewBase({
@@ -54,6 +56,7 @@ function CardViewBase({
   highlighted,
   onHoverIn,
   onHoverOut,
+  showSuit = true,
 }: CardViewProps) {
   const dim = CARD_DIMENSIONS[size];
   const inst = cardOf(card);
@@ -85,17 +88,21 @@ function CardViewBase({
       )}
 
       {/* 그림에 인쇄된 무늬·숫자를 덮는다 */}
-      <View style={styles.suitBadge}>
-        <Text style={[styles.badgeRank, { color: suitColor }]}>{inst.rank}</Text>
-        <Text style={[styles.badgeSuit, { color: suitColor }]}>{SUIT_GLYPH[inst.suit]}</Text>
-      </View>
+      {showSuit && (
+        <View style={styles.suitBadge}>
+          <Text style={[styles.badgeRank, { color: suitColor }]}>{inst.rank}</Text>
+          <Text style={[styles.badgeSuit, { color: suitColor }]}>{SUIT_GLYPH[inst.suit]}</Text>
+        </View>
+      )}
     </View>
   ) : (
     <View style={frame}>
-      <View style={styles.corner}>
-        <Text style={[styles.rank, { color: suitColor }]}>{inst.rank}</Text>
-        <Text style={[styles.suit, { color: suitColor }]}>{SUIT_GLYPH[inst.suit]}</Text>
-      </View>
+      {showSuit && (
+        <View style={styles.corner}>
+          <Text style={[styles.rank, { color: suitColor }]}>{inst.rank}</Text>
+          <Text style={[styles.suit, { color: suitColor }]}>{SUIT_GLYPH[inst.suit]}</Text>
+        </View>
+      )}
 
       <Text style={[styles.name, { fontSize: dim.title }]} numberOfLines={2}>
         {def.nameKo}
