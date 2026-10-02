@@ -9,12 +9,13 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { CARD_DEFS } from '../data/cards.base';
 import { CHARACTERS } from '../data/characters';
-import { eul, ga } from '../engine/josa';
-import type { CardId, CardKind, CharacterId, Suit } from '../data/types';
+import { eul, ga, ro } from '../engine/josa';
+import { SUIT_GLYPH, type CardId, type CardKind, type CharacterId, type Suit } from '../data/types';
 import { SID_KETCHUM_ABILITY } from '../modifiers';
 import {
   actionKey,
   anytimeAbilitiesOf,
+  cardOf,
   kindOf,
   legalActions,
   isExplicitAbility,
@@ -48,7 +49,12 @@ export type Prompt = {
   steal: { target: PlayerId; handCount: number; equipment: CardId[] } | null;
   /** 테이블 가운데 창에서 고른다 (잡화점·강탈·캣 벌로우). 있으면 하단 바는 안내만 한다 */
   center: CenterPick | null;
+  /** 같은 카드·같은 대상을 여러 방법으로 낼 수 있을 때 고를 문구 (조준·패닝·결전 등). 누르면 variant 응답 */
+  variants?: string[];
 };
+
+/** 화면 안에서만 쓰는 응답. 엔진의 Choice 에 '낼 방법 고르기'를 더한다 */
+export type UiChoice = Choice | { c: 'variant'; index: number };
 
 /** 한줌의 카드 이벤트가 여는 뱅! 사용법. 손패에 섞지 않고 켜야만 쓴다 */
 type EventMode = 'sniper' | 'ricochet';
@@ -97,7 +103,7 @@ export type TableApi = {
   endTurn: () => void;
   discard: (card: CardId) => void;
   prompt: Prompt | null;
-  respond: (choice: Choice) => void;
+  respond: (choice: UiChoice) => void;
   abilities: { key: string; label: string; cards: CardId[] }[];
   useAbility: (key: string, cards: CardId[]) => void;
   /** 능력은 있지만 지금 쓸 수 없을 때 흐리게 보여 줄 문구 (시드 케첨: 목숨이 가득 참). 없으면 null */
@@ -236,6 +242,13 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
   const [ricochetAt, setRicochetAt] = useState<{ card: CardId; target: PlayerId; turn: string } | null>(
     null,
   );
+  // 같은 카드·같은 대상인데 낼 방법이 여럿이면(조준을 붙일지, 패닝의 두 번째 표적, 결전의 '뱅!으로')
+  // 첫 수만 나가 버린다. 그때는 방법을 한 번 더 고르게 한다. 이것도 이 화면에만 있는 단계다
+  const [variantAt, setVariantAt] = useState<{ card: CardId; keys: string[]; turn: string } | null>(null);
+  // 버릴 카드를 고르는 능력(시드 케첨). 조합이 여럿이면 손에서 한 장씩 고른다
+  const [abilityPick, setAbilityPick] = useState<{ key: string; picked: CardId[]; turn: string } | null>(
+    null,
+  );
 
   const actor = selectActor(view);
   const myTurn = Boolean(view && viewer && view.turn.active === viewer && !view.awaiting);
@@ -294,6 +307,11 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
         setSelected(null);
         return;
       }
+      if (matches.length > 1) {
+        setVariantAt({ card, keys: matches.map(actionKey), turn: turnId });
+        setSelected(null);
+        return;
+      }
       submit(matches[0]);
       setSelected(null);
       setArmedFor(null);
@@ -307,9 +325,17 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
       setArmedFor(key ? { key, turn: turnId } : null);
       setSelected(null);
       setRicochetAt(null);
+      setVariantAt(null);
+      setAbilityPick(null);
     },
     [turnId],
   );
+
+  const select = useCallback((card: CardId | null) => {
+    setSelected(card);
+    setVariantAt(null);
+    setAbilityPick(null);
+  }, []);
 
   // 리코체 대상 카드 고르기. 엔진의 입력 대기가 아니라 이 화면에만 있는 단계다
   const ricochet = useMemo(() => {
@@ -319,6 +345,15 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     );
     return options.length > 0 ? { ...ricochetAt, options } : null;
   }, [ricochetAt, turnId, armedMode, plays]);
+
+  // 고를 방법들. 그새 판이 바뀌어 더 낼 수 없는 수는 뺀다
+  const variant = useMemo(() => {
+    if (!variantAt || variantAt.turn !== turnId) return null;
+    const options = variantAt.keys
+      .map((k) => allLegal.find((a) => actionKey(a) === k))
+      .filter((a): a is Extract<Action, { type: 'playCard' }> => a?.type === 'playCard');
+    return options.length > 1 ? { card: variantAt.card, options } : null;
+  }, [variantAt, turnId, allLegal]);
 
   const canEndTurn = legal.some((a) => a.type === 'endTurn');
 
@@ -335,9 +370,44 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     [legal, submit],
   );
 
+  // 시드 케첨 고르기 중이면 아직 맞출 수 있는 조합들
+  const pickCombos = useMemo(() => {
+    if (!abilityPick || abilityPick.turn !== turnId || !viewer) return null;
+    const combos = legal.flatMap((a) =>
+      a.type === 'useAbility' && a.ability === abilityPick.key && a.cards ? [a.cards] : [],
+    );
+    const live = combos.filter((cards) => containsCards(cards, abilityPick.picked));
+    return live.length > 0 ? { ...abilityPick, combos: live } : null;
+  }, [abilityPick, turnId, viewer, legal]);
+
   const respond = useCallback(
-    (choice: Choice) => {
+    (choice: UiChoice) => {
       if (!viewer) return;
+      if (variant) {
+        const match = choice.c === 'variant' ? variant.options[choice.index] : undefined;
+        if (match) {
+          submit(match);
+          setArmedFor(null);
+        }
+        setVariantAt(null);
+        return;
+      }
+      if (pickCombos) {
+        if (choice.c !== 'card') {
+          setAbilityPick(null);
+          return;
+        }
+        const picked = [...pickCombos.picked, choice.card];
+        const done = pickCombos.combos.find((cards) => sameCards(cards, picked));
+        if (done) {
+          submit({ type: 'useAbility', pid: viewer, ability: pickCombos.key, cards: done });
+          setAbilityPick(null);
+        } else if (pickCombos.combos.some((cards) => containsCards(cards, picked))) {
+          setAbilityPick({ key: pickCombos.key, picked, turn: turnId });
+        }
+        return;
+      }
+      if (choice.c === 'variant') return;
       if (ricochet) {
         const match =
           choice.c === 'card'
@@ -354,7 +424,7 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
       const match = legal.find((a) => actionKey(a) === wanted);
       if (match) submit(match);
     },
-    [legal, submit, viewer, ricochet],
+    [legal, submit, viewer, ricochet, variant, pickCombos, turnId],
   );
 
   const abilities = useMemo(() => {
@@ -389,11 +459,18 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
   const useAbility = useCallback(
     (key: string, cards: CardId[]) => {
       if (!viewer) return;
+      // 버릴 카드 조합이 여럿이면 직접 고르게 한다. 아니면 첫 조합이 말없이 나가 버린다
+      const combos = legal.filter((a) => a.type === 'useAbility' && a.ability === key && a.cards);
+      if (combos.length > 1) {
+        setSelected(null);
+        setAbilityPick({ key, picked: [], turn: turnId });
+        return;
+      }
       const wanted = actionKey({ type: 'useAbility', pid: viewer, ability: key, cards });
       const match = legal.find((a) => actionKey(a) === wanted);
       if (match) submit(match);
     },
-    [legal, submit, viewer],
+    [legal, submit, viewer, turnId],
   );
 
   const draft = useMemo<DraftInfo | null>(() => {
@@ -428,8 +505,31 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
         center: { cards, zone: 'option', handCount: 0 },
       };
     }
+    if (view && variant) {
+      const first = variant.options[0];
+      const name = CARD_DEFS[kindOf(first.card)].nameKo;
+      return {
+        ...empty(),
+        title: first.target ? `${name} — ${nameOf(view, first.target)}` : name,
+        hint: '어떻게 낼지 고른다',
+        canPass: true,
+        passLabel: '취소 (W)',
+        variants: variant.options.map((a) => variantLabel(view, a, variant.options, variant.card)),
+      };
+    }
+    if (view && pickCombos) {
+      const need = pickCombos.combos[0].length - pickCombos.picked.length;
+      return {
+        ...empty(),
+        title: '능력 · 카드 2장 → 목숨 1',
+        hint: `버릴 카드 ${need}장을 고른다`,
+        cardOptions: uniqueCards(pickCombos.combos.flatMap((cards) => without(cards, pickCombos.picked))),
+        canPass: true,
+        passLabel: '취소 (W)',
+      };
+    }
     return view && waitingOnMe ? buildPrompt(view) : null;
-  }, [view, waitingOnMe, ricochet]);
+  }, [view, waitingOnMe, ricochet, variant, pickCombos]);
 
   // 골드 러시: 사기·치우기·맥주 팔기·금덩이 능력. 배낭은 죽기 직전에도 나온다.
   const goldActions = useMemo(
@@ -459,7 +559,7 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     playable,
     discardable,
     selected,
-    select: setSelected,
+    select,
     targetsFor,
     playCard,
     canEndTurn,
@@ -737,4 +837,54 @@ export function buildPrompt(view: GameState): Prompt | null {
         passLabel: '카드를 내준다 (W)',
       };
   }
+}
+
+// ---------------------------------------------------------------------------
+// 낼 방법 고르기 · 카드 조합
+// ---------------------------------------------------------------------------
+
+function cardShort(id: CardId): string {
+  const c = cardOf(id);
+  return `${CARD_DEFS[c.kind].nameKo} ${SUIT_GLYPH[c.suit]}${c.rank}`;
+}
+
+/** 같은 카드·같은 대상의 여러 수를, 서로 다른 점만 적어 구분한다 */
+function variantLabel(
+  view: GameState,
+  a: Extract<Action, { type: 'playCard' }>,
+  all: Extract<Action, { type: 'playCard' }>[],
+  picked: CardId,
+): string {
+  const kind = a.as ?? kindOf(a.card);
+  const name = CARD_DEFS[kind].nameKo;
+  const parts: string[] = [];
+  if (all.some((x) => (x.as ?? kindOf(x.card)) !== kind)) parts.push(`${ro(name)} 낸다`);
+  if (a.extra) parts.push(`${eul(cardShort(a.extra))} 함께`);
+  else if (all.some((x) => x.extra)) parts.push(`${name}만`);
+  if (a.target2) parts.push(`${nameOf(view, a.target2)}에게도`);
+  else if (all.some((x) => x.target2)) parts.push('한 명만');
+  // 저격수: 고른 카드가 아닌 쪽이 함께 버릴 카드다
+  if (a.also) parts.push(`${eul(cardShort(a.card === picked ? a.also : a.card))} 함께 버린다`);
+  return parts.length > 0 ? parts.join(' · ') : name;
+}
+
+function without(cards: CardId[], used: CardId[]): CardId[] {
+  const rest = [...cards];
+  for (const u of used) {
+    const i = rest.indexOf(u);
+    if (i >= 0) rest.splice(i, 1);
+  }
+  return rest;
+}
+
+function containsCards(cards: CardId[], picked: CardId[]): boolean {
+  return without(cards, picked).length === cards.length - picked.length;
+}
+
+function sameCards(cards: CardId[], picked: CardId[]): boolean {
+  return cards.length === picked.length && containsCards(cards, picked);
+}
+
+function uniqueCards(cards: CardId[]): CardId[] {
+  return [...new Set(cards)];
 }

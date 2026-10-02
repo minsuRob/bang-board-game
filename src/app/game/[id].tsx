@@ -278,6 +278,11 @@ export default function GameScreen() {
         if (id) api.pickCharacter(id);
         return;
       }
+      // 낼 방법 고르기 중이면 그 번호를 고른다
+      if (api.prompt?.variants?.length) {
+        if (index < api.prompt.variants.length) api.respond({ c: 'variant', index });
+        return;
+      }
       // 반응 대기 중이면 프롬프트의 선택지를, 아니면 손패를 고른다.
       if (api.prompt?.cardOptions.length) {
         const card = api.prompt.cardOptions[index];

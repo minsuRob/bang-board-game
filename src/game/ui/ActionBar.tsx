@@ -10,17 +10,17 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../data/cards.base';
 import { SUIT_GLYPH, type Suit } from '../data/types';
-import { kindOf, type Choice } from '../engine';
+import { kindOf } from '../engine';
 import { waitClock } from '../store/wait-clock';
 import { CardView } from './CardView';
-import type { Prompt } from './use-table';
+import type { Prompt, UiChoice } from './use-table';
 import { WesternFonts } from './menu/western-fonts';
 import { themedStyles } from './theme/use-theme';
 import { Radius, Spacing } from '@/constants/theme';
 
 export type ActionBarProps = {
   prompt: Prompt | null;
-  onRespond: (choice: Choice) => void;
+  onRespond: (choice: UiChoice) => void;
   /** 프롬프트가 없을 때 보여 줄 안내 */
   status: string;
   canEndTurn: boolean;
@@ -108,6 +108,10 @@ export function ActionBar({
               />
               <Text style={styles.cardLabel}>{CARD_DEFS[kindOf(card)].nameKo}</Text>
             </View>
+          ))}
+
+          {prompt.variants?.map((label, index) => (
+            <Button key={label} label={`${index + 1}. ${label}`} onPress={() => onRespond({ c: 'variant', index })} />
           ))}
 
           {prompt.suits.map((suit) => (
