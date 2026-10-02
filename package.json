@@ -63,6 +63,7 @@
     "typecheck": "tsc --noEmit",
     "simulate": "tsx scripts/simulate.ts",
     "gen:sfx": "node scripts/gen-sfx.mjs",
+    "art:check": "tsx scripts/art/check.ts",
     "deploy": "expo export --platform web && firebase deploy --only hosting",
     "postinstall": "setup-skia-web public"
   },

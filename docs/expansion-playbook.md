@@ -43,7 +43,7 @@ AGENTS.md 와 docs/expansion-playbook.md 를 먼저 읽고 그 규칙을 지킨�
   - EC 번호는 마지막 번호 다음부터 매긴다.
 - **한글 표기**: 원본 맵 패치노트를 따른다. 없으면 음차 후보를 들고 사용자에게 묻는다.
 
-## 2. 그림 (커밋 금지)
+## 2. 그림
 
 - 받은 파일은 `assets-source/cards/<폴더>/{id}.png` 에 둔다.
   - 파일 이름은 `src/game/data` 의 id 와 정확히 같아야 한다.
@@ -53,7 +53,8 @@ AGENTS.md 와 docs/expansion-playbook.md 를 먼저 읽고 그 규칙을 지킨�
   - 그림을 하나하나 `require` 하지 않는다. `require.context` 만 쓴다.
 - 3D 에서 쓰는 그림이면 `src/game/ui/art-preload.ts` 의 `TEXTURE_KEY` 에 넣는다.
 - 캐릭터 스캔이 250×389 면 `SCAN_PORTRAIT` 크롭이 그대로 맞는다. 그래도 `sips` 로 크기를 확인하고, 초상 크롭은 눈으로 본다.
-- `node scripts/install-art.mjs` 를 돌린 뒤, git status 에 그림이 잡히지 않는지 확인한다.
+- `node scripts/install-art.mjs` 를 돌린 뒤, 생긴 `assets/cards/**` 그림을 데이터와 같은 커밋에 넣는다.
+  빼먹으면 다른 폴더·배포에서는 새 그림이 없다. `npm run art:check` 에서 빠진 그림이 0 이 되는지 본다.
 
 ## 3. 데이터
 

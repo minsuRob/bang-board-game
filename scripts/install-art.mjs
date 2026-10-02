@@ -3,9 +3,9 @@
  *
  *   node scripts/install-art.mjs
  *
- * assets-source/ 에 있는 원본을 화면 크기에 맞게 줄여 assets/cards, assets/board 로 옮긴다.
- * 두 폴더 모두 .gitignore 로 막혀 있다. 카드 일러스트는 dV Giochi 의 저작물이라
- * 저장소에 넣지 않는다. 이미지가 없으면 앱은 도형과 글자로 그린 카드로 되돌아간다.
+ * assets-source/ 에 있는 원본을 assets/cards, assets/board 로 복사한다 (크기는 그대로).
+ * assets/ 쪽은 커밋한다. 새 그림을 설치했으면 생긴 파일을 같이 커밋한다.
+ * assets-source/ 는 원본 모음이라 .gitignore 다.
  */
 
 import { existsSync, mkdirSync, readdirSync, copyFileSync, statSync } from 'node:fs';

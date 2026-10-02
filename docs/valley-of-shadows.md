@@ -1,7 +1,7 @@
 # 그림자의 계곡 (The Valley of Shadows) — 카드 원문
 
 원문은 dV Giochi 카드 그림(`https://bang.dvgiochi.com/content/7/cards/07_*.png`)에서 직접 읽었다.
-그림은 `assets-source/cards/valley/`, `assets-source/cards/characters/` 에 두고 커밋하지 않는다.
+그림은 `assets-source/cards/valley/`, `assets-source/cards/characters/` 에 두고, `node scripts/install-art.mjs` 로 설치한 `assets/cards/` 사본을 커밋한다.
 
 ## 플레잉 카드 15종 16장
 

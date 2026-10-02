@@ -32,13 +32,17 @@ SDK 56 이하의 기억으로 API 를 쓰면 조용히 틀린다.
 
 ## 카드 아트
 
-카드 일러스트는 dV Giochi 의 저작물이다. **저장소에 커밋하지 않는다.**
+카드 일러스트(dV Giochi 저작물)는 **`assets/cards/`, `assets/board/` 에 커밋한다.**
+어느 폴더·컴퓨터에서 받아도 같은 그림이 나오게 하려는 것이다 (2026-10 결정).
 
-- `assets-source/`, `assets/cards/`, `assets/board/`, `reference/sc2-arcade/images/` 는
-  전부 `.gitignore` 로 막혀 있다. 이 규칙을 풀지 마라
+- 앱이 쓰는 그림은 git 에 있는 것이 기준이다. 그림을 바꾸면 그 파일도 같은 커밋에 넣는다
+- `assets-source/`(원본 모음)와 `reference/sc2-arcade/images/` 는 여전히 `.gitignore` 다.
+  앱에는 `assets/` 사본만 있으면 된다
+- 공개 배포 전에는 저작권을 다시 검토한다
 - 그림이 없어도 앱은 정상 동작해야 한다. `src/game/ui/card-art.ts` 가 `require.context` 로
   폴더를 읽고, 비어 있으면 도형·타이포 카드로 되돌아간다
 - 새 그림을 붙일 때도 파일을 하나하나 `require` 하지 마라. 없을 때 번들이 깨진다
+- `npm run art:check` 로 게임 데이터에 필요한 그림 중 빠진 것을 본다
 
 자세한 것은 `docs/assets.md`.
 
@@ -51,7 +55,7 @@ Skia 캔버스는 판마다 하나만 띄운다 (WebGL 컨텍스트가 넘치면
 ## 확장판
 
 새 확장판(캐릭터·이벤트·카드)을 붙일 때는 `docs/expansion-playbook.md` 의 순서를 따른다.
-범위 확인 → 원본 자료 → 그림(커밋 금지) → 데이터 → Modifier 훅 → UI → AI → 테스트·시뮬레이터.
+범위 확인 → 원본 자료 → 그림 → 데이터 → Modifier 훅 → UI → AI → 테스트·시뮬레이터.
 
 ## 한국어
 

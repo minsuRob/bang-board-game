@@ -1,13 +1,9 @@
 /**
  * 카드 이미지 조회.
  *
- * 이미지는 저장소에 들어 있지 않다. 카드 일러스트는 dV Giochi 의 저작물이라
- * `assets/cards/` 와 `assets-source/` 를 .gitignore 로 막아 두었다.
- *
- *   node scripts/install-art.mjs
- *
- * 로 설치하면 카드가 원본 그림으로 그려지고, 없으면 도형과 글자로 그린 카드로
- * 되돌아간다. 어느 쪽이든 게임은 똑같이 돌아간다.
+ * 그림은 `assets/cards/`, `assets/board/` 에 커밋돼 있다 (docs/assets.md).
+ * 그림이 있으면 원본 그림으로, 없으면 도형과 글자로 그린 카드로 그린다.
+ * 어느 쪽이든 게임은 똑같이 돌아간다.
  *
  * 파일을 하나하나 require 하지 않고 require.context 로 폴더를 통째로 읽는다.
  * 그래야 이미지가 없을 때도 번들이 깨지지 않는다.
