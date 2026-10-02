@@ -12,7 +12,7 @@
  */
 
 import { defOf, inPlay, playerOf } from './cards';
-import { getModifiers } from './hooks';
+import { equipmentDisabled, getModifiers } from './hooks';
 import type { GameState, Player, PlayerId } from './types';
 
 /** 맨손 사정거리 */
@@ -54,6 +54,8 @@ export function distance(state: GameState, from: PlayerId, to: PlayerId): number
 export function weaponRangeOf(state: GameState, pid: PlayerId): number {
   const p = playerOf(state, pid);
   let range = BARE_HAND_RANGE;
+  // 올가미: 무기도 앞에 놓인 카드라 효과가 없다
+  if (equipmentDisabled(state)) return range;
   for (const card of p.equipment) {
     const def = defOf(card);
     if (def.equip === 'weapon' && def.weaponRange) range = Math.max(range, def.weaponRange);

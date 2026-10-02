@@ -127,3 +127,28 @@ describe('차례 끝', () => {
     expect(s.turn.active).toBe('b');
   });
 });
+
+describe('올가미', () => {
+  it('술통이 판정을 하지 않는다', () => {
+    let s = table('lasso', { hand: ['bang'] }, { equipment: ['barrel'] })({
+      deckTop: [{ kind: 'beer', suit: 'hearts' }],
+    });
+    s = reduce(s, { type: 'playCard', pid: 'a', card: handCard(s, 'a', 'bang'), target: 'b' });
+    expect(logged(s, 'judgement')).toBe(false);
+    expect(p(s, 'b').hp).toBe(p(s, 'b').maxHp - 1);
+  });
+
+  it('무기 사정거리가 맨손으로 돌아간다', () => {
+    const s = table('lasso', { hand: ['bang'], equipment: ['remington'] })();
+    const targets = legalActions(s, 'a').flatMap((x) => (x.type === 'playCard' && x.target ? [x.target] : []));
+    expect(targets).toContain('b');
+    expect(targets).not.toContain('c');
+  });
+
+  it('감옥에 있어도 판정 없이 차례를 한다', () => {
+    const s = beginTurn(table('lasso', { equipment: ['jail'] })(), 'a');
+    expect(logged(s, 'judgement')).toBe(false);
+    expect(s.turn.phase).toBe('play');
+    expect(p(s, 'a').hand).toHaveLength(2);
+  });
+});

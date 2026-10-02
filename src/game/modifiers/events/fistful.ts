@@ -96,6 +96,9 @@ const russianRoulette: Modifier = {
   },
 };
 
+/** 올가미 — 앞에 놓인 카드는 효과가 없다 */
+const lasso: Modifier = { id: 'event:lasso', from: 'event', disablesEquipment: true };
+
 /** 판사 — 앞에 내려놓는 카드(파랑)를 낼 수 없다 */
 const theJudge: Modifier = {
   id: 'event:theJudge',
@@ -117,7 +120,7 @@ export const FISTFUL_EVENT_MODIFIERS: Record<FistfulEventId, Modifier> = {
   bloodBrothers,
   deadMan: ev('deadMan'),
   hardLiquor,
-  lasso: ev('lasso'),
+  lasso,
   lawOfTheWest,
   peyote,
   ranch,

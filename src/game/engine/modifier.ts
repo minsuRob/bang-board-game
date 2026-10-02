@@ -169,4 +169,6 @@ export type Modifier = {
   turnDirection?: 1 | -1;
   /** 제거된 플레이어도 자기 차례에 되살아난다 (유령도시) */
   resurrectsEliminated?: boolean;
+  /** 앞에 놓인 카드(골드 장비 포함)의 효과를 전부 없앤다 (올가미) */
+  disablesEquipment?: boolean;
 };

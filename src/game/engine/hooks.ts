@@ -30,6 +30,11 @@ export function eventModifier(state: GameState): Modifier | null {
   return id ? EVENT_MODIFIERS[id] : null;
 }
 
+/** 올가미처럼 앞에 놓인 카드의 효과를 통째로 죽이는 효과가 걸려 있는가 */
+export function equipmentDisabled(state: GameState): boolean {
+  return eventModifier(state)?.disablesEquipment === true;
+}
+
 /** 숙취처럼 캐릭터 능력을 통째로 죽이는 효과가 걸려 있는가 */
 export function characterAbilitiesDisabled(state: GameState): boolean {
   return eventModifier(state)?.disablesCharacterAbilities === true;
@@ -46,13 +51,15 @@ export function getModifiers(state: GameState, pid: PlayerId): Modifier[] {
   if (!characterAbilitiesDisabled(state)) {
     mods.push(CHARACTER_MODIFIERS[p.character]);
   }
-  for (const card of p.equipment) {
-    const m = equipmentModifier(kindOf(card), card);
-    if (m) mods.push(m);
-  }
-  for (const card of goldEquipOf(p)) {
-    const make = GOLD_MODIFIERS[goldKindOf(card)];
-    if (make) mods.push(make(card));
+  if (!equipmentDisabled(state)) {
+    for (const card of p.equipment) {
+      const m = equipmentModifier(kindOf(card), card);
+      if (m) mods.push(m);
+    }
+    for (const card of goldEquipOf(p)) {
+      const make = GOLD_MODIFIERS[goldKindOf(card)];
+      if (make) mods.push(make(card));
+    }
   }
   const ev = eventModifier(state);
   if (ev) mods.push(ev);
