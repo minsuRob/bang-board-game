@@ -58,7 +58,7 @@ const ATTACK_WEIGHT: Partial<Record<CardKind, number>> = {
   duel: 1,
   jail: 0.8,
 };
-/** 강탈·캣 발루로 남의 카드를 빼앗거나 버리게 한 것 */
+/** 강탈·캣 벌로우로 남의 카드를 빼앗거나 버리게 한 것 */
 const STEAL_WEIGHT = 0.6;
 /** 감옥·다이너마이트를 떼어 준 것은 돕는 행동이다 */
 const RESCUE_WEIGHT = 0.8;
@@ -221,7 +221,7 @@ function readLog(
           evidence[actor].anti += AREA_ANTI;
           break;
         }
-        // 강탈·캣 발루는 실제로 무엇을 가져갔는지 보고 판단한다 (아래 panic/catBalou)
+        // 강탈·캣 벌로우는 실제로 무엇을 가져갔는지 보고 판단한다 (아래 panic/catBalou)
         const w = ATTACK_WEIGHT[kind];
         if (w && ev.target && ev.target !== actor) act(actor, ev.target, w);
         break;

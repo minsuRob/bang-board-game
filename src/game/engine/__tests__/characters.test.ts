@@ -453,7 +453,7 @@ describe('수지 라파예트', () => {
     expect(totalCards(s)).toBe(80);
   });
 
-  it('캣 발루로 손이 비어도 발동한다 (v0.513)', () => {
+  it('캣 벌로우로 손이 비어도 발동한다 (v0.513)', () => {
     const s0 = scenario({
       players: [{ character: 'suzyLafayette', hand: ['bang'] }, { hand: ['catBalou'] }, {}, {}],
       activeSeat: 1,
@@ -523,7 +523,7 @@ describe('수지 라파예트', () => {
 
   it('유령도 마지막 손패를 빼앗기면 발동한다 (v0.460)', () => {
     // 유령은 손패 제한으로 버리지 않는다 (목숨 0 이라 버리고 뽑기를 끝없이 되풀이한다).
-    // 대신 캣 발루로 마지막 장을 잃는 경로로 능력이 유령에게도 걸리는지 본다.
+    // 대신 캣 벌로우로 마지막 장을 잃는 경로로 능력이 유령에게도 걸리는지 본다.
     const s0 = scenario({
       players: [
         { hand: ['catBalou'] },

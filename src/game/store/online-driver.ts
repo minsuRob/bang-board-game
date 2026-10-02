@@ -35,7 +35,7 @@ const PICK_INPUTS: ReadonlySet<PendingInput['k']> = new Set<PendingInput['k']>([
   'generalStore', // 잡화점
   'kitCarlson', // 킷 칼슨: 3장 중 2장
   'judgementChoice', // 러키 듀크: 판정 카드
-  'stealCard', // 강탈·캣 발루: 대상의 카드
+  'stealCard', // 강탈·캣 벌로우: 대상의 카드
   'daltonsDiscard', // 달톤 형제: 파랑 카드
   'discardChoice', // 반디도스·포커·토네이도·샷건·레모네이드 짐
   'dutchWill', // 더치 윌

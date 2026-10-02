@@ -1,9 +1,9 @@
 /**
- * 강탈·캣 발루 로그가 무엇을 드러내는가.
+ * 강탈·캣 벌로우 로그가 무엇을 드러내는가.
  *
  * 가운데 연출(ui/spotlight-pick)은 로그의 card 로 앞면·뒷면을 고른다.
  * 강탈로 손패에서 뽑은 카드는 로그에 남기지 않고, 앞에 놓인 장비는 남긴다.
- * 캣 발루로 손패에서 버린 카드는 버린 더미에 앞면으로 놓이므로 모두에게 이름을 밝힌다.
+ * 캣 벌로우로 손패에서 버린 카드는 버린 더미에 앞면으로 놓이므로 모두에게 이름을 밝힌다.
  * 강탈은 가져간 사람과 빼앗긴 사람에게만 카드 이름을 보여 준다 (viewFor).
  */
 
@@ -27,7 +27,7 @@ function steal(kind: 'panic' | 'catBalou', zone: 'hand' | 'equipment') {
   return { s0, s: reduce(s, { type: 'respond', pid: 'p1', choice: { c: 'pick', pick } }) };
 }
 
-describe('강탈·캣 발루 로그', () => {
+describe('강탈·캣 벌로우 로그', () => {
   it('강탈: 손패에서 뽑으면 카드를 남기지 않는다', () => {
     const { s } = steal('panic', 'hand');
     const e = lastOf(s, 'panic');
@@ -35,7 +35,7 @@ describe('강탈·캣 발루 로그', () => {
     expect(e?.card).toBeUndefined();
   });
 
-  it('캣 발루: 손패에서 버리게 하면 모두에게 카드 이름을 밝힌다', () => {
+  it('캣 벌로우: 손패에서 버리게 하면 모두에게 카드 이름을 밝힌다', () => {
     const { s0, s } = steal('catBalou', 'hand');
     const e = lastOf(s, 'catBalou');
     expect(e?.card).toBe(p(s0, 'p0').hand[0]);

@@ -238,7 +238,7 @@ describe('결투', () => {
   });
 });
 
-describe('강탈과 캣 발루', () => {
+describe('강탈과 캣 벌로우', () => {
   it('강탈은 거리 1 이내에서 카드를 가져온다', () => {
     const s0 = scenario({
       players: [{ hand: ['panic'] }, { hand: ['beer'] }, {}, {}],
@@ -262,7 +262,7 @@ describe('강탈과 캣 발루', () => {
     expect(logged(s, 'rejected')).toBe(true);
   });
 
-  it('캣 발루는 거리와 무관하게 카드를 버리게 한다', () => {
+  it('캣 벌로우는 거리와 무관하게 카드를 버리게 한다', () => {
     const s0 = scenario({
       players: [{ hand: ['catBalou'] }, {}, {}, { hand: ['beer'] }, {}, {}, {}],
     });

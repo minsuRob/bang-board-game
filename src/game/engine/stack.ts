@@ -62,7 +62,7 @@ export function sweepHandEmpty(state: GameState): GameState {
 }
 
 /**
- * 유령 카드를 잃은 유령은 다시 제거된다 (강탈·캣 발루·달톤 형제·조니 키시 어느 경로든).
+ * 유령 카드를 잃은 유령은 다시 제거된다 (강탈·캣 벌로우·달톤 형제·조니 키시 어느 경로든).
  * 유령도시 중에는 건너뛴다. 그때의 유령은 turnEnd 가 정리한다.
  */
 export function sweepGhosts(state: GameState): GameState {

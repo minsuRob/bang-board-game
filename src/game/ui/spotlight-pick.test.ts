@@ -51,7 +51,7 @@ describe('남의 카드를 버리게·가져간 결과', () => {
     text: t,
   });
 
-  it('손패에서 뽑은 캣 발루·강탈은 뒷면으로 띄운다', () => {
+  it('손패에서 뽑은 캣 벌로우·강탈은 뒷면으로 띄운다', () => {
     for (const t of ['catBalou', 'panic']) {
       const e = pickSpotlight([take(2, t)], 1);
       expect(e?.t).toBe(t);
@@ -60,7 +60,7 @@ describe('남의 카드를 버리게·가져간 결과', () => {
     }
   });
 
-  it('장비를 버리게 한 캣 발루·리코체는 그 카드를 띄운다', () => {
+  it('장비를 버리게 한 캣 벌로우·리코체는 그 카드를 띄운다', () => {
     expect(takenCardOf(pickSpotlight([take(2, 'catBalou', 'barrel-1')], 1)!)).toBe('barrel-1');
     expect(takenCardOf(pickSpotlight([take(2, 'ricochet', 'mustang-1')], 1)!)).toBe('mustang-1');
   });

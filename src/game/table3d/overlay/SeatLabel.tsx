@@ -89,7 +89,7 @@ export function SeatLabel({
   const character = CHARACTERS[player.character];
   const dist = !isSelf && !dead ? safeDistance(view, viewer, player.id) : null;
 
-  // 강탈·캣 발루로 고르는 중이면 기존 좌석 컴포넌트를 그대로 띄운다
+  // 강탈·캣 벌로우로 고르는 중이면 기존 좌석 컴포넌트를 그대로 띄운다
   if (picking) {
     return (
       <View style={[styles.slot, { left: x - 90, top: y - 60, width: 180 }]}>

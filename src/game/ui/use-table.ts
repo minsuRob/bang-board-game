@@ -46,7 +46,7 @@ export type Prompt = {
   /** 넘기기 단추 문구. 없으면 '반응하지 않음' */
   passLabel?: string;
   steal: { target: PlayerId; handCount: number; equipment: CardId[] } | null;
-  /** 테이블 가운데 창에서 고른다 (잡화점·강탈·캣 발루). 있으면 하단 바는 안내만 한다 */
+  /** 테이블 가운데 창에서 고른다 (잡화점·강탈·캣 벌로우). 있으면 하단 바는 안내만 한다 */
   center: CenterPick | null;
 };
 

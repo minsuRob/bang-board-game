@@ -220,7 +220,7 @@ export function resolveDiscardSameName(
 }
 
 // ---------------------------------------------------------------------------
-// 강탈 · 캣 발루
+// 강탈 · 캣 벌로우
 // ---------------------------------------------------------------------------
 
 export function resolveSteal(state: GameState, frame: Frame & { k: 'steal' }): GameState {

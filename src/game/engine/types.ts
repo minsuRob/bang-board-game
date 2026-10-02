@@ -51,7 +51,7 @@ export type Player = {
   usedThisTurn: string[];
   /** 골드 러시 금덩이. 확장을 안 쓰면 없다 */
   nuggets?: number;
-  /** 골드 러시 장비(검정)와 앞에 놓인 수배. 파랑 카드와 영역이 따로라 강탈·캣 발루가 닿지 않는다 */
+  /** 골드 러시 장비(검정)와 앞에 놓인 수배. 파랑 카드와 영역이 따로라 강탈·캣 벌로우가 닿지 않는다 */
   goldEquipment?: GoldCardId[];
   /** 그레고리 덱이 차례 시작에 뽑아 능력을 빌린 기본판 캐릭터 */
   borrowed?: CharacterId[];
@@ -331,7 +331,7 @@ export type PendingInput =
   | { k: 'judgementChoice'; pid: PlayerId; purpose: JudgementPurpose; options: CardId[] }
   /** 잡화점: 펼쳐진 카드 중 1장 선택 */
   | { k: 'generalStore'; pid: PlayerId; options: CardId[] }
-  /** 강탈·캣 발루: 대상의 카드 1장 선택 (손패는 뒷면이라 인덱스로 고른다) */
+  /** 강탈·캣 벌로우: 대상의 카드 1장 선택 (손패는 뒷면이라 인덱스로 고른다) */
   | {
       k: 'stealCard';
       pid: PlayerId;
@@ -421,7 +421,7 @@ export type GameEvent = {
    * 이것으로 바꿔 보여 주고, 나머지에게서는 지운다
    */
   secret?: { to: PlayerId[]; card: CardId; text: string };
-  /** 캣 발루가 장비가 아니라 손패에서 뽑아 버렸다. card 는 버린 더미에 앞면으로 놓여 공개된다 */
+  /** 캣 벌로우가 장비가 아니라 손패에서 뽑아 버렸다. card 는 버린 더미에 앞면으로 놓여 공개된다 */
   fromHand?: boolean;
   /** 이 로그를 만든 액션의 순번 */
   seq: number;
@@ -431,7 +431,7 @@ export type GameEvent = {
 // 액션
 // ---------------------------------------------------------------------------
 
-/** 강탈·캣 발루 대상 지정 */
+/** 강탈·캣 벌로우 대상 지정 */
 export type StealPick =
   | { zone: 'hand'; index: number }
   | { zone: 'equipment'; card: CardId };
@@ -450,7 +450,7 @@ export type Action =
       pid: PlayerId;
       card: CardId;
       target?: PlayerId;
-      /** 강탈·캣 발루가 가져갈 카드. 뱅!에 붙으면 리코체(한줌의 카드)로 노릴 앞의 카드 */
+      /** 강탈·캣 벌로우가 가져갈 카드. 뱅!에 붙으면 리코체(한줌의 카드)로 노릴 앞의 카드 */
       pick?: StealPick;
       /** 칼라미티 자넷처럼 다른 카드로 취급해 사용할 때 */
       as?: CardKind;
@@ -505,7 +505,7 @@ export type Choice =
   | { c: 'pass' }
   /** 카드 1장 지목 */
   | { c: 'card'; card: CardId }
-  /** 강탈·캣 발루 대상 지정 */
+  /** 강탈·캣 벌로우 대상 지정 */
   | { c: 'pick'; pick: StealPick }
   /** 무늬 선언 */
   | { c: 'suit'; suit: Suit }

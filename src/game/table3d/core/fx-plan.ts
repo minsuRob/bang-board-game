@@ -220,7 +220,7 @@ export function planFx(t: Transition, moves: CardMove[], viewer: PlayerId | null
     }
   }
 
-  // 로그가 설명하지 않은 이동 (강탈·캣 발루·벌쳐 샘·다이너마이트 넘기기 …)
+  // 로그가 설명하지 않은 이동 (강탈·캣 벌로우·벌쳐 샘·다이너마이트 넘기기 …)
   const rest = movesTo((m) => m.to !== null);
   if (rest.length) push(...rest.map((m, i) => moveCmd(m, 'arc', { delayMs: i * 60 })));
 

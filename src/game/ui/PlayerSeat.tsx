@@ -36,7 +36,7 @@ export type PlayerSeatProps = {
   active: boolean;
   targetable: boolean;
   onPress?: () => void;
-  /** 강탈·캣 발루로 상대의 카드를 고르는 중 */
+  /** 강탈·캣 벌로우로 상대의 카드를 고르는 중 */
   picking?: { handCount: number; equipment: CardId[] } | null;
   onPickHand?: (index: number) => void;
   onPickEquipment?: (card: CardId) => void;

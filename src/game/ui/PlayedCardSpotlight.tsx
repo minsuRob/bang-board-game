@@ -12,7 +12,7 @@
  * 연출이 붙은 카드(fx/card-fx.ts)는 카드가 올라선 직후 소리와 화면 효과가 같은 틱에 터진다.
  * 첫 메뉴에서 고화질을 골랐고 Skia 가 준비됐으면 Skia 연출(fx/skia), 아니면 일반 연출(RN Animated).
  *
- * 캣 발루·강탈·리코체는 낸 카드가 사라진 뒤 결과를 한 번 더 띄운다. 공개된 카드면 그 카드,
+ * 캣 벌로우·강탈·리코체는 낸 카드가 사라진 뒤 결과를 한 번 더 띄운다. 공개된 카드면 그 카드,
  * 손패에서 뽑았으면 뒷면이다. 결과가 낸 카드를 덮지 않게 차례를 기다린다.
  *
  * 판정(술통·다이너마이트·감옥 …)·블랙 잭·피요테로 펼친 카드도 결과처럼 줄 서서 뜬다.
@@ -137,7 +137,7 @@ function useFxStage() {
 
 export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSpotlightProps) {
   const [shown, setShown] = useState<GameEvent | null>(null);
-  // 지금 떠 있는 것과, 그 뒤에 줄 선 결과들 (캣 발루·강탈의 결과, 판정으로 펼친 카드)
+  // 지금 떠 있는 것과, 그 뒤에 줄 선 결과들 (캣 벌로우·강탈의 결과, 판정으로 펼친 카드)
   const shownRef = useRef<GameEvent | null>(null);
   const pending = useRef<GameEvent[]>([]);
   const show = (e: GameEvent | null) => {
@@ -149,7 +149,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
   const peek = useStore(cardPeek, (s) => s.card);
   const hand = view.players.find((p) => p.id === viewer)?.hand ?? [];
   const peeking = peek !== null && hand.includes(peek) ? peek : null;
-  // 잡화점·강탈·캣 발루로 고르는 중이면 가운데 창이 가장 앞이다
+  // 잡화점·강탈·캣 벌로우로 고르는 중이면 가운데 창이 가장 앞이다
   const picking = api.prompt?.center ? api.prompt : null;
   // 남이 잡화점에서 고르는 동안에도 펼친 카드를 가운데 창에 띄워 둔다 (설명은 hover·탭)
   const watching = picking ? null : storeWatch(view);
@@ -158,7 +158,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
 
   // 개발용 (웹): 주소에 ?fxloop=1 이면 뱅!, ?fxloop=missed 면 빗나감! 연출을 3초마다 되풀이한다.
   // ?fxloop=event 면 하이 눈 이벤트 카드를 한 장씩 돌려 가며 띄운다.
-  // ?fxloop=take 면 캣 발루·강탈 결과(손패 뒷면, 장비 앞면)를 번갈아 띄운다.
+  // ?fxloop=take 면 캣 벌로우·강탈 결과(손패 뒷면, 장비 앞면)를 번갈아 띄운다.
   // ?fxloop=reveal 이면 판정·블랙 잭으로 펼친 카드(성공·실패·축복)와 포커·럼을 돌려 가며 띄운다.
   // ?fxloop=hold 면 되풀이하지 않고 globalThis.__shot 으로 진행도를 손으로 멈춰 한 장면씩 본다
   // (__shot.progress.value = 0.2 로 멈추기, __shot.start() 로 한 번 돌리기)
@@ -391,7 +391,7 @@ function facesOf(view: GameState, viewer: PlayerId, event: GameEvent): Faces | n
     return { character: p.character, deputy: p.role === 'deputy' && roleVisibleTo(viewer, p) };
   };
   const actor = characterOf(event.pid);
-  // 뱅!·캣 발루·강탈·결투·감옥처럼 남을 겨눈 카드와 그 결과는 대상도 세운다
+  // 뱅!·캣 벌로우·강탈·결투·감옥처럼 남을 겨눈 카드와 그 결과는 대상도 세운다
   const aimed = event.t === 'playCard' || isTakeEvent(event);
   const target = aimed && event.target && event.target !== event.pid ? characterOf(event.target) : null;
   // 역마차·맥주·장비처럼 혼자 쓰는 카드, 빗나감!, 인디언·결투에 맞선 뱅!은 낸 사람만
@@ -560,7 +560,7 @@ function CardFxOverlay({
 }
 
 /** 결과 명판 위 줄 */
-const TAKE_TITLE: Record<string, string> = { catBalou: '캣 발루', panic: '강탈', ricochet: '리코체' };
+const TAKE_TITLE: Record<string, string> = { catBalou: '캣 벌로우', panic: '강탈', ricochet: '리코체' };
 
 /**
  * 남의 카드를 버리게·가져간 결과. 공개된 카드면 그 카드, 손패에서 뽑았으면 뒷면을 띄운다.

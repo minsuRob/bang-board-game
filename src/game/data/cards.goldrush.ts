@@ -44,7 +44,7 @@ export const GOLD_CARD_DEFS: Record<GoldCardKind, GoldCardDef> = {
     cost: 2,
     category: 'brown',
     count: 3,
-    text: '<잡화점>, <결투>, <캣 발루> 중 하나로 사용합니다. 그 카드로 치지는 않습니다.',
+    text: '<잡화점>, <결투>, <캣 벌로우> 중 하나로 사용합니다. 그 카드로 치지는 않습니다.',
   },
   goldRush: {
     kind: 'goldRush',

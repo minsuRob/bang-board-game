@@ -275,7 +275,7 @@ describe('역화 · 탈출 · 믹 디펜더 · 구조!', () => {
     expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp - 1);
   });
 
-  it('믹 디펜더는 빗나감!으로 캣 발루를 피한다', () => {
+  it('믹 디펜더는 빗나감!으로 캣 벌로우를 피한다', () => {
     const s0 = V({ players: [{ hand: ['catBalou'] }, { character: 'mickDefender', hand: ['missed', 'beer'] }, {}] });
     let s = play(s0, 'p0', 'catBalou', { target: 'p1' });
     expect(s.awaiting).toMatchObject({ k: 'evade', pid: 'p1' });

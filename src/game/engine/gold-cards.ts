@@ -34,7 +34,7 @@ function hasCards(state: GameState, pid: PlayerId): boolean {
   return p.hand.length > 0 || p.equipment.length > 0;
 }
 
-/** 강탈·캣 발루 효과를 걸 수 있는 대상 (range 1 이면 강탈) */
+/** 강탈·캣 벌로우 효과를 걸 수 있는 대상 (range 1 이면 강탈) */
 function stealTargets(state: GameState, pid: PlayerId, range: number | null): PlayerId[] {
   const out: PlayerId[] = [];
   for (const t of seatedPlayers(state)) {

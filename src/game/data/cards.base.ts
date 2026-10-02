@@ -113,7 +113,7 @@ export const CARD_DEFS: Record<CardKind, CardDef> = {
   catBalou: {
     kind: 'catBalou',
     name: 'CAT BALOU',
-    nameKo: '캣 발루',
+    nameKo: '캣 벌로우',
     category: 'brown',
     symbols: [{ s: 'discard', amount: 1 }, { s: 'targetAny' }],
     text: '거리와 무관하게 1명을 지목해 카드 1장을 버리게 한다.',

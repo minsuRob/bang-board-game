@@ -105,7 +105,7 @@ AI 배속(`fxPacing.timeScale`)만큼 전체 길이를 나눈다.
 | `?fxloop=missed` | 빗나감! 연출을 되풀이 |
 | `?fxloop=hold` | 되풀이 없이 `globalThis.__shot` 만 연다 |
 | `?fxloop=event` | 하이 눈 이벤트 카드를 돌려 가며 띄운다 |
-| `?fxloop=take` | 캣 발루·강탈 결과(손패는 뒷면, 장비는 앞면)를 번갈아 띄운다 |
+| `?fxloop=take` | 캣 벌로우·강탈 결과(손패는 뒷면, 장비는 앞면)를 번갈아 띄운다 |
 
 `__shot.progress.value = 0.3` 처럼 넣으면 그 장면에 멈춘다(애니메이션을 덮어쓴다). `__shot.start()` 는 한 번 돌린다.
 반복 모드에서 카드가 뜬 직후 값을 고정하면 **실제 카드 위에서** 장면을 볼 수 있다.
