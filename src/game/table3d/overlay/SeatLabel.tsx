@@ -2,7 +2,7 @@
  * 3D 좌석 위에 얹는 RN 라벨. 이름·역할·목숨·손패 장수·거리. 글자는 전부 여기서.
  */
 
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../../data/cards.base';
 import { CHARACTERS } from '../../data/characters';
@@ -10,6 +10,7 @@ import { ROLE_GOAL, ROLE_LABEL } from '../../data/roles';
 import type { CardId, Role } from '../../data/types';
 import { distance, kindOf, type GameState, type Player, type PlayerId } from '../../engine';
 import { usePresence } from '../../store/presence';
+import { cycleRoleGuess, useRoleGuess } from '../../store/role-guess';
 import { AttackBadges } from '../../ui/AttackBadges';
 import { cardBackArt } from '../../ui/card-art';
 import { PlayerSeat } from '../../ui/PlayerSeat';
@@ -175,6 +176,9 @@ export function SeatLabel({
             ) : (
               <Text style={[styles.role, { color: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
             ))}
+          {!player.roleRevealed && !isSelf && !dead && (
+            <RoleGuess pid={player.id} playerCount={view.players.length} />
+          )}
         </View>
         {(!compact || big || player.ghost || dead) && (
           <Text style={[styles.character, big && styles.selfCharacter]} numberOfLines={1}>
@@ -207,6 +211,27 @@ export function SeatLabel({
         )}
       </Pressable>
     </View>
+  );
+}
+
+/** 숨은 직업 자리. 탭할 때마다 ??? → ?무법자? → … 로 짐작을 바꾼다. 나만 보인다 */
+function RoleGuess({ pid, playerCount }: { pid: PlayerId; playerCount: number }) {
+  const guess = useRoleGuess(pid);
+  return (
+    <Pressable
+      onPress={(e) => {
+        e.stopPropagation();
+        cycleRoleGuess(pid, playerCount);
+      }}
+      hitSlop={6}
+      // 웹에서 button 역할을 주면 라벨의 <button> 안에 <button> 이 들어가 경고가 난다
+      accessibilityRole={Platform.OS === 'web' ? undefined : 'button'}
+      accessibilityLabel={guess ? `직업 짐작: ${ROLE_LABEL[guess]}. 눌러서 바꾸기` : '직업 짐작하기'}
+      style={({ pressed }) => [styles.guess, guess && { borderColor: ROLE_COLOR[guess] }, pressed && styles.guessPressed]}>
+      <Text style={[styles.guessText, guess && { color: ROLE_COLOR[guess] }]}>
+        {guess ? `?${ROLE_LABEL[guess]}?` : '???'}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -256,6 +281,16 @@ const styles = StyleSheet.create({
   hp: { color: Colors.hp, fontSize: 10, letterSpacing: 1 },
   hpEmpty: { color: Colors.border },
   meta: { color: Colors.textMuted, fontSize: 9 },
+  guess: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.border,
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  guessPressed: { opacity: 0.6 },
+  guessText: { color: Colors.textMuted, fontSize: 9, fontWeight: '800', opacity: 0.85 },
   equipment: { color: Colors.deputy, fontSize: 9 },
   detail: { color: Colors.textMuted, fontSize: 9, lineHeight: 12 },
   handCount: {
