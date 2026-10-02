@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, Text, useWindowDimensions, View } from 'react-native';
 
 import { LOCAL_AI_SPEEDS, type AiSpeed, type AiTier, type LocalAiSpeed } from '@/game/ai/types';
 import { setAiSpeed } from '@/firebase/rooms';
@@ -37,7 +37,7 @@ import { useHotkeys } from '@/game/ui/use-hotkeys';
 import { useTable } from '@/game/ui/use-table';
 import { WesternFonts } from '@/game/ui/menu/western-fonts';
 import { themedStyles, useColors } from '@/game/ui/theme/use-theme';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, MobileBreakpoint, Radius, Spacing } from '@/constants/theme';
 
 const AI_NAMES = ['보안관보', '건슬링어', '떠돌이', '광부', '바텐더', '현상금꾼', '무법자'];
 
@@ -77,6 +77,9 @@ export default function GameScreen() {
   const c = useColors();
   // 설정 팝업. 열어도 판은 멈추지 않는다 (온라인 판과 같게)
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // 폰 폭에서는 위쪽 버튼 줄이 좌석을 가린다. ⚙ 하나만 두고 나머지는 설정 팝업 안으로 접는다
+  const { width } = useWindowDimensions();
+  const compact = width < MobileBreakpoint;
 
   // id 가 'local' 이면 혼자 하는 판, 아니면 그 값이 곧 방 코드다.
   const online = Boolean(params.id && params.id !== 'local');
@@ -342,6 +345,22 @@ export default function GameScreen() {
     );
   }
 
+  const speedControl = (
+    <SpeedControl
+      speed={speed}
+      onChange={onSpeedChange}
+      speeds={online ? undefined : LOCAL_AI_SPEEDS}
+      hideLabel={compact}
+    />
+  );
+  const gameButtons = (
+    <>
+      {canPause && <PauseButton paused={paused} onToggle={() => setPaused((v) => !v)} />}
+      {canSave && <SaveButton status={saveStatus} onSave={onSave} />}
+      <SoundButton />
+    </>
+  );
+
   return (
     <View style={styles.root}>
       <Table
@@ -354,13 +373,17 @@ export default function GameScreen() {
       <LogCardPeek />
 
       {!state.result && (
-        <View style={styles.topLeft}>
-          {!state.result && <SpeedControl speed={speed} onChange={onSpeedChange} speeds={online ? undefined : LOCAL_AI_SPEEDS} />}
-          {canPause && <PauseButton paused={paused} onToggle={() => setPaused((v) => !v)} />}
-          {canSave && <SaveButton status={saveStatus} onSave={onSave} />}
-          <SoundButton />
-          <SettingsButton onPress={() => setSettingsOpen(true)} />
-          <FullscreenButton />
+        <View style={[styles.topLeft, compact && styles.topLeftCompact]}>
+          {compact ? (
+            <SettingsButton onPress={() => setSettingsOpen(true)} />
+          ) : (
+            <>
+              {speedControl}
+              {gameButtons}
+              <SettingsButton onPress={() => setSettingsOpen(true)} />
+              <FullscreenButton />
+            </>
+          )}
         </View>
       )}
 
@@ -434,7 +457,20 @@ export default function GameScreen() {
         </View>
       )}
 
-      {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <SettingsSheet onClose={() => setSettingsOpen(false)}>
+          {compact && !state.result && (
+            <View style={styles.sheetControls}>
+              <Text style={styles.sheetLabel}>AI 속도</Text>
+              {speedControl}
+              <View style={styles.sheetButtons}>
+                {gameButtons}
+                <FullscreenButton />
+              </View>
+            </View>
+          )}
+        </SettingsSheet>
+      )}
     </View>
   );
 }
@@ -462,6 +498,11 @@ const useStyles = themedStyles((c) => ({
     alignItems: 'center',
     gap: Spacing.one,
   },
+  // 폰 판의 위쪽 제목 줄(약 44px) 바로 아래에 ⚙ 만 띄운다
+  topLeftCompact: { top: 52 },
+  sheetControls: { gap: Spacing.two, alignItems: 'flex-start' },
+  sheetLabel: { color: c.textMuted, fontSize: 12, fontWeight: '700', fontFamily: WesternFonts.label, marginBottom: -4 },
+  sheetButtons: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   saveNotice: {
     position: 'absolute',
     top: Spacing.two + 38,

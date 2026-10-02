@@ -11,7 +11,7 @@
  * 카드 그림과 상세 설명을 가운데에 띄운다. 겨눌 수 있는 상대를 탭하면 그대로 카드가 나간다.
  */
 
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useStore } from 'zustand';
 
 import { CHARACTERS } from '../../data/characters';
@@ -20,7 +20,7 @@ import { CharacterDetail } from '../../ui/CharacterDetail';
 import { WesternFonts } from '../../ui/menu/western-fonts';
 import { themedStyles } from '../../ui/theme/use-theme';
 import { anchorsStore, characterKey } from '../core/anchors-store';
-import { Colors, Radius, Spacing, type ThemeColors } from '@/constants/theme';
+import { Radius, Spacing, type ThemeColors } from '@/constants/theme';
 
 const TIP_W = 240;
 
@@ -190,33 +190,3 @@ function previewSheet(c: ThemeColors) {
 
 /** 이벤트·카드 hover 패널도 같은 모양을 쓴다 */
 export const usePreviewStyles = themedStyles(previewSheet);
-
-/**
- * 테마를 모르는 옛 고정 모양 (밤 살롱). 아직 훅으로 옮기지 않은 곳(CardHover)이 쓴다.
- * 옮기고 나면 지운다.
- */
-export const previewStyles = StyleSheet.create({
-  hit: { position: 'absolute' },
-  tip: {
-    position: 'absolute',
-    pointerEvents: 'none',
-    backgroundColor: 'rgba(22, 14, 7, 0.95)',
-    borderRadius: Radius.md,
-    borderWidth: 1.5,
-    borderColor: Colors.highlight,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
-    gap: 2,
-    boxShadow: '0 6px 18px rgba(0,0,0,0.5)',
-  },
-  tipHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.one },
-  tipName: { color: Colors.text, fontSize: 13, fontWeight: '800' },
-  tipHp: { color: Colors.hp, fontSize: 10, letterSpacing: 1 },
-  tipAbility: { color: Colors.text, fontSize: 11, lineHeight: 15 },
-  panel: { padding: Spacing.two, gap: Spacing.two, borderRadius: Radius.lg, borderWidth: 2 },
-  panelTop: { flexDirection: 'row', gap: Spacing.two },
-  panelInfo: { flex: 1, minWidth: 0, gap: 3 },
-  panelName: { color: Colors.text, fontSize: 16, fontWeight: '900', flexShrink: 1 },
-  panelMeta: { color: Colors.textMuted, fontSize: 11 },
-  panelAbility: { color: Colors.text, fontSize: 12, lineHeight: 17 },
-});

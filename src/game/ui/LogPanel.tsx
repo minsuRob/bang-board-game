@@ -5,18 +5,18 @@
  * PC 에서는 오른쪽에 계속 띄워 두고, 좁은 화면에서는 접는다. 아래 칸은 채팅이다 (SidePanel).
  *
  * 문장 속 카드 이름은 따옴표로 감싸고 색을 입힌다 (파랑 카드는 파랑, 갈색 카드는 흰 굵은 글씨).
- * 이름에 마우스를 올리면(폰은 탭) 화면 왼쪽 아래에 그 카드의 상세가 뜬다.
- * 상세는 손패 HUD 위에 그려야 해서 패널 안이 아니라 게임 화면 맨 위(LogCardPeek)에 둔다. 스토어로 잇는다.
+ * 이름에 마우스를 올리면(폰은 탭) 그 카드의 상세가 뜬다. 3D 테이블에 미리보기 자리가 있으면
+ * 캐릭터 설명과 같은 그 자리에, 없으면 화면 왼쪽 아래(LogCardPeek)에 뜬다.
+ * 상세는 손패 HUD 위에 그려야 해서 패널 안이 아니라 게임 화면 맨 위에 둔다. 스토어(detailPeek)로 잇는다.
  */
 
 import { useEffect, useRef } from 'react';
 import { Pressable, ScrollView, Text, View, type TextProps } from 'react-native';
 import { useStore } from 'zustand';
-import { createStore } from 'zustand/vanilla';
 
 import type { CardId } from '../data/types';
 import { defOf, type GameEvent } from '../engine';
-import { CAN_HOVER } from './card-peek';
+import { CAN_HOVER, detailPeek, setDetailPeek } from './card-peek';
 import { CardView } from './CardView';
 import { splitLogText, type LogSegment } from './log-text';
 import { PaperPlaque, plaque } from './PaperPlaque';
@@ -24,9 +24,7 @@ import { WesternFonts } from './menu/western-fonts';
 import { themedStyles, useColors } from './theme/use-theme';
 import { Radius, Spacing, type ThemeColors } from '@/constants/theme';
 
-/** 진행 기록에서 살펴보는 카드. 화면 전용이라 GameState 에 넣지 않는다 */
-const logPeek = createStore<{ card: CardId | null }>(() => ({ card: null }));
-const setPeek = (card: CardId | null) => logPeek.setState({ card });
+const setPeek = setDetailPeek;
 
 function toneOf(c: ThemeColors, t: string): string {
   switch (t) {
@@ -97,7 +95,7 @@ function CardName({ seg, onPeek }: { seg: Extract<LogSegment, { card: string }>;
  */
 export function LogCardPeek() {
   const styles = useStyles();
-  const card = useStore(logPeek, (s) => s.card);
+  const card = useStore(detailPeek, (s) => (s.hosted ? null : s.card));
   // 판을 떠나면 닫는다
   useEffect(() => () => setPeek(null), []);
   if (!card) return null;

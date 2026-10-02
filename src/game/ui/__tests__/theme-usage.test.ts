@@ -42,7 +42,6 @@ const MIXED = new Set([
   'src/game/ui/AttackBadges.tsx',
   'src/game/ui/DraftSeatStatus.tsx',
   'src/game/ui/PresenceDot.tsx',
-  'src/game/table3d/overlay/CharacterHover.tsx',
   'src/game/table3d/overlay/EventHover.tsx',
   'src/game/table3d/overlay/SeatLabel.tsx',
 ]);
@@ -50,7 +49,6 @@ const MIXED = new Set([
 /** 아직 옮기지 못한 UI. 옮기면 여기서 지운다 */
 const PENDING = new Set([
   'src/game/table3d/overlay/Overlay3D.tsx',
-  'src/game/table3d/overlay/CardHover.tsx',
 ]);
 
 function walk(dir: string, out: string[] = []): string[] {

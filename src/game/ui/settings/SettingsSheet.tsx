@@ -1,11 +1,12 @@
 /**
  * 설정 팝업: 연출 화질, 화면 테마.
  *
- * 첫 화면의 "설정" 카드와 게임 중 ⚙ 버튼이 연다. 고르는 즉시 저장되고 화면도 바로 바뀐다.
+ * 첫 화면의 "설정" 카드와 게임 중 ⚙ 버튼이 연다. 폰 폭의 판에서는 위쪽 버튼 줄(AI 속도·일시정지 등)을
+ * 접어서 children 으로 넘기고, 맨 위 "이 판" 칸에 보여 준다. 고르는 즉시 저장되고 화면도 바로 바뀐다.
  * 모양은 도감 상세 창(codex/CodexDetail.tsx)처럼 막 위에 종이 한 장을 띄운다. 바깥이나 Esc 로 닫힌다.
  */
 
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useStore } from 'zustand';
 
@@ -37,7 +38,7 @@ export function useSettingsSummary(): string {
   return `연출 ${q} · 테마 ${t}`;
 }
 
-export function SettingsSheet({ onClose }: { onClose: () => void }) {
+export function SettingsSheet({ onClose, children }: { onClose: () => void; children?: ReactNode }) {
   const styles = useStyles();
   const text = usePaperText();
   const quality = useFxQuality();
@@ -59,6 +60,8 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
       <PaperSheet style={styles.sheet}>
         <ScrollView contentContainerStyle={styles.body}>
           <PaperHeading eyebrow="SETTINGS" title="설정" />
+
+          {children && <PaperSection title="이 판">{children}</PaperSection>}
 
           <PaperSection title="연출 화질">
             <InkSegmented label="연출 화질" options={QUALITY_OPTIONS} value={quality} onChange={setFxQuality} />

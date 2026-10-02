@@ -225,6 +225,18 @@ export class CardWorld {
     });
   }
 
+  /** 테이블에 놓인 장착 카드와 그 자리. 오버레이가 hover 칸을 얹는 데 쓴다 */
+  equipmentPoses(): { card: CardId; pose: Pose }[] {
+    const state = this.state;
+    if (!state || !this.layout) return [];
+    const out: { card: CardId; pose: Pose }[] = [];
+    state.players.forEach((p, i) => {
+      if (!this.layout!.seats[i]) return;
+      p.equipment.forEach((card, j) => out.push({ card, pose: this.equipmentPose(i, j, p.equipment.length, card) }));
+    });
+    return out;
+  }
+
   /** 큐에 든 연출이 이 카드를 옮길 예정인가. Scene 이 fx-store 의 판정을 꽂는다 */
   isReservedNow: (card: CardId) => boolean = () => false;
 

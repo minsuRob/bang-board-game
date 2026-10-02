@@ -28,3 +28,23 @@ export function setPeek(card: CardId | null) {
 export function clearPeek(card: CardId) {
   if (cardPeek.getState().card === card) cardPeek.setState({ card: null });
 }
+
+/**
+ * 진행 기록의 카드 이름이나 테이블의 장착 카드를 살펴볼 때 띄우는 카드 상세.
+ * hosted 면 3D 테이블이 내 보드 옆 미리보기 자리(캐릭터 설명과 같은 곳)에 그린다.
+ * 아니면 게임 화면 왼쪽 아래(LogCardPeek)에 뜬다.
+ */
+export const detailPeek = createStore<{ card: CardId | null; hosted: boolean }>(() => ({ card: null, hosted: false }));
+
+export function setDetailPeek(card: CardId | null) {
+  if (detailPeek.getState().card !== card) detailPeek.setState({ card });
+}
+
+/** 이 카드를 보고 있을 때만 닫는다 */
+export function clearDetailPeek(card: CardId) {
+  if (detailPeek.getState().card === card) detailPeek.setState({ card: null });
+}
+
+export function setDetailHosted(hosted: boolean) {
+  if (detailPeek.getState().hosted !== hosted) detailPeek.setState({ hosted });
+}

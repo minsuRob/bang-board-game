@@ -11,16 +11,25 @@ import {
   ANCHOR_EVENT,
   anchorsStore,
   characterKey,
+  equipmentKey,
   seatKey,
   type AnchorPoint,
 } from '../core/anchors-store';
 import { BOARD_SLOTS, seatFootprint } from '../core/layout';
+import type { Pose } from './CardHandle';
 import { BOARD_SIZE, CARD_SIZE, EVENT_CARD_SCALE, type TableLayout, type Vec3 } from '../core/types';
 
 const v = new THREE.Vector3();
+const UP = new THREE.Vector3(0, 1, 0);
+
+type EquipmentPose = { card: string; pose: Pose };
 
 export class AnchorProjector {
-  project(camera: THREE.Camera, width: number, height: number, layout: TableLayout) {
+  /** 마지막으로 받은 장착 카드 자리. 카메라만 움직일 때도 다시 쓴다 */
+  private equipment: EquipmentPose[] = [];
+
+  project(camera: THREE.Camera, width: number, height: number, layout: TableLayout, equipment?: EquipmentPose[]) {
+    if (equipment) this.equipment = equipment;
     const points: Record<string, AnchorPoint> = {};
     const put = (key: string, p: Vec3, lift = 0) => {
       v.set(p[0], p[1] + lift, p[2]).project(camera);
@@ -100,6 +109,28 @@ export class AnchorProjector {
       }
     }
     put(ANCHOR_CENTER, layout.center);
+
+    // 장착 카드의 화면 사각형 (hover 로 카드 설명을 띄우는 자리). 테이블에 눕혀 놓였다
+    for (const { card, pose } of this.equipment) {
+      const hw = (CARD_SIZE.w * pose.scale) / 2;
+      const hh = (CARD_SIZE.h * pose.scale) / 2;
+      put(equipmentKey(card), pose.pos, 0);
+      const ep = points[equipmentKey(card)];
+      ep.top = Infinity;
+      ep.bottom = -Infinity;
+      ep.left = Infinity;
+      ep.right = -Infinity;
+      for (const [dx, dz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        v.set(dx * hw, 0, dz * hh).applyAxisAngle(UP, pose.yaw);
+        v.set(pose.pos[0] + v.x, pose.pos[1], pose.pos[2] + v.z).project(camera);
+        const x = ((v.x + 1) / 2) * width;
+        const y = ((1 - v.y) / 2) * height;
+        ep.top = Math.min(ep.top, y);
+        ep.bottom = Math.max(ep.bottom, y);
+        ep.left = Math.min(ep.left, x);
+        ep.right = Math.max(ep.right, x);
+      }
+    }
 
     const prev = anchorsStore.getState();
     if (prev.width === width && prev.height === height && same(prev.points, points)) return;

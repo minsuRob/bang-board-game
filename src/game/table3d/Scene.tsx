@@ -76,7 +76,7 @@ export function Scene({ state, viewerIndex, budget, targets, selected }: ScenePr
     draftCards.setLayout(layout);
     rig.setBase(frameCamera(aspect, layout), !booted.current);
     rig.apply(camera);
-    projector.project(camera, size.width, size.height, layout);
+    projector.project(camera, size.width, size.height, layout, world.equipmentPoses());
     booted.current = true;
     invalidate();
   }, [n, viewerIndex, drafting, size.width, size.height, world, draftCards, rig, projector, camera, invalidate]);
@@ -86,10 +86,12 @@ export function Scene({ state, viewerIndex, budget, targets, selected }: ScenePr
     world.settle(state, viewerIndex, !booted.current, isReserved);
     world.highlightTargets(targets);
     draftCards.update(state, viewerIndex);
+    // 장착 카드가 바뀌면 그 hover 칸도 옮긴다
+    if (world.layout && size.width >= 2) projector.project(camera, size.width, size.height, world.layout, world.equipmentPoses());
     // 판이 끝났으면 남은 연출을 정리한다
     if (state.result) seq.flush();
     invalidate();
-  }, [state, viewerIndex, targets, world, draftCards, seq, invalidate]);
+  }, [state, viewerIndex, targets, world, draftCards, seq, invalidate, projector, camera, size.width, size.height]);
 
   // 드래프트 중 누가 후보 위에 마우스를 올리면 한 프레임 깨운다
   useEffect(() => draftUi.subscribe(() => invalidate()), [invalidate]);

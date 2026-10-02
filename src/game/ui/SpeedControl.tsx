@@ -18,9 +18,11 @@ type Props = {
   /** 고를 수 있는 배속. 없으면 온라인과 같은 1~4배 */
   speeds?: readonly LocalAiSpeed[];
   style?: StyleProp<ViewStyle>;
+  /** 알약 안의 "AI 속도" 글자를 뺀다. 바깥에 이름이 따로 있을 때 (설정 팝업) */
+  hideLabel?: boolean;
 };
 
-export function SpeedControl({ speed, onChange, speeds = AI_SPEEDS, style }: Props) {
+export function SpeedControl({ speed, onChange, speeds = AI_SPEEDS, style, hideLabel }: Props) {
   const toolbar = useToolbarStyles();
   if (!onChange) {
     return (
@@ -32,8 +34,8 @@ export function SpeedControl({ speed, onChange, speeds = AI_SPEEDS, style }: Pro
   }
 
   return (
-    <View style={[toolbar.pill, styles.root, style]}>
-      <Text style={[toolbar.textMuted, styles.label]}>AI 속도</Text>
+    <View style={[toolbar.pill, styles.root, hideLabel && styles.rootBare, style]}>
+      {!hideLabel && <Text style={[toolbar.textMuted, styles.label]}>AI 속도</Text>}
       {speeds.map((s) => {
         const active = s === speed;
         return (
@@ -64,6 +66,7 @@ const styles = StyleSheet.create({
     paddingRight: 3,
     paddingVertical: 3,
   },
+  rootBare: { paddingLeft: 3 },
   label: { fontSize: 11, marginRight: 2 },
   readonly: { paddingHorizontal: Spacing.one },
   chip: {

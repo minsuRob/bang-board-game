@@ -23,9 +23,10 @@ export function isTakeEvent(e: GameEvent): boolean {
   return TAKE_EVENTS.has(e.t) && Boolean(e.target);
 }
 
-/** 결과 로그에서 앞면으로 보여 줄 카드. 손패에서 뽑아 가려졌으면 null (뒷면) */
+/** 결과 로그에서 앞면으로 보여 줄 카드. 손패에서 뽑아 가려졌으면 null (뒷면). 내가 아는 카드면 앞면 */
 export function takenCardOf(e: GameEvent): CardId | null {
-  return e.card && !isHidden(e.card) ? e.card : null;
+  const card = e.card ?? e.secret?.card;
+  return card && !isHidden(card) ? card : null;
 }
 
 /** 이벤트 공개 로그의 카드 정의. 이벤트 로그가 아니거나 모르는 이벤트면 null */

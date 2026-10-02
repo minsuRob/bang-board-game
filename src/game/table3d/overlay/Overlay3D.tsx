@@ -11,11 +11,13 @@ import { EVENTS } from '../../data/events';
 import type { CardId } from '../../data/types';
 import type { GameState, PlayerId } from '../../engine';
 import { clearRoleGuesses } from '../../store/role-guess';
+import { detailPeek, setDetailHosted } from '../../ui/card-peek';
 import { CharacterDetailModal } from '../../ui/CharacterDetail';
 import { PlayedCardSpotlight } from '../../ui/PlayedCardSpotlight';
 import type { TableApi } from '../../ui/use-table';
 import { ANCHOR_DECK, ANCHOR_DISCARD, ANCHOR_EVENT, anchorsStore, seatKey } from '../core/anchors-store';
 import { Caption } from './Caption';
+import { CardPreviewPanel, EquipmentHover } from './CardHover';
 import { CharacterHover, type PreviewSlot } from './CharacterHover';
 import { EventHover } from './EventHover';
 import { FloatingNumbers } from './FloatingNumbers';
@@ -31,7 +33,7 @@ export type Overlay3DProps = {
   wide: boolean;
 };
 
-/** 왼쪽 미리보기 자리를 차지한 것. 캐릭터 카드와 이벤트 카드가 나눠 쓴다 */
+/** 왼쪽 미리보기 자리를 차지한 것. 캐릭터 카드와 이벤트 카드가 나눠 쓴다 (장착 카드·진행 기록 카드는 detailPeek) */
 type HoverTarget = { k: 'player'; pid: PlayerId } | { k: 'event' } | null;
 
 export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Overlay3DProps) {
@@ -67,11 +69,20 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
           width: Math.min(PREVIEW_W, selfBox.room),
         }
       : null;
+  // 장착 카드나 진행 기록의 카드를 살펴보는 중이면 그 상세도 이 자리에 띄운다
+  const peekCard = useStore(detailPeek, (s) => s.card);
+  const hosting = slot !== null;
+  useEffect(() => {
+    setDetailHosted(hosting);
+    return () => setDetailHosted(false);
+  }, [hosting]);
   // 내 정보창이나 미리보기가 그 자리를 쓸 때만 남의 라벨이 비켜 간다
   const selfBoxUsed = !selfInBar || slot !== null;
 
   return (
     <View style={styles.layer}>
+      {/* 좌석 라벨이 장착 카드 칸 위에 오게 먼저 그린다 */}
+      <EquipmentHover view={view} targets={targets} onSeatPress={onSeatPress} />
       {view.players.map((player, i) => {
         const p = anchors.points[seatKey(i)];
         if (!p || !p.visible) return null;
@@ -132,6 +143,7 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
         onHoverChange={onPlayerHover}
       />
       <EventHover view={view} hovered={hover?.k === 'event'} onHoverChange={onEventHover} slot={slot} />
+      {peekCard && slot && <CardPreviewPanel view={view} viewer={viewer} card={peekCard} slot={slot} />}
       <FloatingNumbers view={view} />
       <PlayedCardSpotlight view={view} viewer={viewer} api={api} compact={!wide} />
       <Caption />

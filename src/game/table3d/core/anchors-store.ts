@@ -30,6 +30,8 @@ export const anchorsStore = createStore<AnchorsState>(() => ({ width: 0, height:
 export const seatKey = (index: number) => `seat:${index}`;
 /** 좌석 보드 위 캐릭터 카드 칸. top/bottom/left/right 가 카드의 화면 사각형이다 */
 export const characterKey = (index: number) => `character:${index}`;
+/** 장착 카드 한 장. top/bottom/left/right 가 그 카드의 화면 사각형이다 */
+export const equipmentKey = (card: string) => `equip:${card}`;
 export const ANCHOR_DECK = 'deck';
 export const ANCHOR_DISCARD = 'discard';
 export const ANCHOR_EVENT = 'event';
