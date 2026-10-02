@@ -174,7 +174,8 @@ export function anytimeAbilitiesOf(state: GameState, pid: PlayerId): AnytimeAbil
 export function onTargetedByBangFrames(
   state: GameState,
   target: PlayerId,
-  source: PlayerId,
+  /** 쏜 사람. 한줌의 카드처럼 쏜 사람이 없으면 null */
+  source: PlayerId | null,
 ): Frame[] {
   const ctx = ctxOf(state, target);
   return getModifiers(state, target).flatMap((m) => m.onTargetedByBang?.(ctx, source) ?? []);
@@ -253,9 +254,12 @@ export function drawPhaseOverride(
   state: GameState,
   pid: PlayerId,
   count: number,
+  /** 이벤트가 가로챈 가져오기를 거절한 뒤(독한 술)라 이벤트 훅은 건너뛴다 */
+  skipEvent = false,
 ): Frame[] | null {
   const ctx = ctxOf(state, pid);
   for (const m of getModifiers(state, pid)) {
+    if (skipEvent && m.from === 'event') continue;
     const frames = m.drawPhase?.(ctx, count);
     if (frames) return frames;
   }

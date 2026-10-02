@@ -6,7 +6,7 @@
  * 시뮬레이션으로 다시 고른다.
  */
 
-import { CARD_DEFS } from '../data/cards.base';
+import { BASE_CARDS_BY_ID, CARD_DEFS } from '../data/cards.base';
 import type { CardId, CardKind, Suit } from '../data/types';
 import { SUITS } from '../data/types';
 import {
@@ -354,8 +354,12 @@ function scoreRespond(
         return my.hp > 2 ? -2 : -30;
       }
       const kind = safeKind(choice.card);
-      // 역화는 되쏘기까지 하니 먼저 쓴다. 뱅!을 빗나감으로 쓰는 것(칼라미티 자넷)은 조금 아깝다
-      if (kind === 'backfire') return hostility(view, me, a.source, beliefs, situation(view, me, beliefs)) >= FRIEND ? 28 : 18;
+      // 역화는 되쏘기까지 하니 먼저 쓴다. 뱅!을 빗나감으로 쓰는 것(칼라미티 자넷)은 조금 아깝다.
+      // 쏜 사람이 없는 뱅!(한줌의 카드)에는 되쏠 곳이 없으니 역화를 아낀다
+      if (kind === 'backfire') {
+        if (a.source === null) return 18;
+        return hostility(view, me, a.source, beliefs, situation(view, me, beliefs)) >= FRIEND ? 28 : 18;
+      }
       return kind === 'bang' ? 22 : 25;
     }
 
@@ -469,9 +473,66 @@ function scoreRespond(
       return handSuitCount(view, me, choice.suit) * 10;
     }
 
+    // 한줌의 카드
+    case 'russianRoulette':
+      // 빗나감 한 장으로 목숨 2를 막는다
+      return choice.c === 'card' ? 30 : my.hp <= 2 ? -100 : -40;
+
+    case 'ricochet': {
+      const kind = safeKind(a.card);
+      // 내 앞의 감옥·다이너마이트는 버려지는 편이 낫다
+      if (kind === 'jail' || kind === 'dynamite') return choice.c === 'card' ? -20 : 10;
+      if (choice.c !== 'card') return 0;
+      return (kind ? cardValue(kind) : 5) * 2 - cardValue('missed') - (my.hp <= 2 ? 6 : 0);
+    }
+
+    case 'ranch': {
+      if (choice.c !== 'card') return 3;
+      const kind = safeKind(choice.card);
+      // 평균(대략 5)보다 못한 카드만 바꾼다
+      return kind ? 5 - cardValue(kind) + 1 : 0;
+    }
+
+    case 'hardLiquor': {
+      if (choice.c !== 'yes') return 0;
+      if (my.hp >= my.maxHp) return -20;
+      const d = danger(view, me);
+      return d > 0.6 ? 12 : my.hand.length >= 4 ? 4 : -6;
+    }
+
+    case 'bloodBrothers': {
+      if (choice.c !== 'player') return 0;
+      if (my.hp <= 2) return -20;
+      const t = playerOf(view, choice.pid);
+      const h = hostility(view, me, t.id, beliefs);
+      if (h >= FRIEND) return -15;
+      // 보안관이 살아야 이기는 쪽이면 다친 보안관을 챙긴다
+      const sit = situation(view, me, beliefs);
+      const sheriff = t.id === sit.sheriffId && needsSheriffAlive(view, me, sit) && t.hp <= 2 ? 10 : 0;
+      return (FRIEND - h) * 20 + sheriff + (t.hp === 1 ? 6 : 0) - 2;
+    }
+
+    case 'peyote':
+      if (choice.c !== 'color') return 0;
+      return unseenColorCount(view, me, choice.color);
+
     default:
       return 0;
   }
+}
+
+/** 아직 보지 못한 기본 카드 중 그 색 장수. 피요테에서 더 많은 쪽을 부른다 */
+function unseenColorCount(view: GameState, me: PlayerId, color: 'red' | 'black'): number {
+  const seen = new Set<CardId>(view.discard);
+  for (const p of view.players) for (const c of p.equipment) seen.add(c);
+  for (const c of playerOf(view, me).hand) seen.add(c);
+  let n = 0;
+  for (const c of BASE_CARDS_BY_ID.values()) {
+    if (seen.has(c.id)) continue;
+    const red = c.suit === 'hearts' || c.suit === 'diamonds';
+    if (red === (color === 'red')) n++;
+  }
+  return n;
 }
 
 /**

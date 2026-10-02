@@ -57,6 +57,8 @@ export function actionKey(action: Action): string {
             ? c.suit
             : c.c === 'player'
               ? c.pid
+              : c.c === 'color'
+                ? c.color
               : c.c === 'pick'
                 ? c.pick.zone === 'hand'
                   ? `h${c.pick.index}`
@@ -182,6 +184,9 @@ function respondActions(state: GameState, pid: PlayerId): Action[] {
     case 'missed':
     case 'indiansBang':
     case 'duelBang':
+    case 'russianRoulette':
+    case 'ricochet':
+    case 'ranch':
       for (const card of unique(a.options)) {
         out.push({ type: 'respond', pid, choice: { c: 'card', card } });
       }
@@ -223,9 +228,20 @@ function respondActions(state: GameState, pid: PlayerId): Action[] {
       out.push(pass);
       break;
     case 'pedroRamirez':
+    case 'hardLiquor':
     case 'newIdentity':
       out.push({ type: 'respond', pid, choice: { c: 'yes' } });
       out.push(pass);
+      break;
+    case 'bloodBrothers':
+      for (const target of a.targets) {
+        out.push({ type: 'respond', pid, choice: { c: 'player', pid: target } });
+      }
+      out.push(pass);
+      break;
+    case 'peyote':
+      out.push({ type: 'respond', pid, choice: { c: 'color', color: 'red' } });
+      out.push({ type: 'respond', pid, choice: { c: 'color', color: 'black' } });
       break;
     case 'evelyn':
       for (const target of a.targets) {
@@ -260,6 +276,11 @@ function respondActions(state: GameState, pid: PlayerId): Action[] {
         out.push({ type: 'respond', pid, choice: { c: 'suit', suit: suit as Suit } });
       }
       break;
+    default: {
+      // 응답을 하나도 내놓지 못하면 판이 멈춘다. 새 입력 대기를 넣으면 여기서 막힌다
+      const never: never = a;
+      throw new Error(`응답을 만들 수 없는 입력 대기: ${JSON.stringify(never)}`);
+    }
   }
   return out;
 }

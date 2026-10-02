@@ -8,7 +8,7 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { CARD_DEFS } from '../data/cards.base';
-import { ga } from '../engine/josa';
+import { eul, ga } from '../engine/josa';
 import type { CardId, CardKind, CharacterId, Suit } from '../data/types';
 import {
   actionKey,
@@ -35,6 +35,10 @@ export type Prompt = {
   players: PlayerId[];
   /** 골드 러시 갈색 카드 사용법 (조시 맥클라우드가 뽑았을 때) */
   goldUses?: GoldUse[];
+  /** 빨강·검정 고르기 (피요테) */
+  colors?: boolean;
+  /** 넘기기 단추 문구. 없으면 '반응하지 않음' */
+  passLabel?: string;
   steal: { target: PlayerId; handCount: number; equipment: CardId[] } | null;
   /** 테이블 가운데 창에서 고른다 (잡화점·강탈·캣 발루). 있으면 하단 바는 안내만 한다 */
   center: CenterPick | null;
@@ -324,17 +328,17 @@ function buildPrompt(view: GameState): Prompt | null {
   const base = empty();
 
   switch (a.k) {
-    case 'missed':
+    case 'missed': {
+      // 쏜 사람이 없는 뱅! (한줌의 카드)
+      const who = a.source ? `${nameOf(view, a.source)}의 뱅!` : '한줌의 카드 — 뱅!';
       return {
         ...base,
-        title:
-          a.remaining > 1
-            ? `${nameOf(view, a.source)}의 뱅! — 빗나감 ${a.remaining}장이 필요하다`
-            : `${nameOf(view, a.source)}의 뱅!`,
+        title: a.remaining > 1 ? `${who} — 빗나감 ${a.remaining}장이 필요하다` : who,
         hint: '빗나감!을 내거나 그냥 맞는다',
         cardOptions: a.options,
         canPass: true,
       };
+    }
     case 'indiansBang':
       return {
         ...base,
@@ -486,6 +490,56 @@ function buildPrompt(view: GameState): Prompt | null {
         title: '골드 러시 카드',
         hint: '이 카드를 어떻게 쓸지 고른다',
         goldUses: a.options,
+      };
+    case 'russianRoulette':
+      return {
+        ...base,
+        title: '러시안 룰렛',
+        hint: '빗나감!을 버리지 않으면 목숨 2를 잃고 룰렛이 멈춘다',
+        cardOptions: a.options,
+        canPass: true,
+        passLabel: '목숨 2를 잃는다 (W)',
+      };
+    case 'bloodBrothers':
+      return {
+        ...base,
+        title: '의형제',
+        hint: '목숨 1을 잃고 고른 사람의 목숨을 1 회복시킨다',
+        players: a.targets,
+        canPass: true,
+        passLabel: '넘겨주지 않는다 (W)',
+      };
+    case 'hardLiquor':
+      return {
+        ...base,
+        title: '독한 술',
+        hint: '카드를 가져오지 않고 목숨을 1 회복할까',
+        yesNo: true,
+        canPass: true,
+        passLabel: '카드를 가져온다 (W)',
+      };
+    case 'peyote':
+      return { ...base, title: '피요테', hint: '덱 맨 위 카드의 색을 맞힌다', colors: true };
+    case 'ranch':
+      return {
+        ...base,
+        title: '목장',
+        hint:
+          a.picked.length > 0
+            ? `${a.picked.length}장을 골랐다. 더 고르거나 확정한다`
+            : '버리고 새로 가져올 카드를 고른다',
+        cardOptions: a.options,
+        canPass: true,
+        passLabel: a.picked.length > 0 ? `${a.picked.length}장 바꾼다 (W)` : '바꾸지 않는다 (W)',
+      };
+    case 'ricochet':
+      return {
+        ...base,
+        title: `리코체 — ${nameOf(view, a.source)}`,
+        hint: `${eul(CARD_DEFS[kindOf(a.card)].nameKo)} 지키려면 빗나감!을 낸다`,
+        cardOptions: a.options,
+        canPass: true,
+        passLabel: '카드를 내준다 (W)',
       };
   }
 }

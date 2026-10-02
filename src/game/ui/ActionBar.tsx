@@ -117,8 +117,15 @@ export function ActionBar({
 
           {prompt.yesNo && <Button label="그렇게 한다" onPress={() => onRespond({ c: 'yes' })} primary />}
 
+          {prompt.colors && (
+            <>
+              <Button label="♥♦ 빨강" onPress={() => onRespond({ c: 'color', color: 'red' })} />
+              <Button label="♣♠ 검정" onPress={() => onRespond({ c: 'color', color: 'black' })} />
+            </>
+          )}
+
           {prompt.canPass && (
-            <Button label="반응하지 않음 (W)" onPress={() => onRespond({ c: 'pass' })} />
+            <Button label={prompt.passLabel ?? '반응하지 않음 (W)'} onPress={() => onRespond({ c: 'pass' })} />
           )}
         </View>
       </ScrollView>

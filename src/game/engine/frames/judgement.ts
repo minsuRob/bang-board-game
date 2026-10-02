@@ -34,6 +34,7 @@ const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
   rattlesnake: '방울뱀',
   coloradoBill: '콜로라도 빌',
   donBell: '돈 벨',
+  vendetta: '복수',
 };
 
 /** 스택에서 가장 위에 있는 뱅! 프레임의 요구 빗나감 장수를 1 줄인다. */
@@ -151,6 +152,16 @@ function applyJudgement(
         t: 'donBell',
         pid,
         text: `${neun(nameOf(cur, pid))} 붉은 무늬가 나와 차례를 한 번 더 얻었다.`,
+      });
+    }
+    case 'vendetta': {
+      // 돈 벨과 같은 추가 차례 자리를 쓴다. 추가 차례 끝에는 다시 펼치지 않는다
+      if (suit !== 'hearts') return cur;
+      cur = { ...cur, turn: { ...cur.turn, extraTurnFor: pid } };
+      return log(cur, {
+        t: 'vendetta',
+        pid,
+        text: `복수: ${neun(nameOf(cur, pid))} ♥가 나와 차례를 한 번 더 얻었다.`,
       });
     }
   }

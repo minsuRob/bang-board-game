@@ -44,6 +44,22 @@ import {
   resolveWantedReward,
   respondCheckDeath,
 } from './damage';
+import {
+  resolveBloodBrothers,
+  resolveFistfulBangs,
+  resolveHardLiquor,
+  resolveLawOfTheWest,
+  resolvePeyote,
+  resolveRanch,
+  resolveRicochet,
+  resolveRussianRoulette,
+  respondBloodBrothers,
+  respondHardLiquor,
+  respondPeyote,
+  respondRanch,
+  respondRicochet,
+  respondRussianRoulette,
+} from './fistful';
 import { resolveJudgement, respondJudgement } from './judgement';
 import {
   resolveAdvanceTurn,
@@ -159,6 +175,22 @@ export function resolveFrame(state: GameState, frame: Frame): GameState {
       return resolvePedroRamirez(state, frame);
     case 'blackJackReveal':
       return resolveBlackJackReveal(state, frame);
+    case 'fistfulBangs':
+      return resolveFistfulBangs(state, frame);
+    case 'russianRoulette':
+      return resolveRussianRoulette(state, frame);
+    case 'bloodBrothers':
+      return resolveBloodBrothers(state, frame);
+    case 'hardLiquor':
+      return resolveHardLiquor(state, frame);
+    case 'peyote':
+      return resolvePeyote(state, frame);
+    case 'ranch':
+      return resolveRanch(state, frame);
+    case 'lawOfTheWest':
+      return resolveLawOfTheWest(state, frame);
+    case 'ricochet':
+      return resolveRicochet(state, frame);
     case 'checkWin':
       return resolveCheckWin(state);
     case 'bandidos':
@@ -215,6 +247,18 @@ export function respondToFrame(state: GameState, frame: Frame, choice: Choice): 
       return respondJesseJones(state, frame, choice);
     case 'pedroRamirezChoice':
       return respondPedroRamirez(state, frame, choice);
+    case 'russianRoulette':
+      return respondRussianRoulette(state, frame, choice);
+    case 'bloodBrothers':
+      return respondBloodBrothers(state, frame, choice);
+    case 'hardLiquor':
+      return respondHardLiquor(state, frame, choice);
+    case 'peyote':
+      return respondPeyote(state, frame, choice);
+    case 'ranch':
+      return respondRanch(state, frame, choice);
+    case 'ricochet':
+      return respondRicochet(state, frame, choice);
     case 'bandidos':
       return respondBandidos(state, frame, choice);
     case 'poker':

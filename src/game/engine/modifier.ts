@@ -76,7 +76,7 @@ export type Modifier = {
   /** 내가 뱅! 카드를 낼 때. 뱅! 프레임보다 먼저 해결된다 (콜로라도 빌) */
   onPlayBang?: (ctx: ModCtx, target: PlayerId) => Frame[];
   /** 뱅!의 표적이 될 때 (술통·주르도네) */
-  onTargetedByBang?: (ctx: ModCtx, source: PlayerId) => Frame[];
+  onTargetedByBang?: (ctx: ModCtx, source: PlayerId | null) => Frame[];
 
   // --- 판정 -------------------------------------------------------------
   /** 판정에서 들여다보는 장수 (러키 듀크 2) */
