@@ -175,3 +175,41 @@ describe('매복', () => {
     expect(distance(s, 'd', 'c')).toBe(1);
   });
 });
+
+describe('폐광', () => {
+  it('가져오기는 버린 더미 맨 위부터 가져온다', () => {
+    const s0 = scenario({
+      event: 'abandonedMine',
+      discard: ['beer', 'panic', 'gatling'],
+      players: [{ id: 'a', role: 'sheriff', character: 'willyTheKid' }, { id: 'b' }, { id: 'c' }, { id: 'd' }],
+    });
+    const [, panic, gatling] = s0.discard;
+    const s = beginTurn(s0, 'a');
+    expect(p(s, 'a').hand).toEqual([gatling, panic]);
+    expect(s.discard).toHaveLength(1);
+    expect(s.deck).toHaveLength(s0.deck.length);
+  });
+
+  it('버린 더미가 모자라면 나머지는 덱에서 가져온다', () => {
+    const s0 = scenario({
+      event: 'abandonedMine',
+      discard: ['beer'],
+      players: [{ id: 'a', role: 'sheriff', character: 'willyTheKid' }, { id: 'b' }, { id: 'c' }, { id: 'd' }],
+    });
+    const s = beginTurn(s0, 'a');
+    expect(p(s, 'a').hand).toHaveLength(2);
+    expect(p(s, 'a').hand).toContain(s0.discard[0]);
+    expect(s.deck).toHaveLength(s0.deck.length - 1);
+  });
+
+  it('버리기 단계에 버린 카드는 덱 맨 위로 가고 로그에 카드가 남지 않는다', () => {
+    // 손패 3장 · 목숨 1 이라 한 장을 버려도 버리기 단계에 남는다
+    let s = table('abandonedMine', { hp: 1, hand: ['beer', 'panic', 'gatling'] })();
+    s = endTurn(s, 'a');
+    const card = p(s, 'a').hand[0];
+    s = reduce(s, { type: 'discardCard', pid: 'a', card });
+    expect(s.deck[s.deck.length - 1]).toBe(card);
+    expect(s.discard).not.toContain(card);
+    expect(s.log.find((e) => e.t === 'discard')?.card).toBeUndefined();
+  });
+});

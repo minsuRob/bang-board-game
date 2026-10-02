@@ -15,10 +15,12 @@ import {
   kindOf,
   log,
   nameOf,
+  putOnDeck,
   toDiscard,
   topFrame,
   updatePlayer,
 } from './cards';
+import { discardsToDeck } from './hooks';
 import { applyPick } from './draft';
 import { applyGoldAction } from './gold-actions';
 import { respondToFrame } from './frames';
@@ -100,12 +102,16 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
         ...p,
         hand: p.hand.filter((c) => c !== action.card),
       }));
-      cur = toDiscard(cur, [action.card]);
+      // 폐광: 버리기 단계의 카드는 뒷면으로 덱 위에 올린다. 로그에도 카드를 남기지 않는다.
+      const toDeck = discardsToDeck(cur);
+      cur = toDeck ? putOnDeck(cur, [action.card]) : toDiscard(cur, [action.card]);
       cur = log(cur, {
         t: 'discard',
         pid: action.pid,
-        card: action.card,
-        text: `${ga(nameOf(cur, action.pid))} 카드를 버렸다.`,
+        card: toDeck ? undefined : action.card,
+        text: toDeck
+          ? `${ga(nameOf(cur, action.pid))} 카드를 덱 위에 뒷면으로 올렸다.`
+          : `${ga(nameOf(cur, action.pid))} 카드를 버렸다.`,
       });
       break;
     }

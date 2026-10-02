@@ -96,6 +96,14 @@ const russianRoulette: Modifier = {
   },
 };
 
+/** 폐광 — 가져오기는 버린 더미에서(모자라면 덱에서), 버리기는 뒷면으로 덱 위에 */
+const abandonedMine: Modifier = {
+  id: 'event:abandonedMine',
+  from: 'event',
+  drawsFromDiscard: true,
+  discardsToDeck: true,
+};
+
 /** 매복 — 두 사람 사이의 거리는 모두 1. 앞에 놓인 카드로만 달라진다 */
 const ambush: Modifier = { id: 'event:ambush', from: 'event', fixedDistance: 1 };
 
@@ -118,7 +126,7 @@ const vendetta: Modifier = {
 };
 
 export const FISTFUL_EVENT_MODIFIERS: Record<FistfulEventId, Modifier> = {
-  abandonedMine: ev('abandonedMine'),
+  abandonedMine,
   ambush,
   bloodBrothers,
   deadMan: ev('deadMan'),

@@ -40,6 +40,16 @@ export function fixedDistanceOf(state: GameState): number | null {
   return eventModifier(state)?.fixedDistance ?? null;
 }
 
+/** 카드 가져오기 단계가 버린 더미에서 가져오는가 (폐광) */
+export function drawsFromDiscard(state: GameState): boolean {
+  return eventModifier(state)?.drawsFromDiscard === true;
+}
+
+/** 버리기 단계의 카드가 덱 위로 가는가 (폐광) */
+export function discardsToDeck(state: GameState): boolean {
+  return eventModifier(state)?.discardsToDeck === true;
+}
+
 /** 숙취처럼 캐릭터 능력을 통째로 죽이는 효과가 걸려 있는가 */
 export function characterAbilitiesDisabled(state: GameState): boolean {
   return eventModifier(state)?.disablesCharacterAbilities === true;

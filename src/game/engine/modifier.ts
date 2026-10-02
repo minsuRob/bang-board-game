@@ -176,4 +176,8 @@ export type Modifier = {
    * 이때는 앞에 놓인 카드의 보정만 더하고 캐릭터 능력의 거리 보정은 무시한다.
    */
   fixedDistance?: number;
+  /** 카드 가져오기 단계에서 버린 더미 맨 위부터 가져온다 (폐광) */
+  drawsFromDiscard?: boolean;
+  /** 버리기 단계에서 버린 카드를 뒷면으로 덱 위에 올린다 (폐광) */
+  discardsToDeck?: boolean;
 };
