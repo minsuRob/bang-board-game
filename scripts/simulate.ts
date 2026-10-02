@@ -7,6 +7,10 @@
  *   npm run simulate -- --games 200 --players 7 --highnoon
  *   npm run simulate -- --games 200 --players 7 --valley
  *   npm run simulate -- --games 200 --players 7 --goldrush
+ *   npm run simulate -- --games 200 --players 7 --fistful
+ *
+ * 상황 카드 확장판(--highnoon · --wildwestshow · --fistful)은 한 판에 하나만 쓴다.
+ * 여럿 주면 엔진이 하이 눈 → 와일드 웨스트 쇼 → 한줌의 카드 순으로 앞의 것을 쓴다.
  */
 
 import { analyze, decide, inferDepthOf, type AiTier } from '../src/game/ai';
@@ -25,6 +29,8 @@ type Options = {
   players: number;
   seed: number;
   highnoon: boolean;
+  wildwestshow: boolean;
+  fistful: boolean;
   valley: boolean;
   goldrush: boolean;
   tiers: AiTier[];
@@ -44,6 +50,8 @@ function parseArgs(argv: string[]): Options {
     players: Number(get('players', '7')),
     seed: Number(get('seed', '1')),
     highnoon: has('highnoon'),
+    wildwestshow: has('wildwestshow'),
+    fistful: has('fistful'),
     valley: has('valley'),
     goldrush: has('goldrush'),
     tiers: get('tiers', 'hard,medium,easy').split(',') as AiTier[],
@@ -134,6 +142,8 @@ function playOne(seed: number, opts: Options): GameOutcome {
       playerCount: opts.players,
       expansions: [
         ...(opts.highnoon ? (['highnoon'] as const) : []),
+        ...(opts.wildwestshow ? (['wildwestshow'] as const) : []),
+        ...(opts.fistful ? (['fistful'] as const) : []),
         ...(opts.valley ? (['valley'] as const) : []),
         ...(opts.goldrush ? (['goldrush'] as const) : []),
       ],
@@ -343,7 +353,10 @@ function main() {
   console.log(
     `${opts.games}판 시뮬레이션 — ${opts.players}인, 난이도 ${opts.tiers.join('/')}` +
       (opts.highnoon ? ', 하이 눈' : '') +
-      (opts.valley ? ', 그림자의 계곡' : ''),
+      (opts.wildwestshow ? ', 와일드 웨스트 쇼' : '') +
+      (opts.fistful ? ', 한줌의 카드' : '') +
+      (opts.valley ? ', 그림자의 계곡' : '') +
+      (opts.goldrush ? ', 골드 러시' : ''),
   );
 
   const report = simulate(opts);
