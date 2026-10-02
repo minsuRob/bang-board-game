@@ -8,6 +8,7 @@ import {
   WILDWESTSHOW_FINAL_ID,
   WILDWESTSHOW_SHUFFLED_IDS,
 } from './cards.wildwestshow';
+import { FISTFUL_EVENTS, FISTFUL_FINAL_ID, FISTFUL_SHUFFLED_IDS } from './cards.fistful';
 import { EVENTS, eventDeckFor, eventDeckSize } from './events';
 import { CHARACTER_IDS, CHARACTERS } from './characters';
 import { MAX_PLAYERS, MIN_PLAYERS, ROLE_DISTRIBUTION } from './roles';
@@ -219,8 +220,8 @@ describe('와일드 웨스트 쇼 이벤트', () => {
     expect(WILDWESTSHOW_SHUFFLED_IDS).toHaveLength(9);
   });
 
-  it('합본 EVENTS 는 25종이고 id 가 키와 같다', () => {
-    expect(Object.keys(EVENTS)).toHaveLength(25);
+  it('합본 EVENTS 는 40종이고 id 가 키와 같다', () => {
+    expect(Object.keys(EVENTS)).toHaveLength(40);
     for (const [id, def] of Object.entries(EVENTS)) expect(def.id).toBe(id);
   });
 
@@ -230,5 +231,14 @@ describe('와일드 웨스트 쇼 이벤트', () => {
     expect(eventDeckFor(['highnoon', 'wildwestshow'])?.final).toBe('highNoon');
     expect(eventDeckSize('gag')).toBe(10);
     expect(eventDeckSize('curse')).toBe(15);
+  });
+});
+
+describe('한줌의 카드 이벤트', () => {
+  it('15종이고 마지막 카드는 한줌의 카드 하나뿐이다', () => {
+    expect(Object.keys(FISTFUL_EVENTS)).toHaveLength(15);
+    const finals = Object.values(FISTFUL_EVENTS).filter((e) => e.isFinal);
+    expect(finals.map((e) => e.id)).toEqual([FISTFUL_FINAL_ID]);
+    expect(FISTFUL_SHUFFLED_IDS).toHaveLength(14);
   });
 });

@@ -15,11 +15,13 @@ import {
   WILDWESTSHOW_FINAL_ID,
   WILDWESTSHOW_SHUFFLED_IDS,
 } from './cards.wildwestshow';
+import { FISTFUL_EVENTS } from './cards.fistful';
 import type { EventCardDef, EventCardId, Expansion } from './types';
 
 export const EVENTS: Record<EventCardId, EventCardDef> = {
   ...HIGHNOON_EVENTS,
   ...WILDWESTSHOW_EVENTS,
+  ...FISTFUL_EVENTS,
 };
 
 export type EventDeckSpec = {
