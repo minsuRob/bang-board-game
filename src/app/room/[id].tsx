@@ -35,7 +35,7 @@ export default function RoomScreen() {
   useEffect(() => {
     if (id !== 'new' || code || !identity) return;
     let alive = true;
-    createRoom(identity, { playerCount: 5, highnoon: false, tier: 'medium' })
+    createRoom(identity, { playerCount: 5, highnoon: false, wildwestshow: false, tier: 'medium' })
       .then((made) => {
         if (!alive) return;
         setCode(made);
@@ -152,7 +152,7 @@ export default function RoomScreen() {
             ))}
           </Setting>
 
-          <Setting title="확장판">
+          <Setting title="상황 카드 확장판">
             <Chip
               label="기본"
               active={!room.highnoon}
@@ -161,11 +161,19 @@ export default function RoomScreen() {
             <Chip
               label="하이 눈"
               active={room.highnoon}
-              onPress={() => updateRoomSettings(room.code, { highnoon: true })}
+              onPress={() => updateRoomSettings(room.code, { highnoon: true, wildwestshow: false })}
+            />
+            <Chip
+              label="와일드 웨스트 쇼"
+              active={Boolean(room.wildwestshow)}
+              onPress={() => updateRoomSettings(room.code, { highnoon: false, wildwestshow: true })}
             />
           </Setting>
 
-          <Setting title="그림자의 계곡">
+          <Setting title="카드·캐릭터 확장판">
+            <Text style={styles.settingHint}>
+              그림자의 계곡과 골드 러시는 상황 카드 확장판과 함께 사용할 수 있습니다.
+            </Text>
             <Chip
               label="끄기"
               active={!room.valley}
@@ -305,6 +313,7 @@ const styles = StyleSheet.create({
   codeHint: { color: Colors.textMuted, fontSize: 12 },
   section: { gap: Spacing.two },
   sectionTitle: { color: Colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  settingHint: { color: Colors.textMuted, fontSize: 12, lineHeight: 18, width: '100%' },
   row: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
   seatRow: {
     flexDirection: 'row',

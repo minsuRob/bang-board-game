@@ -49,6 +49,7 @@ function emptySeats(count: number, host: Identity): RoomSeat[] {
 export type CreateRoomOptions = {
   playerCount: number;
   highnoon: boolean;
+  wildwestshow?: boolean;
   valley?: boolean;
   tier: AiTier;
 };
@@ -69,6 +70,7 @@ export async function createRoom(host: Identity, options: CreateRoomOptions): Pr
       status: 'lobby',
       playerCount: count,
       highnoon: options.highnoon,
+      wildwestshow: options.wildwestshow ?? false,
       valley: options.valley ?? false,
       tier: options.tier,
       seats: emptySeats(count, host),
@@ -134,7 +136,7 @@ export async function leaveRoom(code: string, uid: string): Promise<void> {
 /** 호스트만 설정을 바꾼다. */
 export async function updateRoomSettings(
   code: string,
-  patch: Partial<Pick<RoomDoc, 'playerCount' | 'highnoon' | 'valley' | 'tier' | 'seed' | 'deadChat'>>,
+  patch: Partial<Pick<RoomDoc, 'playerCount' | 'highnoon' | 'wildwestshow' | 'valley' | 'tier' | 'seed' | 'deadChat'>>,
 ): Promise<void> {
   const db = getDb();
   const ref = doc(db, 'rooms', code.toUpperCase());

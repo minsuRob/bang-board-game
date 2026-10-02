@@ -38,6 +38,8 @@ export type RoomDoc = {
   status: 'lobby' | 'playing' | 'ended';
   playerCount: number;
   highnoon: boolean;
+  /** 와일드 웨스트 쇼. 이 필드가 생기기 전에 만든 방에는 없다 */
+  wildwestshow?: boolean;
   /** 그림자의 계곡. 이 필드가 생기기 전에 만든 방에는 없다 */
   valley?: boolean;
   tier: AiTier;

@@ -217,6 +217,7 @@ export function newSaveId(now: number, random: () => number): string {
 
 const EXPANSION_LABEL: Partial<Record<Expansion, string>> = {
   highnoon: '하이 눈',
+  wildwestshow: '와일드 웨스트 쇼',
 };
 
 /** 예: "5인 · 하이 눈 · 4라운드 · 3명 생존" */

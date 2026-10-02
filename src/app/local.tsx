@@ -13,7 +13,8 @@ export default function LocalSetupScreen() {
   const router = useRouter();
   const [players, setPlayers] = useState(5);
   const [tier, setTier] = useState<AiTier>('medium');
-  const [highnoon, setHighnoon] = useState(false);
+  const [eventExpansion, setEventExpansion] = useState<'none' | 'highnoon' | 'wildwestshow'>('none');
+  const [valley, setValley] = useState(false);
   const [goldrush, setGoldrush] = useState(false);
   const [seed, setSeed] = useState(() => Math.floor(Date.now() % 100000));
 
@@ -50,20 +51,37 @@ export default function LocalSetupScreen() {
         </Text>
       </Section>
 
-      <Section title="확장판">
+      <Section title="상황 카드 확장판">
         <Row>
-          <Chip label="기본" active={!highnoon} onPress={() => setHighnoon(false)} />
-          <Chip label="하이 눈" active={highnoon} onPress={() => setHighnoon(true)} />
+          <Chip label="기본" active={eventExpansion === 'none'} onPress={() => setEventExpansion('none')} />
+          <Chip label="하이 눈" active={eventExpansion === 'highnoon'} onPress={() => setEventExpansion('highnoon')} />
+          <Chip
+            label="와일드 웨스트 쇼"
+            active={eventExpansion === 'wildwestshow'}
+            onPress={() => setEventExpansion('wildwestshow')}
+          />
         </Row>
         <Text style={styles.hint}>
-          하이 눈은 보안관의 두 번째 차례부터 매 라운드 상황 카드가 하나씩 열린다.
+          {eventExpansion === 'wildwestshow'
+            ? '와일드 웨스트 쇼는 보안관의 두 번째 차례부터 매 라운드 상황 카드가 하나씩 열린다.'
+            : '하이 눈은 보안관의 두 번째 차례부터 매 라운드 상황 카드가 하나씩 열린다.'}
+        </Text>
+      </Section>
+
+      <Section title="카드·캐릭터 확장판">
+        <Row>
+          <Chip label="그림자의 계곡 없음" active={!valley} onPress={() => setValley(false)} />
+          <Chip label="그림자의 계곡" active={valley} onPress={() => setValley(true)} />
+        </Row>
+        <Text style={styles.hint}>
+          그림자의 계곡은 기본 카드·캐릭터와 함께 사용할 수 있다. 상황 카드 확장판과도 함께 켤 수 있다.
         </Text>
         <Row>
           <Chip label="골드 러시 없음" active={!goldrush} onPress={() => setGoldrush(false)} />
           <Chip label="골드 러시" active={goldrush} onPress={() => setGoldrush(true)} />
         </Row>
         <Text style={styles.hint}>
-          골드 러시는 상처를 입히거나 맥주를 팔아 금덩이를 모으고, 상점에서 장비를 산다. 하이 눈과 같이 켤 수 있다.
+          골드 러시는 상처를 입히거나 맥주를 팔아 금덩이를 모으고, 상점에서 장비를 산다. 다른 확장판과 함께 켤 수 있다.
         </Text>
       </Section>
 
@@ -86,7 +104,9 @@ export default function LocalSetupScreen() {
               id: 'local',
               players: String(players),
               tier,
-              highnoon: highnoon ? '1' : '0',
+              highnoon: eventExpansion === 'highnoon' ? '1' : '0',
+              wildwestshow: eventExpansion === 'wildwestshow' ? '1' : '0',
+              valley: valley ? '1' : '0',
               goldrush: goldrush ? '1' : '0',
               seed: String(seed),
             },
