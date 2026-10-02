@@ -28,6 +28,8 @@ export type ActionBarProps = {
   playerNameOf: (pid: string) => string;
   abilities: { key: string; label: string; cards: string[] }[];
   onUseAbility: (key: string, cards: string[]) => void;
+  /** 능력이 있지만 지금 못 쓸 때의 이유. 누를 수 없는 흐린 칩으로 보인다 */
+  abilityBlocked?: string | null;
   /** 손의 카드를 다른 종류로 내는 능력 (엉클 윌). 누르면 켜지고, 켠 뒤 카드를 낸다 */
   playAs?: { key: string; label: string }[];
   armed?: string | null;
@@ -47,6 +49,7 @@ export function ActionBar({
   playerNameOf,
   abilities,
   onUseAbility,
+  abilityBlocked = null,
   playAs = [],
   armed = null,
   onArm,
@@ -66,6 +69,11 @@ export function ActionBar({
             label={`능력 · ${abilities[0].label}`}
             onPress={() => onUseAbility(abilities[0].key, abilities[0].cards)}
           />
+        )}
+        {abilities.length === 0 && !!abilityBlocked && (
+          <View style={[styles.button, styles.buttonDisabled]} accessibilityState={{ disabled: true }}>
+            <Text style={[styles.buttonText, styles.buttonTextDisabled]}>{abilityBlocked}</Text>
+          </View>
         )}
         {onArm &&
           (armed ? (
@@ -281,6 +289,8 @@ const useStyles = themedStyles((c) => ({
     backgroundColor: c.chip,
   },
   buttonHover: { backgroundColor: c.hover },
+  buttonDisabled: { opacity: 0.5, borderStyle: 'dashed' },
+  buttonTextDisabled: { color: c.textMuted },
   buttonText: { color: c.text, fontSize: 12, fontWeight: '700', fontFamily: WesternFonts.label },
   // 빨간 도장: 안쪽 점선 테두리, 아래로 떨어지는 짙은 그림자
   stamp: {

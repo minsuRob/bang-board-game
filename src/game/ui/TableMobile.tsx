@@ -215,6 +215,7 @@ export function TableMobile({
             playerNameOf={(pid) => view.players.find((p) => p.id === pid)?.name ?? pid}
             abilities={api.abilities}
             onUseAbility={api.useAbility}
+            abilityBlocked={api.abilityBlocked}
             playAs={api.playAsAbilities}
             armed={api.armed}
             onArm={api.arm}

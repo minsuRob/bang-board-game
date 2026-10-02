@@ -11,8 +11,10 @@ import { CARD_DEFS } from '../data/cards.base';
 import { CHARACTERS } from '../data/characters';
 import { eul, ga } from '../engine/josa';
 import type { CardId, CardKind, CharacterId, Suit } from '../data/types';
+import { SID_KETCHUM_ABILITY } from '../modifiers';
 import {
   actionKey,
+  anytimeAbilitiesOf,
   kindOf,
   legalActions,
   isExplicitAbility,
@@ -97,6 +99,8 @@ export type TableApi = {
   respond: (choice: Choice) => void;
   abilities: { key: string; label: string; cards: CardId[] }[];
   useAbility: (key: string, cards: CardId[]) => void;
+  /** 능력은 있지만 지금 쓸 수 없을 때 흐리게 보여 줄 문구 (시드 케첨: 목숨이 가득 참). 없으면 null */
+  abilityBlocked: string | null;
   /**
    * 켜고 끄는 사용법. 손의 아무 카드나 다른 종류로 내는 능력(엉클 윌), 맞바꾸기(플린트 웨스트우드),
    * 갈색 카드 한 번 더(리 반 클리프), 한줌의 카드 이벤트의 저격수·리코체. 이번 차례에 쓸 수 있는 것만
@@ -354,6 +358,15 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     return out;
   }, [legal]);
 
+  // 목숨이 가득 차면 엔진이 회복을 막는다. 버튼이 말없이 사라지면 고장처럼 보이므로 이유를 띄운다
+  const abilityBlocked = useMemo(() => {
+    if (!view || !viewer || abilities.length > 0) return null;
+    const me = view.players.find((p) => p.id === viewer);
+    if (!me || me.ghost || me.hp < me.maxHp) return null;
+    const hasSid = anytimeAbilitiesOf(view, viewer).some((ab) => ab.key === SID_KETCHUM_ABILITY);
+    return hasSid ? '능력 · 목숨이 가득 차서 쓸 수 없음' : null;
+  }, [view, viewer, abilities]);
+
   const useAbility = useCallback(
     (key: string, cards: CardId[]) => {
       if (!viewer) return;
@@ -437,6 +450,7 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     respond,
     abilities,
     useAbility,
+    abilityBlocked,
     playAsAbilities,
     armed,
     arm,

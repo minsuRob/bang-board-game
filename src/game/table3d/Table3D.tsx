@@ -231,6 +231,7 @@ export function Table3D({ view, viewer, api, clock }: Table3DProps) {
               playerNameOf={(pid) => view.players.find((p) => p.id === pid)?.name ?? pid}
               abilities={api.abilities}
               onUseAbility={api.useAbility}
+              abilityBlocked={api.abilityBlocked}
               playAs={api.playAsAbilities}
               armed={api.armed}
               onArm={api.arm}
