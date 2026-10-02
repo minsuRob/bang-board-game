@@ -184,7 +184,8 @@ export function respondPeyote(
   const card = drawn.cards[0];
   if (!card) return popFrame(drawn.state);
 
-  const red = RED_SUITS.includes(effectiveSuit(drawn.state, card));
+  const suit = effectiveSuit(drawn.state, card);
+  const red = RED_SUITS.includes(suit);
   const right = (guess === 'red') === red;
   const said = guess === 'red' ? '빨강' : '검정';
   if (right) {
@@ -194,6 +195,7 @@ export function respondPeyote(
       t: 'peyote',
       pid,
       card,
+      reveal: { suit, hit: true },
       text: `피요테: ${ga(nameOf(cur, pid))} ${said}을 맞혀 카드를 가져왔다.`,
     });
   }
@@ -202,6 +204,7 @@ export function respondPeyote(
     t: 'peyote',
     pid,
     card,
+    reveal: { suit, hit: false },
     text: `피요테: ${ga(nameOf(cur, pid))} ${said}을 불렀지만 틀렸다.`,
   });
 }

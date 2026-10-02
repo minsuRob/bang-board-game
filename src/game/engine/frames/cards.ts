@@ -439,6 +439,7 @@ export function resolveBlackJackReveal(
     t: 'blackJack',
     pid: frame.pid,
     card: frame.card,
+    reveal: { suit, hit: bonus },
     text: `${nameOf(cur, frame.pid)}의 두 번째 카드 공개 ${SUIT_GLYPH[suit]} ${bonus ? '— 한 장 더!' : '— 그대로'}`,
   });
   return bonus

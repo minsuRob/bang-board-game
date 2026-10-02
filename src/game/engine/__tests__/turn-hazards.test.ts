@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { legalActions } from '../legal';
+import { judgementHit } from '../frames/judgement';
 import { reduce } from '../reducer';
 import { beginTurn, handCard, logged, p, scenario, totalCards } from './helpers';
 
@@ -344,5 +345,21 @@ describe('승리 판정', () => {
     s = reduce(s, { type: 'endTurn', pid: 'p0' });
     expect(s).toBe(before);
     expect(legalActions(s, 'p0')).toHaveLength(0);
+  });
+});
+
+describe('judgementHit — 판정 조건', () => {
+  it('다이너마이트는 ♠ 2~9 에서만 맞는다', () => {
+    expect(judgementHit('dynamite', 'spades', '2')).toBe(true);
+    expect(judgementHit('dynamite', 'spades', '9')).toBe(true);
+    expect(judgementHit('dynamite', 'spades', '10')).toBe(false);
+    expect(judgementHit('dynamite', 'hearts', '5')).toBe(false);
+  });
+
+  it('돈 벨은 붉은 무늬, 테렌 킬은 ♠ 가 아니면 맞는다', () => {
+    expect(judgementHit('donBell', 'diamonds', 'A')).toBe(true);
+    expect(judgementHit('donBell', 'clubs', 'A')).toBe(false);
+    expect(judgementHit('terenKill', 'clubs', 'A')).toBe(true);
+    expect(judgementHit('terenKill', 'spades', 'A')).toBe(false);
   });
 });

@@ -92,6 +92,7 @@ describe('술통과 주르도네', () => {
     });
     const s = reduce(s0, shoot(s0));
     expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp - 1);
+    expect(s.log.find((e) => e.t === 'judgement')?.reveal).toEqual({ suit: 'spades', hit: false, purpose: 'barrel' });
   });
 
   it('주르도네는 술통 없이도 판정한다', () => {

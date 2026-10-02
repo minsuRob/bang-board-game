@@ -49,6 +49,7 @@ export type {
   GameEvent,
   GameResult,
   GameState,
+  JudgementPurpose,
   PendingInput,
   Phase,
   Player,
