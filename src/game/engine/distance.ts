@@ -12,7 +12,7 @@
  */
 
 import { defOf, inPlay, playerOf } from './cards';
-import { equipmentDisabled, getModifiers } from './hooks';
+import { equipmentDisabled, fixedDistanceOf, getModifiers } from './hooks';
 import type { GameState, Player, PlayerId } from './types';
 
 /** 맨손 사정거리 */
@@ -43,9 +43,13 @@ export function baseDistance(state: GameState, from: PlayerId, to: PlayerId): nu
 export function distance(state: GameState, from: PlayerId, to: PlayerId): number {
   if (from === to) return 0;
 
-  let d = baseDistance(state, from, to);
-  for (const m of getModifiers(state, to)) d += m.distanceAsTarget ?? 0;
-  for (const m of getModifiers(state, from)) d -= m.distanceAsViewer ?? 0;
+  // 매복: 자리와 캐릭터 능력은 무시하고, 앞에 놓인 카드의 보정만 더한다.
+  const fixed = fixedDistanceOf(state);
+  const counts = (m: { from: string }) => fixed === null || m.from === 'equipment';
+
+  let d = fixed ?? baseDistance(state, from, to);
+  for (const m of getModifiers(state, to)) if (counts(m)) d += m.distanceAsTarget ?? 0;
+  for (const m of getModifiers(state, from)) if (counts(m)) d -= m.distanceAsViewer ?? 0;
 
   return Math.max(1, d);
 }

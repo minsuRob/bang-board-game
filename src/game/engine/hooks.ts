@@ -35,6 +35,11 @@ export function equipmentDisabled(state: GameState): boolean {
   return eventModifier(state)?.disablesEquipment === true;
 }
 
+/** 자리 거리 대신 쓰는 고정 거리 (매복). 없으면 null */
+export function fixedDistanceOf(state: GameState): number | null {
+  return eventModifier(state)?.fixedDistance ?? null;
+}
+
 /** 숙취처럼 캐릭터 능력을 통째로 죽이는 효과가 걸려 있는가 */
 export function characterAbilitiesDisabled(state: GameState): boolean {
   return eventModifier(state)?.disablesCharacterAbilities === true;

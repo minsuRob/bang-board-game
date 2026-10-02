@@ -96,6 +96,9 @@ const russianRoulette: Modifier = {
   },
 };
 
+/** 매복 — 두 사람 사이의 거리는 모두 1. 앞에 놓인 카드로만 달라진다 */
+const ambush: Modifier = { id: 'event:ambush', from: 'event', fixedDistance: 1 };
+
 /** 올가미 — 앞에 놓인 카드는 효과가 없다 */
 const lasso: Modifier = { id: 'event:lasso', from: 'event', disablesEquipment: true };
 
@@ -116,7 +119,7 @@ const vendetta: Modifier = {
 
 export const FISTFUL_EVENT_MODIFIERS: Record<FistfulEventId, Modifier> = {
   abandonedMine: ev('abandonedMine'),
-  ambush: ev('ambush'),
+  ambush,
   bloodBrothers,
   deadMan: ev('deadMan'),
   hardLiquor,

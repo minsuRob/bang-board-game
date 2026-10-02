@@ -171,4 +171,9 @@ export type Modifier = {
   resurrectsEliminated?: boolean;
   /** 앞에 놓인 카드(골드 장비 포함)의 효과를 전부 없앤다 (올가미) */
   disablesEquipment?: boolean;
+  /**
+   * 자리 거리 대신 쓰는 고정 거리 (매복 1).
+   * 이때는 앞에 놓인 카드의 보정만 더하고 캐릭터 능력의 거리 보정은 무시한다.
+   */
+  fixedDistance?: number;
 };

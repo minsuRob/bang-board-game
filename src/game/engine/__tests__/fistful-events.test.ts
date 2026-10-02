@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EventCardId } from '../../data/types';
+import { distance } from '../distance';
 import { legalActions } from '../legal';
 import { reduce } from '../reducer';
 import type { GameState, PlayerId } from '../types';
@@ -150,5 +151,27 @@ describe('올가미', () => {
     expect(logged(s, 'judgement')).toBe(false);
     expect(s.turn.phase).toBe('play');
     expect(p(s, 'a').hand).toHaveLength(2);
+  });
+});
+
+describe('매복', () => {
+  it('자리와 상관없이 거리는 1이다', () => {
+    const s = table('ambush')();
+    expect(distance(s, 'a', 'c')).toBe(1);
+  });
+
+  it('앞에 놓인 야생마는 더하고, 캐릭터의 거리 능력은 무시한다', () => {
+    const s = scenario({
+      event: 'ambush',
+      players: [
+        { id: 'a', role: 'sheriff', character: 'roseDoolan' },
+        { id: 'b', equipment: ['mustang'] },
+        { id: 'c', character: 'paulRegret' },
+        { id: 'd' },
+      ],
+    });
+    expect(distance(s, 'a', 'b')).toBe(2);
+    expect(distance(s, 'a', 'c')).toBe(1);
+    expect(distance(s, 'd', 'c')).toBe(1);
   });
 });
