@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>수채 배경 시안</title>
+<!--
+  카드 그림체(연필·잉크 선 + 수채 번짐 + 종이 여백으로 사라지는 가장자리)를 흉내 낸 첫 화면 배경 시안 10가지.
+  ?bg=1 ~ ?bg=10 으로 하나씩, ?aim=1 ~ ?aim=5 로 총 겨누기 변형을 본다. &bare=1 을 붙이면 배경만 나온다.
+  그림은 전부 캔버스에 절차적으로 그린다 (사진·외부 이미지 없음).
+-->
+<link href="https://fonts.googleapis.com/css2?family=Rye&family=Black+Han+Sans&family=Gowun+Batang:wght@400;700&family=Special+Elite&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #f3ead6; font-family: 'Gowun Batang', serif; }
+  .stage { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .ui { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+  h1 { font-family: 'Rye', serif; font-weight: 400; font-size: 100px; line-height: 1; color: #2b1d10; letter-spacing: 3px;
+       text-shadow: 0 0 18px rgba(246,239,224,.95), 0 0 40px rgba(246,239,224,.8); }
+  h1 span { color: #a8261b; }
+  .sub { font-size: 15px; font-weight: 700; color: #3a2a1a; margin-top: -8px; text-shadow: 0 0 8px #f6efe0, 0 0 14px #f6efe0; }
+  .hand { display: flex; align-items: center; margin-top: 8px; }
+  .card { width: 150px; height: 228px; margin: 0 -10px; border-radius: 12px; padding: 7px; background: #c9a25a; box-shadow: 0 12px 24px rgba(40,25,10,.4); border: 2px solid rgba(255,255,255,.3); }
+  .card.p { background: #8b5a2b; }
+  .face { height: 100%; border-radius: 7px; background: #fbf6ea; color: #2b1d10; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+  .t { font-family: 'Black Han Sans'; font-size: 19px; text-align: center; padding: 7px 4px 4px; }
+  .p .t { color: #b3261e; font-size: 21px; }
+  .art { flex: 1; margin: 0 7px; background-size: 140%; background-position: 50% 40%; }
+  .d { font-size: 10.5px; text-align: center; padding: 6px 6px 18px; color: #5a4128; }
+  .c { position: absolute; left: 7px; bottom: 4px; font-family: 'Special Elite'; font-size: 13px; }
+  .tag { position: absolute; left: 18px; top: 14px; font: 700 14px 'Gowun Batang'; color: #f6efe0; background: rgba(43,29,16,.75); padding: 6px 12px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<section class="stage">
+  <canvas id="c" width="1600" height="1000"></canvas>
+  <div class="ui">
+    <h1>BANG<span>!</span></h1>
+    <p class="sub">보안관과 무법자, 그리고 숨어 있는 배신자</p>
+    <div class="hand">
+      <div class="card" style="transform:rotate(-12deg) translateY(16px)"><div class="face"><div class="t">방 만들기</div><div class="art" style="background-image:url(../../assets/cards/card/saloon.png)"></div><div class="d">코드를 친구에게<br>알려 주면 들어온다</div><span class="c" style="color:#b3261e">K♥</span></div></div>
+      <div class="card p" style="transform:rotate(-4deg) translateY(-6px);z-index:2"><div class="face"><div class="t">AI와 대전</div><div class="art" style="background-image:url(../../assets/cards/card/bang.png)"></div><div class="d">4~7인 · 난이도 상중하<br>하이 눈 확장</div><span class="c">A♠</span></div></div>
+      <div class="card" style="transform:rotate(6deg)"><div class="face"><div class="t">카드 도감</div><div class="art" style="background-image:url(../../assets/cards/character/bartCassidy.png);background-size:170%;background-position:50% 22%"></div><div class="d">카드 52 · 캐릭터 42<br>이벤트 40 · 규칙 메모</div><span class="c" style="color:#b3261e">Q♦</span></div></div>
+      <div class="card" style="transform:rotate(14deg) translateY(20px)"><div class="face"><div class="t">연출 화질</div><div class="art"></div><div class="d">총격을 Skia 로 세밀하게</div><span class="c">J♣</span></div></div>
+    </div>
+  </div>
+  <span class="tag" id="tag"></span>
+</section>
+<script>
+const W = 1600, H = 1000;
+const PAPER = '#f6efe0';
+const INK = 'rgba(48,32,20,';
+
+let seed = 1;
+function rand() { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
+const rr = (a, b) => a + (b - a) * rand();
+const gauss = () => (rand() + rand() + rand() - 1.5) / 1.5;
+
+// ---- 도형 ----
+const rect = (x, y, w, h) => [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+const ell = (cx, cy, rx, ry, n = 28) => Array.from({ length: n }, (_, i) => [cx + Math.cos(i / n * Math.PI * 2) * rx, cy + Math.sin(i / n * Math.PI * 2) * ry]);
+
+// 다각형 변을 반씩 쪼개며 흔든다. 수채 번짐의 바탕
+function deform(pts, depth, v) {
+  let p = pts;
+  for (let d = 0; d < depth; d++) {
+    const out = [];
+    for (let i = 0; i < p.length; i++) {
+      const a = p[i], b = p[(i + 1) % p.length];
+      out.push(a);
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      out.push([(a[0] + b[0]) / 2 + gauss() * v * Math.min(1, len / 60), (a[1] + b[1]) / 2 + gauss() * v * Math.min(1, len / 60)]);
+    }
+    p = out; v *= 0.62;
+  }
+  return p;
+}
+function fillPoly(ctx, pts) { ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.fill(); }
+
+// 안료 알갱이용 잡음. 알파만 있는 텍스처로, 칠한 자리를 고르지 않게 덜어 낸다
+let GRAIN = null;
+function grain() {
+  if (GRAIN) return GRAIN;
+  GRAIN = document.createElement('canvas'); GRAIN.width = W; GRAIN.height = H; const g = GRAIN.getContext('2d');
+  [[4, 0.5], [16, 0.35], [64, 0.35], [220, 0.3]].forEach(([sc, a]) => {
+    const t = document.createElement('canvas'); t.width = Math.ceil(W / sc); t.height = Math.ceil(H / sc); const tc = t.getContext('2d');
+    const img = tc.createImageData(t.width, t.height);
+    for (let i = 0; i < img.data.length; i += 4) { img.data[i + 3] = rand() * 255; }
+    tc.putImageData(img, 0, 0); g.globalAlpha = a; g.imageSmoothingEnabled = true; g.drawImage(t, 0, 0, W, H);
+  });
+  return GRAIN;
+}
+function bbox(pts, pad) { const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]); const x = Math.floor(Math.min(...xs) - pad), y = Math.floor(Math.min(...ys) - pad); return [x, y, Math.ceil(Math.max(...xs) + pad) - x, Math.ceil(Math.max(...ys) + pad) - y]; }
+
+// 수채 한 겹: 흔든 다각형을 옅게 여러 번 겹치고, 알갱이로 덜어 내고, 마른 붓 자국처럼 군데군데 비우고,
+// 물이 마르며 생기는 진한 가장자리를 한 번 더 긋는다
+function wash(ctx, pts, color, { layers = 18, alpha = 0.06, spread = 10, dry = 0.8, edge = 0.45, granule = 0.32 } = {}) {
+  const base = deform(pts, 2, spread);
+  const [bx, by, bw, bh] = bbox(base, spread * 3 + 10);
+  if (bw <= 0 || bh <= 0) return;
+  const t = document.createElement('canvas'); t.width = bw; t.height = bh; const g = t.getContext('2d');
+  g.translate(-bx, -by); g.fillStyle = color;
+  let last = base;
+  for (let i = 0; i < layers; i++) { g.globalAlpha = Math.min(1, alpha * 1.6 * rr(0.6, 1.5)); last = deform(base, 3, spread * 0.75); fillPoly(g, last); }
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalCompositeOperation = 'destination-out';
+  g.globalAlpha = granule; g.drawImage(grain(), bx, by, bw, bh, 0, 0, bw, bh);
+  const n = Math.round(dry * Math.min(14, (bw * bh) / 30000));
+  for (let i = 0; i < n; i++) {
+    const x = rr(0, bw), y = rr(0, bh), r = rr(8, Math.max(12, Math.min(bw, bh) * 0.18));
+    const rg = g.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, 'rgba(0,0,0,.55)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalAlpha = 1; g.fillStyle = rg; g.beginPath(); g.ellipse(x, y, r * rr(1, 2.4), r, rr(-0.3, 0.3), 0, 6.3); g.fill();
+  }
+  g.globalCompositeOperation = 'source-over'; g.translate(-bx, -by);
+  g.strokeStyle = color; g.globalAlpha = edge; g.lineWidth = rr(1, 2.2); g.beginPath(); last.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.stroke();
+  ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.drawImage(t, bx, by); ctx.restore();
+}
+// 종이색으로 덧칠해 하늘에 구름 자리를 비운다
+function lift(ctx, pts, { layers = 10, alpha = 0.12, spread = 30 } = {}) {
+  ctx.save(); ctx.fillStyle = PAPER;
+  const base = deform(pts, 2, spread);
+  for (let i = 0; i < layers; i++) { ctx.globalAlpha = alpha; fillPoly(ctx, deform(base, 3, spread * 0.6)); }
+  ctx.restore();
+}
+
+// 잉크/연필 선: 6px 마다 점을 다시 찍고 살짝 떨게 한다. 두어 번 겹쳐 긋고, 모서리마다 선이 조금씩 삐져나간다
+function stroke1(ctx, x0, y0, x1, y1, w, a, jit, over) {
+  const len = Math.hypot(x1 - x0, y1 - y0) || 1, ux = (x1 - x0) / len, uy = (y1 - y0) / len;
+  const s0 = over * rr(0.2, 1), s1 = over * rr(0.2, 1);
+  x0 -= ux * s0; y0 -= uy * s0; x1 += ux * s1; y1 += uy * s1;
+  const n = Math.max(1, Math.round((len + s0 + s1) / 6));
+  ctx.strokeStyle = INK + a + ')'; ctx.lineWidth = w; ctx.beginPath();
+  for (let k = 0; k <= n; k++) { const f = k / n, taper = Math.sin(f * Math.PI); const x = x0 + (x1 - x0) * f + gauss() * jit, y = y0 + (y1 - y0) * f + gauss() * jit; k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+  ctx.stroke();
+}
+function ink(ctx, pts, { w = 1.8, a = 0.9, closed = false, passes = 2, jit = 1.1, over = 10 } = {}) {
+  const seq = closed ? [...pts, pts[0]] : pts;
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  // 많이 쪼갠 도형(타원 등)은 이어서 긋고, 모서리 있는 도형은 변마다 따로 그어 삐침을 남긴다
+  const smooth = pts.length > 12;
+  for (let p = 0; p < passes; p++) {
+    const ww = w * (p ? rr(0.4, 0.7) : 1), aa = a * (p ? 0.5 : 1), off = p ? 1.2 : 0;
+    if (smooth) {
+      ctx.strokeStyle = INK + aa + ')'; ctx.lineWidth = ww; ctx.beginPath();
+      seq.forEach(([x, y], i) => { const px = x + gauss() * (jit + off), py = y + gauss() * (jit + off); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+      ctx.stroke();
+    } else {
+      for (let i = 0; i < seq.length - 1; i++) stroke1(ctx, seq[i][0] + gauss() * off, seq[i][1] + gauss() * off, seq[i + 1][0] + gauss() * off, seq[i + 1][1] + gauss() * off, ww, aa, jit, p ? over * 0.6 : over);
+    }
+  }
+  ctx.restore();
+}
+const line = (ctx, x0, y0, x1, y1, o) => ink(ctx, [[x0, y0], [x1, y1]], o);
+
+// 빗금: 다각형 안을 일정 각도로 긋는다. 선마다 길이·떨림이 조금씩 다르다
+function hatch(ctx, pts, { angle = -0.9, gap = 7, w = 0.8, a = 0.45 } = {}) {
+  ctx.save(); ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.clip();
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const R = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  const dx = Math.cos(angle), dy = Math.sin(angle), nx = -dy, ny = dx;
+  for (let o = -R / 2; o < R / 2; o += gap * rr(0.8, 1.25)) {
+    const s = rr(-0.1, 0.1) * R, e = rr(-0.1, 0.1) * R;
+    line(ctx, cx + nx * o - dx * (R / 2 + s), cy + ny * o - dy * (R / 2 + s), cx + nx * o + dx * (R / 2 + e), cy + ny * o + dy * (R / 2 + e), { w, a, passes: 1, jit: 0.6 });
+  }
+  ctx.restore();
+}
+
+// ---- 종이와 가장자리 ----
+function paper(ctx) {
+  ctx.fillStyle = PAPER; ctx.fillRect(0, 0, W, H);
+  const img = ctx.getImageData(0, 0, W, H), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const n = (rand() - 0.5) * 10; d[i] += n; d[i + 1] += n; d[i + 2] += n * 0.8; }
+  ctx.putImageData(img, 0, 0);
+  ctx.save(); ctx.globalAlpha = 0.05; ctx.strokeStyle = '#8a7050';
+  for (let i = 0; i < 500; i++) { const x = rand() * W, y = rand() * H, a = rand() * 6.28, l = rr(4, 16); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke(); }
+  ctx.restore();
+}
+// 그림을 종이 여백으로 흩어지게 지운다. 카드 그림처럼 네모 틀 없이 끝이 붓으로 사라진다
+function vignetteMask(scene, { inset = 60, spread = 110 } = {}) {
+  const m = document.createElement('canvas'); m.width = W; m.height = H; const g = m.getContext('2d');
+  g.fillStyle = '#000';
+  for (let i = 0; i < 30; i++) { g.globalAlpha = 0.12; fillPoly(g, deform(rect(inset + rr(-20, 40), inset + rr(-20, 40), W - inset * 2 - rr(-20, 60), H - inset * 2 - rr(-20, 60)), 6, spread)); }
+  // 가장자리에 붓을 끌고 나간 자국
+  g.globalAlpha = 0.5;
+  for (let i = 0; i < 40; i++) { const side = Math.floor(rr(0, 4)); const t = rr(0.05, 0.95); const x = side < 2 ? t * W : side === 2 ? inset : W - inset; const y = side < 2 ? (side ? H - inset : inset) : t * H;
+    g.beginPath(); g.ellipse(x, y, rr(30, 120), rr(10, 30), side < 2 ? rr(-0.2, 0.2) : Math.PI / 2 + rr(-0.2, 0.2), 0, 6.3); g.fill(); }
+  g.globalCompositeOperation = 'destination-out'; g.globalAlpha = 0.5; g.drawImage(grain(), 0, 0); g.globalCompositeOperation = 'source-over';
+  const s = scene.getContext('2d'); s.save(); s.globalCompositeOperation = 'destination-in'; s.drawImage(m, 0, 0); s.restore();
+}
+
+// ---- 소품 ----
+function cowboy(ctx, x, y, s, { color = '#7a5030', dark = '#3a2618' } = {}) {
+  // y 는 발끝. s=1 이면 키 약 110px
+  const P = (pts) => pts.map(([a, b]) => [x + a * s, y + b * s]);
+  const body = P([[-14, -78], [14, -78], [18, -40], [12, -38], [10, 0], [2, 0], [0, -34], [-2, 0], [-10, 0], [-12, -38], [-18, -40]]);
+  wash(ctx, body, color, { layers: 10, alpha: 0.12, spread: 2 * s });
+  wash(ctx, P([[-6, -40], [6, -40], [8, 0], [-8, 0]]), dark, { layers: 6, alpha: 0.1, spread: 1.5 * s });
+  ink(ctx, body, { closed: true, w: 1.2, jit: 0.5 * s });
+  hatch(ctx, P([[-14, -78], [-4, -78], [-4, -40], [-12, -38], [-18, -40]]), { gap: 4 * Math.max(1, s / 2), a: 0.3, w: 0.7 });
+  ink(ctx, P([[-6, -78], [0, -62], [6, -78]]), { w: 1, a: 0.8 }); ink(ctx, P([[0, -62], [0, -44]]), { w: 0.8, a: 0.6, passes: 1 });
+  ink(ctx, P([[-15, -46], [15, -46]]), { w: 1.6 });
+  const brim = P(ell(0, -92, 24, 5, 16)); wash(ctx, brim, dark, { layers: 8, alpha: 0.14, spread: 1 }); ink(ctx, brim, { closed: true, w: 1.1, jit: 0.4 });
+  const crown = P([[-11, -93], [-9, -106], [0, -103], [9, -106], [11, -93]]); wash(ctx, crown, dark, { layers: 8, alpha: 0.14, spread: 1 }); ink(ctx, crown, { w: 1.1, jit: 0.4 });
+  const head = P(ell(0, -84, 7, 8, 12)); wash(ctx, head, '#c88a5a', { layers: 5, alpha: 0.12, spread: 1 });
+  ink(ctx, P([[18, -40], [22, -24]]), { w: 1.4 }); ink(ctx, P([[-18, -40], [-22, -24]]), { w: 1.4 });
+  wash(ctx, P([[13, -36], [19, -36], [19, -22], [13, -22]]), '#2a1a10', { layers: 6, alpha: 0.18, spread: 1 }); // 권총집
+}
+function horseRider(ctx, x, y, s, color = '#5a3a24') {
+  // y 는 발굽 선. 걷는 말에 탄 사람 (실루엣 위주로 옅게)
+  const P = (pts) => pts.map(([a, b]) => [x + a * s, y + b * s]);
+  const body = P([[-60, -62], [-30, -72], [20, -70], [44, -78], [58, -104], [72, -108], [80, -96], [70, -92], [60, -70], [52, -52], [40, -46], [-40, -46], [-58, -48]]);
+  wash(ctx, body, color, { layers: 12, alpha: 0.11, spread: 3 * s });
+  ink(ctx, body, { closed: true, w: 1.3, jit: 0.7 });
+  [[-48, -48, -54, 0], [-36, -46, -30, 0], [32, -46, 26, 0], [44, -50, 54, -2]].forEach(([a, b, c, d]) => { ink(ctx, P([[a, b], [(a + c) / 2 + 3, (b + d) / 2], [c, d]]), { w: 4 * s, a: 0.75, jit: 0.5 }); });
+  ink(ctx, P([[-60, -62], [-74, -40], [-70, -20]]), { w: 3 * s, a: 0.6 });
+  cowboy(ctx, x - 6 * s, y - 50 * s, s * 0.8, { color: '#8a6040' });
+}
+function wagon(ctx, x, y, s) {
+  const P = (pts) => pts.map(([a, b]) => [x + a * s, y + b * s]);
+  const cover = P([[-90, -60], [-96, -120], [-60, -150], [40, -150], [80, -122], [74, -60]]);
+  wash(ctx, cover, '#d8ccb0', { layers: 8, alpha: 0.12, spread: 4 }); ink(ctx, cover, { closed: true, w: 1.4 });
+  [-60, -25, 10, 45].forEach((a) => ink(ctx, P([[a, -150], [a - 4, -62]]), { w: 0.8, a: 0.5 }));
+  const box = P([[-100, -60], [86, -60], [80, -30], [-96, -30]]); wash(ctx, box, '#7a4a2a', { layers: 10, alpha: 0.12, spread: 2 }); ink(ctx, box, { closed: true, w: 1.4 });
+  [[-70, -18, 26], [50, -18, 26]].forEach(([cx, cy, r]) => { const c = P(ell(cx, cy, r, r, 24)); ink(ctx, c, { closed: true, w: 1.6 }); for (let k = 0; k < 8; k++) { const t = k / 8 * Math.PI; ink(ctx, P([[cx - Math.cos(t) * r, cy - Math.sin(t) * r], [cx + Math.cos(t) * r, cy + Math.sin(t) * r]]), { w: 0.8, a: 0.6, passes: 1 }); } });
+}
+function building(ctx, x, base, w, h, { color = '#a87448', sign = '', front = 30, porch = true, dark = false } = {}) {
+  const top = base - h;
+  const face = [[x, base], [x, top + front], [x + w * 0.12, top + front], [x + w * 0.12, top], [x + w * 0.88, top], [x + w * 0.88, top + front], [x + w, top + front], [x + w, base]];
+  wash(ctx, face, color, { layers: 14, alpha: 0.08, spread: 3 });
+  if (dark) wash(ctx, face, '#3a2418', { layers: 8, alpha: 0.08, spread: 3 });
+  for (let px = x + 14; px < x + w - 4; px += rr(14, 20)) line(ctx, px, top + (px > x + w * 0.12 && px < x + w * 0.88 ? 6 : front + 4), px + rr(-1, 1), base - 4, { w: 0.6, a: 0.35, passes: 1 });
+  ink(ctx, face, { closed: true, w: 1.6 });
+  if (sign) {
+    const sb = rect(x + w * 0.2, top + 10, w * 0.6, front - 2); wash(ctx, sb, '#e8d8b0', { layers: 6, alpha: 0.12, spread: 1 }); ink(ctx, sb, { closed: true, w: 1.1 });
+    ctx.save(); ctx.font = `${Math.round(front * 0.62)}px Rye, serif`; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(80,40,24,.85)'; ctx.fillText(sign, x + w / 2, top + 10 + front * 0.72); ctx.restore();
+  }
+  const winY = top + front + (h - front) * 0.18, winH = (h - front) * 0.28;
+  [[0.2, 0.18], [0.62, 0.18]].forEach(([fx, fw]) => { const r = rect(x + w * fx, winY, w * fw, winH); wash(ctx, r, '#3a3040', { layers: 8, alpha: 0.1, spread: 1.5 }); ink(ctx, r, { closed: true, w: 1 }); line(ctx, x + w * (fx + fw / 2), winY, x + w * (fx + fw / 2), winY + winH, { w: 0.8, passes: 1 }); });
+  if (porch) {
+    const py = base - (h - front) * 0.38; ink(ctx, [[x - 10, py], [x + w + 10, py + 2]], { w: 2 });
+    [x, x + w * 0.5, x + w].forEach((px) => line(ctx, px, py, px + rr(-1, 1), base, { w: 1.6 }));
+    const door = rect(x + w * 0.42, py + 8, w * 0.16, base - py - 8); wash(ctx, door, '#5a3420', { layers: 8, alpha: 0.12, spread: 1 }); ink(ctx, door, { closed: true, w: 1 });
+  }
+}
+function sky(ctx, top, bottom, color, { clouds = 5, cy = 0.4 } = {}) {
+  wash(ctx, rect(-40, top, W + 80, bottom - top), color, { layers: 16, alpha: 0.055, spread: 40 });
+  for (let i = 0; i < clouds; i++) {
+    const cx = rr(0, W), y = top + (bottom - top) * rr(0.1, cy + 0.3), rx = rr(120, 280), ry = rr(30, 60);
+    lift(ctx, ell(cx, y, rx, ry, 18), { layers: 10, alpha: 0.14, spread: 26 });
+    ink(ctx, ell(cx, y, rx * 0.9, ry * 0.8, 18).filter((p) => p[1] < y + ry * 0.2), { w: 0.7, a: 0.25, passes: 1, jit: 2 });
+  }
+}
+function ground(ctx, y, color, { hatchA = 0.25 } = {}) {
+  const g = rect(-40, y, W + 80, H - y + 40); wash(ctx, g, color, { layers: 16, alpha: 0.06, spread: 20 });
+  for (let i = 0; i < 70; i++) { const x = rand() * W, yy = y + Math.pow(rand(), 1.6) * (H - y), l = 8 + (yy - y) * 0.08; line(ctx, x, yy, x + l, yy + rr(-1, 1), { w: 0.7, a: hatchA, passes: 1 }); }
+}
+function butte(ctx, cx, base, w, h, top, color) {
+  const pts = [[cx - w / 2, base], [cx - top / 2 - 30, base - h * 0.3], [cx - top / 2, base - h * 0.35], [cx - top / 2 + 6, base - h], [cx + top / 2 - 4, base - h], [cx + top / 2 + 4, base - h * 0.35], [cx + top / 2 + 34, base - h * 0.28], [cx + w / 2, base]];
+  wash(ctx, pts, color, { layers: 16, alpha: 0.07, spread: 6 });
+  const shade = [[cx + top / 2 - 4, base - h], [cx + top / 2 + 4, base - h * 0.35], [cx + top / 2 + 34, base - h * 0.28], [cx + w / 2, base], [cx + top * 0.15, base], [cx + top * 0.2, base - h * 0.9]];
+  wash(ctx, shade, '#6a3020', { layers: 10, alpha: 0.06, spread: 4 });
+  hatch(ctx, shade, { angle: -1.2, gap: 6, a: 0.35 });
+  ink(ctx, pts.slice(0, -0), { w: 1.4 });
+  for (let k = 0; k < 6; k++) { const yy = base - h * rr(0.4, 0.95); line(ctx, cx - top / 2 + rr(4, 20), yy, cx + rr(-20, top / 2 - 10), yy + rr(-2, 2), { w: 0.6, a: 0.3, passes: 1 }); }
+}
+function sun(ctx, x, y, r, color = '#f2b040') { wash(ctx, ell(x, y, r, r, 30), color, { layers: 14, alpha: 0.07, spread: 6 }); ink(ctx, ell(x, y, r, r, 30), { closed: true, w: 0.8, a: 0.4, passes: 1 }); }
+function cactus(ctx, x, base, h, flip = 1) {
+  const w = h * 0.13, P = (pts) => pts.map(([a, b]) => [x + a * flip, base - b]);
+  const trunk = P([[-w / 2, 0], [-w / 2, h - w / 2], [0, h], [w / 2, h - w / 2], [w / 2, 0]]);
+  const arm = P([[w / 2, h * 0.42], [w * 1.6, h * 0.42], [w * 1.9, h * 0.5], [w * 1.9, h * 0.75], [w * 1.4, h * 0.78], [w * 1.2, h * 0.75], [w * 1.2, h * 0.55], [w / 2, h * 0.55]]);
+  [trunk, arm].forEach((p) => { wash(ctx, p, '#5a7040', { layers: 10, alpha: 0.11, spread: 1.5 }); ink(ctx, p, { closed: true, w: 1.3 }); });
+  for (let k = -1; k <= 1; k++) line(ctx, x + k * w * 0.2 * flip, base - 4, x + k * w * 0.2 * flip, base - h + w, { w: 0.5, a: 0.35, passes: 1 });
+}
+function cross(ctx, x, base, h, lean = 0) {
+  const t = lean; const post = [[x - 4, base], [x - 4 + t, base - h], [x + 4 + t, base - h], [x + 4, base]];
+  const bar = [[x - h * 0.28 + t * 0.7, base - h * 0.72], [x + h * 0.28 + t * 0.7, base - h * 0.74], [x + h * 0.28 + t * 0.7, base - h * 0.64], [x - h * 0.28 + t * 0.7, base - h * 0.62]];
+  [post, bar].forEach((p) => { wash(ctx, p, '#6a4a30', { layers: 8, alpha: 0.13, spread: 1 }); ink(ctx, p, { closed: true, w: 1.1 }); });
+}
+function bird(ctx, x, y, s) { ink(ctx, [[x - 14 * s, y - 4 * s], [x - 6 * s, y - 6 * s], [x, y], [x + 6 * s, y - 6 * s], [x + 14 * s, y - 4 * s]], { w: 1.4, a: 0.7, passes: 1 }); }
+
+
+// ---- 총 겨누기 ----
+// 권총: 총구가 +x 쪽. (0,0) 이 방아쇠 근처. 길이 약 60
+function revolver(ctx, x, y, s, angle, flip = 1, { flash = false, smoke = false } = {}) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.scale(s * flip, s);
+  const metal = '#5a5a62';
+  const grip = [[-14, 4], [-4, 5], [-8, 16], [-12, 26], [-22, 27], [-24, 20], [-20, 10]];
+  wash(ctx, grip, '#7a4a2a', { layers: 8, alpha: 0.14, spread: 0.8, dry: 0 }); ink(ctx, grip, { closed: true, w: 0.9 / s * 2, over: 0.6, jit: 0.3 });
+  const frame = [[-16, -6], [4, -6], [4, 6], [-2, 7], [-4, 4], [-14, 5]];
+  wash(ctx, frame, metal, { layers: 8, alpha: 0.14, spread: 0.6, dry: 0 }); ink(ctx, frame, { closed: true, w: 0.9 / s * 2, over: 0.6, jit: 0.3 });
+  const cyl = ell(-6, 0, 7, 5.5, 14); wash(ctx, cyl, '#3a3a42', { layers: 8, alpha: 0.16, spread: 0.5, dry: 0 }); ink(ctx, cyl, { closed: true, w: 0.8 / s * 2, jit: 0.3 });
+  [-2, 2].forEach((d) => ink(ctx, [[-12, d], [0, d]], { w: 0.5 / s * 2, a: 0.6, passes: 1, over: 0, jit: 0.2 }));
+  const barrel = [[4, -5], [40, -5], [40, 0], [4, 1]];
+  wash(ctx, barrel, metal, { layers: 8, alpha: 0.14, spread: 0.5, dry: 0 }); ink(ctx, barrel, { closed: true, w: 0.9 / s * 2, over: 0.8, jit: 0.3 });
+  ink(ctx, [[6, -1.5], [38, -1.5]], { w: 0.5 / s * 2, a: 0.5, passes: 1, over: 0, jit: 0.2 });
+  ink(ctx, [[37, -5], [38, -8]], { w: 0.8 / s * 2, passes: 1, over: 0 });
+  ink(ctx, [[-16, -6], [-20, -10], [-15, -8]], { w: 0.9 / s * 2, passes: 1, over: 0 }); // 공이치기
+  ink(ctx, [[-4, 6], [-6, 12], [0, 12], [1, 7]], { w: 0.8 / s * 2, passes: 1, over: 0 }); // 방아쇠울
+  if (flash) {
+    const st = Array.from({ length: 14 }, (_, i) => { const r = i % 2 ? rr(4, 6) : rr(10, 18), t = i / 14 * Math.PI * 2; return [44 + r * Math.cos(t) * 1.4, -2.5 + r * Math.sin(t)]; });
+    wash(ctx, st, '#f2b030', { layers: 8, alpha: 0.16, spread: 1, dry: 0, granule: 0.1 }); wash(ctx, ell(44, -2.5, 8, 5, 10), '#e8601c', { layers: 6, alpha: 0.18, spread: 0.6, dry: 0 });
+    ink(ctx, st, { closed: true, w: 0.7 / s * 2, a: 0.7, over: 0.5, jit: 0.3 });
+  }
+  if (smoke) for (let i = 0; i < 6; i++) { const cx = 50 + i * 12, cy = -6 - i * 5 + rr(-3, 3), r = 6 + i * 3; wash(ctx, ell(cx, cy, r * 1.3, r, 14), '#a8a4a0', { layers: 6, alpha: 0.06, spread: 2 }); ink(ctx, ell(cx, cy, r * 1.3, r, 14).filter((p) => p[1] < cy), { w: 0.5 / s * 2, a: 0.35, passes: 1 }); }
+  ctx.restore();
+}
+
+// 옆모습으로 팔을 쭉 뻗어 겨누는 사람. dir=1 이면 오른쪽을 본다. y 는 발끝, s=1 이면 키 약 110
+function aimingCowboy(ctx, x, y, s, dir = 1, { color = '#8a5434', dark = '#3a2214', flash = false, smoke = false, coat = '#6a4a34' } = {}) {
+  const P = (pts) => pts.map(([a, b]) => [x + a * s * dir, y + b * s]);
+  // 다리: 어깨너비로 벌리고 선다
+  const legB = P([[-6, -50], [2, -50], [-14, 0], [-22, 0]]), legF = P([[0, -50], [8, -50], [20, 0], [12, 0]]);
+  [legB, legF].forEach((l) => { wash(ctx, l, dark, { layers: 10, alpha: 0.12, spread: 1.2 * s }); ink(ctx, l, { closed: true, w: 1.4, over: 4 }); });
+  [[-26, -12], [10, 22]].forEach(([a, b]) => { const boot = P([[a, -6], [b, -6], [b + 2, 0], [a, 0]]); wash(ctx, boot, '#2a1a10', { layers: 8, alpha: 0.16, spread: 1 }); ink(ctx, boot, { closed: true, w: 1.2, over: 3 }); });
+  // 외투: 허리 아래로 자락이 벌어진다
+  const body = P([[-10, -84], [10, -82], [14, -52], [18, -36], [-16, -34], [-12, -52]]);
+  wash(ctx, body, coat, { layers: 14, alpha: 0.1, spread: 1.4 * s }); hatch(ctx, P([[-10, -84], [-2, -84], [-6, -36], [-16, -34], [-12, -52]]), { gap: 5, a: 0.35, angle: dir > 0 ? -1.1 : -2.0 }); ink(ctx, body, { closed: true, w: 1.6, over: 6 });
+  const belt = P([[-13, -54], [14, -54], [14, -49], [-13, -49]]); wash(ctx, belt, '#3a2214', { layers: 6, alpha: 0.16, spread: 0.6 }); ink(ctx, belt, { closed: true, w: 1 });
+  const holster = P([[-14, -52], [-6, -52], [-6, -34], [-12, -32]]); wash(ctx, holster, '#4a2a16', { layers: 6, alpha: 0.18, spread: 0.6 }); ink(ctx, holster, { closed: true, w: 1 });
+  // 머리와 모자
+  const head = P(ell(3, -92, 6.5, 8, 14)); wash(ctx, head, '#c88a5a', { layers: 6, alpha: 0.14, spread: 0.6 }); ink(ctx, head, { closed: true, w: 1.1 });
+  const kerchief = P([[-4, -86], [9, -85], [6, -80], [-2, -80]]); wash(ctx, kerchief, '#a8261b', { layers: 6, alpha: 0.18, spread: 0.6 }); ink(ctx, kerchief, { closed: true, w: 0.9 });
+  const brim = P(ell(4, -99, 17, 3.2, 18)); wash(ctx, brim, dark, { layers: 8, alpha: 0.16, spread: 0.6 }); ink(ctx, brim, { closed: true, w: 1.2 });
+  const crown = P([[-7, -100], [-6, -111], [4, -109], [12, -111], [13, -100]]); wash(ctx, crown, dark, { layers: 8, alpha: 0.16, spread: 0.6 }); ink(ctx, crown, { w: 1.2, over: 3 });
+  // 겨누는 팔: 어깨에서 눈높이로 곧게
+  const arm = P([[2, -84], [8, -86], [46, -86], [46, -80], [8, -78], [0, -76]]);
+  wash(ctx, arm, coat, { layers: 10, alpha: 0.12, spread: 0.8 * s }); ink(ctx, arm, { closed: true, w: 1.4, over: 5 });
+  const fist = P(ell(49, -83, 5, 4.5, 12)); wash(ctx, fist, '#c88a5a', { layers: 6, alpha: 0.16, spread: 0.5 }); ink(ctx, fist, { closed: true, w: 1 });
+  revolver(ctx, x + 50 * s * dir, y - 86 * s, s * 0.55, 0, dir, { flash, smoke });
+  // 다른 팔은 허리춤
+  const arm2 = P([[-8, -80], [-14, -66], [-8, -54], [-4, -56], [-8, -66], [-2, -78]]); wash(ctx, arm2, coat, { layers: 8, alpha: 0.12, spread: 0.6 }); ink(ctx, arm2, { closed: true, w: 1.2, over: 3 });
+}
+
+// 이쪽을 똑바로 겨누는 정면 모습. 총구가 동그랗게 보인다
+function frontAim(ctx, x, y, s) {
+  cowboy(ctx, x, y, s, { color: '#6a4a34', dark: '#3a2214' });
+  const P = (pts) => pts.map(([a, b]) => [x + a * s, y + b * s]);
+  // 앞으로 뻗은 팔은 짧게 줄어 보이고, 손과 총이 크게 다가온다
+  const arm = P([[8, -76], [18, -78], [16, -64], [4, -62]]); wash(ctx, arm, '#6a4a34', { layers: 8, alpha: 0.14, spread: 0.6 }); ink(ctx, arm, { closed: true, w: 1.2 });
+  const fist = P(ell(6, -64, 9, 7, 14)); wash(ctx, fist, '#c88a5a', { layers: 8, alpha: 0.16, spread: 0.4 }); ink(ctx, fist, { closed: true, w: 1.2 });
+  const frame = P([[-4, -80], [16, -80], [16, -66], [-4, -66]]); wash(ctx, frame, '#4a4a52', { layers: 8, alpha: 0.18, spread: 0.3 }); ink(ctx, frame, { closed: true, w: 1.2, over: 3 });
+  const cyl = P(ell(6, -73, 11, 7, 16)); wash(ctx, cyl, '#3a3a42', { layers: 6, alpha: 0.16, spread: 0.3 }); ink(ctx, cyl, { closed: true, w: 1 });
+  const muzzle = P(ell(6, -76, 4.5, 4.5, 14)); wash(ctx, muzzle, '#111114', { layers: 10, alpha: 0.3, spread: 0.2, dry: 0, granule: 0.05 }); ink(ctx, muzzle, { closed: true, w: 1.4 });
+  ink(ctx, P(ell(6, -76, 6.5, 6.5, 16)), { closed: true, w: 1.1 });
+  ink(ctx, P([[6, -83], [6, -86]]), { w: 1.2, passes: 1, over: 0 });
+}
+
+// 정오의 큰길 바탕. 사람은 장면마다 따로 세운다
+function street(c, { sunny = true } = {}) {
+  sky(c, 0, 560, '#a8c4d8', { clouds: 4 });
+  building(c, -20, 640, 260, 360, { sign: 'BANK', color: '#b08458' }); building(c, 250, 620, 190, 290, { color: '#9a6a44' });
+  building(c, 1160, 620, 200, 300, { sign: 'HOTEL', color: '#a87448' }); building(c, 1350, 650, 280, 380, { sign: 'SALOON', color: '#b87c4c' });
+  ground(c, 600, '#d8b080');
+  for (let i = 0; i < 4; i++) wash(c, ell(800 + rr(-300, 300), 700 + rr(-20, 40), rr(80, 160), 12, 14), '#c09060', { layers: 6, alpha: 0.05, spread: 8 });
+}
+const shadow = (c, x, y, w) => wash(c, ell(x, y, w, w * 0.12, 18), '#6a4a30', { layers: 8, alpha: 0.06, spread: 6 });
+
+const AIMS = [
+  ['1 · 마주 겨눔', (c) => {
+    street(c);
+    shadow(c, 170, 930, 150); aimingCowboy(c, 170, 930, 3.3, 1, { coat: '#6a4a34' });
+    shadow(c, 1430, 930, 150); aimingCowboy(c, 1430, 930, 3.3, -1, { coat: '#4a4a5a', dark: '#2a2a30' });
+  }],
+  ['2 · 이쪽을 겨눈다', (c) => {
+    street(c);
+    shadow(c, 1330, 990, 190); frontAim(c, 1330, 990, 4.6);
+    cowboy(c, 330, 690, 0.8, { color: '#8a6a4a' }); cowboy(c, 400, 694, 0.75, { color: '#6a5a6a' });
+  }],
+  ['3 · 어깨 너머로', (c) => {
+    street(c);
+    shadow(c, 300, 690, 50); aimingCowboy(c, 300, 690, 1.1, 1, { coat: '#4a4a5a', dark: '#2a2a30' });
+    // 앞사람은 오른쪽 아래에서 등을 보이고, 왼쪽 저 사람에게 팔을 뻗는다
+    cowboy(c, 1400, 1100, 4.6, { color: '#7a4a2a', dark: '#3a2214' });
+    const arm = [[1360, 720], [1330, 700], [1200, 690], [1196, 722], [1330, 744], [1356, 752]]; wash(c, arm, '#7a4a2a', { layers: 12, alpha: 0.1, spread: 3 }); hatch(c, arm, { gap: 6, a: 0.3 }); ink(c, arm, { closed: true, w: 2, over: 8 });
+    wash(c, ell(1190, 706, 20, 18, 14), '#c88a5a', { layers: 8, alpha: 0.14, spread: 1.5 }); ink(c, ell(1190, 706, 20, 18, 14), { closed: true, w: 1.6 });
+    revolver(c, 1186, 700, 2.4, 0.04, -1);
+  }],
+  ['4 · 권총 클로즈업', (c) => {
+    street(c);
+    shadow(c, 300, 690, 40); aimingCowboy(c, 300, 690, 0.95, 1, { coat: '#4a4a5a', dark: '#2a2a30' });
+    // 화면 오른쪽 아래에서 손과 권총이 들어온다 (뱅! 카드 그림 구도)
+    const sleeve = [[1640, 800], [1440, 850], [1420, 950], [1640, 1060]]; wash(c, sleeve, '#7a4a2a', { layers: 16, alpha: 0.09, spread: 6 }); hatch(c, sleeve, { gap: 7, a: 0.35 }); ink(c, sleeve, { closed: true, w: 2.4, over: 10 });
+    const cuff = [[1446, 846], [1410, 858], [1400, 950], [1424, 948]]; wash(c, cuff, '#e8dcc0', { layers: 8, alpha: 0.14, spread: 2 }); ink(c, cuff, { closed: true, w: 2 });
+    revolver(c, 1300, 820, 4.6, -0.22, -1, { flash: true, smoke: false });
+    const hand = [[1350, 832], [1404, 842], [1426, 892], [1400, 922], [1350, 918], [1330, 884]]; wash(c, hand, '#d49a6a', { layers: 14, alpha: 0.11, spread: 2 }); ink(c, hand, { closed: true, w: 2, over: 5 });
+    [[1340, 884, 1404, 892], [1342, 902, 1400, 910]].forEach(([a, b, d, e]) => ink(c, [[a, b], [(a + d) / 2, (b + e) / 2 + 3], [d, e]], { w: 1.4, over: 3 }));
+    ink(c, [[1370, 836], [1356, 808], [1340, 806]], { w: 1.8, over: 3 }); // 엄지가 공이치기를 젖힌다
+  }],
+  ['5 · 총성 직후', (c) => {
+    street(c);
+    shadow(c, 130, 930, 130); aimingCowboy(c, 130, 930, 2.9, 1, { flash: true, smoke: true });
+    // 저쪽 사람은 맞고 뒤로 넘어가며 모자가 날아간다
+    c.save(); c.translate(1330, 690); c.rotate(-0.35); cowboy(c, 0, 0, 1.1, { color: '#4a4a5a', dark: '#2a2a30' }); c.restore();
+    const hat = ell(1420, 520, 26, 6, 16); wash(c, hat, '#2a2a30', { layers: 8, alpha: 0.16, spread: 1 }); ink(c, hat, { closed: true, w: 1.2 });
+    ink(c, [[1406, 520], [1408, 504], [1432, 504], [1434, 520]], { w: 1.2 });
+    [[1380, 540, 1360, 560], [1450, 500, 1470, 484]].forEach(([a, b, d, e]) => ink(c, [[a, b], [d, e]], { w: 1, a: 0.6, passes: 1 }));
+    for (let i = 0; i < 5; i++) wash(c, ell(1330 + rr(-60, 60), 700 + rr(-8, 8), rr(30, 70), 10, 12), '#c8a880', { layers: 5, alpha: 0.06, spread: 6 });
+  }],
+];
+
+// ---- 장면 10가지 ----
+const SCENES = [
+  ['1 · 정오의 결투 (High Noon)', (c) => {
+    sky(c, 0, 560, '#a8c4d8', { clouds: 4 });
+    building(c, -20, 640, 260, 360, { sign: 'BANK', color: '#b08458' }); building(c, 250, 620, 190, 290, { color: '#9a6a44' });
+    building(c, 1160, 620, 200, 300, { sign: 'HOTEL', color: '#a87448' }); building(c, 1350, 650, 280, 380, { sign: 'SALOON', color: '#b87c4c' });
+    ground(c, 600, '#d8b080');
+    for (let i = 0; i < 4; i++) wash(c, ell(800 + rr(-300, 300), 700 + rr(-20, 40), rr(80, 160), 12, 14), '#c09060', { layers: 6, alpha: 0.05, spread: 8 });
+    cowboy(c, 800, 650, 0.9);
+    // 앞쪽에 등을 보인 또 한 사람. 두 사람 사이로 큰길이 뻗는다
+    cowboy(c, 250, 1060, 4.2, { color: '#8a5434', dark: '#3a2214' });
+    wash(c, ell(250, 1000, 260, 30, 20), '#6a4a30', { layers: 8, alpha: 0.05, spread: 10 });
+  }],
+  ['2 · 살롱 앞 큰길', (c) => {
+    sky(c, 0, 520, '#9cc0dc', { clouds: 6 });
+    butte(c, 820, 560, 520, 120, 200, '#c8a0a0');
+    building(c, 80, 700, 330, 420, { sign: 'SALOON', color: '#c08a58' }); building(c, -60, 720, 150, 380, { color: '#8a5a3a', dark: true });
+    building(c, 1140, 700, 300, 390, { sign: 'GENERAL STORE', color: '#a8744a', front: 34 }); building(c, 1430, 720, 240, 420, { color: '#946040', dark: true });
+    ground(c, 640, '#d8b488');
+    [[460, 690], [1080, 700]].forEach(([x, y]) => { const b = ell(x, y, 26, 18, 14); wash(c, b, '#7a5030', { layers: 8, alpha: 0.12, spread: 2 }); ink(c, b, { closed: true, w: 1.2 }); line(c, x - 26, y, x + 26, y, { w: 1 }); });
+    bird(c, 640, 160, 1); bird(c, 700, 190, 0.8);
+  }],
+  ['3 · 목마른 기수', (c) => {
+    sky(c, 0, 640, '#e8c49a', { clouds: 3 });
+    sun(c, 1180, 300, 90, '#f0a040');
+    ground(c, 640, '#d8a878', { hatchA: 0.35 });
+    for (let i = 0; i < 6; i++) wash(c, ell(rr(0, W), 650 + rr(0, 30), rr(200, 400), 16, 16), '#c09070', { layers: 6, alpha: 0.05, spread: 10 });
+    horseRider(c, 360, 860, 2.2);
+    const skull = ell(1260, 900, 30, 18, 14); wash(c, skull, '#efe6d0', { layers: 6, alpha: 0.2, spread: 2 }); ink(c, skull, { closed: true, w: 1.2 });
+    ink(c, [[1232, 896], [1190, 870], [1170, 880]], { w: 1.4 }); ink(c, [[1288, 896], [1330, 870], [1350, 880]], { w: 1.4 });
+    cactus(c, 1460, 760, 180, -1); cactus(c, 120, 700, 90, 1);
+  }],
+  ['4 · 흙먼지 속 역마차', (c) => {
+    sky(c, 0, 600, '#b4ccd8', { clouds: 5 });
+    sun(c, 1080, 240, 70, '#f4d8a0');
+    butte(c, 260, 620, 420, 150, 160, '#b8a0a8'); butte(c, 1380, 630, 460, 170, 220, '#b8a0a8');
+    ground(c, 610, '#d8bc98');
+    for (let i = 0; i < 10; i++) wash(c, ell(1000 + rr(-80, 400), 780 + rr(-80, 40), rr(80, 180), rr(40, 90), 16), '#c8b49a', { layers: 6, alpha: 0.05, spread: 20 });
+    wagon(c, 980, 850, 1.6);
+    [[1200, 850], [1300, 860]].forEach(([x, y]) => horseRider(c, x, y, 1.1, '#6a4a30'));
+  }],
+  ['5 · 유령 마을', (c) => {
+    sky(c, 0, 620, '#6a6a78', { clouds: 3 }); wash(c, rect(-40, 0, W + 80, 300), '#3a3448', { layers: 10, alpha: 0.06, spread: 40 });
+    building(c, -30, 760, 360, 520, { color: '#7a5038', dark: true, sign: 'HOTEL' }); building(c, 320, 740, 240, 380, { color: '#6a4430', dark: true });
+    building(c, 1100, 750, 260, 400, { color: '#6a4430', dark: true }); building(c, 1350, 770, 300, 520, { color: '#7a5038', dark: true, sign: 'BANK' });
+    [[60, 300], [420, 400], [1180, 380], [1420, 300]].forEach(([x, y]) => { for (let k = 0; k < 4; k++) line(c, x + k * 30, y, x + k * 30 + rr(-30, 30), y + rr(40, 90), { w: 1.2, a: 0.6 }); });
+    ground(c, 720, '#b8b0a8');
+    wash(c, rect(-40, 600, W + 80, 260), '#ffffff', { layers: 4, alpha: 0.05, spread: 40 });
+    lift(c, rect(-40, 720, W + 80, 120), { layers: 10, alpha: 0.12, spread: 40 });
+    bird(c, 900, 200, 1.4); bird(c, 980, 240, 1); bird(c, 760, 260, 0.8);
+    // 굴러가는 회전초
+    const tw = ell(640, 820, 46, 40, 20); for (let k = 0; k < 18; k++) ink(c, deform(ell(640 + rr(-8, 8), 820 + rr(-6, 6), rr(20, 44), rr(18, 38), 10), 1, 6), { closed: true, w: 0.6, a: 0.5, passes: 1 });
+  }],
+  ['6 · 기차가 들어온다', (c) => {
+    sky(c, 0, 600, '#a8c0d4', { clouds: 3 });
+    ground(c, 620, '#d4b088');
+    // 철로
+    ink(c, [[0, 900], [1600, 760]], { w: 2.4 }); ink(c, [[0, 980], [1600, 820]], { w: 2.4 });
+    for (let x = 0; x < W; x += 60) line(c, x, 900 - x * 0.0875 - 6, x + 16, 980 - x * 0.1 + 8, { w: 3, a: 0.5, passes: 1 });
+    // 기관차
+    const boiler = [[640, 700], [1180, 660], [1190, 820], [650, 850]]; wash(c, boiler, '#3a3a40', { layers: 16, alpha: 0.09, spread: 4 }); hatch(c, boiler, { angle: 0.1, gap: 8, a: 0.35 }); ink(c, boiler, { closed: true, w: 2 });
+    const cab = [[1180, 560], [1400, 548], [1410, 800], [1190, 820]]; wash(c, cab, '#8a3a2a', { layers: 14, alpha: 0.09, spread: 3 }); ink(c, cab, { closed: true, w: 2 });
+    const win = rect(1240, 600, 100, 80); wash(c, win, '#e8d8b0', { layers: 6, alpha: 0.1, spread: 2 }); ink(c, win, { closed: true, w: 1.4 });
+    const stack = [[720, 700], [700, 560], [800, 560], [780, 694]]; wash(c, stack, '#2a2a30', { layers: 12, alpha: 0.12, spread: 3 }); ink(c, stack, { closed: true, w: 1.8 });
+    const cow = [[640, 850], [560, 920], [660, 920], [700, 850]]; wash(c, cow, '#8a3a2a', { layers: 10, alpha: 0.1, spread: 2 }); ink(c, cow, { closed: true, w: 1.6 });
+    [[780, 860, 60], [960, 850, 60], [1140, 840, 60], [1300, 830, 40]].forEach(([x, y, r]) => { const w = ell(x, y, r, r, 24); wash(c, w, '#3a2a20', { layers: 6, alpha: 0.08, spread: 2 }); ink(c, w, { closed: true, w: 2 }); ink(c, ell(x, y, r * 0.2, r * 0.2, 10), { closed: true, w: 1.4 }); });
+    for (let i = 0; i < 9; i++) { const sx = 750 - i * 90 + rr(-20, 20), sy = 500 - i * 40 + rr(-20, 20), r = 60 + i * 22; wash(c, ell(sx, sy, r, r * 0.7, 18), '#9a9aa4', { layers: 8, alpha: 0.05, spread: 16 }); ink(c, ell(sx, sy, r, r * 0.7, 18).filter((p) => p[1] < sy), { w: 0.8, a: 0.35, passes: 1, jit: 2 }); }
+  }],
+  ['7 · 붉은 바위 계곡', (c) => {
+    sky(c, 0, 640, '#9cc0dc', { clouds: 5 });
+    butte(c, 300, 700, 560, 360, 220, '#c8643a'); butte(c, 1260, 700, 620, 300, 300, '#c06038'); butte(c, 820, 660, 300, 160, 110, '#c89080');
+    ground(c, 680, '#e0b080', { hatchA: 0.3 });
+    cactus(c, 140, 900, 200, 1); cactus(c, 1480, 920, 240, -1); cactus(c, 620, 780, 70, 1);
+    for (let i = 0; i < 30; i++) { const x = rr(0, W), y = rr(740, 980); const b = ell(x, y, rr(10, 26), rr(6, 12), 10); wash(c, b, '#8a8a50', { layers: 4, alpha: 0.12, spread: 2 }); }
+  }],
+  ['8 · 살롱 포커 테이블', (c) => {
+    wash(c, rect(-40, -40, W + 80, H + 80), '#c89a68', { layers: 14, alpha: 0.06, spread: 30 });
+    for (let x = 0; x < W; x += rr(46, 70)) line(c, x, 0, x + rr(-2, 2), 560, { w: 0.8, a: 0.35, passes: 1 });
+    const shelf = rect(-20, 400, W + 40, 18); wash(c, shelf, '#6a3a20', { layers: 8, alpha: 0.12, spread: 2 }); ink(c, shelf, { closed: true, w: 1.6 });
+    for (let x = 60; x < W; x += rr(40, 70)) { const h = rr(60, 110), b = [[x, 400], [x, 400 - h * 0.6], [x + 8, 400 - h * 0.7], [x + 8, 400 - h], [x + 16, 400 - h], [x + 16, 400 - h * 0.7], [x + 24, 400 - h * 0.6], [x + 24, 400]]; wash(c, b, ['#4a6a3a', '#7a3a24', '#3a3a3a', '#9a6a2a'][Math.floor(rr(0, 4))], { layers: 6, alpha: 0.14, spread: 1 }); ink(c, b, { closed: true, w: 1 }); }
+    const lamp = [[760, 0], [770, 120], [720, 160], [880, 160], [830, 120], [840, 0]]; ink(c, lamp, { w: 1.6 }); wash(c, ell(800, 200, 260, 120, 24), '#f8d890', { layers: 8, alpha: 0.05, spread: 30 });
+    const table = ell(800, 900, 760, 230, 40); wash(c, table, '#4a7a52', { layers: 16, alpha: 0.08, spread: 8 }); ink(c, table, { closed: true, w: 2.2 }); ink(c, ell(800, 900, 720, 205, 40), { closed: true, w: 1, a: 0.5 });
+    [[300, 820, -0.3], [360, 830, 0.1], [1240, 820, 0.25], [1300, 840, -0.1]].forEach(([x, y, a]) => { c.save(); c.translate(x, y); c.rotate(a); const r = rect(-30, -44, 60, 88); wash(c, r, '#f4ead4', { layers: 6, alpha: 0.2, spread: 1 }); ink(c, r, { closed: true, w: 1.2 }); c.restore(); });
+    [[520, 860], [540, 846], [560, 862], [1060, 850], [1080, 836]].forEach(([x, y], i) => { const ch = ell(x, y, 20, 8, 14); wash(c, ch, i % 2 ? '#b3261e' : '#2a4a8a', { layers: 6, alpha: 0.16, spread: 1 }); ink(c, ch, { closed: true, w: 1 }); });
+    const glass = [[1400, 700], [1440, 700], [1436, 770], [1404, 770]]; wash(c, glass, '#d8a040', { layers: 6, alpha: 0.12, spread: 1 }); ink(c, glass, { closed: true, w: 1.2 });
+  }],
+  ['9 · 보안관 사무소', (c) => {
+    wash(c, rect(-40, -40, W + 80, H + 80), '#d8b488', { layers: 14, alpha: 0.06, spread: 30 });
+    for (let y = 0; y < 760; y += rr(36, 50)) line(c, 0, y, W, y + rr(-3, 3), { w: 0.7, a: 0.3, passes: 1 });
+    const win = rect(1120, 120, 340, 300); wash(c, win, '#e8f0f4', { layers: 4, alpha: 0.12, spread: 2 }); ink(c, win, { closed: true, w: 2 });
+    for (let x = 1150; x < 1460; x += 38) { const bar = rect(x, 120, 9, 300); wash(c, bar, '#3a3a40', { layers: 8, alpha: 0.14, spread: 1 }); ink(c, bar, { closed: true, w: 1 }); }
+    wash(c, [[1120, 420], [1460, 420], [1300, 900], [700, 900]], '#f8e8b0', { layers: 10, alpha: 0.04, spread: 20 });
+    [[120, 130, 'WANTED', -0.05], [340, 180, 'WANTED', 0.04], [180, 420, 'REWARD', 0.03]].forEach(([x, y, t, a]) => {
+      c.save(); c.translate(x + 90, y + 120); c.rotate(a); c.translate(-90, -120);
+      const p = rect(0, 0, 180, 240); wash(c, p, '#efe0b8', { layers: 6, alpha: 0.22, spread: 2 }); ink(c, p, { closed: true, w: 1.2 });
+      c.font = '26px Rye, serif'; c.fillStyle = 'rgba(60,30,20,.85)'; c.textAlign = 'center'; c.fillText(t, 90, 40);
+      const f = rect(40, 60, 100, 110); wash(c, f, '#9a7050', { layers: 6, alpha: 0.12, spread: 2 }); hatch(c, f, { gap: 5, a: 0.4 }); ink(c, f, { closed: true, w: 1 });
+      c.font = '24px Rye, serif'; c.fillText('$ 500', 90, 210); c.restore();
+    });
+    const floor = rect(-40, 760, W + 80, 300); wash(c, floor, '#8a5a34', { layers: 12, alpha: 0.07, spread: 10 }); ink(c, [[0, 760], [W, 760]], { w: 2 });
+    const desk = [[620, 640], [1000, 640], [1000, 880], [620, 880]]; wash(c, desk, '#7a4a2a', { layers: 12, alpha: 0.1, spread: 3 }); hatch(c, desk, { gap: 8, a: 0.3 }); ink(c, desk, { closed: true, w: 2 });
+    const star = Array.from({ length: 10 }, (_, i) => { const r = i % 2 ? 14 : 34, t = i / 10 * Math.PI * 2 - Math.PI / 2; return [800 + Math.cos(t) * r, 610 + Math.sin(t) * r]; }); wash(c, star, '#d8a830', { layers: 8, alpha: 0.16, spread: 1 }); ink(c, star, { closed: true, w: 1.4 });
+  }],
+  ['10 · 해 질 녘 부트 힐 묘지', (c) => {
+    sky(c, 0, 680, '#e8a070', { clouds: 4 }); wash(c, rect(-40, 0, W + 80, 260), '#8a6a8a', { layers: 10, alpha: 0.05, spread: 40 });
+    sun(c, 1220, 520, 110, '#f08a40');
+    const hill = [[-40, 1040], [-40, 700], [300, 640], [700, 660], [1100, 720], [1640, 700], [1640, 1040]]; wash(c, hill, '#a87a50', { layers: 14, alpha: 0.07, spread: 14 }); ink(c, hill.slice(1, -1), { w: 1.6 });
+    hatch(c, hill, { angle: -0.4, gap: 14, a: 0.2 });
+    [[160, 760, 120, -6], [300, 700, 150, 4], [470, 720, 110, -10], [1140, 770, 130, 8], [1330, 760, 160, -4], [1480, 790, 120, 10]].forEach(([x, b, h, l]) => cross(c, x, b, h, l));
+    const tree = [[1500, 760], [1510, 520], [1460, 420], [1514, 500], [1530, 380], [1540, 500], [1600, 440], [1546, 540], [1550, 760]]; wash(c, tree, '#4a3020', { layers: 10, alpha: 0.12, spread: 2 }); ink(c, tree, { closed: true, w: 1.6 });
+    bird(c, 800, 200, 1.6); bird(c, 880, 160, 1.2); bird(c, 980, 230, 1);
+  }],
+];
+
+const q = new URLSearchParams(location.search);
+// ?bare=1 이면 제목·카드 없이 배경만 그린다. 앱에 넣을 그림을 뽑을 때 쓴다
+if (q.get('bare')) document.querySelectorAll('.ui, .tag').forEach((el) => el.remove());
+const aim = Number(q.get('aim'));
+const pick = aim ? 100 + aim : Math.min(10, Math.max(1, Number(q.get('bg')) || 1));
+const [name, draw] = aim ? AIMS[aim - 1] : SCENES[pick - 1];
+const tag = document.getElementById('tag');
+if (tag) tag.textContent = name;
+seed = pick * 7919;
+
+document.fonts.ready.then(() => {
+  const out = document.getElementById('c').getContext('2d');
+  paper(out);
+  const scene = document.createElement('canvas'); scene.width = W; scene.height = H;
+  const s = scene.getContext('2d'); s.fillStyle = PAPER; s.fillRect(0, 0, W, H);
+  draw(s);
+  vignetteMask(scene);
+  out.save(); out.globalCompositeOperation = 'multiply'; out.drawImage(scene, 0, 0); out.restore();
+  document.body.dataset.ready = '1';
+});
+</script>
+</body>
+</html>

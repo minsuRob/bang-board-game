@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>D · 카드 테이블</title>
+<link href="https://fonts.googleapis.com/css2?family=Ewert&family=Special+Elite&family=Black+Han+Sans&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root { --paper: #f1e3c3; --frame: #c9a25a; --ink: #2b1d10; --red: #b3261e; --felt: #1f3b2a; }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36px;
+    padding: 48px 16px;
+    background:
+      radial-gradient(ellipse at 50% 55%, rgba(0,0,0,0) 35%, rgba(0,0,0,.75) 100%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='1.2' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 .1 0 0 0 0 .05 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+      radial-gradient(ellipse at 50% 45%, #2f6b45, #1a4029 60%, #0e2416);
+    font-family: 'Gowun Batang', serif; color: var(--paper);
+  }
+  header { text-align: center; }
+  h1 { font-family: 'Ewert', serif; font-weight: 400; font-size: 110px; line-height: 1; color: #f2c14e;
+    text-shadow: 0 4px 0 #6b3b0e, 0 10px 24px rgba(0,0,0,.6); letter-spacing: 4px; }
+  .sub { margin-top: 6px; font-size: 15px; color: #d8cfae; }
+
+  .hand { display: flex; justify-content: center; align-items: flex-end; height: 330px; perspective: 1200px; }
+  .card { position: relative; width: 190px; height: 290px; margin: 0 -14px; border-radius: 14px; padding: 10px;
+    background: var(--frame); box-shadow: 0 14px 30px rgba(0,0,0,.55), inset 0 0 0 2px rgba(255,255,255,.25);
+    transform-origin: 50% 120%; transition: transform .25s, box-shadow .25s; cursor: pointer; }
+  .card:nth-child(1) { transform: rotate(-14deg) translateY(18px); }
+  .card:nth-child(2) { transform: rotate(-4deg) translateY(-6px); z-index: 2; }
+  .card:nth-child(3) { transform: rotate(6deg) translateY(2px); }
+  .card:nth-child(4) { transform: rotate(15deg) translateY(22px); }
+  .card:hover { transform: rotate(0) translateY(-34px) scale(1.04); z-index: 5; box-shadow: 0 30px 50px rgba(0,0,0,.6), 0 0 0 3px #f2c14e; }
+  .face { height: 100%; border-radius: 8px; background: var(--paper); color: var(--ink); display: flex; flex-direction: column; overflow: hidden; }
+  .face .t { font-family: 'Black Han Sans'; font-size: 24px; text-align: center; padding: 10px 6px 6px; letter-spacing: 1px; }
+  .art { flex: 1; margin: 0 10px; background-size: cover; background-position: center; border: 1px solid rgba(43,29,16,.25); filter: sepia(.15); }
+  .face .d { font-size: 11.5px; line-height: 1.45; text-align: center; padding: 8px 10px 4px; color: #5a4128; }
+  .corner { position: absolute; left: 18px; bottom: 16px; font-family: 'Special Elite'; font-size: 15px; color: var(--ink); }
+  .corner.r { color: var(--red); }
+  .card.primary { background: #8b5a2b; }
+  .card.primary .t { color: var(--red); font-size: 28px; }
+  .settings { display: grid; place-content: center; gap: 12px; }
+  .seg { display: flex; border: 2px solid var(--ink); border-radius: 6px; overflow: hidden; margin: 0 auto; }
+  .seg span { padding: 5px 10px; font-family: 'Black Han Sans'; font-size: 14px; }
+  .seg .on { background: var(--ink); color: var(--paper); }
+
+  .chips { display: flex; gap: 12px; align-items: center; }
+  .chip { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-family: 'Black Han Sans'; font-size: 15px; color: #fff;
+    background: repeating-conic-gradient(var(--red) 0 22.5deg, #f1e3c3 22.5deg 30deg); box-shadow: 0 4px 0 #5e140f, 0 8px 14px rgba(0,0,0,.5); cursor: pointer; }
+  .chip span { width: 38px; height: 38px; border-radius: 50%; background: var(--red); display: grid; place-items: center; border: 1.5px dashed rgba(255,255,255,.6); }
+  .code { background: rgba(10,26,16,.7); border: 1px solid rgba(242,193,78,.4); border-radius: 999px; padding: 12px 22px; width: 240px;
+    color: #f2c14e; font-family: 'Special Elite'; font-size: 20px; letter-spacing: 8px; }
+  .code::placeholder { font-family: 'Gowun Batang'; letter-spacing: 3px; font-size: 14px; color: rgba(216,207,174,.55); }
+  .foot { font-size: 12px; color: rgba(216,207,174,.7); }
+</style>
+</head>
+<body>
+  <header>
+    <h1>BANG!</h1>
+    <p class="sub">보안관과 무법자, 그리고 숨어 있는 배신자</p>
+  </header>
+
+  <nav class="hand">
+    <a class="card"><div class="face"><div class="t">방 만들기</div><div class="art" style="background-image:url(../../assets/cards/card/saloon.png)"></div><div class="d">코드를 친구에게<br/>알려 주면 들어온다</div></div><span class="corner r">K♥</span></a>
+    <a class="card primary"><div class="face"><div class="t">AI와 대전</div><div class="art" style="background-image:url(../../assets/cards/card/bang.png); background-position: 50% 52%; background-size: 150%"></div><div class="d">4~7인 · 난이도 상중하<br/>하이 눈 확장</div></div><span class="corner">A♠</span></a>
+    <a class="card"><div class="face"><div class="t">카드 도감</div><div class="art" style="background-image:url(../../assets/cards/character/bartCassidy.png); background-size: 170%; background-position: 50% 22%"></div><div class="d">카드 52 · 캐릭터 42<br/>이벤트 40 · 규칙 메모</div></div><span class="corner r">Q♦</span></a>
+    <a class="card"><div class="face"><div class="t">연출 화질</div><div class="settings"><div class="seg"><span class="on">고화질</span><span>일반</span></div><div class="d">총격을 Skia 로<br/>세밀하게 그린다</div></div></div><span class="corner">J♣</span></a>
+  </nav>
+
+  <div class="chips">
+    <input class="code" placeholder="방 코드로 참가" />
+    <a class="chip"><span>참가</span></a>
+  </div>
+
+  <p class="foot">Q 차례 마치기 · W 반응하지 않음 · 1~0 손패 고르기 · Esc 취소</p>
+</body>
+</html>

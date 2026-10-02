@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>C · 석양의 황야</title>
+<link href="https://fonts.googleapis.com/css2?family=Smokum&family=Oswald:wght@500;700&family=Black+Han+Sans&family=Gowun+Dodum&display=swap" rel="stylesheet" />
+<style>
+  :root { --sun: #ffcf6b; --dust: #f4d9a8; --night: #120806; --ember: #e8572a; }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    min-height: 100vh; overflow-x: hidden;
+    background: linear-gradient(180deg, #2a0f1e 0%, #6e1d24 24%, #c7442a 48%, #f08a3a 64%, #f9c06a 80%, #f9c06a 100%);
+    font-family: 'Gowun Dodum', sans-serif; color: var(--dust);
+  }
+  .scene { position: fixed; inset: 0; pointer-events: none; }
+  .sun { position: absolute; left: 70%; top: 34%; width: 360px; height: 360px; margin-left: -180px; border-radius: 50%;
+    background: radial-gradient(circle, #fff3c4 0%, var(--sun) 55%, #f39a3d 100%);
+    -webkit-mask: repeating-linear-gradient(180deg, #000 0 26px, transparent 26px 32px) bottom/100% 55% no-repeat, linear-gradient(#000,#000) top/100% 45% no-repeat;
+    mask: repeating-linear-gradient(180deg, #000 0 26px, transparent 26px 32px) bottom/100% 55% no-repeat, linear-gradient(#000,#000) top/100% 45% no-repeat;
+    box-shadow: 0 0 120px 40px rgba(255,170,80,.35); }
+  .land { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 34vh; }
+  .grain { position: absolute; inset: 0; opacity: .22; mix-blend-mode: overlay;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+  main { position: relative; min-height: 100vh; display: flex; flex-direction: column; justify-content: center;
+    padding: 40px clamp(16px, 7vw, 110px) 34vh; max-width: 640px; }
+  .kicker { font-family: 'Oswald'; font-weight: 500; letter-spacing: 8px; font-size: 13px; color: #ffd9a0; }
+  h1 { font-family: 'Smokum', serif; font-weight: 400; font-size: clamp(96px, 14vw, 168px); line-height: .85; color: #1a0a06;
+    text-shadow: 3px 3px 0 var(--sun), 0 0 40px rgba(255,200,120,.25); margin: 8px 0 6px; letter-spacing: 2px; }
+  .sub { font-size: 16px; color: #fbe0b5; }
+
+  .list { margin-top: 44px; display: grid; }
+  .opt { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 14px; padding: 14px 0;
+    border-top: 1px solid rgba(255,220,170,.22); cursor: pointer; transition: padding .2s; }
+  .opt:last-child { border-bottom: 1px solid rgba(255,220,170,.22); }
+  .num { font-family: 'Oswald'; font-weight: 700; font-size: 14px; color: rgba(255,220,170,.5); letter-spacing: 2px; }
+  .lbl { font-family: 'Black Han Sans'; font-size: 26px; color: #fff1d6; }
+  .meta { font-size: 13px; color: rgba(255,228,190,.7); text-align: right; }
+  .opt:hover { padding-left: 10px; }
+  .opt.primary .lbl { font-size: 40px; color: var(--sun); }
+  .opt.primary .num::before { content: ''; display: inline-block; width: 18px; height: 18px; margin-right: 6px; vertical-align: -3px;
+    background: radial-gradient(circle at 50% 50%, #1a0a06 0 2px, transparent 3px),
+      conic-gradient(from 0deg, var(--sun) 0 40deg, transparent 40deg 60deg, var(--sun) 60deg 100deg, transparent 100deg 120deg, var(--sun) 120deg 160deg, transparent 160deg 180deg, var(--sun) 180deg 220deg, transparent 220deg 240deg, var(--sun) 240deg 280deg, transparent 280deg 300deg, var(--sun) 300deg 340deg, transparent 340deg);
+    border-radius: 50%; }
+  .join { display: flex; gap: 0; margin: 4px 0 4px 58px; }
+  .join input { flex: 1; background: rgba(18,8,6,.55); border: 1px solid rgba(255,220,170,.35); border-right: none; padding: 10px 14px;
+    color: #fff1d6; font-family: 'Oswald'; font-size: 18px; letter-spacing: 8px; }
+  .join input::placeholder { font-family: 'Gowun Dodum'; letter-spacing: 3px; font-size: 14px; color: rgba(255,228,190,.5); }
+  .join button { background: var(--sun); color: #1a0a06; border: none; padding: 0 20px; font-family: 'Black Han Sans'; font-size: 17px; cursor: pointer; }
+  .q { display: flex; gap: 18px; font-family: 'Oswald'; letter-spacing: 3px; font-size: 13px; }
+  .q span { color: rgba(255,228,190,.55); } .q .on { color: var(--sun); border-bottom: 2px solid var(--sun); }
+  .foot { margin-top: 28px; font-size: 12px; color: rgba(255,228,190,.55); letter-spacing: .5px; }
+</style>
+</head>
+<body>
+  <div class="scene">
+    <div class="sun"></div>
+    <svg class="land" viewBox="0 0 1440 460" preserveAspectRatio="none" aria-hidden="true">
+      <path fill="#3a1510" d="M0 210 L120 200 L140 150 L260 146 L280 196 L520 206 L700 198 L760 120 L900 116 L930 170 L1010 186 L1100 180 L1130 110 L1300 104 L1320 168 L1440 176 L1440 460 L0 460Z" opacity=".75"/>
+      <path fill="#1a0a06" d="M0 260 L340 250 L380 180 L420 176 L450 240 L760 248 L1080 238 L1440 250 L1440 460 L0 460Z"/>
+      <g fill="#120806">
+        <path d="M1180 250 v-120 a14 14 0 0 1 28 0 v120z M1180 190 h-24 v-34 a10 10 0 0 1 20 0 v18 h4z M1208 170 h24 v-40 a10 10 0 0 0 -20 0 v26 h-4z"/>
+        <path d="M230 262 v-70 a9 9 0 0 1 18 0 v70z M230 226 h-14 v-20 a7 7 0 0 1 14 0z M248 214 h14 v-24 a7 7 0 0 0 -14 0z"/>
+      </g>
+      <path fill="#0b0403" d="M0 300 L1440 290 L1440 460 L0 460Z"/>
+    </svg>
+    <div class="grain"></div>
+  </div>
+
+  <main>
+    <div class="kicker">A SPAGHETTI WESTERN CARD GAME</div>
+    <h1>BANG!</h1>
+    <p class="sub">보안관과 무법자, 그리고 숨어 있는 배신자</p>
+
+    <nav class="list">
+      <a class="opt primary"><span class="num">01</span><span class="lbl">AI와 대전</span><span class="meta">4~7인 · 상중하 · 하이 눈</span></a>
+      <a class="opt"><span class="num">02</span><span class="lbl">방 만들기</span><span class="meta">코드를 친구에게 알려 준다</span></a>
+      <div class="join"><input placeholder="방 코드" /><button>참가</button></div>
+      <a class="opt"><span class="num">03</span><span class="lbl">카드 도감</span><span class="meta">카드 52 · 캐릭터 42 · 이벤트 40</span></a>
+      <div class="opt"><span class="num">04</span><span class="lbl" style="font-size:20px">연출 화질</span><div class="q"><span class="on">고화질</span><span>일반</span></div></div>
+    </nav>
+
+    <p class="foot">Q 차례 마치기 · W 반응하지 않음 · 1~0 손패 고르기 · Esc 취소</p>
+  </main>
+</body>
+</html>

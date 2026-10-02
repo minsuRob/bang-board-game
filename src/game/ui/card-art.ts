@@ -151,6 +151,11 @@ export function woodArt(): ImageSourcePropType | null {
   return board('wood-table.jpg', 'wood-tile.jpg');
 }
 
+/** 첫 화면 바탕: 정오의 큰길에서 두 사람이 서로 겨누는 수채 그림 (docs/menu-design.md) */
+export function menuBackdropArt(): ImageSourcePropType | null {
+  return board('menu-high-noon.jpg');
+}
+
 /** 테이블 위에 까는 가죽 */
 export function feltArt(): ImageSourcePropType | null {
   return board('felt.jpg');

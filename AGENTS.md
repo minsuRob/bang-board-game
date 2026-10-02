@@ -52,6 +52,11 @@ SDK 56 이하의 기억으로 API 를 쓰면 조용히 틀린다.
 원본 그림 확인 → 캔버스 시안 여러 개(`docs/card-fx-prototypes/`) → Skia 고화질 → 장면별로 멈춰 확인.
 Skia 캔버스는 판마다 하나만 띄운다 (WebGL 컨텍스트가 넘치면 3D 테이블이 끊긴다).
 
+## 첫 화면
+
+첫 화면은 정오의 큰길 수채 바탕 위에 메뉴를 카드 부채로 펼친다. 바탕 그림은 시안 HTML 에서
+그려 뽑은 `assets/board/menu-high-noon.jpg` 다. 고치기 전에 `docs/menu-design.md` 를 본다.
+
 ## 확장판
 
 새 확장판(캐릭터·이벤트·카드)을 붙일 때는 `docs/expansion-playbook.md` 의 순서를 따른다.

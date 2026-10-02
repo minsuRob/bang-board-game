@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>A · 현상수배 포스터</title>
+<link href="https://fonts.googleapis.com/css2?family=Rye&family=Special+Elite&family=Gowun+Batang:wght@400;700&family=Black+Han+Sans&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #2a1a0e;
+    --ink-soft: #5a4128;
+    --paper: #e9d6ac;
+    --paper-dark: #cdb07a;
+    --blood: #9e2418;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 48px 16px;
+    background:
+      radial-gradient(ellipse at center, rgba(40,22,10,0) 30%, rgba(10,5,2,.85) 100%),
+      linear-gradient(rgba(70,38,16,.78), rgba(50,26,10,.86)),
+      url(../../assets/board/wood-table.jpg) center/cover;
+    font-family: 'Gowun Batang', serif;
+    color: var(--ink);
+  }
+  .poster {
+    position: relative;
+    width: min(460px, 100%);
+    padding: 44px 40px 36px;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(255,240,200,.55), transparent 55%),
+      radial-gradient(ellipse at 85% 90%, rgba(120,70,20,.35), transparent 60%),
+      var(--paper);
+    clip-path: polygon(0 1%, 6% 0, 14% 1.2%, 27% .2%, 40% 1%, 55% 0, 68% .8%, 82% 0, 93% 1%, 100% .3%,
+      99.3% 12%, 100% 26%, 99% 41%, 100% 58%, 99.4% 73%, 100% 88%, 99.2% 100%,
+      86% 99.2%, 71% 100%, 57% 99%, 42% 100%, 28% 99.3%, 13% 100%, 0 99%, .8% 84%, 0 67%, .6% 50%, 0 33%, .7% 17%);
+    filter: drop-shadow(0 20px 30px rgba(0,0,0,.6));
+    transform: rotate(-1.2deg);
+  }
+  .poster::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.8' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .22 0 0 0 0 .1 0 0 0 .35 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: multiply;
+  }
+  .nail { position: absolute; top: 14px; width: 12px; height: 12px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #c9c2b4, #4a443c 70%); box-shadow: 0 2px 3px rgba(0,0,0,.5); }
+  .nail.l { left: 18px } .nail.r { right: 18px }
+  .eyebrow { text-align: center; font-family: 'Rye', serif; font-size: 22px; letter-spacing: 10px; color: var(--ink-soft); }
+  h1 { text-align: center; font-family: 'Rye', serif; font-weight: 400; font-size: 104px; line-height: .95; letter-spacing: 2px; margin-top: 6px; }
+  .rule { display: flex; align-items: center; gap: 12px; margin: 14px 0; color: var(--ink-soft); font-family: 'Special Elite', monospace; font-size: 13px; letter-spacing: 4px; }
+  .rule::before, .rule::after { content: ''; flex: 1; height: 0; border-top: 3px double var(--ink-soft); }
+  .sub { text-align: center; font-size: 16px; font-weight: 700; }
+
+  .menu { margin-top: 22px; display: grid; gap: 4px; }
+  .item { position: relative; display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 14px 4px; border-bottom: 1.5px dashed rgba(42,26,14,.45); cursor: pointer; }
+  .item:hover .name { color: var(--blood); }
+  .name { font-family: 'Black Han Sans', sans-serif; font-size: 26px; }
+  .hint { font-size: 13px; color: var(--ink-soft); text-align: right; }
+  .item.primary { padding: 18px 4px; }
+  .item.primary .name { font-size: 36px; color: var(--blood); }
+  .stamp { position: absolute; right: -6px; top: -4px; transform: rotate(12deg);
+    font-family: 'Special Elite', monospace; font-size: 13px; color: var(--blood);
+    border: 2.5px solid var(--blood); padding: 2px 8px; border-radius: 4px; opacity: .85; letter-spacing: 2px; }
+  .join { display: flex; gap: 8px; padding: 14px 0; border-bottom: 1.5px dashed rgba(42,26,14,.45); }
+  .join input { flex: 1; background: transparent; border: none; border-bottom: 2px solid var(--ink);
+    font-family: 'Special Elite', monospace; font-size: 20px; letter-spacing: 8px; padding: 6px 2px; color: var(--ink); }
+  .join input::placeholder { color: rgba(42,26,14,.4); letter-spacing: 4px; font-family: 'Gowun Batang'; font-size: 15px; }
+  .join button { font-family: 'Black Han Sans'; font-size: 18px; background: var(--ink); color: var(--paper); border: none; padding: 0 20px; cursor: pointer; }
+  .quality { display: flex; align-items: center; justify-content: space-between; padding: 14px 4px; }
+  .seg { display: flex; border: 2px solid var(--ink); }
+  .seg span { padding: 6px 14px; font-family: 'Black Han Sans'; font-size: 15px; }
+  .seg .on { background: var(--ink); color: var(--paper); }
+  .foot { margin-top: 18px; text-align: center; font-family: 'Special Elite', monospace; font-size: 12px; color: var(--ink-soft); line-height: 1.8; }
+  .reward { text-align: center; font-family: 'Rye'; font-size: 30px; margin-top: 10px; letter-spacing: 3px; }
+</style>
+</head>
+<body>
+  <main class="poster">
+    <i class="nail l"></i><i class="nail r"></i>
+    <div class="eyebrow">WANTED</div>
+    <h1>BANG!</h1>
+    <div class="rule">DEAD OR ALIVE</div>
+    <p class="sub">보안관과 무법자, 그리고 숨어 있는 배신자</p>
+
+    <nav class="menu">
+      <a class="item primary"><span class="name">AI와 대전</span><span class="hint">4~7인 · 난이도 상중하<br/>하이 눈 확장</span><span class="stamp">추천</span></a>
+      <a class="item"><span class="name">방 만들기</span><span class="hint">코드를 친구에게 알려 주면 들어온다</span></a>
+      <div class="join"><input placeholder="방 코드 입력" /><button>참가</button></div>
+      <a class="item"><span class="name">카드 도감</span><span class="hint">카드 52종 · 캐릭터 42명<br/>이벤트 40장 · 규칙 메모</span></a>
+      <div class="quality"><span class="name" style="font-size:20px">연출 화질</span><div class="seg"><span class="on">고화질</span><span>일반</span></div></div>
+    </nav>
+
+    <div class="reward">$ 5,000</div>
+    <p class="foot">Q 차례 마치기 · W 반응하지 않음 · 1~0 손패 · Esc 취소</p>
+  </main>
+</body>
+</html>
