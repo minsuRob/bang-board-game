@@ -3,6 +3,7 @@
  *
  * 낼 수 있는 카드만 밝게 보인다. 숫자키 1~0 으로도 고를 수 있다
  * (원본 맵 v0.12 단축키 계승).
+ * 새로 들어온 카드는 칸이 벌어지며 솟아올라 뒤집힌다 (HandArrival).
  */
 
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -10,6 +11,8 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { CardId } from '../data/types';
 import { clearPeek, setPeek } from './card-peek';
 import { CardView } from './CardView';
+import { HandArrival } from './HandArrival';
+import { useHandArrivals } from './hand-arrival';
 import { Colors, Spacing } from '@/constants/theme';
 
 export type HandProps = {
@@ -20,9 +23,14 @@ export type HandProps = {
   /** 버리기 단계에서 버릴 수 있는 카드 */
   discardable?: Set<CardId>;
   showIndex?: boolean;
+  /** 손패 주인. 바뀌면 새 카드 등장을 건너뛴다 */
+  owner?: string | null;
+  /** 바뀌면 새 카드 표시를 지운다 (차례가 넘어갈 때) */
+  resetKey?: string;
 };
 
-export function Hand({ cards, playable, selected, onSelect, discardable, showIndex }: HandProps) {
+export function Hand({ cards, playable, selected, onSelect, discardable, showIndex, owner, resetKey }: HandProps) {
+  const arrivals = useHandArrivals(cards, { waitFor3d: false, owner, resetKey });
   if (cards.length === 0) {
     return (
       <View style={styles.empty}>
@@ -40,16 +48,29 @@ export function Hand({ cards, playable, selected, onSelect, discardable, showInd
         const usable = playable.has(card) || Boolean(discardable?.has(card));
         return (
           <View key={card} style={styles.slot}>
-            <CardView
-              card={card}
-              size="md"
-              highlighted={usable}
-              disabled={!usable}
-              selected={selected === card}
-              onPress={() => onSelect(card)}
-              onHoverIn={() => setPeek(card)}
-              onHoverOut={() => clearPeek(card)}
-            />
+            <HandArrival
+              phase={arrivals.phase(card)}
+              order={arrivals.order(card)}
+              fresh={arrivals.fresh(card)}
+              gap={Spacing.two}
+              onSettled={() => arrivals.settled(card)}>
+              <CardView
+                card={card}
+                size="md"
+                highlighted={usable}
+                disabled={!usable}
+                selected={selected === card}
+                onPress={() => {
+                  arrivals.clearFresh(card);
+                  onSelect(card);
+                }}
+                onHoverIn={() => {
+                  arrivals.clearFresh(card);
+                  setPeek(card);
+                }}
+                onHoverOut={() => clearPeek(card)}
+              />
+            </HandArrival>
             {showIndex && i < 10 && (
               <Text style={styles.index}>{i === 9 ? 0 : i + 1}</Text>
             )}

@@ -88,6 +88,12 @@ export class CardWorld {
     return this.state?.players.findIndex((p) => p.id === pid) ?? -1;
   }
 
+  /** 화면을 보는 사람인가 (그 손은 3D 가 아니라 아래 손패 줄에 있다) */
+  isViewer(pid: PlayerId): boolean {
+    const i = this.seatIndexOf(pid);
+    return i >= 0 && i === this.viewerIndex;
+  }
+
   /** 카드 핸들을 얻는다. 없으면 풀에서 꺼내 만든다 */
   handle(card: CardId): CardHandle {
     let h = this.handles.get(card);

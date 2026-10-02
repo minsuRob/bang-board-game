@@ -125,6 +125,35 @@ function bulletWhiz() {
   return out;
 }
 
+/**
+ * 카드가 손에 들어오는 '사락'.
+ * 종이가 스치는 고역 잡음이 빠르게 커졌다 사라지고, 끝에 카드가 손에 닿는 작은 '탁'이 붙는다.
+ */
+function cardDraw() {
+  const seconds = 0.12;
+  const n = Math.floor(RATE * seconds);
+  const rand = rng(0xca7d);
+  const noise = new Float32Array(n);
+  for (let i = 0; i < n; i++) noise[i] = rand() * 2 - 1;
+  const swish = highpass(lowpass(noise, 7000), 1800);
+  const thump = lowpass(noise, 900);
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = i / RATE;
+    // 4ms 만에 올라 70ms 동안 잦아든다
+    const env = Math.min(1, t / 0.004) * Math.exp(-t / 0.028);
+    // 닿는 소리는 80ms 쯤
+    const tap = t > 0.075 ? Math.exp(-(t - 0.075) / 0.008) * 2.2 : 0;
+    out[i] = swish[i] * env + thump[i] * tap;
+  }
+  let peak = 0;
+  for (const v of out) peak = Math.max(peak, Math.abs(v));
+  const gain = 0.55 / peak;
+  const fade = Math.floor(RATE * 0.01);
+  for (let i = 0; i < n; i++) out[i] *= gain * (i > n - fade ? (n - i) / fade : 1);
+  return out;
+}
+
 /** 16-bit PCM 모노 WAV */
 function wav(samples) {
   const data = samples.length * 2;
@@ -146,7 +175,7 @@ function wav(samples) {
   return buf;
 }
 
-const SOUNDS = { gunshot, bullet_whiz: bulletWhiz };
+const SOUNDS = { gunshot, bullet_whiz: bulletWhiz, card_draw: cardDraw };
 
 mkdirSync(OUT_DIR, { recursive: true });
 for (const [name, make] of Object.entries(SOUNDS)) {
