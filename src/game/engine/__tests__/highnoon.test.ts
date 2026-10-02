@@ -612,6 +612,13 @@ describe('달톤 형제', () => {
     expect(totalCards(s)).toBe(80);
   });
 
+  it('버린 장비는 앞에 놓여 있던 카드라 로그에 이름을 적는다', () => {
+    const s0 = scenario({ players: [{ equipment: ['mustang'] }, {}, {}, {}] });
+    const s = settle(revealEvent(s0, 'theDaltons'));
+    const e = s.log.find((x) => x.t === 'daltons');
+    expect(e?.text).toContain('야생마를 버렸다');
+  });
+
   it('파랑 카드가 없으면 건너뛴다', () => {
     const s0 = scenario({ players: [{ hand: ['bang'] }, {}, {}, {}] });
     const s = revealEvent(s0, 'theDaltons');

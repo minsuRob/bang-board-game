@@ -7,6 +7,7 @@
 import { RED_SUITS } from '../../data/types';
 import {
   alivePlayers,
+  defOf,
   drawFromDeck,
   effectiveSuit,
   giveCards,
@@ -309,6 +310,6 @@ function ricochetHit(state: GameState, frame: Frame & { k: 'ricochet' }): GameSt
     pid: frame.source,
     target: frame.target,
     card: frame.card,
-    text: `리코체: ${nameOf(cur, frame.target)} 앞의 카드가 버려졌다.`,
+    text: `리코체: ${nameOf(cur, frame.target)} 앞의 ${ga(defOf(frame.card).nameKo)} 버려졌다.`,
   });
 }

@@ -9,6 +9,7 @@
 import { RANK_VALUE, SUIT_GLYPH, type Suit } from '../../data/types';
 import {
   cardOf,
+  defOf,
   drawFromDeck,
   effectiveSuit,
   giveCards,
@@ -25,7 +26,7 @@ import {
 import { judgementCardTaker, judgementPeekOf, turnDirectionOf } from '../hooks';
 import type { Choice, Frame, GameState, JudgementPurpose, PlayerId } from '../types';
 import { skipRestOfTurn } from './turn';
-import { ga, neun } from '../josa';
+import { eul, ga, neun } from '../josa';
 
 const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
   barrel: '술통',
@@ -139,7 +140,7 @@ function applyJudgement(
       t: 'johnPain',
       pid: taker,
       card,
-      text: `${ga(nameOf(cur, taker))} 펼친 카드를 손에 넣었다.`,
+      text: `${ga(nameOf(cur, taker))} 펼친 ${eul(defOf(card).nameKo)} 손에 넣었다.`,
     });
   }
 

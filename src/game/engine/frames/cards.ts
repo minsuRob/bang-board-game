@@ -168,7 +168,7 @@ export function respondGeneralStore(
     t: 'generalStorePick',
     pid,
     card,
-    text: `${ga(nameOf(cur, pid))} 잡화점에서 카드를 골랐다.`,
+    text: `${ga(nameOf(cur, pid))} 잡화점에서 ${eul(defOf(card).nameKo)} 골랐다.`,
   });
   return replaceTop(cur, {
     ...frame,
@@ -278,7 +278,7 @@ export function respondSteal(
       target: frame.target,
       // 장비는 원래 앞면이라 공개해도 된다. 손패에서 뽑은 카드는 남긴다면 정보가 샌다.
       ...(fromEquipment ? { card: picked } : {}),
-      text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 카드를 강탈했다.`,
+      text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 ${fromEquipment ? eul(defOf(picked).nameKo) : '카드를'} 강탈했다.`,
     });
   }
   cur = toDiscard(cur, [picked]);
@@ -287,7 +287,7 @@ export function respondSteal(
     pid: frame.source,
     target: frame.target,
     ...(fromEquipment ? { card: picked } : {}),
-    text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 카드를 버리게 했다.`,
+    text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 ${fromEquipment ? eul(defOf(picked).nameKo) : '카드를'} 버리게 했다.`,
   });
 }
 
@@ -410,7 +410,7 @@ export function respondPedroRamirez(
       t: 'pedroRamirez',
       pid: frame.pid,
       card,
-      text: `${ga(nameOf(cur, frame.pid))} 버린 더미에서 카드를 가져왔다.`,
+      text: `${ga(nameOf(cur, frame.pid))} 버린 더미에서 ${eul(defOf(card).nameKo)} 가져왔다.`,
     });
     return frame.rest > 0
       ? pushSeq(cur, [
