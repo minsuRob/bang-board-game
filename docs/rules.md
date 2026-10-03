@@ -46,8 +46,8 @@ turnStart → (revealEvent) → eventTurnStart → drawPhase → playPhase
 `engine/frames/damage.ts`
 
 ```
-damage → onDamaged 훅 → (목숨 0 이하면) checkDeath
-       → 생존맥주 → eliminate
+damage → (목숨 0 이하면) checkDeath → 생존맥주 → (살면) onDamaged 훅
+                                           → (죽으면) eliminate
        → onEliminated 훅(벌쳐 샘) → eliminateCleanup → bountyOrPenalty → checkWin
 ```
 
@@ -55,8 +55,12 @@ damage → onDamaged 훅 → (목숨 0 이하면) checkDeath
   살아나는 데 필요한 맥주 수를 잘못 세게 된다
 - 생존맥주는 **생존자가 3명 이상**일 때만 묻는다. 유령은 생존자로 세지 않는다
 - 살아날 가능성이 아예 없으면 묻지 않는다 (맥주가 모자라고 시드 케첨도 못 쓸 때)
-- `source` 는 반격 능력(엘 그링고)이 향하는 가해자, `credit` 은 현상금·벌칙을 받는 사람이다.
-  자기가 신청한 결투에서 지면 `source` 는 없고 `credit` 만 있다
+- `source` 는 그 피해를 낸 카드를 사용한 사람이다. 반격 능력(엘 그링고)이 향하고,
+  그 피해로 죽으면 현상금·보안관 벌칙의 처치자가 된다. 자기가 신청한 결투에서 지면 `source` 가 없으므로
+  이긴 사람도 현상금·벌칙과 무관하다 (공식 FAQ Q21·Q23). `credit` 은 골드 러시 상처 금덩이를 받는 사람으로,
+  이때는 결투에서 이긴 상대다
+- 마지막 목숨을 잃으면 **죽음 판정(생존맥주)이 목숨을 잃어 받는 능력보다 먼저다.** 바트 캐시디·엘 그링고는
+  살아남은 뒤에야 카드를 받는다 (공식 FAQ Q17)
 - 탈락 처리 순서는 **벌쳐 샘 회수 → 현상금 → 보안관 벌칙 → 승리 판정**으로 고정한다
 
 ## 판정 (카드 펼치기)

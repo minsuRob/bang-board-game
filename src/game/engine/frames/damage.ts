@@ -94,8 +94,10 @@ export function resolveDamage(state: GameState, frame: Frame & { k: 'damage' }):
   // 바트 캐시디·엘 그링고처럼 목숨을 잃어 받는 카드는 살아남은 뒤에야 받는다 (공식 FAQ Q17).
   // 죽으면 받는 프레임은 inPlay 검사에서 저절로 건너뛴다.
   const frames: Frame[] = [];
+  // 처치한 사람은 제거에 책임이 있는 카드를 낸 사람이다. 자기가 건 결투에서 지면 아무도 아니다
+  // (공식 FAQ Q23: "since that card was played by the Outlaw himself, no one can gain the reward").
   if (hp <= 0) {
-    frames.push({ k: 'checkDeath', target: p.id, source: frame.credit ?? frame.source ?? null });
+    frames.push({ k: 'checkDeath', target: p.id, source: frame.source ?? null });
   }
   frames.push(...onDamagedFrames(cur, p.id, frame.amount, frame.source, frame.cause));
   if (frame.source && frame.source !== p.id) {

@@ -172,6 +172,61 @@ describe('탈락 처리', () => {
     expect(logged(s, 'penalty')).toBe(true);
   });
 
+  // 공식 FAQ Q23: "The reward goes to the player who played the card which was responsible of the
+  // elimination of the Outlaw. But since that card was played by the Outlaw himself, no one can gain the reward."
+  it('무법자가 자기가 건 결투에서 져서 죽으면 이긴 사람도 현상금을 받지 않는다 (FAQ Q23)', () => {
+    const s0 = scenario({
+      players: [
+        { role: 'sheriff', hand: ['bang'] },
+        { role: 'outlaw', hp: 1, hand: ['duel'] },
+        { role: 'outlaw' },
+        { role: 'renegade' },
+      ],
+      activeSeat: 1,
+    });
+    let s = reduce(s0, { type: 'playCard', pid: 'p1', card: handCard(s0, 'p1', 'duel'), target: 'p0' });
+    s = reduce(s, { type: 'respond', pid: 'p0', choice: { c: 'card', card: handCard(s, 'p0', 'bang') } });
+    expect(p(s, 'p1').alive).toBe(false);
+    expect(logged(s, 'bounty')).toBe(false);
+    expect(p(s, 'p0').hand).toHaveLength(0);
+    expect(totalCards(s)).toBe(80);
+  });
+
+  it('결투를 받은 무법자가 지면 결투를 건 사람이 현상금을 받는다 (FAQ Q23, EC-56)', () => {
+    const s0 = scenario({
+      players: [
+        { role: 'sheriff', hand: ['duel'] },
+        { role: 'outlaw', hp: 1 },
+        { role: 'outlaw' },
+        { role: 'renegade' },
+      ],
+    });
+    const s = reduce(s0, { type: 'playCard', pid: 'p0', card: handCard(s0, 'p0', 'duel'), target: 'p1' });
+    expect(p(s, 'p1').alive).toBe(false);
+    expect(logged(s, 'bounty')).toBe(true);
+    expect(p(s, 'p0').hand).toHaveLength(3);
+  });
+
+  // 같은 FAQ Q23 의 기준(제거에 책임이 있는 카드를 낸 사람)으로, 부관이 건 결투에서 부관이 지면
+  // 보안관은 부관을 제거한 사람이 아니다.
+  it('부관이 보안관에게 건 결투에서 져서 죽어도 보안관 벌칙은 없다 (FAQ Q23)', () => {
+    const s0 = scenario({
+      players: [
+        { role: 'sheriff', hand: ['bang', 'beer'], equipment: ['scope'] },
+        { role: 'deputy', hp: 1, hand: ['duel'] },
+        { role: 'outlaw' },
+        { role: 'renegade' },
+      ],
+      activeSeat: 1,
+    });
+    let s = reduce(s0, { type: 'playCard', pid: 'p1', card: handCard(s0, 'p1', 'duel'), target: 'p0' });
+    s = reduce(s, { type: 'respond', pid: 'p0', choice: { c: 'card', card: handCard(s, 'p0', 'bang') } });
+    expect(p(s, 'p1').alive).toBe(false);
+    expect(logged(s, 'penalty')).toBe(false);
+    expect(p(s, 'p0').hand).toHaveLength(1);
+    expect(p(s, 'p0').equipment).toHaveLength(1);
+  });
+
   it('배신자를 처치해도 현상금은 없다', () => {
     const s0 = scenario({
       players: [
