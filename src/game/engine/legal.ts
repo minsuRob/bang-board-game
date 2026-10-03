@@ -217,9 +217,14 @@ function respondActions(state: GameState, pid: PlayerId): Action[] {
       }
       out.push(pass);
       break;
+    case 'generalStore':
+      for (const card of unique(a.options)) {
+        out.push({ type: 'respond', pid, choice: { c: 'card', card } });
+      }
+      if (a.canPass) out.push(pass);
+      break;
     case 'judgementChoice':
     case 'giveCard':
-    case 'generalStore':
     case 'kitCarlson':
     case 'daltonsDiscard':
     case 'dutchWill':

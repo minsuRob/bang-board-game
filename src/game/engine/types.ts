@@ -237,8 +237,12 @@ export type Frame =
   | { k: 'bountyOrPenalty'; killer: PlayerId | null; victim: PlayerId }
   // 카드 이동
   | { k: 'drawCards'; pid: PlayerId; count: number; reason: string }
-  /** 남의 손에서 무작위로 가져온다 (엘 그링고·제시 존스) */
-  | { k: 'drawFromPlayer'; pid: PlayerId; from: PlayerId; count: number }
+  /**
+   * 남의 손에서 무작위로 가져온다 (엘 그링고·제시 존스·구조! 보상).
+   * auto = 엘 그링고처럼 자동으로 발동한 능력이라 헨리 블록이 반응하지 않는다.
+   * reacted = 헨리 블록의 반응(자동 뱅!)을 이미 쌓았다. 카드는 그 뒤에 넘어간다.
+   */
+  | { k: 'drawFromPlayer'; pid: PlayerId; from: PlayerId; count: number; auto?: boolean; reacted?: boolean }
   /** 그 사람의 손패와 장비를 전부 가져온다 (벌쳐 샘) */
   | { k: 'takeAllCards'; pid: PlayerId; from: PlayerId }
   /** 목숨 회복 */
@@ -246,7 +250,16 @@ export type Frame =
   /** 주점: 전원 회복 */
   | { k: 'saloon'; queue: PlayerId[] }
   | { k: 'generalStore'; source: PlayerId; queue: PlayerId[]; revealed: CardId[] }
-  | { k: 'steal'; source: PlayerId; target: PlayerId; mode: 'panic' | 'catBalou' }
+  /** picked = 고른 카드. 헨리 블록의 자동 뱅!이 해결된 뒤에 옮기려고 들고 있다 */
+  | {
+      k: 'steal';
+      source: PlayerId;
+      target: PlayerId;
+      mode: 'panic' | 'catBalou';
+      picked?: { card: CardId; fromEquipment: boolean };
+    }
+  /** 플린트 웨스트우드의 맞바꾸기. 헨리 블록의 자동 뱅!이 해결된 뒤에 카드를 옮긴다 */
+  | { k: 'swapCards'; pid: PlayerId; target: PlayerId; card: CardId; take: number }
   /** 조니 키시: 방금 내려놓은 card 와 이름이 같은 다른 카드를 모두 버린다 */
   | { k: 'discardSameName'; pid: PlayerId; card: CardId }
   // 캐릭터·이벤트가 만드는 선택
@@ -330,7 +343,11 @@ export type PendingInput =
   /** 판정에서 펼칠 카드를 고른다 (러키 듀크가 두 장을 볼 때) */
   | { k: 'judgementChoice'; pid: PlayerId; purpose: JudgementPurpose; options: CardId[] }
   /** 잡화점: 펼쳐진 카드 중 1장 선택 */
-  | { k: 'generalStore'; pid: PlayerId; options: CardId[] }
+  /**
+   * 펼친 카드 중 1장을 고른다 (잡화점). reason 'poker' 는 포커 판돈에서 고르는 중이고,
+   * canPass 면 그만 가져갈 수 있다 (포커 "draw up to 2")
+   */
+  | { k: 'generalStore'; pid: PlayerId; options: CardId[]; reason?: 'poker'; canPass?: boolean }
   /** 강탈·캣 벌로우: 대상의 카드 1장 선택 (손패는 뒷면이라 인덱스로 고른다) */
   | {
       k: 'stealCard';

@@ -11,7 +11,7 @@
 | lemat | Lemat | 파랑(무기 1) | 4♦ | During your turn, you may use any card in your hand as a BANG! card. | 사정거리 1. 자기 차례에 손의 아무 카드나 뱅!으로 쓸 수 있다. |
 | rattlesnake | Serpente a Sonagli / Rattlesnake | 파랑 | 7♥ | Play on any player. At the beginning of his turn, that player "draws!": on Spades, he loses 1 life point. | 아무에게나 놓는다. 그 사람은 차례 시작에 판정해서 ♠면 목숨 1을 잃는다. |
 | shotgun | Shotgun | 파랑(무기 1) | K♠ | Each time you hit a player, he must discard a card of his choice from his hand. | 사정거리 1. 내가 누군가를 맞힐 때마다 그 사람은 손패 1장을 골라 버린다. |
-| bounty | Taglia / Bounty | 파랑 | 9♣ | Play on any player. If that player is hit by a BANG! card, the player who shot him draws a card from the deck. | 아무에게나 놓는다. 그 사람이 뱅!에 맞으면 쏜 사람이 덱에서 1장 가져온다. |
+| bounty | Taglia / Bounty | 파랑 | 9♣ | Play on any player. If that player is hit by a BANG! card, the player who shot him draws a card from the deck. | 아무에게나 놓는다. 그 사람이 뱅! 카드에 맞으면 쏜 사람이 덱에서 1장 가져온다. |
 | bandidos | Bandidos | 갈색 | Q♦ | Each player chooses one: discard 2 cards from his hand (1 if he only has 1) or lose 1 life point. | 다른 모든 플레이어는 손패 2장(1장뿐이면 1장)을 버리거나 목숨 1을 잃는다. |
 | escape | Fuga / Escape | 갈색 | 3♥ | May be played out of turn. Avoid the effects of a brown card (other than BANG!) that includes you as a target. | 남의 차례에도 낼 수 있다. 나를 대상에 포함한 갈색 카드(뱅! 제외)의 효과를 피한다. |
 | aim | Mira / Aim | 갈색 | 6♣ | Play this card together with a BANG! card. If the target is hit, he loses 2 life points. | 뱅!과 함께 낸다. 표적이 맞으면 목숨 2를 잃는다. |

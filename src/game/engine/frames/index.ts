@@ -25,6 +25,7 @@ import {
   resolveKitCarlson,
   resolvePedroRamirez,
   resolveSteal,
+  resolveSwapCards,
   resolveTakeAllCards,
   respondGeneralStore,
   respondJesseJones,
@@ -166,6 +167,8 @@ export function resolveFrame(state: GameState, frame: Frame): GameState {
       return resolveGeneralStore(state, frame);
     case 'steal':
       return resolveSteal(state, frame);
+    case 'swapCards':
+      return resolveSwapCards(state, frame);
     case 'discardSameName':
       return resolveDiscardSameName(state, frame);
     case 'kitCarlson':

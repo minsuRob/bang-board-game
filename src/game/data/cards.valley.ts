@@ -169,7 +169,7 @@ export const VALLEY_CARD_DEFS: Record<ValleyKind, CardDef> = {
     category: 'blue',
     equip: 'other',
     symbols: [{ s: 'targetAny' }],
-    text: '다른 플레이어 앞에 놓는다. 그 사람이 뱅!에 맞으면 쏜 사람이 덱에서 1장 가져온다.',
+    text: '다른 플레이어 앞에 놓는다. 그 사람이 뱅! 카드에 맞으면 쏜 사람이 덱에서 1장 가져온다.',
     expansion: 'valley',
   },
 };

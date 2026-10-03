@@ -251,11 +251,13 @@ function effectFrames(
     case 'fanning': {
       if (!target) return [];
       const shots: PlayerId[] = opts.target2 ? [target, opts.target2] : [target];
+      // 패닝은 뱅! 카드가 아니다. 슬랩 더 킬러의 빗나감! 2장 요구는 뱅! 카드에만 붙는다
+      // (VoS 룰 5쪽 "but not Gatling, Fanning", 기본판 FAQ Q19). 기관총처럼 1장씩
       return shots.map((t): Frame => ({
         k: 'bang',
         source: pid,
         target: t,
-        missesRequired: outgoingBangMissesOf(state, pid),
+        missesRequired: 1,
         cause: 'fanning',
         dodgeChecked: false,
       }));

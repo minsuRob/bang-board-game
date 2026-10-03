@@ -64,14 +64,32 @@ export function resolveDrawCards(
   return cur;
 }
 
-/** 남의 손에서 무작위로 가져온다 (엘 그링고·제시 존스). */
+/**
+ * 헨리 블록처럼 카드를 빼앗기면 반응하는 능력. 반응이 있으면 그 반응을 먼저 쌓고
+ * then(같은 카드 이동을 '반응 끝남'으로 표시한 프레임)을 그 뒤에 둔다.
+ * VoS 룰 5쪽: "The card is drawn (or discarded) only after the automatic BANG! is resolved."
+ */
+function reactFirst(state: GameState, victim: PlayerId, taker: PlayerId, then: Frame): GameState | null {
+  const reactions = onCardTakenFrames(state, victim, taker);
+  return reactions.length > 0 ? pushSeq(state, [...reactions, then]) : null;
+}
+
+/** 남의 손에서 무작위로 가져온다 (엘 그링고·제시 존스·구조! 보상). */
 export function resolveDrawFromPlayer(
   state: GameState,
   frame: Frame & { k: 'drawFromPlayer' },
 ): GameState {
   let cur = popFrame(state);
   const taker = playerOf(cur, frame.pid);
+  // 헨리 블록의 뱅!에 쓰러졌으면 가져가지 않는다
   if (!inPlay(taker)) return cur;
+  if (playerOf(cur, frame.from).hand.length === 0) return cur;
+
+  // 엘 그링고 같은 자동 능력에는 헨리 블록이 반응하지 않는다 (VoS 룰 5쪽)
+  if (!frame.auto && !frame.reacted) {
+    const reacted = reactFirst(cur, frame.from, frame.pid, { ...frame, reacted: true });
+    if (reacted) return reacted;
+  }
 
   const taken: string[] = [];
   for (let i = 0; i < frame.count; i++) {
@@ -87,7 +105,6 @@ export function resolveDrawFromPlayer(
   }
   if (taken.length === 0) return cur;
 
-  cur = pushSeq(cur, onCardTakenFrames(cur, frame.from, frame.pid));
   cur = giveCards(cur, frame.pid, taken);
   return log(cur, {
     t: 'steal',
@@ -95,6 +112,41 @@ export function resolveDrawFromPlayer(
     target: frame.from,
     amount: taken.length,
     text: `${ga(nameOf(cur, frame.pid))} ${nameOf(cur, frame.from)}의 손에서 ${taken.length}장을 가져갔다.`,
+  });
+}
+
+/**
+ * 플린트 웨스트우드: 남의 손에서 무작위로 take 장을 먼저 가져오고, 내 카드 1장을 준다.
+ * 먼저 뽑아야 방금 준 카드를 도로 뽑아 오지 않는다. 헨리 블록의 자동 뱅!은 이 프레임 앞에 쌓인다.
+ */
+export function resolveSwapCards(state: GameState, frame: Frame & { k: 'swapCards' }): GameState {
+  let cur = popFrame(state);
+  const { pid, target, card } = frame;
+  // 헨리 블록의 뱅!에 쓰러졌거나 줄 카드가 손에 없으면 맞바꾸지 않는다
+  if (!inPlay(playerOf(cur, pid)) || !playerOf(cur, pid).hand.includes(card)) return cur;
+  if (!inPlay(playerOf(cur, target))) return cur;
+
+  cur = updatePlayer(cur, pid, (p) => ({ ...p, hand: p.hand.filter((c) => c !== card) }));
+  const taken: CardId[] = [];
+  for (let i = 0; i < frame.take; i++) {
+    const victim = playerOf(cur, target);
+    if (victim.hand.length === 0) break;
+    const rolled = nextInt(cur.rng, victim.hand.length);
+    const pick = victim.hand[rolled.value];
+    cur = updatePlayer({ ...cur, rng: rolled.rng }, target, (p) => ({
+      ...p,
+      hand: p.hand.filter((c) => c !== pick),
+    }));
+    taken.push(pick);
+  }
+  cur = giveCards(cur, pid, taken);
+  cur = giveCards(cur, target, [card]);
+  return log(cur, {
+    t: 'flintWestwood',
+    pid,
+    target,
+    amount: taken.length,
+    text: `${ga(nameOf(cur, pid))} ${nameOf(cur, target)}에게 카드 1장을 주고 ${taken.length}장을 가져왔다.`,
   });
 }
 
@@ -224,6 +276,15 @@ export function resolveDiscardSameName(
 // ---------------------------------------------------------------------------
 
 export function resolveSteal(state: GameState, frame: Frame & { k: 'steal' }): GameState {
+  if (frame.picked) {
+    // 헨리 블록의 뱅!이 끝났다. 그 사이 쓰러졌거나 카드가 이미 떠났으면 아무 일도 없다
+    const { card, fromEquipment } = frame.picked;
+    const cur = popFrame(state);
+    const victim = playerOf(cur, frame.target);
+    const still = fromEquipment ? victim.equipment.includes(card) : victim.hand.includes(card);
+    if (!inPlay(playerOf(cur, frame.source)) || !still) return cur;
+    return moveStolen(cur, frame, card, fromEquipment);
+  }
   const t = playerOf(state, frame.target);
   if (!inPlay(t) || (t.hand.length === 0 && t.equipment.length === 0)) {
     return popFrame(state);
@@ -262,13 +323,21 @@ export function respondSteal(
     card = t.hand[0] ?? t.equipment[0] ?? null;
     fromEquipment = !t.hand.length && Boolean(card);
   }
-  let cur = popFrame(state);
+  const cur = popFrame(state);
   if (!card) return cur;
-  // 헨리 블록: 내 카드를 가져가거나 버리게 한 사람은 뱅!의 표적이 된다
-  cur = pushSeq(cur, onCardTakenFrames(cur, frame.target, frame.source));
+  // 헨리 블록: 내 카드를 가져가거나 버리게 한 사람은 뱅!의 표적이 된다. 카드는 그 뱅! 뒤에 옮긴다
+  const reacted = reactFirst(cur, frame.target, frame.source, { ...frame, picked: { card, fromEquipment } });
+  if (reacted) return reacted;
+  return moveStolen(cur, frame, card, fromEquipment);
+}
 
-  const picked = card;
-  cur = updatePlayer(cur, frame.target, (p) =>
+function moveStolen(
+  state: GameState,
+  frame: Frame & { k: 'steal' },
+  picked: CardId,
+  fromEquipment: boolean,
+): GameState {
+  let cur = updatePlayer(state, frame.target, (p) =>
     fromEquipment
       ? { ...p, equipment: p.equipment.filter((c) => c !== picked) }
       : { ...p, hand: p.hand.filter((c) => c !== picked) },

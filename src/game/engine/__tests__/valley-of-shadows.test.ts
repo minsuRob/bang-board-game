@@ -429,6 +429,170 @@ describe('하이 눈 이벤트와의 상호작용', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// 공식 해설(VoS 룰 5쪽 · Expansion Pack 2쪽)에 맞춘 판정
+// ---------------------------------------------------------------------------
+
+describe('포상금 — 뱅! 카드에 맞을 때만 (EC-129)', () => {
+  // VoS 룰 5쪽: "Whenever an effect requires a BANG! or Missed! card, (e.g., Colorado Bill, Mick Defender,
+  // Bounty, etc.), you must use a real BANG! or Missed! card, or a card that counts as a BANG! or Missed!
+  // card (e.g. LeMat, Calamity Janet, etc., but not Gatling, Fanning, etc.)."
+  // 포상금 카드: "If that player is hit by a BANG! card, ..."
+  it('기관총에 맞으면 쏜 사람이 가져오지 않는다', () => {
+    const s0 = V({ players: [{ hand: ['gatling'] }, { equipment: ['bounty'] }, {}] });
+    const s = play(s0, 'p0', 'gatling');
+    expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp - 1);
+    expect(p(s, 'p0').hand).toHaveLength(0);
+  });
+
+  it('패닝에 맞으면 쏜 사람이 가져오지 않는다', () => {
+    const s0 = V({ players: [{ hand: ['fanning'] }, { equipment: ['bounty'] }, {}] });
+    const s = play(s0, 'p0', 'fanning', { target: 'p1', target2: 'p2' });
+    expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp - 1);
+    expect(p(s, 'p0').hand).toHaveLength(0);
+  });
+
+  it('토마호크는 뱅! 카드가 아니라 가져오지 않는다', () => {
+    const s0 = V({ players: [{ hand: ['tomahawk'] }, { equipment: ['bounty'] }, {}] });
+    const s = play(s0, 'p0', 'tomahawk', { target: 'p1' });
+    expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp - 1);
+    expect(p(s, 'p0').hand).toHaveLength(0);
+  });
+
+  it('헨리 블록의 자동 뱅!은 카드가 아니라 가져오지 않는다', () => {
+    const s0 = V({ players: [{ hand: ['panic'], equipment: ['bounty'] }, { character: 'henryBlock', hand: ['beer'] }, {}] });
+    let s = play(s0, 'p0', 'panic', { target: 'p1' });
+    s = reduce(s, { type: 'respond', pid: 'p0', choice: { c: 'pick', pick: { zone: 'hand', index: 0 } } });
+    expect(p(s, 'p0').hp).toBe(p(s0, 'p0').hp - 1);
+    expect(p(s, 'p1').hand).toHaveLength(0);
+  });
+
+  it('칼라미티 자넷이 뱅!으로 낸 빗나감!은 뱅! 카드로 쳐서 가져온다', () => {
+    const s0 = V({ players: [{ character: 'calamityJanet', hand: ['missed'] }, { equipment: ['bounty'] }, {}] });
+    const s = reduce(s0, { type: 'playCard', pid: 'p0', card: handCard(s0, 'p0', 'missed'), as: 'bang', target: 'p1' });
+    expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp - 1);
+    expect(p(s, 'p0').hand).toHaveLength(1);
+  });
+});
+
+describe('헨리 블록 — 공식 해설 (EC-128)', () => {
+  // VoS 룰 5쪽: "Henry Block: The card is drawn (or discarded) only after the automatic BANG! is resolved.
+  // This ability works against Jesse Jones' or Pat Brennan's, but not against automatic abilities like El Gringo's."
+  it('엘 그링고가 능력으로 헨리의 손패를 가져가도 뱅!을 쏘지 않는다', () => {
+    const s0 = V({ players: [{ character: 'henryBlock', hand: ['bang', 'beer'] }, { character: 'elGringo' }, {}] });
+    const s = play(s0, 'p0', 'bang', { target: 'p1' });
+    expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp - 1);
+    expect(p(s, 'p1').hand.map(kindOf)).toEqual(['beer']);
+    expect(s.awaiting).toBeNull();
+  });
+
+  it('강탈한 빗나감!은 헨리의 뱅!이 끝난 뒤에 넘어오므로 그 뱅!을 막는 데 못 쓴다', () => {
+    const s0 = V({ players: [{ hand: ['panic'] }, { character: 'henryBlock', hand: ['missed'] }, {}] });
+    let s = play(s0, 'p0', 'panic', { target: 'p1' });
+    s = reduce(s, { type: 'respond', pid: 'p0', choice: { c: 'pick', pick: { zone: 'hand', index: 0 } } });
+    expect(s.awaiting).toBeNull();
+    expect(p(s, 'p0').hp).toBe(p(s0, 'p0').hp - 1);
+    expect(p(s, 'p0').hand.map(kindOf)).toEqual(['missed']);
+    expect(p(s, 'p1').hand).toHaveLength(0);
+    expect(totalCards(s)).toBe(96);
+  });
+
+  it('캣 벌로우도 헨리의 뱅!이 끝난 뒤에 버려진다', () => {
+    const s0 = V({ players: [{ hand: ['catBalou', 'missed'] }, { character: 'henryBlock', equipment: ['barrel'] }, {}] });
+    let s = play(s0, 'p0', 'catBalou', { target: 'p1' });
+    const barrel = p(s, 'p1').equipment[0];
+    s = reduce(s, { type: 'respond', pid: 'p0', choice: { c: 'pick', pick: { zone: 'equipment', card: barrel } } });
+    // 뱅!이 해결되는 동안 술통은 아직 헨리 앞에 있다
+    expect(s.awaiting).toMatchObject({ k: 'missed', pid: 'p0' });
+    expect(p(s, 'p1').equipment).toEqual([barrel]);
+    s = pick(s, handCard(s, 'p0', 'missed'));
+    expect(p(s, 'p1').equipment).toHaveLength(0);
+    expect(s.discard).toContain(barrel);
+  });
+
+  it('제시 존스가 헨리에게서 뽑은 빗나감!으로 그 뱅!을 막지 못한다', () => {
+    const s0 = V({ players: [{ character: 'jesseJones' }, { character: 'henryBlock', hand: ['missed'] }, {}] });
+    let s = beginTurn(s0, 'p0');
+    expect(s.awaiting).toMatchObject({ k: 'jesseJones', pid: 'p0' });
+    s = reduce(s, { type: 'respond', pid: 'p0', choice: { c: 'player', pid: 'p1' } });
+    expect(s.awaiting).toBeNull();
+    expect(p(s, 'p0').hp).toBe(p(s0, 'p0').hp - 1);
+    expect(p(s, 'p0').hand.map(kindOf)).toContain('missed');
+    expect(p(s, 'p0').hand).toHaveLength(2);
+  });
+
+  it('가져가려던 사람이 헨리의 뱅!에 쓰러지면 카드는 넘어가지 않는다', () => {
+    const s0 = V({
+      players: [
+        { role: 'sheriff' },
+        { role: 'renegade', hand: ['panic'], hp: 1 },
+        { role: 'outlaw', character: 'henryBlock', hand: ['beer'] },
+        { role: 'outlaw' },
+      ],
+      activeSeat: 1,
+    });
+    let s = play(s0, 'p1', 'panic', { target: 'p2' });
+    s = reduce(s, { type: 'respond', pid: 'p1', choice: { c: 'pick', pick: { zone: 'hand', index: 0 } } });
+    expect(p(s, 'p1').alive).toBe(false);
+    // 맥주가 넘어왔다면 p1 은 그것으로 버텼을 것이다. 맥주는 그대로 헨리 손에 있다
+    expect(p(s, 'p2').hand).toContain(handCard(s0, 'p2', 'beer'));
+    expect(totalCards(s)).toBe(96);
+  });
+});
+
+describe('슬랩 더 킬러 × 패닝', () => {
+  // VoS 룰 5쪽: BANG! 카드를 요구하는 효과에는 "not Gatling, Fanning".
+  // FAQ(기본판) Q19: "The special ability of Slab the Killer applies to BANG! cards only."
+  it('패닝 두 발은 각각 빗나감! 1장으로 막는다', () => {
+    const s0 = V({ players: [{ character: 'slabTheKiller', hand: ['fanning'] }, { hand: ['missed'] }, { hand: ['missed'] }] });
+    let s = play(s0, 'p0', 'fanning', { target: 'p1', target2: 'p2' });
+    expect(s.awaiting).toMatchObject({ k: 'missed', pid: 'p1', remaining: 1 });
+    s = pick(s, handCard(s, 'p1', 'missed'));
+    expect(s.awaiting).toMatchObject({ k: 'missed', pid: 'p2', remaining: 1 });
+    s = pick(s, handCard(s, 'p2', 'missed'));
+    expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp);
+    expect(p(s, 'p2').hp).toBe(p(s0, 'p2').hp);
+  });
+});
+
+describe('포커 — "up to 2"', () => {
+  // 포커 카드: "If no Ace was discarded, you draw up to 2 of those cards."
+  const noAce = () =>
+    V({ players: [{ hand: ['poker'] }, { hand: [{ kind: 'bang', rank: '2' }] }, { hand: [{ kind: 'missed', rank: '3' }] }] });
+  const toPot = (s0: GameState): GameState => {
+    let s = play(s0, 'p0', 'poker');
+    s = pick(s, p(s, 'p1').hand[0]);
+    return pick(s, p(s, 'p2').hand[0]);
+  };
+
+  it('하나도 가져가지 않을 수 있다', () => {
+    const s = toPot(noAce());
+    expect(s.awaiting).toMatchObject({ k: 'generalStore', pid: 'p0', canPass: true });
+    expect(legalActions(s, 'p0').some((a) => a.type === 'respond' && a.choice.c === 'pass')).toBe(true);
+    const done = pass(s);
+    expect(done.awaiting).toBeNull();
+    expect(p(done, 'p0').hand).toHaveLength(0);
+    expect(totalCards(done)).toBe(96);
+  });
+
+  it('1장만 가져가고 그만둘 수 있다', () => {
+    let s = toPot(noAce());
+    s = pick(s, (s.awaiting as { options: string[] }).options[0]);
+    expect(s.awaiting).toMatchObject({ k: 'generalStore', canPass: true });
+    s = pass(s);
+    expect(s.awaiting).toBeNull();
+    expect(p(s, 'p0').hand).toHaveLength(1);
+    expect(totalCards(s)).toBe(96);
+  });
+
+  it('잡화점은 그대로 반드시 고른다', () => {
+    const s0 = V({ players: [{ hand: ['generalStore'] }, {}, {}] });
+    const s = play(s0, 'p0', 'generalStore');
+    expect(s.awaiting).toMatchObject({ k: 'generalStore' });
+    expect(legalActions(s, 'p0').some((a) => a.type === 'respond' && a.choice.c === 'pass')).toBe(false);
+  });
+});
+
 describe('JSON 왕복', () => {
   it('확장판 상태가 JSON 으로 그대로 돌아온다', () => {
     const s0 = V({ players: [{ hand: ['poker'] }, { hand: ['bang'] }, { hand: ['missed'] }] });

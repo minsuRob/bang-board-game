@@ -138,6 +138,19 @@ describe('플린트 웨스트우드', () => {
     const s1 = settle(reduce(s0, swaps(s0, 'p0')[0]));
     expect(p(s1, 'p0').hp).toBe(p(s0, 'p0').hp - 1);
   });
+
+  it('헨리에게서 뽑을 빗나감!은 그 뱅!이 끝난 뒤에 넘어와 막는 데 못 쓴다', () => {
+    // VoS 룰 5쪽 헨리 블록: "The card is drawn (or discarded) only after the automatic BANG! is resolved."
+    const s0 = scenario({
+      players: [{ character: 'flintWestwood', hand: ['beer'] }, { character: 'henryBlock', hand: ['missed', 'missed'] }, {}, {}],
+    });
+    const s1 = reduce(s0, swaps(s0, 'p0')[0]);
+    expect(s1.awaiting).toBeNull();
+    expect(p(s1, 'p0').hp).toBe(p(s0, 'p0').hp - 1);
+    expect(p(s1, 'p0').hand.map(kindOf)).toEqual(['missed', 'missed']);
+    expect(p(s1, 'p1').hand.map(kindOf)).toEqual(['beer']);
+    expect(totalCards(s1)).toBe(80);
+  });
 });
 
 describe('게리 루터', () => {

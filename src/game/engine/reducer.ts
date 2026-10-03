@@ -16,7 +16,6 @@ import {
   kindOf,
   log,
   nameOf,
-  playerOf,
   pushSeq,
   putOnDeck,
   toDiscard,
@@ -30,7 +29,6 @@ import {
   onCardTakenFrames,
   swapAbilitiesOf,
 } from './hooks';
-import { nextInt } from './rng';
 import { applyPick } from './draft';
 import { applyGoldAction } from './gold-actions';
 import { applyEventAbility } from './event-abilities';
@@ -178,7 +176,7 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
 
 /**
  * 플린트 웨스트우드: 남의 손에서 무작위로 몇 장을 먼저 가져오고, 내 카드 1장을 준다.
- * 먼저 뽑아야 방금 준 카드를 도로 뽑아 오지 않는다.
+ * 상대가 헨리 블록이면 그 자동 뱅!을 먼저 해결하고 나서 맞바꾼다 (VoS 룰 5쪽).
  */
 function applySwap(
   state: GameState,
@@ -190,34 +188,11 @@ function applySwap(
   const ability = swapAbilitiesOf(state, pid).find((ab) => ab.key === key);
   if (!ability) return state;
 
-  let cur = updatePlayer(state, pid, (p) => ({
-    ...p,
-    hand: p.hand.filter((c) => c !== card),
-    usedThisTurn: [...p.usedThisTurn, key],
-  }));
-  const taken: CardId[] = [];
-  for (let i = 0; i < ability.take; i++) {
-    const victim = playerOf(cur, target);
-    if (victim.hand.length === 0) break;
-    const rolled = nextInt(cur.rng, victim.hand.length);
-    const pick = victim.hand[rolled.value];
-    cur = updatePlayer({ ...cur, rng: rolled.rng }, target, (p) => ({
-      ...p,
-      hand: p.hand.filter((c) => c !== pick),
-    }));
-    taken.push(pick);
-  }
-  cur = giveCards(cur, pid, taken);
-  cur = giveCards(cur, target, [card]);
-  cur = log(cur, {
-    t: 'flintWestwood',
-    pid,
-    target,
-    amount: taken.length,
-    text: `${ga(nameOf(cur, pid))} ${nameOf(cur, target)}에게 카드 1장을 주고 ${taken.length}장을 가져왔다.`,
-  });
-  // 헨리 블록처럼 손패를 빼앗기면 반응하는 능력
-  return pushSeq(cur, onCardTakenFrames(cur, target, pid));
+  const cur = updatePlayer(state, pid, (p) => ({ ...p, usedThisTurn: [...p.usedThisTurn, key] }));
+  return pushSeq(cur, [
+    ...onCardTakenFrames(cur, target, pid),
+    { k: 'swapCards', pid, target, card, take: ability.take },
+  ]);
 }
 
 /** 시드 케첨: 카드 두 장을 버리고 목숨 1 회복 */

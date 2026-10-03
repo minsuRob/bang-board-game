@@ -123,6 +123,8 @@ export function respondBandidos(
 // ---------------------------------------------------------------------------
 // 포커 — 다른 모든 플레이어가 손패 1장씩 버린다. 에이스가 없으면 낸 사람이 2장까지 가져온다
 //
+// 카드 원문 "you draw up to 2 of those cards": 0~2장. 판돈에서 고를 때마다 그만둘 수 있다.
+//
 // 원작은 '동시에' 버린다. 여기서는 차례로 고르되 판돈(pot)은 끝날 때까지 공개하지 않는다.
 // ---------------------------------------------------------------------------
 
@@ -162,10 +164,10 @@ export function resolvePoker(state: GameState, frame: Frame & { k: 'poker' }): G
   }
   if (frame.left <= 0) return toDiscard(cur, frame.pot);
 
-  // 낸 사람이 판돈에서 고른다.
+  // 낸 사람이 판돈에서 고른다. 그만 가져가도 된다
   return {
     ...state,
-    awaiting: { k: 'generalStore', pid: frame.source, options: frame.pot },
+    awaiting: { k: 'generalStore', pid: frame.source, options: frame.pot, reason: 'poker', canPass: true },
   };
 }
 
@@ -186,6 +188,8 @@ export function respondPoker(
     return replaceTop(cur, { ...frame, queue: frame.queue.slice(1), pot: [...frame.pot, card] });
   }
 
+  // 그만 가져간다. 남은 판돈은 다음 해결에서 버린다
+  if (choice.c === 'pass') return replaceTop(state, { ...frame, left: 0 });
   const card =
     choice.c === 'card' && frame.pot.includes(choice.card) ? choice.card : frame.pot[0];
   let cur = giveCards(state, frame.source, [card]);
