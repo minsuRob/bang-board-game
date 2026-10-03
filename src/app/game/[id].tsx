@@ -23,7 +23,7 @@ import { useTimeoutDriver } from '@/game/store/online-driver';
 import { useChat } from '@/game/store/use-chat';
 import { useOnlineGameSession, useRoomConnection } from '@/game/store/use-online-game';
 import { preloadArt, useArtProgress, useArtReady } from '@/game/ui/art-preload';
-import { GameClock, useStopwatch } from '@/game/ui/GameClock';
+import { formatElapsed, GameClock, useStopwatch } from '@/game/ui/GameClock';
 import { LogCardPeek } from '@/game/ui/LogPanel';
 import { FullscreenButton } from '@/game/ui/FullscreenButton';
 import { PauseButton } from '@/game/ui/PauseButton';
@@ -430,6 +430,8 @@ export default function GameScreen() {
               {state.result.winners.map((r) => ROLE_LABEL[r]).join('·')} 승리
             </Text>
             <Text style={styles.resultReason}>{state.result.reason}</Text>
+            {/* 판이 끝나면 스톱워치가 서므로 이 값이 최종 시간이다 */}
+            <Text style={styles.resultElapsed}>걸린 시간 {formatElapsed(stopwatch.elapsed())}</Text>
             <ResultTable state={state} viewer={viewer} compact={compact} />
             <View style={styles.resultButtons}>
               <Pressable
@@ -577,6 +579,13 @@ const useStyles = themedStyles((c) => ({
     borderBottomColor: c.rule,
   },
   resultReason: { color: c.text, fontSize: 14.5, textAlign: 'center', fontFamily: WesternFonts.body },
+  resultElapsed: {
+    color: c.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    fontFamily: WesternFonts.body,
+    fontVariant: ['tabular-nums'],
+  },
   resultButtons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
