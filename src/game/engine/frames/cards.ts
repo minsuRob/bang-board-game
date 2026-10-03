@@ -257,22 +257,32 @@ export function respondSteal(
 ): GameState {
   const t = playerOf(state, frame.target);
   const hand = t.hand.slice(0, stealableHand(frame, t.hand));
+  let rng = state.rng;
+  // 손패는 무작위 1장이다 ("a random card from his hand", 기본판 룰). 손패 순서는 받은 순서라
+  // 고른 번호를 그대로 쓰면 공개된 경로로 들어온 카드를 노릴 수 있다. 번호는 '손패 쪽'이라는 뜻만 쓴다.
+  // 사카가웨이로 손패가 펼쳐져 있어도 마찬가지다 (와일드 웨스트 쇼 FAQ Q17).
+  const randomFromHand = (): string | null => {
+    if (hand.length === 0) return null;
+    const rolled = nextInt(rng, hand.length);
+    rng = rolled.rng;
+    return hand[rolled.value];
+  };
   let card: string | null = null;
   let fromEquipment = false;
 
   if (choice.c === 'pick') {
     if (choice.pick.zone === 'hand') {
-      card = hand[choice.pick.index] ?? hand[0] ?? null;
+      card = randomFromHand();
     } else if (t.equipment.includes(choice.pick.card)) {
       card = choice.pick.card;
       fromEquipment = true;
     }
   }
   if (!card) {
-    card = hand[0] ?? t.equipment[0] ?? null;
+    card = randomFromHand() ?? t.equipment[0] ?? null;
     fromEquipment = !hand.length && Boolean(card);
   }
-  let cur = popFrame(state);
+  let cur = popFrame({ ...state, rng });
   if (!card) return cur;
   // 헨리 블록: 내 카드를 가져가거나 버리게 한 사람은 뱅!의 표적이 된다
   cur = pushSeq(cur, onCardTakenFrames(cur, frame.target, frame.source));
