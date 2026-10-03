@@ -127,6 +127,26 @@ describe('피요테', () => {
     expect(logged(s, 'peyote')).toBe(true);
     expect(totalCards(s)).toBe(totalCards(s0));
   });
+
+  // 카드 원문 (assets/cards/event/peyote.png): "if he guessed right, he keeps it and may guess again"
+  it('첫 색은 꼭 불러야 하고, 맞힌 뒤에는 그만둘 수 있다', () => {
+    const s0 = scenario({
+      players: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }],
+      deckTop: [{ kind: 'bang', suit: 'hearts' }, { kind: 'bang', suit: 'spades' }],
+    });
+    let s = push(s0, { k: 'peyote', pid: 'a' });
+    const passes = (x: GameState) =>
+      legalActions(x, 'a').some((l) => l.type === 'respond' && l.choice.c === 'pass');
+    expect(passes(s)).toBe(false);
+    s = respond(s, 'a', { c: 'color', color: 'red' });
+    expect(s.awaiting).toMatchObject({ k: 'peyote', pid: 'a' });
+    expect(passes(s)).toBe(true);
+    s = respond(s, 'a', pass);
+    expect(s.awaiting).toBeNull();
+    expect(p(s, 'a').hand).toHaveLength(1);
+    expect(s.stack.some((f) => f.k === 'peyote')).toBe(false);
+    expect(totalCards(s)).toBe(totalCards(s0));
+  });
 });
 
 describe('목장', () => {

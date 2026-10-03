@@ -717,6 +717,8 @@ function scoreRespond(
     }
 
     case 'peyote':
+      // 틀려도 잃는 것이 없으니 그만두지 않고 계속 맞힌다
+      if (choice.c === 'pass') return -1000;
       if (choice.c !== 'color') return 0;
       return unseenColorCount(view, me, choice.color);
 

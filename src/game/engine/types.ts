@@ -296,7 +296,8 @@ export type Frame =
   | { k: 'russianRoulette'; queue: PlayerId[]; i: number }
   | { k: 'bloodBrothers'; pid: PlayerId }
   | { k: 'hardLiquor'; pid: PlayerId }
-  | { k: 'peyote'; pid: PlayerId }
+  /** 피요테: guessed 면 이미 한 번 맞혀서 이제 그만둘 수 있다 */
+  | { k: 'peyote'; pid: PlayerId; guessed?: boolean }
   /** 목장: 버릴 카드를 한 장씩 골라 picked 에 담고, pass 로 확정한다 */
   | { k: 'ranch'; pid: PlayerId; picked: CardId[] }
   /** 서부의 법: 두 번째로 가져온 카드를 보여 주고 의무를 건다 */
@@ -383,8 +384,8 @@ export type PendingInput =
   | { k: 'bloodBrothers'; pid: PlayerId; targets: PlayerId[] }
   /** 독한 술: 카드 가져오기를 건너뛰고 목숨 1 회복할지 */
   | { k: 'hardLiquor'; pid: PlayerId }
-  /** 피요테: 덱 맨 위 카드 색 맞히기 */
-  | { k: 'peyote'; pid: PlayerId }
+  /** 피요테: 덱 맨 위 카드 색 맞히기. canStop 이면 pass 로 그만둔다 (한 번 맞힌 뒤) */
+  | { k: 'peyote'; pid: PlayerId; canStop?: boolean }
   /** 목장: 더 버릴 카드를 고르거나 pass 로 확정한다 */
   | { k: 'ranch'; pid: PlayerId; options: CardId[]; picked: CardId[] }
   /** 리코체: 노려진 카드를 지키려면 빗나감!을 낸다 */
