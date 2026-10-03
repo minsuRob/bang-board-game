@@ -20,6 +20,7 @@ import { DraftSeatStatus } from './DraftSeatStatus';
 import { AttackBadges } from './AttackBadges';
 import { CardView } from './CardView';
 import { PRESENCE_LABEL, PresenceDot } from './PresenceDot';
+import { hpRows } from './hp-rows';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 const ROLE_COLOR: Record<Role, string> = {
@@ -148,11 +149,32 @@ function safeDistance(view: GameState, from: PlayerId, to: PlayerId): number | n
 }
 
 function Bullets({ hp, maxHp }: { hp: number; maxHp: number }) {
+  // 5개를 넘으면 작게 줄여 5개씩 줄을 나눈다
+  const rows = hpRows(maxHp);
+  const multi = rows.length > 1;
+  let start = 0;
   return (
     <View style={styles.bullets}>
-      {Array.from({ length: maxHp }, (_, i) => (
-        <View key={i} style={[styles.bullet, i < hp ? styles.bulletFull : styles.bulletEmpty]} />
-      ))}
+      <View style={styles.bulletRows}>
+        {rows.map((count, r) => {
+          const from = start;
+          start += count;
+          return (
+            <View key={r} style={[styles.bulletRow, multi && styles.bulletRowSmall]}>
+              {Array.from({ length: count }, (_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.bullet,
+                    multi && styles.bulletSmall,
+                    from + i < hp ? styles.bulletFull : styles.bulletEmpty,
+                  ]}
+                />
+              ))}
+            </View>
+          );
+        })}
+      </View>
       <Text style={styles.hpText}>
         {hp}/{maxHp}
       </Text>
@@ -221,6 +243,10 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flexWrap: 'wrap' },
   bullets: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   bullet: { width: 7, height: 7, borderRadius: 4 },
+  bulletRows: { gap: 2 },
+  bulletRow: { flexDirection: 'row', gap: 3 },
+  bulletRowSmall: { gap: 2 },
+  bulletSmall: { width: 5, height: 5, borderRadius: 3 },
   bulletFull: { backgroundColor: Colors.hp },
   bulletEmpty: { backgroundColor: Colors.border },
   hpText: { color: Colors.textMuted, fontSize: 10, marginLeft: 2 },

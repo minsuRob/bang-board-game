@@ -21,6 +21,7 @@ import { WesternFonts } from '../../ui/menu/western-fonts';
 import { themedStyles } from '../../ui/theme/use-theme';
 import { anchorsStore, characterKey } from '../core/anchors-store';
 import { Radius, Spacing, type ThemeColors } from '@/constants/theme';
+import { HpPips } from '../../ui/HpPips';
 
 const TIP_W = 240;
 
@@ -152,7 +153,7 @@ function Tooltip({
     <View style={[previewStyles.tip, { left, width: TIP_W }, place]}>
       <View style={previewStyles.tipHead}>
         <Text style={previewStyles.tipName}>{name}</Text>
-        <Text style={previewStyles.tipHp}>{'●'.repeat(hp)}</Text>
+        <HpPips hp={hp} maxHp={hp} style={previewStyles.tipHp} />
       </View>
       <Text style={previewStyles.tipAbility}>{ability}</Text>
     </View>
