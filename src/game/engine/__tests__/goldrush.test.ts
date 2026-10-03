@@ -15,7 +15,7 @@ import { legalActions } from '../legal';
 import { reduce } from '../reducer';
 import { createGame } from '../setup';
 import type { GameState, PlayerId } from '../types';
-import { handCard, scenario, totalCards, type PlayerSpec } from './helpers';
+import { beginTurn, handCard, logged, scenario, totalCards, type PlayerSpec } from './helpers';
 
 const GOLD_CHARS = [
   'donBell', 'dutchWill', 'jackyMurieta', 'joshMcCloud',
@@ -356,5 +356,39 @@ describe('수배 · 배낭 · 숙취', () => {
     );
     expect(nug(s, 'b')).toBe(0);
     expect(nug(s, 'a')).toBe(1);
+  });
+});
+
+describe('돈 벨', () => {
+  it('차례 끝 판정이 ♥·♦ 면 차례를 한 번 더 얻는다', () => {
+    const s0 = withGold(
+      scenario({
+        players: four({}, { character: 'donBell' }),
+        // 가져오기 2장 다음이 차례 끝 판정
+        deckTop: ['missed', 'missed', { kind: 'beer', suit: 'hearts' }],
+      }),
+    );
+    let s = beginTurn(s0, 'b');
+    expect(s.turn.active).toBe('b');
+    s = reduce(s, { type: 'endTurn', pid: 'b' });
+    expect(logged(s, 'donBell')).toBe(true);
+    expect(s.turn.active).toBe('b');
+    expect(s.turn.extra).toBe(true);
+  });
+
+  // faq-goldrush.txt Q06: "If in Jail, can Don Bell activate his ability? A. No, he can't."
+  it('FAQ Q06: 감옥에 갇혀 차례를 건너뛰면 능력을 쓰지 못한다', () => {
+    const s0 = withGold(
+      scenario({
+        players: four({}, { character: 'donBell', equipment: ['jail'] }),
+        // 감옥 판정 ♠ (갇힘), 다음 장 ♥ (돈 벨 판정이었다면 성공)
+        deckTop: [{ kind: 'missed', suit: 'spades' }, { kind: 'beer', suit: 'hearts' }],
+      }),
+    );
+    const s = beginTurn(s0, 'b');
+    expect(logged(s, 'jailSkip')).toBe(true);
+    expect(logged(s, 'donBell')).toBe(false);
+    expect(s.turn.active).toBe('c');
+    expect(totalCards(s)).toBe(80);
   });
 });

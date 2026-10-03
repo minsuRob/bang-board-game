@@ -268,6 +268,8 @@ function respondActions(state: GameState, pid: PlayerId): Action[] {
     case 'peyote':
       out.push({ type: 'respond', pid, choice: { c: 'color', color: 'red' } });
       out.push({ type: 'respond', pid, choice: { c: 'color', color: 'black' } });
+      // "may guess again" — 한 번 맞힌 뒤에는 그만둘 수 있다
+      if (a.canStop) out.push(pass);
       break;
     case 'evelyn':
       for (const target of a.targets) {

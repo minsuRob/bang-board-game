@@ -803,7 +803,15 @@ export function buildPrompt(view: GameState): Prompt | null {
         passLabel: '카드를 가져온다 (W)',
       };
     case 'peyote':
-      return { ...base, title: '피요테', hint: '덱 맨 위 카드의 색을 맞힌다', colors: true };
+      return {
+        ...base,
+        title: '피요테',
+        hint: a.canStop
+          ? '맞혔다. 다시 색을 부르거나 여기서 그만둔다 (틀려도 잃는 카드는 없다)'
+          : '덱 맨 위 카드의 색을 맞힌다',
+        colors: true,
+        ...(a.canStop ? { canPass: true, passLabel: '그만둔다 (W)' } : {}),
+      };
     case 'ranch':
       return {
         ...base,

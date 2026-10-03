@@ -7,12 +7,17 @@
 import { GOLD_ABILITY, PRETTY_LUZENA_DISCOUNT } from '../../engine/gold';
 import type { Modifier } from '../../engine/modifier';
 
-/** 돈 벨 — 차례 끝에 판정, ♥·♦ 면 차례를 한 번 더. 추가 차례 끝에는 다시 하지 않는다 */
+/**
+ * 돈 벨 — 차례 끝에 판정, ♥·♦ 면 차례를 한 번 더. 추가 차례 끝에는 다시 하지 않는다.
+ * 감옥에 갇혀 차례를 건너뛰었으면 판정하지 않는다 (faq-goldrush.txt Q06 "No, he can't.")
+ */
 export const donBell: Modifier = {
   id: 'char:donBell',
   from: 'character',
   onTurnEnd: ({ state, pid }) =>
-    state.turn.extra ? [] : [{ k: 'judgement', pid, purpose: 'donBell', candidates: [] }],
+    state.turn.extra || state.turn.skipped
+      ? []
+      : [{ k: 'judgement', pid, purpose: 'donBell', candidates: [] }],
 };
 
 /** 더치 윌 — 뽑은 카드 중 1장을 버리고 금덩이 1개 */

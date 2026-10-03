@@ -127,7 +127,7 @@ export const VALLEY_CARD_DEFS: Record<ValleyKind, CardDef> = {
     category: 'blue',
     equip: 'eliminated',
     symbols: [],
-    text: '제거된 플레이어 1명 앞에 놓는다. 그 사람은 게임에 돌아오지만 목숨을 얻지도 잃지도 않는다.',
+    text: '제거된 플레이어 1명 앞에 놓는다. 그 사람은 게임에 돌아오지만 목숨을 얻지도 잃지도 않는다. 차례가 끝나면 손패를 모두 버린다.',
     expansion: 'valley',
   },
   lemat: {

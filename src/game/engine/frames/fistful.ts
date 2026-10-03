@@ -170,7 +170,10 @@ export function respondHardLiquor(
 
 export function resolvePeyote(state: GameState, frame: Frame & { k: 'peyote' }): GameState {
   if (!playerOf(state, frame.pid).alive) return popFrame(state);
-  return { ...state, awaiting: { k: 'peyote', pid: frame.pid } };
+  return {
+    ...state,
+    awaiting: { k: 'peyote', pid: frame.pid, ...(frame.guessed ? { canStop: true } : {}) },
+  };
 }
 
 export function respondPeyote(
@@ -179,6 +182,11 @@ export function respondPeyote(
   choice: Choice,
 ): GameState {
   const { pid } = frame;
+  // 한 번 맞힌 뒤에는 그만둘 수 있다 ("may guess again")
+  if (choice.c === 'pass' && frame.guessed) {
+    const cur = popFrame(state);
+    return log(cur, { t: 'peyoteStop', pid, text: `피요테: ${neun(nameOf(cur, pid))} 그만 맞히기로 했다.` });
+  }
   const guess = choice.c === 'color' ? choice.color : 'red';
   const drawn = drawFromDeck(state, 1);
   const card = drawn.cards[0];
@@ -189,8 +197,12 @@ export function respondPeyote(
   const right = (guess === 'red') === red;
   const said = guess === 'red' ? '빨강' : '검정';
   if (right) {
-    // 맞히면 카드를 갖고 한 번 더 맞힌다. 프레임은 그대로 남는다.
-    const cur = giveCards(drawn.state, pid, [card]);
+    // 맞히면 카드를 갖고 한 번 더 맞힐 수 있다. 프레임은 남고, 이제 그만둘 수도 있다.
+    const given = giveCards(drawn.state, pid, [card]);
+    const cur: GameState = {
+      ...given,
+      stack: [...given.stack.slice(0, -1), { k: 'peyote', pid, guessed: true }],
+    };
     return log(cur, {
       t: 'peyote',
       pid,

@@ -21,9 +21,11 @@ turnStart → (revealEvent) → eventTurnStart → drawPhase → playPhase
   더미를 가져가 공개한다(`engine/play.ts` → `revealEventOnPlayFrames`, 카드 효과보다 먼저).
   리 반 클리프가 다시 낸 효과로는 공개하지 않는다. 어느 쪽인지는 덱 스펙의 `revealOn`(`data/events.ts`)이 정한다 (EC-152)
 - `eventTurnStart` 는 그 시점에 걸린 훅을 모아 순서대로 쌓는다.
-  발동 순서는 `Modifier.order` 가 정한다: 새로운 신분(1) → 하이 눈(5) → 다이너마이트(10) → 감옥(20)
+  발동 순서는 `Modifier.order` 가 정한다: 새로운 신분(1) → 하이 눈(5) → 다이너마이트(10) → 감옥(20) → 방울뱀(25)
+  (그림자의 계곡 공식 해설 "Dynamite > Jail > Rattlesnake", EC-158)
 - 감옥에 걸리면 `skipRestOfTurn()` 이 이번 차례의 `drawPhase`·`playPhase`·`discardPhase` 를
-  스택에서 걷어낸다. `turnEnd` 는 남기므로 차례는 정상적으로 넘어간다
+  스택에서 걷어낸다. `turnEnd` 는 남기므로 차례는 정상적으로 넘어간다.
+  `turn.skipped` 를 세워 차례 끝 능력(돈 벨)은 걸지 않는다 (골드 러시 FAQ Q06)
 - 액티브 플레이어가 자기 차례에 죽어도(자기가 건 결투에서 패배 등) `playPhase` 는
   더 이상 멈추지 않는다. 멈추면 아무도 둘 수 없는 교착이 된다
 
@@ -91,8 +93,11 @@ damage → (목숨 0 이하면) checkDeath → 생존맥주 → (살면) onDamag
 
 | 쓰이는 곳 | 기준 |
 |---|---|
-| 맥주의 2인 규칙, 승리 판정 | 생존자 수 (`alivePlayers`) |
-| 거리 계산, 잡화점이 펼치는 카드 수 | 링 참여자 수 (`seatedPlayers`, 유령 포함) |
+| 맥주의 2인 규칙 | 생존자 수 (`alivePlayers`) |
+| 거리 계산, 잡화점이 펼치는 카드 수, 승리 판정 | 링 참여자 수 (`seatedPlayers`·`inPlay`, 유령 포함) |
+
+승리 판정에 유령을 넣는 근거: 유령도시 FAQ Q07 "he is considered to be in play for victory purposes",
+유령 카드 "A ghost is considered “in play” for all purposes". 와일드 웨스트 쇼의 '마지막 생존자'만은 생존자 수로 본다.
 
 ## 카드를 낼 수 있는가
 
@@ -102,7 +107,7 @@ damage → (목숨 0 이하면) checkDeath → 생존맥주 → (살면) onDamag
 - 치환(칼라미티 자넷)은 `canUseCardAs()` 를 지난다. 치환해도 뱅!은 차례당 제한을 받는다
 - `canPlayCard(..., reactive)` 의 `reactive` 는 '사용'이 아니라 '버림'이라는 뜻이다.
   결투 응수와 인디언 대응이 여기 해당하고, 설교·수갑은 이를 막지 않는다
-- 맥주는 생존자가 2명이면 아예 낼 수 없다 (아무 효과가 없으므로)
+- 맥주는 생존자가 2명이어도 낼 수는 있으나 효과가 없다 (공식 FAQ Q25, EC-09). 죽음 직전 맥주는 3명 이상일 때만
 - 감옥은 보안관에게, 그리고 자기 자신에게 쓸 수 없다
 - 강탈·캣 벌로우는 **자기 앞의 카드**를 겨눌 수 있다 (자기 다이너마이트를 치우는 용도)
 - 같은 이름의 파랑 카드를 두 장 장착할 수 없다. 무기는 갈아 끼우면 이전 것이 버려진다
@@ -142,5 +147,6 @@ damage → (목숨 0 이하면) checkDeath → 생존맥주 → (살면) onDamag
   - 역화: 빗나감!으로 치고(`countsAs`), 지금 뱅!이 끝난 뒤 되쏜다
 - 손패를 골라 버리는 흐름(반디도스·포커·토네이도·샷건·레모네이드 짐)은 입력 대기 `discardChoice` 하나를 같이 쓴다
 - 포커 판돈은 프레임이 들고 있다. 모두 낼 때까지 `viewFor` 가 가린다
-- 유령 카드로 돌아온 사람은 그 카드가 앞에 있는 동안 차례를 받고, 카드를 잃으면 다시 제거된다 (`sweepGhosts`)
+- 유령 카드로 돌아온 사람은 그 카드가 앞에 있는 동안 차례를 받고, 카드를 잃으면 다시 제거된다 (`sweepGhosts`).
+  차례가 끝나면 손패를 전부 버리고(`turnEnd`), 승리 판정에서는 남은 사람으로 센다 (EC-130)
 - 조건이 붙은 차례당 한 번 능력(블랙 플라워·더 스팟)은 액션에 `ability` 를 적어 일반 사용과 구별한다

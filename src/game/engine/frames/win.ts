@@ -1,13 +1,13 @@
 /**
  * 승리 판정.
  *
- * 탈락 훅에 매달지 않고 별도 프레임으로 둔다. 유령의 차례 종료·동시 탈락처럼
+ * 탈락 훅에 매달지 않고 별도 프레임으로 둔다. 유령의 차례 종료·유령 카드 잃음·동시 탈락처럼
  * "탈락 이벤트가 없는데 승패가 갈리는" 순간이 있기 때문이다.
  * 여러 탈락이 한 번에 일어나면 전부 처리한 뒤 한 번만 판정한다.
  */
 
 import type { Role } from '../../data/types';
-import { alivePlayers, log, popFrame } from '../cards';
+import { alivePlayers, inPlay, log, popFrame } from '../cards';
 import { lastOneStanding } from '../hooks';
 import { ga } from '../josa';
 import type { GameResult, GameState } from '../types';
@@ -31,9 +31,15 @@ export function checkWin(state: GameState): GameResult | null {
   const sheriff = state.players.find((p) => p.role === 'sheriff');
   if (!sheriff) return null;
 
+  // 유령도 '남은 사람'으로 센다. 유령도시의 유령은 자기 차례 동안 (faq-highnoon-fistful.txt Q07
+  // "he is considered to be in play for victory purposes"), 유령 카드의 유령은 그 카드가 앞에 있는
+  // 동안이다 (valley.txt "A ghost is considered “in play” for all purposes").
+  const standing = state.players.filter(inPlay);
+
   if (!sheriff.alive) {
     // 보안관이 제거되면 게임은 즉시 끝난다.
-    const others = alive.filter((p) => p.id !== sheriff.id);
+    // 유령 무법자·부관이 남아 있으면 배신자 혼자가 아니므로 무법자가 이긴다 (FAQ Q07).
+    const others = standing.filter((p) => p.id !== sheriff.id);
     if (others.length === 1 && others[0].role === 'renegade') {
       return {
         winners: ['renegade'],
@@ -48,7 +54,7 @@ export function checkWin(state: GameState): GameResult | null {
     };
   }
 
-  const enemiesLeft = alive.some((p) => p.role === 'outlaw' || p.role === 'renegade');
+  const enemiesLeft = standing.some((p) => p.role === 'outlaw' || p.role === 'renegade');
   if (!enemiesLeft) {
     const lawIds = state.players
       .filter((p) => p.role === 'sheriff' || p.role === 'deputy')
