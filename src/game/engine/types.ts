@@ -220,9 +220,10 @@ export type Frame =
   | { k: 'duel'; a: PlayerId; b: PlayerId; toPlay: PlayerId }
   // 피해와 탈락
   /**
-   * source = 반격 능력(엘 그링고)이 향하는 가해자. 없을 수 있다.
-   * credit = 이 피해로 죽었을 때 현상금·벌칙을 받는 사람. source 와 다를 수 있다.
-   *   (자기가 신청한 결투에서 졌을 때: source 는 없고 credit 은 상대)
+   * source = 이 피해를 낸 카드를 사용한 사람. 반격 능력(엘 그링고)이 향하고,
+   *   이 피해로 죽으면 현상금·벌칙을 받는 처치자가 된다 (공식 FAQ Q23). 없을 수 있다.
+   * credit = 골드 러시에서 상처 금덩이를 받는 사람. source 와 다를 수 있다.
+   *   (자기가 신청한 결투에서 졌을 때: source 는 없고 credit 은 결투에서 이긴 상대)
    */
   | {
       k: 'damage';

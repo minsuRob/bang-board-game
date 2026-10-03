@@ -1122,20 +1122,43 @@ describe('하이 눈', () => {
 // ---------------------------------------------------------------------------
 
 describe('유령도시 + 벌쳐 샘', () => {
-  it('유령의 차례에는 벌쳐 샘이 카드를 가져가지 않는다', () => {
+  // 공식 FAQ(하이 눈·한줌의 카드) Q08: 유령은 목숨이 없어 버리기 단계에서 손패를 전부 버리고,
+  // "At the end of his turn he is eliminated again, so all of his cards go to Vulture Sam,
+  // if this character is in play, otherwise they are discarded as usual." (EC-92(b))
+  it('유령이 차례 끝에 다시 제거되면 앞에 남은 카드를 벌쳐 샘이 가져간다 (FAQ Q08)', () => {
     const s0 = scenario({
       players: [
         { character: 'vultureSam' },
         {},
-        { alive: false, ghost: true, hp: 0, hand: ['bang'] },
+        { alive: false, ghost: true, hp: 0, hand: ['bang'], equipment: ['barrel'] },
         {},
       ],
       event: 'ghostTown',
       activeSeat: 2,
     });
+    const barrel = p(s0, 'p2').equipment[0];
     let s = reduce(s0, { type: 'endTurn', pid: 'p2' });
     for (let i = 0; i < 10 && s.turn.active === 'p2'; i++) s = step(s);
+    expect(p(s, 'p2').ghost).toBe(false);
     expect(p(s, 'p2').hand).toHaveLength(0);
+    expect(p(s, 'p2').equipment).toHaveLength(0);
+    // 손패의 뱅!은 버리기 단계에서 이미 버렸다. 앞에 남은 술통은 벌쳐 샘의 손으로 간다.
+    expect(p(s, 'p0').hand).toEqual([barrel]);
+    expect(logged(s, 'vultureSam')).toBe(true);
+    expect(totalCards(s)).toBe(80);
+  });
+
+  it('벌쳐 샘이 없으면 유령이 남긴 카드는 버린 더미로 간다 (FAQ Q08)', () => {
+    const s0 = scenario({
+      players: [{}, {}, { alive: false, ghost: true, hp: 0, equipment: ['barrel'] }, {}],
+      event: 'ghostTown',
+      activeSeat: 2,
+    });
+    const barrel = p(s0, 'p2').equipment[0];
+    let s = reduce(s0, { type: 'endTurn', pid: 'p2' });
+    for (let i = 0; i < 10 && s.turn.active === 'p2'; i++) s = step(s);
+    expect(p(s, 'p2').equipment).toHaveLength(0);
+    expect(s.discard).toContain(barrel);
     expect(totalCards(s)).toBe(80);
   });
 });

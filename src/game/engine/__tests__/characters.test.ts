@@ -61,19 +61,38 @@ describe('바트 캐시디', () => {
     expect(p(s, 'p1').hand).toHaveLength(3);
   });
 
-  it('능력으로 뽑은 맥주로 그 자리에서 죽음을 면할 수 있다', () => {
+  // 공식 FAQ Q17: "if they lose their last life point without a Beer in their hand, they are dead."
+  // 죽음 판정이 먼저다. 능력으로 뽑을 카드는 살아남은 뒤에야 받는다.
+  it('마지막 목숨을 잃으면 능력으로 카드를 뽑기 전에 죽는다 — 뽑았을 맥주로 살아나지 못한다 (FAQ Q17)', () => {
     const s0 = scenario({
       players: [{ hand: ['bang'] }, { character: 'bartCassidy', hp: 1 }, {}, {}],
       deckTop: [{ kind: 'beer', suit: 'hearts' }],
     });
-    let s = reduce(s0, shoot(s0, 'p0', 'p1'));
-    // 피해 → 능력으로 맥주를 뽑음 → 그 맥주로 생존
-    expect(s.awaiting).toMatchObject({ k: 'beerToSurvive', pid: 'p1' });
+    const beerOnTop = s0.deck[s0.deck.length - 1];
+    const s = reduce(s0, shoot(s0, 'p0', 'p1'));
+    expect(s.awaiting).toBeNull();
+    expect(p(s, 'p1').alive).toBe(false);
+    // 바트가 맥주를 가져가지 않았다. (보안관이 현상금으로 가져갔을 수는 있다)
+    expect(s.discard).not.toContain(beerOnTop);
+    expect(logged(s, 'beerSurvive')).toBe(false);
+    expect(totalCards(s)).toBe(80);
+  });
 
-    const beer = s.awaiting!.k === 'beerToSurvive' ? s.awaiting!.options[0] : '';
+  it('손에 있던 맥주로 살아나면 그 뒤에 잃은 목숨만큼 뽑는다 (FAQ Q17)', () => {
+    const s0 = scenario({
+      players: [{ hand: ['bang'] }, { character: 'bartCassidy', hp: 1, hand: ['beer'] }, {}, {}],
+    });
+    let s = reduce(s0, shoot(s0, 'p0', 'p1'));
+    expect(s.awaiting).toMatchObject({ k: 'beerToSurvive', pid: 'p1' });
+    // 아직 뽑지 않았다. 손에는 원래 맥주 1장뿐이다.
+    expect(p(s, 'p1').hand).toHaveLength(1);
+
+    const beer = handCard(s, 'p1', 'beer');
     s = reduce(s, play('p1', beer));
     expect(p(s, 'p1').alive).toBe(true);
     expect(p(s, 'p1').hp).toBe(1);
+    expect(p(s, 'p1').hand).toHaveLength(1);
+    expect(p(s, 'p1').hand).not.toContain(beer);
     expect(totalCards(s)).toBe(80);
   });
 });
@@ -189,6 +208,41 @@ describe('엘 그링고', () => {
     expect(p(s, 'p1').hp).toBe(2);
     expect(logged(s, 'steal')).toBe(false);
     expect(p(s, 'p2').hand).toHaveLength(1);
+  });
+
+  // 공식 FAQ Q17: 마지막 목숨을 잃을 때 손에 맥주가 없으면 그대로 죽는다. 빼앗을 기회가 없다.
+  it('마지막 목숨을 잃으면 가해자의 카드를 빼앗기 전에 죽는다 (FAQ Q17)', () => {
+    const s0 = scenario({
+      players: [
+        { role: 'outlaw', hand: ['bang', 'beer'] },
+        { role: 'deputy', character: 'elGringo', hp: 1 },
+        { role: 'sheriff' },
+        { role: 'renegade' },
+      ],
+    });
+    const s = reduce(s0, shoot(s0, 'p0', 'p1'));
+    expect(p(s, 'p1').alive).toBe(false);
+    expect(logged(s, 'steal')).toBe(false);
+    expect(p(s, 'p0').hand).toHaveLength(1);
+    expect(totalCards(s)).toBe(80);
+  });
+
+  it('손에 있던 맥주로 살아나면 그 뒤에 가해자의 카드를 빼앗는다 (FAQ Q17)', () => {
+    const s0 = scenario({
+      players: [
+        { role: 'outlaw', hand: ['bang', 'missed'] },
+        { role: 'deputy', character: 'elGringo', hp: 1, hand: ['beer'] },
+        { role: 'sheriff' },
+        { role: 'renegade' },
+      ],
+    });
+    let s = reduce(s0, shoot(s0, 'p0', 'p1'));
+    expect(s.awaiting).toMatchObject({ k: 'beerToSurvive', pid: 'p1' });
+    s = reduce(s, play('p1', handCard(s, 'p1', 'beer')));
+    expect(p(s, 'p1').alive).toBe(true);
+    expect(logged(s, 'steal')).toBe(true);
+    expect(p(s, 'p0').hand).toHaveLength(0);
+    expect(p(s, 'p1').hand).toHaveLength(1);
   });
 });
 

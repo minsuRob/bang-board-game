@@ -32,6 +32,7 @@ import {
   onDamagedFrames,
   onDealtDamageFrames,
   onEliminatedFrames,
+  onOtherPlaysCardFrames,
 } from '../hooks';
 import { goldKindOf } from '../../data/cards.goldrush';
 import { addNuggets, discardGold, goldEnabled, goldEquipOf, nuggetsOf, woundsBeforeLast } from '../gold';
@@ -90,11 +91,16 @@ export function resolveDamage(state: GameState, frame: Frame & { k: 'damage' }):
     }
   }
 
-  // 능력이 먼저 울린다. 바트 캐시디가 뽑은 카드에 맥주가 있을 수 있기 때문이다.
-  const frames: Frame[] = onDamagedFrames(cur, p.id, frame.amount, frame.source, frame.cause);
+  // 죽음 판정이 먼저다. 마지막 목숨을 잃었을 때는 손에 이미 있던 맥주로만 살아나고,
+  // 바트 캐시디·엘 그링고처럼 목숨을 잃어 받는 카드는 살아남은 뒤에야 받는다 (공식 FAQ Q17).
+  // 죽으면 받는 프레임은 inPlay 검사에서 저절로 건너뛴다.
+  const frames: Frame[] = [];
+  // 처치한 사람은 제거에 책임이 있는 카드를 낸 사람이다. 자기가 건 결투에서 지면 아무도 아니다
+  // (공식 FAQ Q23: "since that card was played by the Outlaw himself, no one can gain the reward").
   if (hp <= 0) {
-    frames.push({ k: 'checkDeath', target: p.id, source: frame.credit ?? frame.source ?? null });
+    frames.push({ k: 'checkDeath', target: p.id, source: frame.source ?? null });
   }
+  frames.push(...onDamagedFrames(cur, p.id, frame.amount, frame.source, frame.cause));
   if (frame.source && frame.source !== p.id) {
     frames.push(...onDealtDamageFrames(cur, frame.source, p.id, frame.amount, frame.cause));
   }
@@ -200,8 +206,9 @@ export function respondCheckDeath(
     text: `${ga(nameOf(cur, p.id))} 맥주를 마시고 버텼다.`,
   });
   // 프레임은 그대로 둔다. 아직 목숨이 0 이하면 다시 물어본다.
-  // 그 위에 맥주에 반응하는 훅(마담 이토)을 먼저 해결한다.
-  return pushSeq(cur, onBeerPlayedFrames(cur, p.id));
+  // 그 위에 맥주에 반응하는 훅(레모네이드 짐·마담 이토)을 먼저 해결한다.
+  // 쓰러질 때 낸 맥주도 맥주 카드를 낸 것이다 (레모네이드 짐 "Each time another player plays a Beer card").
+  return pushSeq(cur, [...onOtherPlaysCardFrames(cur, p.id, 'beer'), ...onBeerPlayedFrames(cur, p.id)]);
 }
 
 export function resolveEliminate(

@@ -319,7 +319,9 @@ function duelLoss(
   loser: PlayerId,
 ): GameState {
   const winner = loser === frame.a ? frame.b : frame.a;
-  // 결투를 신청한 쪽이 졌다면 '공격당한 것'이 아니므로 반격 능력은 발동하지 않는다.
+  // 결투를 신청한 쪽이 졌다면 '공격당한 것'이 아니므로 반격 능력은 발동하지 않는다 (FAQ Q21).
+  // 그 결투로 죽어도 결투 카드를 낸 사람이 자신이므로 이긴 사람은 처치자가 아니다.
+  // 현상금·보안관 벌칙이 없다 (FAQ Q23). credit 은 골드 러시 상처 금덩이에만 쓴다.
   const source = loser === frame.a ? null : winner;
 
   const cur = log(popFrame(state), {
