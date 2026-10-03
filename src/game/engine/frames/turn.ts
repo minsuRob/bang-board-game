@@ -176,6 +176,20 @@ export function resolveTurnEnd(state: GameState, frame: Frame & { k: 'turnEnd' }
   const { pid } = frame;
   let cur = popFrame(state);
   const p = playerOf(cur, pid);
+
+  // 유령 카드(그림자의 계곡)로 남은 유령은 차례가 끝나면 손패를 전부 버린다. 유령 카드와 앞의 카드는 남는다.
+  // valley.txt 6쪽 "has no life points: At the end of your turn, you must discard all your hand cards."
+  // (유령도시의 유령은 아래에서 카드를 전부 잃고 사라진다)
+  if (p.ghost && heldAsGhost(p) && p.hand.length > 0) {
+    cur = updatePlayer(cur, pid, (x) => ({ ...x, hand: [] }));
+    cur = toDiscard(cur, p.hand);
+    cur = log(cur, {
+      t: 'ghostDiscard',
+      pid,
+      text: `${neun(nameOf(cur, pid))} 유령이라 차례 끝에 손패 ${p.hand.length}장을 모두 버렸다.`,
+    });
+  }
+
   // 차례 끝 능력(돈 벨). 유령에게는 걸지 않는다.
   const endFrames = p.alive && !p.ghost ? onTurnEndFrames(cur, pid) : [];
 

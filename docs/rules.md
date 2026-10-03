@@ -84,8 +84,11 @@ damage → onDamaged 훅 → (목숨 0 이하면) checkDeath
 
 | 쓰이는 곳 | 기준 |
 |---|---|
-| 맥주의 2인 규칙, 승리 판정 | 생존자 수 (`alivePlayers`) |
-| 거리 계산, 잡화점이 펼치는 카드 수 | 링 참여자 수 (`seatedPlayers`, 유령 포함) |
+| 맥주의 2인 규칙 | 생존자 수 (`alivePlayers`) |
+| 거리 계산, 잡화점이 펼치는 카드 수, 승리 판정 | 링 참여자 수 (`seatedPlayers`·`inPlay`, 유령 포함) |
+
+승리 판정에 유령을 넣는 근거: 유령도시 FAQ Q07 "he is considered to be in play for victory purposes",
+유령 카드 "A ghost is considered “in play” for all purposes". 와일드 웨스트 쇼의 '마지막 생존자'만은 생존자 수로 본다.
 
 ## 카드를 낼 수 있는가
 
@@ -135,5 +138,6 @@ damage → onDamaged 훅 → (목숨 0 이하면) checkDeath
   - 역화: 빗나감!으로 치고(`countsAs`), 지금 뱅!이 끝난 뒤 되쏜다
 - 손패를 골라 버리는 흐름(반디도스·포커·토네이도·샷건·레모네이드 짐)은 입력 대기 `discardChoice` 하나를 같이 쓴다
 - 포커 판돈은 프레임이 들고 있다. 모두 낼 때까지 `viewFor` 가 가린다
-- 유령 카드로 돌아온 사람은 그 카드가 앞에 있는 동안 차례를 받고, 카드를 잃으면 다시 제거된다 (`sweepGhosts`)
+- 유령 카드로 돌아온 사람은 그 카드가 앞에 있는 동안 차례를 받고, 카드를 잃으면 다시 제거된다 (`sweepGhosts`).
+  차례가 끝나면 손패를 전부 버리고(`turnEnd`), 승리 판정에서는 남은 사람으로 센다 (EC-130)
 - 조건이 붙은 차례당 한 번 능력(블랙 플라워·더 스팟)은 액션에 `ability` 를 적어 일반 사용과 구별한다

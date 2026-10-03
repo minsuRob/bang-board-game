@@ -237,6 +237,50 @@ describe('유령', () => {
     expect(logged(s, 'ghostLeave')).toBe(true);
     expect(totalCards(s)).toBe(96);
   });
+
+  // valley.txt 6쪽 / expansion-pack.txt: "A ghost is considered “in play” for all purposes, but has no
+  // life points: At the end of your turn, you must discard all your hand cards."
+  it('차례가 끝나면 손패를 전부 버린다. 유령 카드는 남고 유령도 남는다', () => {
+    const s0 = V({
+      players: [{}, { alive: false, ghost: true, hp: 0, hand: ['bang', 'beer'], equipment: ['ghost'] }, {}],
+      activeSeat: 1,
+    });
+    const s = reduce(s0, { type: 'endTurn', pid: 'p1' });
+    expect(s.turn.active).toBe('p2');
+    expect(p(s, 'p1').hand).toHaveLength(0);
+    expect(p(s, 'p1').ghost).toBe(true);
+    expect(p(s, 'p1').equipment.map(kindOf)).toEqual(['ghost']);
+    expect(totalCards(s)).toBe(96);
+  });
+
+  it('"in play for all purposes": 무법자 유령이 남아 있으면 마지막 생존 무법자가 죽어도 보안관 편이 아직 못 이긴다', () => {
+    const s0 = V({
+      players: [
+        { role: 'sheriff', hand: ['bang'] },
+        { role: 'outlaw', hp: 1 },
+        { role: 'outlaw', alive: false, ghost: true, hp: 0, equipment: ['ghost'] },
+      ],
+    });
+    const s = play(s0, 'p0', 'bang', { target: 'p1' });
+    expect(p(s, 'p1').alive).toBe(false);
+    expect(s.result).toBeNull();
+  });
+
+  it('마지막 적이던 유령이 유령 카드를 잃고 사라지면 그때 보안관 편이 이긴다', () => {
+    const s0 = V({
+      players: [
+        { role: 'sheriff', hand: ['catBalou'] },
+        { role: 'deputy' },
+        { role: 'outlaw', alive: false, ghost: true, hp: 0, equipment: ['ghost'] },
+      ],
+    });
+    let s = play(s0, 'p0', 'catBalou', { target: 'p2' });
+    expect(s.result).toBeNull();
+    const ghostCard = p(s, 'p2').equipment[0];
+    s = reduce(s, { type: 'respond', pid: 'p0', choice: { c: 'pick', pick: { zone: 'equipment', card: ghostCard } } });
+    expect(p(s, 'p2').ghost).toBe(false);
+    expect(s.result).toMatchObject({ winners: ['sheriff', 'deputy'] });
+  });
 });
 
 describe('역화 · 탈출 · 믹 디펜더 · 구조!', () => {

@@ -408,6 +408,71 @@ describe('유령도시', () => {
     expect(totalCards(s)).toBe(80);
   });
 
+  // FAQ Q07 (faq-highnoon-fistful.txt): "each “ghost” is in play until the end of his turn: if the game
+  // ends during his turn, he is considered to be in play for victory purposes."
+  it('FAQ Q07: 유령 배신자가 보안관을 쓰러뜨리고 아무도 안 남으면 배신자가 이긴다', () => {
+    const s0 = scenario({
+      players: [
+        { role: 'sheriff', hp: 1 },
+        { role: 'renegade', alive: false, ghost: true, hp: 0, hand: ['bang'] },
+        { role: 'outlaw', alive: false, hp: 0 },
+        { role: 'deputy', alive: false, hp: 0 },
+      ],
+      event: 'ghostTown',
+      activeSeat: 1,
+    });
+    const s = reduce(s0, bangAt(s0, 'p1', 'p0'));
+    expect(s.result).toMatchObject({ winners: ['renegade'], winnerIds: ['p1'] });
+  });
+
+  it('FAQ Q07: 유령 무법자가 보안관을 쓰러뜨리면 배신자가 살아 있어도 무법자가 이긴다', () => {
+    const s0 = scenario({
+      players: [
+        { role: 'sheriff', hp: 1 },
+        { role: 'outlaw', alive: false, ghost: true, hp: 0, hand: ['bang'] },
+        { role: 'renegade' },
+        { role: 'deputy', alive: false, hp: 0 },
+      ],
+      event: 'ghostTown',
+      activeSeat: 1,
+    });
+    const s = reduce(s0, bangAt(s0, 'p1', 'p0'));
+    expect(s.result).toMatchObject({ winners: ['outlaw'] });
+  });
+
+  it('FAQ Q07: 유령 부관이 보안관을 쓰러뜨려도 배신자 말고 남은 사람(유령)이 있으니 무법자가 이긴다', () => {
+    const s0 = scenario({
+      players: [
+        { role: 'sheriff', hp: 1 },
+        { role: 'deputy', alive: false, ghost: true, hp: 0, hand: ['bang'] },
+        { role: 'renegade' },
+        { role: 'outlaw', alive: false, hp: 0 },
+      ],
+      event: 'ghostTown',
+      activeSeat: 1,
+    });
+    const s = reduce(s0, bangAt(s0, 'p1', 'p0'));
+    expect(s.result).toMatchObject({ winners: ['outlaw'] });
+  });
+
+  it('FAQ Q07: 유령 무법자가 마지막 배신자를 쓰러뜨려도 그 차례 동안은 끝나지 않고, 유령이 사라지면 보안관 편이 이긴다', () => {
+    const s0 = scenario({
+      players: [
+        { role: 'sheriff' },
+        { role: 'outlaw', alive: false, ghost: true, hp: 0, hand: ['bang'] },
+        { role: 'renegade', hp: 1 },
+        { role: 'deputy', alive: false, hp: 0 },
+      ],
+      event: 'ghostTown',
+      activeSeat: 1,
+    });
+    let s = reduce(s0, bangAt(s0, 'p1', 'p2'));
+    expect(p(s, 'p2').alive).toBe(false);
+    expect(s.result).toBeNull();
+    s = reduce(s, { type: 'endTurn', pid: 'p1' });
+    expect(s.result).toMatchObject({ winners: ['sheriff', 'deputy'] });
+  });
+
   it('유령이 잡화점을 써도 진행이 멈추지 않는다 (v0.418)', () => {
     const s0 = scenario({
       players: [{}, {}, { alive: false, ghost: true, hp: 0, hand: ['generalStore'] }, {}],

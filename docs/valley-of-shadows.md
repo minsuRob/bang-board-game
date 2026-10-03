@@ -24,6 +24,9 @@
 | lastCall | Ultimo Giro / Last Call | 갈색 | 8♦ | (심벌만) 목숨 +1 | 목숨 1 회복. 맥주가 아니다. |
 
 - 유령 2장의 무늬: 그림은 9♠ 한 장뿐이다. 카드 목록이 "9-10" 이라 두 번째는 10♠ 로 둔다.
+- 유령 공식 해설 (VoS 룰 6쪽·Expansion Pack): "A ghost is considered “in play” for all purposes, but has no life points:
+  At the end of your turn, you must discard all your hand cards. If Ghost is removed, the ghost exits play again."
+  그래서 한글 효과에 "차례가 끝나면 손패를 모두 버린다" 를 붙였다. 승리 판정에서도 남은 사람으로 센다 (EC-130).
 - 오른쪽 위 까마귀 표시는 확장판 기호다.
 
 ## 캐릭터 8종
