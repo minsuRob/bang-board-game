@@ -33,6 +33,7 @@ import { useDerivedValue, useSharedValue, type SharedValue } from 'react-native-
 
 import { BarrelSkia } from './BarrelSkia';
 import { CylinderSkia } from './CylinderSkia';
+import { DuelSkia } from './DuelSkia';
 import { GatlingSeatsSkia, GatlingSkia } from './GatlingSkia';
 import { IndiansSeatsSkia, IndiansSkia } from './IndiansSkia';
 import { LaneSkia } from './LaneSkia';
@@ -320,6 +321,8 @@ export function CardFxSkiaLayer({ progress, geom }: CardFxSkiaLayerProps) {
 
       {/* 조준경 시야는 화면 전체를 어둡게 덮으므로 맨 위에 */}
       <ScopeSkia progress={progress} geom={geom} />
+      {/* 결투 만화 컷도 화면 전체를 덮는다 */}
+      <DuelSkia progress={progress} geom={geom} size={size} />
 
       <Rect x={0} y={0} width={w} height={h} color="#FFF6DA" opacity={screenFlash} />
     </Canvas>

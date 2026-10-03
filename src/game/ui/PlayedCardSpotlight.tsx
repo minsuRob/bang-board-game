@@ -51,14 +51,17 @@ import { loadSkiaFx, skiaFx } from './fx/skia/load';
 import { ShotCardWrap } from './fx/skia/ShotCardWrap';
 import { GunFxLabels } from './fx/GunFxLabels';
 import { WinchesterLabels } from './fx/WinchesterLabels';
+import { DuelLabels } from './fx/DuelLabels';
 import { CardFxLabels } from './fx/CardFxLabels';
 import {
   ART_INSET,
   BARREL_HQ_MS,
   CYLINDER_HQ_MS,
+  DUEL_HQ_MS,
   EMPTY_GEOM,
   FX_BARREL,
   FX_CYLINDER,
+  FX_DUEL,
   FX_GATLING,
   FX_GUNSHOT,
   FX_INDIANS,
@@ -374,6 +377,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
       {hqLayer && <hqLayer.Layer progress={progress} geom={geom} />}
       {/* 캔버스가 화면을 어둡게 덮는 연출(윈체스터)의 글자는 캔버스 위에 */}
       {hqLayer && <WinchesterLabels progress={progress} geom={geom} />}
+      {hqLayer && <DuelLabels progress={progress} geom={geom} />}
       {hqLayer && <CardFxLabels progress={progress} geom={geom} />}
     </View>
   );
@@ -408,6 +412,7 @@ export function CardFxPreview({ card, run, onDone }: { card: CardId; run: number
       )}
       {hqLayer && <hqLayer.Layer progress={progress} geom={geom} />}
       {hqLayer && <WinchesterLabels progress={progress} geom={geom} />}
+      {hqLayer && <DuelLabels progress={progress} geom={geom} />}
       {hqLayer && <CardFxLabels progress={progress} geom={geom} />}
     </View>
   );
@@ -570,6 +575,9 @@ function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
             s.geom.value = { ...base, kind: FX_INDIANS, mx: m.x, my: m.y, bx: fe.x, by: fe.y };
             break;
           }
+          case 'duelComic':
+            s.geom.value = { ...base, kind: FX_DUEL };
+            break;
         }
       };
       const measureAll = () => Promise.all([measure(s.layer.current), measure(anchor.current), measure(spot.current)]);
@@ -713,6 +721,8 @@ function hqMs(fx: CardFx) {
       return GATLING_HQ_MS;
     case 'indians':
       return INDIANS_HQ_MS;
+    case 'duelComic':
+      return DUEL_HQ_MS;
   }
 }
 
