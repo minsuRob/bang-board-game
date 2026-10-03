@@ -82,6 +82,8 @@ export type TurnState = {
   drawn: boolean;
   /** 추가로 얻은 차례인가 (돈 벨·황금 러시·복수). 추가 차례 끝에는 다시 얻지 않는다 */
   extra?: boolean;
+  /** 감옥에 갇혀 이번 차례를 건너뛰었는가. 차례 끝 능력(돈 벨)을 막는다 */
+  skipped?: boolean;
   /** 이 차례가 끝나면 한 번 더 차례를 받을 사람 */
   extraTurnFor?: PlayerId | null;
   /** 서부의 법(한줌의 카드): 낼 수 있으면 이번 차례에 반드시 내야 하는 카드 */

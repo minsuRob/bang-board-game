@@ -20,7 +20,8 @@ turnStart → (revealEvent) → eventTurnStart → drawPhase → playPhase
 - `eventTurnStart` 는 그 시점에 걸린 훅을 모아 순서대로 쌓는다.
   발동 순서는 `Modifier.order` 가 정한다: 새로운 신분(1) → 하이 눈(5) → 다이너마이트(10) → 감옥(20)
 - 감옥에 걸리면 `skipRestOfTurn()` 이 이번 차례의 `drawPhase`·`playPhase`·`discardPhase` 를
-  스택에서 걷어낸다. `turnEnd` 는 남기므로 차례는 정상적으로 넘어간다
+  스택에서 걷어낸다. `turnEnd` 는 남기므로 차례는 정상적으로 넘어간다.
+  `turn.skipped` 를 세워 차례 끝 능력(돈 벨)은 걸지 않는다 (골드 러시 FAQ Q06)
 - 액티브 플레이어가 자기 차례에 죽어도(자기가 건 결투에서 패배 등) `playPhase` 는
   더 이상 멈추지 않는다. 멈추면 아무도 둘 수 없는 교착이 된다
 

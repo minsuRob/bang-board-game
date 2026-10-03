@@ -43,10 +43,14 @@ import { discardGold, goldEquipOf } from '../gold';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 import { eul, ga, neun } from '../josa';
 
-/** 감옥에 걸려 차례를 건너뛸 때, 이번 차례의 남은 단계를 스택에서 걷어낸다. */
+/**
+ * 감옥에 걸려 차례를 건너뛸 때, 이번 차례의 남은 단계를 스택에서 걷어낸다.
+ * turnEnd 는 남지만 `turn.skipped` 로 표시해 차례 끝 능력(돈 벨)이 걸리지 않게 한다.
+ */
 export function skipRestOfTurn(state: GameState, pid: PlayerId): GameState {
   return {
     ...state,
+    turn: state.turn.active === pid ? { ...state.turn, skipped: true } : state.turn,
     stack: state.stack.filter(
       (f) =>
         !(
