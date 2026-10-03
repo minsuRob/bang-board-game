@@ -8,7 +8,7 @@ import type { EventCardId } from '../../data/types';
 import { distance } from '../distance';
 import { legalActions } from '../legal';
 import { defaultAction, reduce } from '../reducer';
-import type { GameState, PlayerId } from '../types';
+import type { Action, Choice, GameState, PlayerId } from '../types';
 import { beginTurn, handCard, logged, loggedCount, p, resolveStack, scenario, type PlayerSpec } from './helpers';
 
 /** 보안관 a 와 무법자 셋. 캐릭터는 차례 흐름에 끼어들지 않는 윌리 더 키드 */
@@ -336,5 +336,95 @@ describe('서부의 법 — 차례 마치기', () => {
     const s0 = table('lawOfTheWest', { hand: ['missed'] })();
     const s = { ...s0, turn: { ...s0.turn, mustPlay: handCard(s0, 'a', 'missed') } };
     expect(legalActions(s, 'a').some((x) => x.type === 'endTurn')).toBe(true);
+  });
+});
+
+const respond = (pid: PlayerId, choice: Choice): Action => ({ type: 'respond', pid, choice });
+
+/** 덱 맨 위에 못박아 둔 카드의 id (킷 칼슨 선택용) */
+function deckTopCard(s: GameState, kind: string): string {
+  const id = s.deck.slice(-3).find((c) => c.startsWith(`${kind}-`));
+  if (!id) throw new Error(`덱 위에 ${kind} 가 없다`);
+  return id;
+}
+
+// 서부의 법 카드 원문 (assets/cards/event/lawOfTheWest.png):
+//   "During his phase 1, each player shows the second card he draws"
+// 캐릭터 능력으로 1단계를 바꿔도 '1단계에서 두 번째로 받은 카드'에 의무가 걸린다.
+describe('서부의 법 — 캐릭터 능력으로 가져올 때', () => {
+  it('제시 존스가 남의 손에서 첫 장을 가져오면, 덱에서 받은 두 번째 장을 보여 준다', () => {
+    const s0 = table('lawOfTheWest', { character: 'jesseJones' }, { hand: ['panic'] })({ deckTop: ['beer'] });
+    let s = beginTurn(s0, 'a');
+    expect(s.awaiting).toMatchObject({ k: 'jesseJones', pid: 'a' });
+    s = reduce(s, respond('a', { c: 'player', pid: 'b' }));
+    expect(p(s, 'a').hand).toHaveLength(2);
+    expect(s.turn.mustPlay).toBe(handCard(s, 'a', 'beer'));
+    expect(logged(s, 'lawOfTheWest')).toBe(true);
+  });
+
+  it('페드로 라미레즈가 버린 더미에서 첫 장을 가져오면, 덱에서 받은 두 번째 장을 보여 준다', () => {
+    const s0 = scenario({
+      event: 'lawOfTheWest',
+      discard: ['gatling'],
+      deckTop: ['beer'],
+      players: [{ id: 'a', role: 'sheriff', character: 'pedroRamirez' }, { id: 'b' }, { id: 'c' }, { id: 'd' }],
+    });
+    let s = beginTurn(s0, 'a');
+    expect(s.awaiting).toMatchObject({ k: 'pedroRamirez', pid: 'a' });
+    s = reduce(s, respond('a', { c: 'yes' }));
+    expect(p(s, 'a').hand).toHaveLength(2);
+    expect(s.turn.mustPlay).toBe(handCard(s, 'a', 'beer'));
+  });
+
+  it('킷 칼슨은 고른 두 장 중 두 번째로 고른 장을 보여 준다', () => {
+    const s0 = table('lawOfTheWest', { character: 'kitCarlson' })({ deckTop: ['missed', 'beer', 'panic'] });
+    let s = beginTurn(s0, 'a');
+    expect(s.awaiting).toMatchObject({ k: 'kitCarlson', pid: 'a', remaining: 2 });
+    s = reduce(s, respond('a', { c: 'card', card: deckTopCard(s0, 'panic') }));
+    s = reduce(s, respond('a', { c: 'card', card: deckTopCard(s0, 'beer') }));
+    expect(p(s, 'a').hand).toHaveLength(2);
+    expect(s.turn.mustPlay).toBe(handCard(s, 'a', 'beer'));
+  });
+});
+
+// 폐광 카드 원문 (assets/cards/event/abandonedMine.png):
+//   "During his phase 1, each player draws from the discards"
+// 캐릭터 능력 뒤에 이어지는 1단계 드로우도 버린 더미에서 온다.
+describe('폐광 — 캐릭터 능력으로 가져올 때', () => {
+  const four = (character: 'jesseJones' | 'pedroRamirez' | 'blackJack'): PlayerSpec[] => [
+    { id: 'a', role: 'sheriff', character },
+    { id: 'b', hand: ['panic'] },
+    { id: 'c' },
+    { id: 'd' },
+  ];
+
+  it('제시 존스: 남의 손에서 첫 장을 가져온 뒤 나머지는 버린 더미에서', () => {
+    const s0 = scenario({ event: 'abandonedMine', discard: ['beer', 'gatling'], players: four('jesseJones') });
+    let s = beginTurn(s0, 'a');
+    s = reduce(s, respond('a', { c: 'player', pid: 'b' }));
+    expect(p(s, 'a').hand).toEqual([p(s0, 'b').hand[0], s0.discard[1]]);
+    expect(s.deck).toHaveLength(s0.deck.length);
+  });
+
+  it('페드로 라미레즈: 능력으로 첫 장을 가져온 뒤 나머지도 버린 더미에서', () => {
+    const s0 = scenario({ event: 'abandonedMine', discard: ['beer', 'gatling'], players: four('pedroRamirez') });
+    let s = beginTurn(s0, 'a');
+    expect(s.awaiting).toMatchObject({ k: 'pedroRamirez', pid: 'a' });
+    s = reduce(s, respond('a', { c: 'yes' }));
+    expect(p(s, 'a').hand).toEqual([s0.discard[1], s0.discard[0]]);
+    expect(s.deck).toHaveLength(s0.deck.length);
+  });
+
+  it('블랙 잭: 두 번째 장이 붉어 받는 추가 1장도 버린 더미에서', () => {
+    const s0 = scenario({
+      event: 'abandonedMine',
+      discard: ['gatling', { kind: 'beer', suit: 'hearts' }, 'missed'],
+      players: four('blackJack'),
+    });
+    const [gatling, beer, missed] = s0.discard;
+    const s = beginTurn(s0, 'a');
+    expect(logged(s, 'blackJack')).toBe(true);
+    expect(p(s, 'a').hand).toEqual([missed, beer, gatling]);
+    expect(s.deck).toHaveLength(s0.deck.length);
   });
 });

@@ -168,6 +168,18 @@ describe('헬레나 존테로', () => {
     expect(logged(s, 'rolesShuffled')).toBe(false);
     expect(s.players.map((x) => x.role)).toEqual(s0.players.map((x) => x.role));
   });
+
+  // 공식 FAQ Q09 (faq-wildwestshow): "Does John Pain draw the "drawn!" card by Helena Zontero?
+  //   A. No, because that card is "drawn!" automatically, not by a player."
+  it('펼친 카드는 존 페인이 가져가지 않고 버린 더미로 간다 (FAQ Q09)', () => {
+    const s0 = table('sacagaway', [{}, { character: 'johnPain', hand: ['bang'] }], [{ kind: 'bang', suit: 'clubs' }]);
+    const flipped = s0.deck[s0.deck.length - 1];
+    const s = reveal(s0, 'helenaZontero');
+    expect(p(s, 'b').hand).toEqual(p(s0, 'b').hand);
+    expect(logged(s, 'johnPain')).toBe(false);
+    expect(s.discard).toContain(flipped);
+    expect(totalCards(s)).toBe(80);
+  });
 });
 
 describe('레이디 로즈 오브 텍사스', () => {

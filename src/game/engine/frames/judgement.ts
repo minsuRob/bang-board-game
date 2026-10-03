@@ -43,6 +43,12 @@ const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
 };
 
 /**
+ * 사람이 아니라 카드가 저절로 펼치는 판정. 존 페인이 그 카드를 가져가지 않는다.
+ * 와일드 웨스트 쇼 FAQ Q09 "that card is "drawn!" automatically, not by a player."
+ */
+const AUTOMATIC_DRAWS: JudgementPurpose[] = ['helenaZontero'];
+
+/**
  * 펼친 카드가 조건에 맞았는가 (효과가 발동하는가). 좋은 결과인지와는 다르다 — 다이너마이트는 맞으면 터진다.
  * 판정 처리와 로그(UI 연출)가 같은 답을 쓰도록 한곳에 둔다.
  */
@@ -80,6 +86,21 @@ function creditDodge(state: GameState): GameState {
   return state;
 }
 
+/**
+ * 스택에서 가장 위에 있는 뱅!이 이미 빗나갔는가.
+ * 주르도네+술통은 "두 번의 기회"다 (base.txt "two chances to cancel the BANG!").
+ * 첫 판정으로 취소됐으면 두 번째 판정은 펼치지 않는다. 슬랩처럼 빗나감이 더 필요하면 남아 있다.
+ */
+const DODGE_DRAWS: JudgementPurpose[] = ['barrel', 'jourdonnais'];
+
+function bangAlreadyDodged(state: GameState): boolean {
+  for (let i = state.stack.length - 1; i >= 0; i--) {
+    const f = state.stack[i];
+    if (f.k === 'bang') return f.missesRequired <= 0;
+  }
+  return false;
+}
+
 /** 스택에서 가장 위에 있는 뱅! 프레임을 피할 수 없게 만든다 (콜로라도 빌) */
 function markUnavoidable(state: GameState): GameState {
   for (let i = state.stack.length - 1; i >= 0; i--) {
@@ -110,6 +131,10 @@ export function resolveJudgement(
   if (frame.candidates.length > 0) {
     // 이미 후보를 뽑아 두고 선택을 기다리는 중이다.
     return { ...state, awaiting: { k: 'judgementChoice', pid: frame.pid, purpose: frame.purpose, options: frame.candidates } };
+  }
+
+  if (DODGE_DRAWS.includes(frame.purpose) && bangAlreadyDodged(state)) {
+    return popFrame(state);
   }
 
   const peek = judgementPeekOf(state, frame.pid);
@@ -154,8 +179,9 @@ function applyJudgement(
   const suit = effectiveSuit(state, card);
   const inst = cardOf(card);
   const hit = judgementHit(purpose, suit, inst.rank);
-  // 존 페인: 손패가 모자라면 펼친 카드를 버린 더미 대신 손으로 가져간다
-  const taker = judgementCardTaker(state, pid);
+  // 존 페인: 손패가 모자라면 펼친 카드를 버린 더미 대신 손으로 가져간다.
+  // 헬레나 존테로의 판정은 사람이 아니라 저절로 펼쳐지는 것이라 가져가지 않는다 (와일드 웨스트 쇼 FAQ Q09)
+  const taker = AUTOMATIC_DRAWS.includes(purpose) ? null : judgementCardTaker(state, pid);
   let cur = toDiscard(state, taker ? discarded : [card, ...discarded]);
   cur = log(cur, {
     t: 'judgement',

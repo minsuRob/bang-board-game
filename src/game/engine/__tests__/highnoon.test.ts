@@ -792,6 +792,22 @@ describe('기차도착', () => {
     expect(p(s, 'p0').hand).toHaveLength(3);
     expect(totalCards(s)).toBe(80);
   });
+
+  // 공식 FAQ Q06 (faq-highnoon-fistful): "If the Train Arrival is in play, he simply draws three
+  // cards (technically speaking, he looks at the first three cards, places one of them on the
+  // top of the deck… and then draws that card, too)."
+  it('킷 칼슨은 고르지 않고 맨 위 3장을 그대로 가져간다 (FAQ Q06)', () => {
+    const s0 = scenario({
+      players: [{ character: 'kitCarlson' }, {}, {}, {}],
+      event: 'trainArrival',
+      deckTop: ['jail', 'dynamite', 'volcanic', 'mustang'],
+    });
+    const top3 = s0.deck.slice(-3).reverse();
+    const s = beginTurn(s0, 'p0');
+    expect(s.awaiting).toBeNull();
+    expect(p(s, 'p0').hand).toEqual(top3);
+    expect(totalCards(s)).toBe(80);
+  });
 });
 
 describe('갈증', () => {
@@ -816,14 +832,26 @@ describe('갈증', () => {
     expect(totalCards(s)).toBe(80);
   });
 
-  it('킷 칼슨이 들여다보는 장수도 함께 줄어든다 (v0.128)', () => {
+  // 공식 FAQ Q06 (faq-highnoon-fistful): "If the Thirst is in play, Kit Carlson looks at the
+  // first three cards, but he draws only one of them: he must place the other two on the top
+  // of the deck, in the same order he drew them."
+  it('킷 칼슨은 그래도 3장을 보고 1장만 가져간다. 나머지 2장은 뽑은 순서대로 덱 위로 (FAQ Q06)', () => {
     const s0 = scenario({
       players: [{ character: 'kitCarlson' }, {}, {}, {}],
       event: 'thirst',
+      deckTop: ['jail', 'dynamite', 'volcanic'],
     });
-    const s = beginTurn(s0, 'p0');
+    let s = beginTurn(s0, 'p0');
     expect(s.awaiting).toMatchObject({ k: 'kitCarlson', pid: 'p0', remaining: 1 });
-    expect(s.awaiting!.k === 'kitCarlson' ? s.awaiting.options : []).toHaveLength(2);
+    const options = s.awaiting!.k === 'kitCarlson' ? s.awaiting.options : [];
+    expect(options).toHaveLength(3);
+    expect(totalCards(s)).toBe(80);
+
+    const [jail, dynamite, volcanic] = options;
+    s = reduce(s, { type: 'respond', pid: 'p0', choice: { c: 'card', card: dynamite } });
+    expect(s.awaiting).toBeNull();
+    expect(p(s, 'p0').hand).toEqual([dynamite]);
+    expect(s.deck.slice(-2)).toEqual([volcanic, jail]);
     expect(totalCards(s)).toBe(80);
   });
 

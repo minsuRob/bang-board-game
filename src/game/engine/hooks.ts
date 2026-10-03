@@ -175,6 +175,19 @@ export function judgementPeekOf(state: GameState, pid: PlayerId): number {
   return n + bonus;
 }
 
+/**
+ * 럼이 펼치는 장수 (기본 4). 판정을 여러 장 펼치는 캐릭터는 그만큼 더 펼친다.
+ * 골드 러시 FAQ Q05 "Lucky Duke draws up to 5 cards instead of 4."
+ * 편자(judgementPeekBonus)도 더할지는 원문이 없어 넣지 않는다.
+ */
+export function rhumFlipCountOf(state: GameState, pid: PlayerId): number {
+  let peek = 1;
+  for (const m of getModifiers(state, pid)) {
+    if (m.judgementPeek) peek = Math.max(peek, m.judgementPeek);
+  }
+  return 4 + (peek - 1);
+}
+
 /** 카드 가져오기 단계에서 가져올 장수 (기본 2) */
 export function drawCountOf(state: GameState, pid: PlayerId): number {
   let n = 2;
