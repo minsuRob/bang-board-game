@@ -534,10 +534,14 @@ function kindActions(
       if (!bangsLeft) break;
       for (const t of seatedPlayers(state)) {
         if (t.id === pid || !t.alive) continue;
-        if (!canReachWithBang(state, pid, t.id)) continue;
+        if (!canReachWithBang(state, pid, t.id) || immuneToCard(state, t.id, card, pid)) continue;
         // 두 번째 표적: 첫 표적에서 거리 1, 나 제외 (원본 맵 v0.327)
         const seconds = alivePlayers(state).filter(
-          (u) => u.id !== pid && u.id !== t.id && distance(state, t.id, u.id) <= 1,
+          (u) =>
+            u.id !== pid &&
+            u.id !== t.id &&
+            distance(state, t.id, u.id) <= 1 &&
+            !immuneToCard(state, u.id, card, pid),
         );
         if (seconds.length === 0) {
           out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
@@ -568,7 +572,8 @@ function kindActions(
       // 무기와 무관하게 거리 2 이내. 뱅! 카드가 아니라 횟수를 쓰지 않는다.
       for (const t of seatedPlayers(state)) {
         if (t.id === pid || !t.alive) continue;
-        if (canReachAtRange(state, pid, t.id, 2)) {
+        // 칼루멧: 남이 낸 ♦ 카드(토마호크 ♦A)는 효과가 없다
+        if (canReachAtRange(state, pid, t.id, 2) && !immuneToCard(state, t.id, card, pid)) {
           out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
         }
       }

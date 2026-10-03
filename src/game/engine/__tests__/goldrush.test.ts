@@ -204,6 +204,41 @@ describe('검정 장비', () => {
     const targets = legalActions(s, 'a').filter((x) => x.type === 'playCard').map((x) => (x as { target?: string }).target);
     expect(targets).not.toContain('b');
   });
+
+  // 칼루멧 원문 "Cards of Diamonds played by the other players have no effect on you." (결투만 예외)
+  // 그림자의 계곡의 ♦ 카드도 마찬가지다: 토마호크 ♦A, 노상강도 ♦Q.
+  it('칼루멧: 남이 낸 ♦ 토마호크의 대상이 되지 않는다', () => {
+    const s = withGold(
+      scenario({ expansions: ['valley'], players: four({ hand: ['tomahawk'] }) }),
+      { equip: { b: ['gr-calumet-1'] } },
+    );
+    const card = handCard(s, 'a', 'tomahawk');
+    expect(cardOf(card).suit).toBe('diamonds');
+    const targets = legalActions(s, 'a')
+      .filter((x) => x.type === 'playCard' && x.card === card)
+      .map((x) => (x as { target?: string }).target);
+    expect(targets).toContain('d');
+    expect(targets).not.toContain('b');
+  });
+
+  it('칼루멧: 남이 낸 ♦ 노상강도는 칼루멧을 가진 사람을 건너뛴다', () => {
+    const s0 = withGold(
+      scenario({
+        expansions: ['valley'],
+        players: four({ hand: ['bandidos'] }, { hand: ['beer', 'beer'] }),
+      }),
+      { equip: { b: ['gr-calumet-1'] } },
+    );
+    let s = reduce(s0, { type: 'playCard', pid: 'a', card: handCard(s0, 'a', 'bandidos') });
+    const asked: PlayerId[] = [];
+    for (let i = 0; i < 20 && s.awaiting; i++) {
+      asked.push(s.awaiting.pid);
+      s = reduce(s, legalActions(s, s.awaiting.pid)[0]);
+    }
+    expect(asked).not.toContain('b');
+    expect(player(s, 'b').hand).toHaveLength(2);
+    expect(player(s, 'b').hp).toBe(player(s0, 'b').hp);
+  });
 });
 
 describe('수배 · 배낭 · 숙취', () => {
