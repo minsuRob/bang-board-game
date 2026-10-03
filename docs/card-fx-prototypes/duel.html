@@ -9,6 +9,9 @@
   - 두 다리 사이 틈(x 138~162, y 178~265) 너머 멀리 x 146, y 206 에 상대가 작게 서 있다
   노린 것: 앞 사나이 다리 틈으로 보이는 먼 상대 = '지목한 한 명'. 그 틈으로 파고드는 대치·긴장·한 방.
   결투 규칙(번갈아 뱅!을 버림)은 D 에서 핑퐁으로 보여 준다.
+  B1~B6 은 카우보이 모자 챙이 눈을 반쯤 가린 얼굴. B1~B3 은 한 얼굴 클로즈업, B4~B6 은 세 컷 분할.
+  흐름은 같다(번뜩 → 가늘어짐 → 섬광·BANG!). 얼굴·모자는 도형·그라데이션만 쓴다 (cowboy()).
+  ?freeze (또는 리드 아래 체크박스)로 B 안들을 눈이 가장 가늘어진 순간(SQ)에 멈춰 비교한다.
   소리 아이디어: 바람 휘파람(필터 노이즈) → 심장 박동 2번 → 정적 → 총성 하나와 긴 울림(리버브 꼬리).
 -->
 </head><body>
@@ -61,10 +64,285 @@ const WIND = (() => { const r = rng(21); return Array.from({ length: 40 }, () =>
 const SMOKE = (() => { const r = rng(5); return Array.from({ length: 14 }, () => ({ dx: (r() - 0.5) * 6, dy: -4 - r() * 10, r: 1 + r() * 2.5, d: r() * 0.08 })); })();
 const DUST = (() => { const r = rng(33); return Array.from({ length: 90 }, () => ({ z: r(), u: r() * 2 - 1, sp: 0.35 + r() * 0.5, s: 0.6 + r() * 0.8 })); })();
 
-FxKit.mount({
+// ── 시안 B1~B6 공용: 모자에 반쯤 가린 눈빛 ─────────────────────────────
+// 흐름은 다섯 안이 같다: 띠가 열림(0~0.16) → 나·상대 번갈아 번뜩(0.2/0.32/0.44/0.56)
+// → 눈이 가장 가늘어짐(SQ) → 섬광·BANG!(0.68~0.84) → 띠가 닫힘(0.82~0.97). t=1 에는 카드만 남는다.
+const SQ = 0.66; // 눈이 가장 가늘고 날카로운 순간. "멈춰 보기"는 여기에 고정한다
+let FREEZE = new URLSearchParams(location.search).has('freeze');
+const tl = {
+  open: (t) => ease.out(seg(t, 0, 0.16)) * (1 - ease.in(seg(t, 0.82, 0.97))),
+  squint: (t, min) => lerp(1, min, ease.inOut(seg(t, 0.12, SQ))),
+  tense: (t) => seg(t, 0.12, SQ),
+  gl: (t, a) => env(t, a, a + 0.03, a + 0.06, a + 0.1),
+  me: (t) => Math.max(tl.gl(t, 0.2), tl.gl(t, 0.44)),
+  foe: (t) => Math.max(tl.gl(t, 0.32), tl.gl(t, 0.56)),
+  cut: (t) => seg(t, 0.68, 0.84),
+};
+
+/** 아몬드형 눈 하나 (눈썹·쌍꺼풀·눈가 주름 포함). side=+1 이면 바깥 눈꼬리가 오른쪽.
+    o 는 뜬 정도(1 → 0.15). 돌려주는 값은 홍채 중심의 화면 좌표 */
+function eye(g, x, cy, w, o, s) {
+  const q = s.q, rich = q.on(1) && !s.flat;
+  const hw = w / 2, hu = Math.max(0.6, w * 0.21 * o), hd = Math.max(0.4, w * 0.11 * o);
+  const side = s.side, ink = s.ink || '#1a0f08', dk = s.dk || '40,20,10';
+  const look = s.look || 0;
+  g.save(); g.translate(x, cy); g.scale(side, 1);
+  const ix0 = -hw, iy0 = w * 0.04, ox = hw, oy = -w * 0.035;
+  const upper = () => { g.moveTo(ix0, iy0); g.bezierCurveTo(-hw * 0.45, -hu * 1.35, hw * 0.4, -hu * 1.25, ox, oy); };
+  const lowerBack = () => g.bezierCurveTo(hw * 0.45, hd * 1.3, -hw * 0.35, hd * 1.35, ix0, iy0);
+  // 눈두덩 그늘
+  const sock = s.sock == null ? 0.45 : s.sock, sc = s.sockC || '20,10,5';
+  if (sock > 0) {
+    if (rich) {
+      const gr = g.createRadialGradient(0, -hu * 0.4, w * 0.08, 0, -hu * 0.4, w * 0.75);
+      gr.addColorStop(0, `rgba(${sc},${sock})`); gr.addColorStop(1, `rgba(${sc},0)`);
+      g.fillStyle = gr; g.fillRect(-w, -w * 0.8, w * 2, w * 1.5);
+    } else {
+      g.fillStyle = `rgba(${sc},${sock * 0.55})`; g.beginPath(); g.ellipse(0, -hu * 0.3, w * 0.6, w * 0.32, 0, 0, 7); g.fill();
+    }
+  }
+  // 눈썹: 안쪽이 내려앉은 찡그림
+  const by = s.browY != null ? s.browY : -w * 0.36 + (1 - o) * w * 0.1;
+  const fr = s.frown == null ? 0.6 : s.frown, th = w * (s.browW || 0.085);
+  const yi = by + w * 0.09 * fr, yo = by + w * 0.05, ym = by - w * 0.04 * (1 - fr * 0.5);
+  g.fillStyle = s.browC || '#24160c';
+  g.beginPath(); g.moveTo(-hw * 1.02, yi - th * 0.9); g.quadraticCurveTo(0, ym - th * 1.1, hw * 1.2, yo);
+  g.quadraticCurveTo(0, ym + th * 0.4, -hw * 0.98, yi + th * 0.5); g.closePath(); g.fill();
+  if (q.on(2) && !s.flat) {
+    g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 0.6;
+    for (let i = 0; i < 11; i++) {
+      const u = i / 10, bx = lerp(-hw, hw * 1.1, u), byy = (1 - u) * (1 - u) * yi + 2 * u * (1 - u) * (ym - th * 0.3) + u * u * yo;
+      g.beginPath(); g.moveTo(bx, byy + th * 0.4); g.lineTo(bx + Math.min(w * 0.06, 3.5), byy - th * 0.45); g.stroke();
+    }
+  }
+  // 쌍꺼풀 주름
+  g.strokeStyle = `rgba(${dk},0.5)`; g.lineWidth = Math.max(0.7, w * 0.018); g.lineCap = 'round';
+  g.beginPath(); g.moveTo(-hw * 0.8, -hu * 1.0 - w * 0.07); g.quadraticCurveTo(-hw * 0.1, -hu * 1.5 - w * 0.1, hw * 0.95, oy - hu * 0.5 - w * 0.07); g.stroke();
+  // 흰자 · 홍채 · 동공
+  g.beginPath(); upper(); lowerBack(); g.closePath();
+  g.fillStyle = s.white || '#e6d6ba'; g.fill();
+  g.save(); g.clip();
+  const ir = w * 0.2, ix = look * w * 0.13 * side, iy = -hu * 0.12;
+  if (rich) {
+    const gr = g.createRadialGradient(ix, iy, ir * 0.15, ix, iy, ir);
+    gr.addColorStop(0, s.iris[1]); gr.addColorStop(0.72, s.iris[0]); gr.addColorStop(1, '#0c0705');
+    g.fillStyle = gr; g.beginPath(); g.arc(ix, iy, ir, 0, 7); g.fill();
+  } else {
+    g.fillStyle = s.iris[0]; g.beginPath(); g.arc(ix, iy, ir, 0, 7); g.fill();
+    g.strokeStyle = '#0c0705'; g.lineWidth = ir * 0.16; g.beginPath(); g.arc(ix, iy, ir * 0.92, 0, 7); g.stroke();
+  }
+  if (q.on(2) && !s.flat) {
+    g.strokeStyle = 'rgba(255,232,190,0.2)'; g.lineWidth = 0.5;
+    for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; g.beginPath(); g.moveTo(ix + Math.cos(a) * ir * 0.48, iy + Math.sin(a) * ir * 0.48); g.lineTo(ix + Math.cos(a) * ir * 0.88, iy + Math.sin(a) * ir * 0.88); g.stroke(); }
+  }
+  g.fillStyle = '#050302'; g.beginPath(); g.arc(ix, iy, ir * (s.pupil || 0.42), 0, 7); g.fill();
+  // 윗눈꺼풀이 드리운 그늘
+  if (rich) {
+    const lg = g.createLinearGradient(0, -hu * 1.4, 0, hu * 0.4);
+    lg.addColorStop(0, 'rgba(0,0,0,0.72)'); lg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = lg; g.fillRect(-hw, -hu * 1.5, w, hu * 1.9);
+  } else { g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(-hw, -hu * 1.5, w, hu * 1.05); }
+  const ca = s.catch == null ? 0.85 : s.catch;
+  if (ca > 0) { g.fillStyle = `rgba(255,252,240,${ca})`; g.beginPath(); g.arc(ix - ir * 0.35 * side, iy - ir * 0.35, ir * 0.2, 0, 7); g.fill(); }
+  g.restore();
+  // 속눈썹 선(굵게) · 아랫눈꺼풀 · 눈밑 주름
+  g.strokeStyle = s.lid || ink; g.lineWidth = Math.max(1.2, Math.min(3.6, w * 0.05)); g.lineJoin = 'round';
+  g.beginPath(); upper(); g.lineTo(ox + w * 0.06, oy - w * 0.05); g.stroke();
+  g.lineWidth = Math.max(0.6, w * 0.016); g.strokeStyle = `rgba(${dk},0.6)`;
+  g.beginPath(); g.moveTo(ox, oy); lowerBack(); g.stroke();
+  g.strokeStyle = `rgba(${dk},0.28)`;
+  g.beginPath(); g.moveTo(-hw * 0.55, hd * 1.2 + w * 0.08); g.quadraticCurveTo(0, hd * 1.5 + w * 0.13, hw * 0.75, hd * 0.8 + w * 0.06); g.stroke();
+  // 눈가 잔주름 (찡그릴수록 짙다)
+  const wk = s.wrinkle || 0;
+  if (wk > 0) {
+    const n = s.wrinkleN || 3;
+    g.strokeStyle = `rgba(${dk},${Math.min(1, wk * 0.6)})`; g.lineWidth = Math.max(0.6, w * 0.014);
+    for (let i = 0; i < n; i++) {
+      const a = (i - (n - 1) / 2) * 0.34;
+      g.beginPath(); g.moveTo(ox + w * 0.05, oy + a * w * 0.12);
+      g.quadraticCurveTo(ox + w * 0.15, oy + a * w * 0.2 - w * 0.012, ox + w * (0.24 + (i % 2) * 0.04), oy + a * w * 0.4); g.stroke();
+    }
+  }
+  g.restore();
+  return { x: x + look * w * 0.13, y: cy - hu * 0.12, r: w * 0.2 };
+}
+
+function glint(g, x, y, k, size, q, col) {
+  if (k <= 0.01) return;
+  g.save(); if (q.on(1)) g.globalCompositeOperation = 'lighter';
+  const c = col || '255,246,220', L = size * (0.6 + k);
+  g.strokeStyle = `rgba(${c},${k})`; g.lineWidth = 1; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(x - L, y); g.lineTo(x + L, y); g.moveTo(x, y - L * 0.55); g.lineTo(x, y + L * 0.55); g.stroke();
+  g.fillStyle = `rgba(255,255,255,${k})`; g.beginPath(); g.arc(x, y, 1.1 + k * 1.3, 0, 7); g.fill();
+  g.restore();
+}
+function grain(g, y0, hh, f, seed, n) { const r = rng(f * 7 + seed); g.fillStyle = 'rgba(255,240,220,0.16)'; for (let i = 0; i < n; i++) g.fillRect(r() * W, y0 + r() * hh, 1, 1); }
+/** 섬광 + "BANG!" (원래 B 의 끝맺음) */
+function bangEnd(g, t, q, hh) {
+  const cut = tl.cut(t);
+  if (cut <= 0 || cut >= 1) return;
+  if (q.on(1)) { g.fillStyle = `rgba(255,250,236,${(1 - cut) * 0.9})`; g.fillRect(0, 0, W, H); }
+  else { g.fillStyle = `rgba(255,250,236,${1 - cut})`; g.fillRect(0, 0, W, hh); g.fillRect(0, H - hh, W, hh); }
+  g.save(); g.globalAlpha = Math.min(1, (1 - cut) * 2);
+  g.translate(W / 2, H / 2 + 6); const s = 1.4 - 0.4 * ease.out(cut); g.scale(s, s);
+  g.font = '600 38px serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 6; g.strokeStyle = '#0d0906'; g.strokeText('BANG!', 0, 0);
+  g.fillStyle = '#f0e4cc'; g.fillText('BANG!', 0, 0); g.restore();
+}
+
+/** 카우보이 모자를 쓴 얼굴 (눈 위쪽 클로즈업). 단위 u=sc, 눈선 (cx, ey).
+    P.brim: 챙 앞끝(가운데) 높이, 눈선 기준 u 단위. 0 이면 챙이 눈 한가운데까지 내려와 위쪽 절반을 가린다.
+    P.tilt: 모자 기울기(+ 면 오른쪽이 내려가 오른눈을 덮는다). P.rim: 역광 테두리 0~1. 돌려주는 값은 두 홍채 위치 */
+function cowboy(g, P) {
+  const { cx, ey, q } = P, u = P.sc;
+  const ex = 47 * u, ew = 50 * u, fy = ey + 40 * u, rx = 100 * u, ry = 132 * u;
+  const hatC = P.hatC || '#4a301c', bandC = P.bandC || '#17100a', rimC = P.rimC || '255,214,150';
+  // 귀 · 얼굴
+  g.fillStyle = P.skin; [-1, 1].forEach((d) => { g.beginPath(); g.ellipse(cx + d * 100 * u, ey + 30 * u, 11 * u, 22 * u, d * 0.15, 0, 7); g.fill(); });
+  g.fillStyle = 'rgba(0,0,0,0.3)'; [-1, 1].forEach((d) => { g.beginPath(); g.ellipse(cx + d * 102 * u, ey + 30 * u, 5 * u, 13 * u, d * 0.15, 0, 7); g.fill(); });
+  g.fillStyle = P.skin; g.beginPath(); g.ellipse(cx, fy, rx, ry, 0, 0, 7); g.fill();
+  if (q.on(1)) {
+    const rg = g.createRadialGradient(cx + 24 * u * (P.lightX || 0), ey + 24 * u, 16 * u, cx, fy, 132 * u);
+    rg.addColorStop(0, 'rgba(0,0,0,0)'); rg.addColorStop(0.55, 'rgba(0,0,0,0.14)'); rg.addColorStop(1, 'rgba(0,0,0,0.62)');
+    g.fillStyle = rg; g.beginPath(); g.ellipse(cx, fy, rx, ry, 0, 0, 7); g.fill();
+  }
+  // 콧등 그늘 · 콧방울
+  g.fillStyle = 'rgba(30,14,6,0.13)';
+  g.beginPath(); g.moveTo(cx + 5 * u, ey + 8 * u); g.quadraticCurveTo(cx + 12 * u, ey + 30 * u, cx + 16 * u, ey + 56 * u); g.lineTo(cx + 6 * u, ey + 60 * u); g.quadraticCurveTo(cx + 6 * u, ey + 30 * u, cx + u, ey + 8 * u); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(30,14,6,0.45)';
+  [-1, 1].forEach((d) => { g.beginPath(); g.ellipse(cx + d * 9 * u, ey + 62 * u, 4.5 * u, 2.4 * u, d * 0.3, 0, 7); g.fill(); });
+  // 수염 자국 · 콧수염 · 입
+  if (P.mouth) {
+    if (q.on(2)) { const r = rng(17); g.fillStyle = 'rgba(30,16,8,0.35)'; for (let i = 0; i < 160; i++) g.fillRect(cx + (r() * 2 - 1) * 72 * u, ey + 62 * u + r() * 44 * u, 0.8, 0.8); }
+    g.strokeStyle = 'rgba(50,24,12,0.8)'; g.lineWidth = 1.6 * u; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(cx - 22 * u, ey + 84 * u); g.quadraticCurveTo(cx, ey + 81 * u, cx + 24 * u, ey + 85 * u); g.stroke();
+    g.fillStyle = P.browC || '#24160c';
+    g.beginPath(); g.moveTo(cx - 32 * u, ey + 86 * u); g.quadraticCurveTo(cx - 12 * u, ey + 66 * u, cx, ey + 72 * u); g.quadraticCurveTo(cx + 12 * u, ey + 66 * u, cx + 32 * u, ey + 86 * u);
+    g.quadraticCurveTo(cx + 12 * u, ey + 76 * u, cx, ey + 78 * u); g.quadraticCurveTo(cx - 12 * u, ey + 76 * u, cx - 32 * u, ey + 86 * u); g.fill();
+  }
+  // 얼굴 역광 테두리
+  if (P.rim > 0) {
+    g.save(); if (q.on(1)) g.globalCompositeOperation = 'lighter';
+    if (q.on(2)) { g.shadowColor = `rgba(${rimC},0.9)`; g.shadowBlur = 6; }
+    g.strokeStyle = `rgba(${rimC},${0.75 * P.rim})`; g.lineWidth = 1.8;
+    g.beginPath(); g.ellipse(cx, fy, rx, ry, 0, -0.55, 0.5); g.stroke();
+    g.beginPath(); g.ellipse(cx, fy, rx, ry, 0, Math.PI - 0.5, Math.PI + 0.55); g.stroke();
+    g.restore();
+  }
+  const hatT = () => { g.translate(cx, ey + (P.brim || 0) * u); g.rotate(P.tilt || 0); g.scale(u, u); };
+  const front = () => { g.moveTo(-150, -34); g.bezierCurveTo(-125, -6, -70, 4, 0, 4); g.bezierCurveTo(70, 4, 125, -6, 150, -34); };
+  // 챙 그늘이 얼굴에 드리운다
+  const sd = P.shadow == null ? 30 : P.shadow;
+  if (sd > 0) {
+    g.save(); hatT();
+    g.beginPath(); front(); g.lineTo(150, -34 + sd); g.bezierCurveTo(125, -6 + sd, 70, 4 + sd, 0, 4 + sd); g.bezierCurveTo(-70, 4 + sd, -125, -6 + sd, -150, -34 + sd); g.closePath();
+    if (q.on(1)) {
+      const lg = g.createLinearGradient(0, 0, 0, 4 + sd);
+      lg.addColorStop(0, `rgba(8,4,2,${P.shadeA || 0.9})`); lg.addColorStop(0.55, `rgba(8,4,2,${(P.shadeA || 0.9) * 0.6})`); lg.addColorStop(1, 'rgba(8,4,2,0)');
+      g.fillStyle = lg;
+    } else g.fillStyle = `rgba(8,4,2,${(P.shadeA || 0.9) * 0.55})`;
+    g.fill(); g.restore();
+  }
+  // 눈
+  const ps = [-1, 1].map((d) => eye(g, cx + d * ex, ey, ew, P.o, { q, side: d, look: P.look || 0, iris: P.iris, frown: P.frown == null ? 0.95 : P.frown, wrinkle: P.wrinkle == null ? 0.3 + 0.7 * (1 - P.o) : P.wrinkle, wrinkleN: 4, sock: 0.55, white: P.white || '#a89880', catch: 0, browC: P.browC, dk: P.dk }));
+  // 그늘 속 눈빛 (반사는 홍채 아래쪽에 맺힌다 = 햇빛 받은 땅)
+  const gl = P.glint || 0, base = P.glow == null ? 0.5 : P.glow, glowC = P.glowC || '255,190,110';
+  ps.forEach((p, i) => {
+    const k = (base + (1 - base) * gl) * (P.eyeK ? P.eyeK[i] : 1);
+    if (k <= 0.01) return;
+    if (q.on(1)) {
+      g.save(); g.globalCompositeOperation = 'lighter';
+      const rg = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2.6);
+      rg.addColorStop(0, `rgba(${glowC},${0.45 * k})`); rg.addColorStop(1, `rgba(${glowC},0)`);
+      g.fillStyle = rg; g.beginPath(); g.arc(p.x, p.y, p.r * 2.6, 0, 7); g.fill(); g.restore();
+    }
+    const sx = p.x - p.r * 0.3, sy = p.y + p.r * 0.22;
+    g.fillStyle = `rgba(255,250,235,${Math.min(1, 0.35 + 0.65 * k)})`; g.beginPath(); g.arc(sx, sy, (0.9 + gl) * Math.min(1.4, u), 0, 7); g.fill();
+    glint(g, sx, sy, gl * (P.eyeK ? P.eyeK[i] : 1), 9 * u, q, glowC);
+  });
+  // 모자: 챙 → 크라운 → 띠
+  g.save(); hatT();
+  g.beginPath(); g.moveTo(-150, -34); g.bezierCurveTo(-120, -30, -60, -27, 0, -27); g.bezierCurveTo(60, -27, 120, -30, 150, -34);
+  g.bezierCurveTo(125, -6, 70, 4, 0, 4); g.bezierCurveTo(-70, 4, -125, -6, -150, -34); g.closePath();
+  if (q.on(1)) { const lg = g.createLinearGradient(0, -30, 0, 4); lg.addColorStop(0, hatC); lg.addColorStop(1, '#0e0905'); g.fillStyle = lg; } else g.fillStyle = hatC;
+  g.fill();
+  const crown = () => { g.moveTo(-58, -25); g.bezierCurveTo(-63, -60, -57, -92, -42, -104); g.quadraticCurveTo(-20, -112, 0, -97); g.quadraticCurveTo(20, -112, 42, -104); g.bezierCurveTo(57, -92, 63, -60, 58, -25); };
+  g.beginPath(); crown(); g.quadraticCurveTo(0, -21, -58, -25); g.closePath();
+  if (q.on(1)) { const lg = g.createLinearGradient(-60, 0, 60, 0); lg.addColorStop(0, '#0e0905'); lg.addColorStop(0.45, hatC); lg.addColorStop(1, '#120b06'); g.fillStyle = lg; } else g.fillStyle = hatC;
+  g.fill();
+  g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 2; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(0, -96); g.quadraticCurveTo(-4, -72, 0, -48); g.moveTo(-38, -98); g.quadraticCurveTo(-46, -80, -44, -60); g.moveTo(38, -98); g.quadraticCurveTo(46, -80, 44, -60); g.stroke();
+  g.fillStyle = bandC; g.beginPath(); g.moveTo(-59, -26); g.quadraticCurveTo(0, -22, 59, -26); g.lineTo(60, -40); g.quadraticCurveTo(0, -36, -60, -40); g.closePath(); g.fill();
+  g.fillStyle = '#b8b0a0'; g.beginPath(); g.arc(36, -33, 4, 0, 7); g.fill(); g.fillStyle = '#4a443c'; g.beginPath(); g.arc(36, -33, 1.4, 0, 7); g.fill();
+  // 챙 앞끝에 걸린 빛
+  g.strokeStyle = `rgba(${rimC},${P.edge == null ? 0.5 : P.edge})`; g.lineWidth = 1.4 / u; g.beginPath(); front(); g.stroke();
+  if (P.rim > 0) {
+    if (q.on(1)) g.globalCompositeOperation = 'lighter';
+    if (q.on(2)) { g.shadowColor = `rgba(${rimC},0.9)`; g.shadowBlur = 8; }
+    g.strokeStyle = `rgba(${rimC},${P.rim})`; g.lineWidth = 2.2 / u;
+    g.beginPath(); crown(); g.stroke();
+    g.beginPath(); g.moveTo(-150, -34); g.bezierCurveTo(-120, -30, -90, -28, -62, -27); g.moveTo(62, -27); g.bezierCurveTo(90, -28, 120, -30, 150, -34); g.stroke();
+  }
+  g.restore();
+  return ps;
+}
+function sky(g, q, top, bot, y0, h) {
+  y0 = y0 || 0; h = h || H;
+  if (q.on(1)) { const lg = g.createLinearGradient(0, y0, 0, y0 + h); lg.addColorStop(0, top); lg.addColorStop(1, bot); g.fillStyle = lg; } else g.fillStyle = top;
+  g.fillRect(0, y0, W, h);
+}
+/** 가운데에서 위아래로 열리는 시네마스코프 창. 돌려주는 값은 반높이 */
+function scope(g, t, fn) {
+  const hh = 87 * tl.open(t);
+  if (hh < 0.5) return 0;
+  g.save(); g.beginPath(); g.rect(0, 105 - hh, W, hh * 2); g.clip(); fn(); g.restore();
+  g.fillStyle = 'rgba(200,144,47,0.55)'; g.fillRect(0, 105 - hh, W, 0.8); g.fillRect(0, 105 + hh - 0.8, W, 0.8);
+  return hh;
+}
+/** 권총 손잡이 위에서 떨리는 손 (세로 컷 한 칸) */
+function handPanel(g, t, q, cx, cy, pw, y0, ph) {
+  const ten = tl.tense(t), grab = ease.in(seg(t, 0.64, 0.69));
+  g.fillStyle = '#2f2219'; g.fillRect(cx - pw / 2, y0, pw, ph); // 바지
+  if (q.on(1)) { const lg = g.createLinearGradient(0, y0, 0, y0 + ph); lg.addColorStop(0, 'rgba(0,0,0,0.5)'); lg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = lg; g.fillRect(cx - pw / 2, y0, pw, ph); }
+  g.save(); g.translate(cx, cy); g.scale(1.35, 1.35); g.translate(-cx, -cy - 4);
+  g.fillStyle = '#1c130c'; g.fillRect(cx - pw / 2, cy + 8, pw, 12); // 탄띠
+  g.fillStyle = '#b08a4a'; for (let i = 0; i < 6; i++) g.fillRect(cx - 46 + i * 16, cy + 10, 4, 8);
+  g.save(); g.translate(cx + 6, cy + 30); g.rotate(0.12);
+  g.fillStyle = '#6b4426'; g.beginPath(); g.moveTo(-17, -8); g.lineTo(17, -8); g.lineTo(12, 60); g.lineTo(-10, 60); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(240,210,160,0.35)'; g.setLineDash([2, 2]); g.lineWidth = 0.7; g.stroke(); g.setLineDash([]);
+  g.fillStyle = '#5a3418';
+  g.beginPath(); g.moveTo(-12, -6); g.quadraticCurveTo(-22, -30, -9, -46); g.lineTo(10, -44); g.quadraticCurveTo(5, -26, 12, -6); g.closePath(); g.fill();
+  g.strokeStyle = '#8a9096'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(10, -44); g.quadraticCurveTo(5, -26, 12, -6); g.stroke(); // 손잡이 쇠 테
+  if (q.on(1)) { g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 0.5; for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(-11 + i * 3, -10); g.lineTo(-7 + i * 3, -38); g.stroke(); } }
+  g.fillStyle = '#8a9096'; g.fillRect(-6, -50, 16, 5); g.fillRect(6, -55, 3, 7); // 공이치기
+  g.restore();
+  const amp = 0.5 + 2.4 * ten;
+  const hx = cx + 4 + Math.sin(t * 210) * amp * 0.8 + Math.sin(t * 97) * amp * 0.4 - grab * 2;
+  const hy = cy - 34 + Math.cos(t * 180) * amp * 0.4 + grab * 20;
+  g.fillStyle = '#b98a5e'; g.strokeStyle = '#5a3820'; g.lineWidth = 0.8;
+  g.beginPath(); g.ellipse(hx, hy, 18, 13, 0.1, 0, 7); g.fill(); g.stroke();
+  for (let i = 0; i < 4; i++) {
+    const len = 16 + (i === 1 || i === 2 ? 4 : 0) + Math.sin(t * 90 + i * 1.7) * 2 * ten - grab * 8;
+    g.beginPath(); g.roundRect(hx - 15 + i * 8, hy + 4, 6.5, len, 3); g.fill(); g.stroke();
+  }
+  g.beginPath(); g.roundRect(hx + 15, hy - 4, 6, 15, 3); g.fill(); g.stroke(); // 엄지
+  g.fillStyle = '#2a1a0e'; g.fillRect(cx - pw / 2, hy - 30, pw, 16); // 소맷부리
+  g.restore();
+}
+function tumbleweed(g, x, y, r, rot) {
+  g.save(); g.translate(x, y); g.rotate(rot);
+  g.strokeStyle = '#7a5a32'; g.lineWidth = 1.1;
+  for (let i = 0; i < 7; i++) { g.beginPath(); g.ellipse(0, 0, r, r * 0.55, i * 0.45, 0, 7); g.stroke(); }
+  g.restore();
+}
+const PUFFS = (() => { const r = rng(61); return Array.from({ length: 40 }, () => ({ d: r(), sw: r() * 6, r: 0.6 + r() * 0.8, a: 0.6 + r() * 0.4 })); })();
+const MOTES = (() => { const r = rng(43); return Array.from({ length: 60 }, () => ({ x: r(), y: r(), sp: 8 + r() * 22, r: 0.4 + r() * 1.1, ph: r() * 6 })); })();
+const SHARDS = (() => { const r = rng(55); const a = Array.from({ length: 9 }, (_, i) => (i + 0.2 + r() * 0.6) / 9 * Math.PI * 2); return a.map((a0, i) => ({ a0, a1: a[(i + 1) % 9] + (i === 8 ? Math.PI * 2 : 0), d: 70 + r() * 90, rot: (r() - 0.5) * 0.7 })); })();
+
+const SPEC = {
   kind: 'duel',
   title: '결투 연출 시안',
-  lead: '한 명을 지목해 마주 서는 카드. 그림 속 다리 틈 너머의 먼 상대가 곧 지목한 표적이다. 칸을 누르면 다시 본다.',
+  lead: '한 명을 지목해 마주 서는 카드. 그림 속 다리 틈 너머의 먼 상대가 곧 지목한 표적이다. B1~B3 은 모자 챙에 반쯤 가린 눈 클로즈업, B4~B6 은 같은 얼굴의 세 컷 분할. 칸을 누르면 다시 본다.',
   concepts: [
     {
       id: 'A', name: 'A. 다리 틈으로 파고들기', cost: 2, dur: 2200,
@@ -130,51 +408,248 @@ FxKit.mount({
       },
     },
     {
-      id: 'B', name: 'B. 눈빛 클로즈업', cost: 2, dur: 2000,
-      desc: '위아래 검은 띠가 닫히며 띠 안에 내 눈(위)과 상대 눈(아래)이 번갈아 번뜩인다. 점점 가늘어지다 흰 섬광과 함께 "탕!" · 저: 필름 입자·전체 섬광 없음',
+      id: 'B1', name: 'B1. 챙을 들어 올리며', cost: 2, dur: 2200,
+      desc: '고개 숙인 표적의 모자 챙이 두 눈을 덮고 있다. 챙이 천천히 들리며 그늘 속에서 반쯤 가린 잿빛 눈이 드러나고, 두 번 번뜩인 뒤 가늘어지다 BANG! · 저: 챙 그늘·눈빛을 단색으로, 필름 입자 없음',
       draw(g, t, q, f) {
-        bg(g);
-        cardDraw(g);
-        const open = ease.out(seg(t, 0, 0.16)) * (1 - ease.in(seg(t, 0.82, 0.97)));
-        const hh = 48 * open;
-        if (hh < 0.5) return;
-        const squint = lerp(1, 0.28, ease.inOut(seg(t, 0.12, 0.66)));
-        const cut = seg(t, 0.68, 0.84);
-        const bar = (y0, skin, look, glint) => {
-          g.save(); g.beginPath(); g.rect(0, y0, W, hh); g.clip();
-          g.fillStyle = '#0d0906'; g.fillRect(0, y0, W, hh);
-          if (hh > 18) {
-            const cy = y0 + hh / 2;
-            g.fillStyle = skin; g.fillRect(0, cy - 17, W, 34);
-            g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, cy - 17, W, 7); // 모자 그늘
-            [104, 196].forEach((x) => {
-              const w = 50, h = Math.max(0.7, squint * 7);
-              g.fillStyle = '#f0e4cc'; g.beginPath(); g.moveTo(x - w / 2, cy); g.quadraticCurveTo(x, cy - h * 1.7, x + w / 2, cy); g.quadraticCurveTo(x, cy + h * 1.7, x - w / 2, cy); g.closePath(); g.fill();
-              g.save(); g.clip();
-              const px = x + look * 11;
-              g.fillStyle = '#4b2f1c'; g.beginPath(); g.arc(px, cy, 6.5, 0, 7); g.fill();
-              g.fillStyle = '#0d0906'; g.beginPath(); g.arc(px, cy, 3, 0, 7); g.fill();
-              if (glint > 0) { g.fillStyle = `rgba(255,255,255,${glint})`; g.beginPath(); g.arc(px + 2, cy - 2, 1.6, 0, 7); g.fill(); }
-              g.restore();
-              g.strokeStyle = '#2a1a0e'; g.lineWidth = 3; g.lineCap = 'round';
-              g.beginPath(); g.moveTo(x - w / 2 - 2, cy - h * 1.7 - 4 + (1 - squint) * 3); g.lineTo(x + w / 2 + 2, cy - h * 1.2 - 6 + (1 - squint) * 5); g.stroke();
+        bg(g); cardDraw(g);
+        const hh = scope(g, t, () => {
+          sky(g, q, '#d9b27a', '#8a6038');
+          const lift = ease.inOut(seg(t, 0.1, 0.56));
+          cowboy(g, {
+            q, cx: 150, ey: 122, sc: lerp(1.12, 1.36, ease.inOut(seg(t, 0.05, SQ))), skin: '#a06a42',
+            o: tl.squint(t, 0.42), look: 0, iris: ['#3a5a63', '#a6d4dc'], glowC: '150,222,238',
+            glint: Math.max(tl.gl(t, 0.44), tl.gl(t, 0.56)), glow: 0.25 + 0.45 * lift,
+            brim: lerp(12, -11, lift), tilt: lerp(0.05, -0.04, lift), shadow: lerp(34, 24, lift), mouth: true,
+          });
+          if (q.on(2)) grain(g, 18, 174, f, 5, 120);
+        });
+        bangEnd(g, t, q, hh);
+      },
+    },
+    {
+      id: 'B2', name: 'B2. 한쪽 눈 + 담배 연기', cost: 2, dur: 2200,
+      desc: '모자를 비스듬히 눌러써 챙 그늘이 오른눈을 삼키고, 드러난 왼눈 하나만 노려본다. 입가 담배 끝이 두 번 붉게 타오르고 연기가 그늘진 눈 앞으로 감겨 오른다 · 저: 연기 1/4, 불씨 번짐·수염 자국 없음',
+      draw(g, t, q, f) {
+        bg(g); cardDraw(g);
+        const hh = scope(g, t, () => {
+          sky(g, q, '#caa06a', '#6e4a2c');
+          const sc = lerp(0.96, 1.1, ease.inOut(seg(t, 0.05, SQ))), cx = 150, ey = 84;
+          cowboy(g, {
+            q, cx, ey, sc, skin: '#9c6a44', o: tl.squint(t, 0.3), look: 0.12, iris: ['#7a4e1e', '#e0a548'], glowC: '255,184,80',
+            glint: Math.max(tl.gl(t, 0.32), tl.gl(t, 0.56)), glow: 0.45, eyeK: [1, 0.25],
+            brim: -12, tilt: lerp(0.16, 0.22, tl.tense(t)), shadow: 34, mouth: true, frown: 1,
+          });
+          // 담배: 오른쪽 입꼬리에서 비스듬히
+          const mx = cx + 22 * sc, my = ey + 85 * sc, tx = cx + 52 * sc, ty = ey + 95 * sc;
+          g.strokeStyle = '#ece4d4'; g.lineWidth = 3.4 * sc; g.lineCap = 'butt';
+          g.beginPath(); g.moveTo(mx, my); g.lineTo(tx, ty); g.stroke();
+          const burn = 0.35 + 0.65 * Math.max(env(t, 0.18, 0.22, 0.26, 0.34), env(t, 0.42, 0.46, 0.5, 0.58));
+          g.fillStyle = '#7a7470'; g.beginPath(); g.arc(tx, ty, 1.8 * sc, 0, 7); g.fill();
+          g.fillStyle = `rgba(255,${90 + 80 * burn | 0},40,${0.6 + 0.4 * burn})`; g.beginPath(); g.arc(tx + 0.6, ty + 0.2, 1.5 * sc, 0, 7); g.fill();
+          if (q.on(1)) {
+            g.save(); g.globalCompositeOperation = 'lighter';
+            const rg = g.createRadialGradient(tx, ty, 0, tx, ty, 10 * burn + 2);
+            rg.addColorStop(0, `rgba(255,120,40,${0.7 * burn})`); rg.addColorStop(1, 'rgba(255,120,40,0)');
+            g.fillStyle = rg; g.beginPath(); g.arc(tx, ty, 10 * burn + 2, 0, 7); g.fill(); g.restore();
+          }
+          // 연기: 불씨에서 피어올라 그늘진 눈 앞으로 감긴다
+          PUFFS.slice(0, q.n(40)).forEach((p) => {
+            const ph = (t * 0.9 + p.d) % 1;
+            const x = tx + Math.sin(ph * 5 + p.sw) * 16 * ph - ph * 30, y = ty - ph * 120;
+            g.fillStyle = `rgba(214,204,192,${(1 - ph) * ph * 4 * 0.06 * p.a})`;
+            g.beginPath(); g.ellipse(x, y, (4 + ph * 24) * p.r, (3 + ph * 15) * p.r, Math.sin(p.sw + ph * 3) * 0.6, 0, 7); g.fill();
+          });
+          if (q.on(2)) grain(g, 18, 174, f, 9, 120);
+        });
+        bangEnd(g, t, q, hh);
+      },
+    },
+    {
+      id: 'B3', name: 'B3. 숙인 고개, 역광', cost: 3, dur: 2400,
+      desc: '하얗게 타는 정오 하늘을 등진 실루엣. 고개를 숙여 챙이 두 눈을 반쯤 가리고, 모자·뺨 테두리의 금빛 림라이트와 눈동자 반사만 빛난다. 마지막에 고개를 살짝 들며 BANG! · 저: 림라이트 번짐·태양 번짐·먼지 없음',
+      draw(g, t, q, f) {
+        bg(g); cardDraw(g);
+        const hh = scope(g, t, () => {
+          sky(g, q, '#fff0c8', '#e09a52');
+          const up = ease.inOut(seg(t, 0.36, SQ));
+          const sc = 1.2, ey = lerp(132, 120, up);
+          if (q.on(1)) {
+            g.save(); g.globalCompositeOperation = 'lighter';
+            const sx = 150, sy = ey - 120;
+            const rg = g.createRadialGradient(sx, sy, 0, sx, sy, 150);
+            rg.addColorStop(0, 'rgba(255,250,225,0.95)'); rg.addColorStop(0.35, 'rgba(255,220,150,0.35)'); rg.addColorStop(1, 'rgba(255,200,120,0)');
+            g.fillStyle = rg; g.fillRect(0, 0, W, H); g.restore();
+          }
+          if (q.on(2)) {
+            MOTES.forEach((m) => {
+              const x = (m.x * W + t * m.sp * 3) % W, y = 18 + ((m.y * 174 - t * m.sp + 174) % 174);
+              g.fillStyle = `rgba(255,236,190,${0.35 + 0.3 * Math.sin(t * 9 + m.ph)})`; g.beginPath(); g.arc(x, y, m.r, 0, 7); g.fill();
             });
           }
-          if (q.on(2)) { const r = rng(f * 7 + (y0 > 0 ? 3 : 1)); g.fillStyle = 'rgba(255,240,220,0.18)'; for (let i = 0; i < 70; i++) g.fillRect(r() * W, y0 + r() * hh, 1, 1); }
-          g.restore();
+          cowboy(g, {
+            q, cx: 150, ey, sc, skin: '#2b1a10', white: '#6a5644', hatC: '#1a110a', bandC: '#080504', browC: '#0a0604', dk: '0,0,0',
+            o: tl.squint(t, 0.3), look: 0, iris: ['#4a3218', '#f0b060'], glowC: '255,214,150',
+            glint: Math.max(tl.gl(t, 0.32), tl.gl(t, 0.56)), glow: 0.8, rim: 0.9, edge: 0.15,
+            brim: lerp(4, -9, up), tilt: 0, shadow: 30, shadeA: 0.85, mouth: true,
+          });
+        });
+        bangEnd(g, t, q, hh);
+      },
+    },
+    {
+      id: 'B4', name: 'B4. 세로 세 컷', cost: 2, dur: 2200,
+      desc: '세로 세 컷: 모자 챙에 반쯤 가린 내 눈 / 권총 손잡이 위에서 떨리는 손 / 반쯤 가린 상대 눈. 컷 전환이 점점 빨라지다 손이 손잡이를 움켜쥐는 순간 BANG! · 저: 그라데이션·눈빛 번짐·필름 입자 없음',
+      draw(g, t, q, f) {
+        bg(g); cardDraw(g);
+        const o = tl.squint(t, 0.3);
+        const CUTS = [0.16, 0.27, 0.37, 0.45, 0.51, 0.56, 0.595, 0.62, 0.64], SEQ = [0, 2, 1, 0, 2, 1, 0, 2, 1];
+        let act = -1, since = 1;
+        CUTS.forEach((c, i) => { if (t >= c) { act = SEQ[i]; since = t - c; } });
+        if (t >= 0.68) act = -1;
+        const pw = 98, y0 = 26, ph = 158, cy = y0 + ph / 2;
+        const eyePanel = (pcx, me) => {
+          sky(g, q, me ? '#c89a62' : '#b08458', '#5a3c22', y0, ph);
+          const d = me ? 1 : -1, sc = 1.3;
+          cowboy(g, {
+            q, cx: pcx - d * 40 * sc, ey: cy + 16, sc, skin: me ? '#a8724a' : '#8e5f3c', o, look: d * 0.8,
+            iris: me ? ['#7a4e1e', '#e0a548'] : ['#3a5a63', '#a6d4dc'], glowC: me ? '255,184,80' : '150,222,238',
+            glint: me ? tl.me(t) : tl.foe(t), glow: 0.5, brim: -10, tilt: d * 0.05, shadow: 26, mouth: true,
+          });
         };
-        // 번갈아 번뜩임: 위(나) → 아래(상대) → 위 → 아래
-        const gl = (a) => env(t, a, a + 0.03, a + 0.06, a + 0.1);
-        bar(0, '#b98a5e', 1, Math.max(gl(0.2), gl(0.44)));
-        bar(H - hh, '#9c6f48', -1, Math.max(gl(0.32), gl(0.56)));
+        [0, 1, 2].forEach((i) => {
+          const k = ease.out(seg(t, i * 0.03, 0.14 + i * 0.03)) * (1 - ease.in(seg(t, 0.82 + i * 0.02, 0.95 + i * 0.02)));
+          if (k <= 0.005) return;
+          const x0 = 2 + i * (pw + 2), cx = x0 + pw / 2, dy = (i % 2 ? 1 : -1) * (1 - k) * (H + 10);
+          g.save(); g.translate(0, dy);
+          g.beginPath(); g.rect(x0, y0, pw, ph); g.clip();
+          g.save();
+          if (act === i) { const z = 1 + 0.07 * ease.out(Math.min(1, since / 0.08)); g.translate(cx, cy); g.scale(z, z); g.translate(-cx, -cy); }
+          if (i === 1) handPanel(g, t, q, cx, cy, pw, y0, ph); else eyePanel(cx, i === 0);
+          g.restore();
+          if (act >= 0 && act !== i) { g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(x0, y0, pw, ph); }
+          if (act === i && since < 0.018) { g.fillStyle = `rgba(255,248,230,${(1 - since / 0.018) * 0.45})`; g.fillRect(x0, y0, pw, ph); }
+          if (q.on(2)) grain(g, y0, ph, f, i, 30);
+          g.restore();
+        });
+        bangEnd(g, t, q, 60);
+      },
+    },
+    {
+      id: 'B5', name: 'B5. 가로 세 단 조이기', cost: 2, dur: 2200,
+      desc: '위 단은 내 얼굴(모자 크라운부터 반쯤 가린 눈까지), 아래 단은 상대(챙 아래 눈과 콧수염). 가운데 띠로 보이는 결투 카드가 점점 좁아져 다리 틈의 먼 상대만 남는 순간 BANG! · 저: 그라데이션·눈빛 번짐 없음',
+      draw(g, t, q, f) {
+        bg(g); cardDraw(g);
+        const op = tl.open(t);
+        if (op > 0.005) {
+          const close = ease.inOut(seg(t, 0.12, SQ)), half = lerp(58, 13, close);
+          const sc = lerp(0.7, 0.95, close);
+          // 위 단: 나
+          const tb = (105 - half) * op;
+          g.save(); g.beginPath(); g.rect(0, 0, W, tb); g.clip(); g.translate(0, tb - (105 - half));
+          sky(g, q, '#d9b27a', '#9a6a3c', 0, 105 - half);
+          cowboy(g, { q, cx: 150, ey: 105 - half - 30 * sc / 0.62, sc, skin: '#a8724a', o: tl.squint(t, 0.3), look: 0.2, iris: ['#7a4e1e', '#e0a548'], glowC: '255,184,80', glint: tl.me(t), glow: 0.4, brim: -10, shadow: 26 });
+          if (q.on(2)) grain(g, 0, 105 - half, f, 1, 60);
+          g.restore();
+          // 아래 단: 상대
+          const bt = H - (H - 105 - half) * op;
+          g.save(); g.beginPath(); g.rect(0, bt, W, H - bt); g.clip(); g.translate(0, bt - (105 + half));
+          sky(g, q, '#b08458', '#5a3c22', 105 + half, H);
+          cowboy(g, { q, cx: 150, ey: 105 + half + 22 * sc / 0.62, sc, skin: '#8e5f3c', o: tl.squint(t, 0.3), look: -0.2, iris: ['#3a5a63', '#a6d4dc'], glowC: '150,222,238', glint: tl.foe(t), glow: 0.4, brim: -9, tilt: -0.04, shadow: 26, mouth: true, hatC: '#2a2420' });
+          if (q.on(2)) grain(g, 105 + half, H, f, 2, 60);
+          g.restore();
+          g.fillStyle = 'rgba(200,144,47,0.7)'; g.fillRect(0, tb - 1, W, 1); g.fillRect(0, bt, W, 1);
+          // 가운데 띠 양옆을 살짝 눌러 시선을 다리 틈으로
+          if (q.on(1) && close > 0) {
+            const lg = g.createLinearGradient(0, 0, W, 0);
+            lg.addColorStop(0, `rgba(13,9,6,${0.8 * close})`); lg.addColorStop(0.36, 'rgba(13,9,6,0)'); lg.addColorStop(0.64, 'rgba(13,9,6,0)'); lg.addColorStop(1, `rgba(13,9,6,${0.8 * close})`);
+            g.fillStyle = lg; g.fillRect(0, tb, W, bt - tb);
+          }
+        }
+        bangEnd(g, t, q, 60);
+      },
+    },
+    {
+      id: 'B6', name: 'B6. 사선 만화 컷', cost: 3, dur: 2400,
+      desc: '비스듬히 잘린 만화 컷 셋이 번갈아 밀려든다: 모자에 반쯤 가린 나 / 모래바람 속 회전초 / 반쯤 가린 상대. 마지막에 컷이 유리처럼 깨져 흩어지며 "BANG!" 말풍선 · 저: 조각 없이 섬광과 함께 사라짐, 그라데이션 없음',
+      draw(g, t, q, f) {
+        bg(g); cardDraw(g);
+        const sl = (x, y0) => y0 - 40 * (x - 6) / 288;
+        const POLY = [
+          [[6, 6], [294, 6], [294, sl(294, 94)], [6, 94]],
+          [[6, 102], [294, sl(294, 102)], [294, sl(294, 148)], [6, 148]],
+          [[6, 156], [294, sl(294, 156)], [294, 204], [6, 204]],
+        ];
+        const o = tl.squint(t, 0.3);
+        const path = (pts, dx) => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x + dx, y) : g.moveTo(x + dx, y))); g.closePath(); };
+        const content = (i) => {
+          if (i === 0) {
+            sky(g, q, '#e2bb80', '#a87444', 0, 100);
+            cowboy(g, { q, cx: 150, ey: 52, sc: 0.92, skin: '#a8724a', o, look: 0.6, iris: ['#7a4e1e', '#e0a548'], glowC: '255,184,80', glint: tl.me(t), glow: 0.4, brim: -10, tilt: -0.06, shadow: 26 });
+          } else if (i === 1) {
+            g.fillStyle = '#f2d7a0'; g.fillRect(0, 50, W, 110);
+            g.fillStyle = '#b07a48'; g.beginPath(); g.moveTo(0, sl(0, 128)); g.lineTo(W, sl(W, 128)); g.lineTo(W, 160); g.lineTo(0, 160); g.closePath(); g.fill();
+            g.fillStyle = '#9a6a40'; g.beginPath(); g.moveTo(30, sl(30, 128)); g.lineTo(44, sl(44, 116)); g.lineTo(70, sl(70, 116)); g.lineTo(80, sl(80, 128)); g.closePath(); g.fill();
+            const wk = q.n(18);
+            g.strokeStyle = 'rgba(255,240,210,0.7)'; g.lineWidth = 1; g.lineCap = 'round';
+            for (let j = 0; j < wk; j++) {
+              const r = rng(j * 31 + 7), x = ((r() * 360 - t * (260 + r() * 200)) % 360 + 360) % 360 - 30, y = sl(x, 108 + r() * 36);
+              g.beginPath(); g.moveTo(x, y); g.lineTo(x + 18 + r() * 20, sl(x + 30, 108) - sl(x, 108) + y); g.stroke();
+            }
+            const tx = lerp(320, -30, seg(t, 0.06, 0.82));
+            tumbleweed(g, tx, sl(tx, 134) - Math.abs(Math.sin(t * 22)) * 5, 10, -t * 18);
+          } else {
+            sky(g, q, '#c49464', '#5a3c22', 110, 100);
+            cowboy(g, { q, cx: 150, ey: 164, sc: 0.92, skin: '#8e5f3c', o, look: -0.6, iris: ['#3a5a63', '#a6d4dc'], glowC: '150,222,238', glint: tl.foe(t), glow: 0.4, brim: -9, tilt: 0.06, shadow: 26, hatC: '#2a2420', mouth: true });
+          }
+        };
+        const panels = (alpha) => {
+          const a0 = ease.out(seg(t, 0, 0.12)) * alpha;
+          if (a0 <= 0) return;
+          g.save(); g.globalAlpha = a0; g.fillStyle = '#0d0906'; g.fillRect(0, 0, W, H); g.restore();
+          POLY.forEach((pts, i) => {
+            const k = ease.out(seg(t, i * 0.04, 0.14 + i * 0.04));
+            if (k <= 0.005) return;
+            const dx = (i === 1 ? 1 : -1) * (1 - k) * 320;
+            const pop = i === 0 ? tl.me(t) : i === 2 ? tl.foe(t) : 0;
+            g.save(); g.globalAlpha = alpha; path(pts, dx); g.clip(); g.translate(dx, 0);
+            if (pop > 0) { const z = 1 + 0.05 * pop; g.translate(150, i ? 160 : 50); g.scale(z, z); g.translate(-150, i ? -160 : -50); }
+            content(i);
+            if (pop > 0) { g.fillStyle = `rgba(255,248,230,${0.25 * pop})`; g.fillRect(0, 0, W, H); }
+            if (q.on(2)) grain(g, 0, H, f, i, 40);
+            g.restore();
+            g.save(); g.globalAlpha = alpha; path(pts, dx);
+            g.strokeStyle = '#f3e7ce'; g.lineWidth = 3; g.stroke(); g.strokeStyle = '#0d0906'; g.lineWidth = 1.2; g.stroke(); g.restore();
+          });
+        };
+        const sk = seg(t, 0.69, 0.92);
+        if (t < 0.69) panels(1);
+        else if (sk < 1) {
+          if (q.on(1)) {
+            const n = q.on(2) ? 9 : 5;
+            for (let s = 0; s < n; s++) {
+              const S = q.on(2) ? SHARDS[s] : { a0: (s / 5) * Math.PI * 2 + 0.3, a1: ((s + 1) / 5) * Math.PI * 2 + 0.3, d: 90 + s * 15, rot: (s % 2 ? 1 : -1) * 0.25 };
+              const am = (S.a0 + S.a1) / 2, e = ease.out(sk), cx = 150, cy = 105;
+              g.save();
+              g.translate(Math.cos(am) * S.d * e, Math.sin(am) * S.d * e + 40 * sk * sk);
+              g.translate(cx, cy); g.rotate(S.rot * e); g.translate(-cx, -cy);
+              g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(S.a0) * 400, cy + Math.sin(S.a0) * 400); g.lineTo(cx + Math.cos(am) * 400, cy + Math.sin(am) * 400); g.lineTo(cx + Math.cos(S.a1) * 400, cy + Math.sin(S.a1) * 400); g.closePath(); g.clip();
+              panels(1 - seg(sk, 0.35, 1));
+              g.restore();
+            }
+          } else panels(1 - seg(t, 0.69, 0.78));
+        }
+        // 금 가는 순간 + 만화 말풍선 "BANG!"
+        const cut = tl.cut(t);
         if (cut > 0 && cut < 1) {
-          if (q.on(1)) { g.fillStyle = `rgba(255,250,236,${(1 - cut) * 0.9})`; g.fillRect(0, 0, W, H); }
-          else { g.fillStyle = `rgba(255,250,236,${(1 - cut)})`; g.fillRect(0, 0, W, hh); g.fillRect(0, H - hh, W, hh); }
-          g.save(); g.globalAlpha = Math.min(1, (1 - cut) * 2);
-          g.translate(W / 2, H / 2 + 6); const s = 1.4 - 0.4 * ease.out(cut); g.scale(s, s);
-          g.font = '600 38px serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-          g.lineWidth = 6; g.strokeStyle = '#0d0906'; g.strokeText('탕!', 0, 0);
-          g.fillStyle = '#f0e4cc'; g.fillText('탕!', 0, 0); g.restore();
+          if (cut < 0.12) { g.fillStyle = `rgba(255,250,236,${(1 - cut / 0.12) * (q.on(1) ? 0.9 : 0.6)})`; g.fillRect(0, 0, W, H); }
+          g.save(); g.globalAlpha = Math.min(1, (1 - cut) * 2.5);
+          g.translate(W / 2, H / 2); const s = 0.6 + 0.5 * ease.back(Math.min(1, cut * 3)); g.scale(s, s); g.rotate(-0.08);
+          g.beginPath();
+          for (let i = 0; i < 22; i++) { const a = (i / 22) * Math.PI * 2, rr = i % 2 ? 34 : 54 + (i % 4 === 0 ? 8 : 0); g.lineTo(Math.cos(a) * rr * 1.3, Math.sin(a) * rr * 0.85); }
+          g.closePath(); g.fillStyle = '#ffd23a'; g.fill(); g.strokeStyle = '#0d0906'; g.lineWidth = 2.5; g.stroke();
+          g.font = '800 26px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.lineWidth = 5; g.strokeStyle = '#0d0906'; g.strokeText('BANG!', 0, 2); g.fillStyle = '#c0261c'; g.fillText('BANG!', 0, 2);
+          g.restore();
         }
       },
     },
@@ -293,5 +768,20 @@ FxKit.mount({
       },
     },
   ],
-});
+};
+// B 안들만 SQ 에 멈춰 보기 (이 페이지 전용. ?freeze 로 켜진 채 열린다)
+SPEC.concepts = SPEC.concepts.map((c) => (c.id[0] === 'B' ? { ...c, draw: (g, t, q, f) => c.draw(g, FREEZE ? SQ : t, q, f) } : c));
+FxKit.mount(SPEC);
+(() => {
+  const lb = document.createElement('label');
+  lb.style.cssText = 'display:inline-flex;gap:6px;align-items:center;font-size:13px;color:#e8d6b0;margin:0 0 12px;cursor:pointer';
+  const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = FREEZE;
+  cb.onchange = () => {
+    FREEZE = cb.checked;
+    const u = new URL(location.href); if (FREEZE) u.searchParams.set('freeze', ''); else u.searchParams.delete('freeze');
+    history.replaceState(null, '', u.toString().replace(/freeze=(&|$)/, 'freeze$1'));
+  };
+  lb.append(cb, document.createTextNode('B 안들만 눈이 가장 가늘어진 장면에 멈춰 보기'));
+  document.querySelector('.lead').after(lb);
+})();
 </script></body></html>

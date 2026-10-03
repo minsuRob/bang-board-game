@@ -152,8 +152,8 @@ FxKit.mount({
       },
     },
     {
-      id: 'C', name: 'C. 만화 잉크 "탕탕탕"', cost: 2, dur: 1600,
-      desc: '총구 쪽 집중선 위로 잉크 테두리 "탕!" 말풍선이 여섯 번 연달아 터지고, 끝에 붉은 도장 "뱅! 무제한" · 저: 망점·흔들림 없이 집중선 몇 줄과 말풍선만',
+      id: 'C', name: 'C. 만화 잉크 "BANG BANG"', cost: 2, dur: 1600,
+      desc: '총구 쪽 집중선 위로 잉크 테두리 "BANG!" 말풍선이 여섯 번 연달아 터지고, 끝에 붉은 도장 "뱅! 무제한" · 저: 망점·흔들림 없이 집중선 몇 줄과 말풍선만',
       draw(g, t, q, f) {
         bg(g);
         const paper = Math.min(1, seg(t, 0, 0.06) * 1) * (1 - seg(t, 0.8, 1));
@@ -167,14 +167,14 @@ FxKit.mount({
         const ra = seg(t, 0, 0.06) * (1 - seg(t, 0.5, 0.7));
         if (ra > 0) { g.strokeStyle = `rgba(30,20,11,${ra})`; RAYS.slice(0, q.n(RAYS.length)).forEach((r) => { g.lineWidth = r.w; g.beginPath(); g.moveTo(m.x + Math.cos(r.a) * r.r0, m.y + Math.sin(r.a) * r.r0); g.lineTo(m.x + Math.cos(r.a) * (r.r0 + r.len), m.y + Math.sin(r.a) * (r.r0 + r.len)); g.stroke(); }); }
         g.save(); if (q.on(2)) shake(g, kick * 1.5, t); face(g); g.restore();
-        // 탕! 말풍선
+        // BANG! 말풍선
         TANG.forEach(([x, y, rot], i) => {
           const k = beat(i); if (k <= 0 || k >= 1) return;
           const s = k < 0.15 ? 0.3 + k / 0.15 * 0.9 : 1.2 - Math.min(0.2, (k - 0.15));
           g.save(); g.translate(x, y); g.rotate(rot); g.scale(s, s); g.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1;
-          g.beginPath(); for (let j = 0; j < 18; j++) { const a = j * Math.PI / 9; const r = j % 2 ? 11 : 19 + ((j * 7 + i) % 4); g.lineTo(Math.cos(a) * r * 1.25, Math.sin(a) * r); } g.closePath();
+          g.beginPath(); for (let j = 0; j < 18; j++) { const a = j * Math.PI / 9; const r = j % 2 ? 12 : 20 + ((j * 7 + i) % 4); g.lineTo(Math.cos(a) * r * 1.6, Math.sin(a) * r); } g.closePath();
           g.fillStyle = '#f2c14e'; g.fill(); g.strokeStyle = '#1e140b'; g.lineWidth = 2; g.stroke();
-          g.fillStyle = '#1e140b'; g.font = '800 14px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('탕!', 0, 1); g.textBaseline = 'alphabetic';
+          g.fillStyle = '#1e140b'; g.font = '800 11px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('BANG!', 0, 1); g.textBaseline = 'alphabetic';
           g.restore();
         });
         // 도장

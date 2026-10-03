@@ -148,7 +148,7 @@ function B(g, t, q) {
   });
 }
 
-// ---------- C: 만화 2컷 — 탕! 탕! 컷이 번갈아 들어왔다 나간다 ----------
+// ---------- C: 만화 2컷 — BANG! BANG! 컷이 번갈아 들어왔다 나간다 ----------
 function panel(g, side, k, label, tp) {
   // side -1: 왼쪽 위 사선 컷, 1: 오른쪽 아래 사선 컷
   const off = (1 - ease.out(Math.min(1, k * 3))) * 200 * side + ease.in(seg(k, 0.75, 1)) * 200 * side;
@@ -162,15 +162,15 @@ function panel(g, side, k, label, tp) {
   for (let i = 0; i < 16; i++) { const a = i / 16 * TAU; g.beginPath(); g.moveTo(cx + Math.cos(a) * 26, cy + Math.sin(a) * 20); g.lineTo(cx + Math.cos(a) * 120, cy + Math.sin(a) * 90); g.stroke(); }
   g.fillStyle = '#1e140b'; g.beginPath(); g.arc(cx, cy, 10, 0, TAU); g.fill(); // 맞은 사람 머리
   g.beginPath(); g.ellipse(cx, cy + 22, 12, 14, 0, 0, TAU); g.fill();
-  g.font = '800 26px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+  g.font = '800 20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
   g.lineWidth = 6; g.strokeStyle = '#1e140b'; g.strokeText(label, cx + side * -30, cy - 26); g.fillStyle = '#f2c14e'; g.fillText(label, cx + side * -30, cy - 26);
   g.restore(); g.restore();
 }
 function C(g, t, q) {
   bg(g, '#f3ead6'); draw(g, recoilAt(t));
   const k1 = seg(t, 0.12, 0.66), k2 = seg(t, 0.28, 0.8);
-  if (k1 > 0 && k1 < 1) panel(g, -1, k1, '탕!', T1);
-  if (k2 > 0 && k2 < 1) panel(g, 1, k2, '탕!', T2);
+  if (k1 > 0 && k1 < 1) panel(g, -1, k1, 'BANG!', T1);
+  if (k2 > 0 && k2 < 1) panel(g, 1, k2, 'BANG!', T2);
   // 컷 사이를 잇는 손바닥 동작선
   const pk = seg(t, 0.06, 0.4);
   if (pk > 0 && pk < 1 && q.on(1)) { g.strokeStyle = 'rgba(30,20,11,0.7)'; g.lineWidth = 2; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(G.x, G.y - 6, 14 + i * 5, -2.4, -2.4 + pk * 2.2); g.stroke(); } }
@@ -223,8 +223,8 @@ FxKit.mount({
       desc: '손바닥이 공이를 두 번 쓸고, 그림 속 두 섬광 자리에서 차례로 불이 터져 두 자리에 꽂히며, 앞쪽 인물이 젖혀지고 "거리 1" 점선 호가 두 자리를 잇는다 · 저: 섬광 빛무리·흔들림 없음' },
     { id: 'B', name: 'B. 3D 클로즈업 · 리볼버가 튀어나옴', cost: 2, dur: 1800, draw: B,
       desc: '카드가 판 쪽으로 눕고 옆모습 리볼버가 그림자를 남기며 앞으로 튀어나와, 손바닥이 칠 때마다 공이가 젖혀졌다 떨어지고 실린더가 한 칸씩 돈다 · 저: 그림자·총구 빛무리 없음' },
-    { id: 'C', name: 'C. 만화 2컷 · 탕! 탕!', cost: 1, dur: 1600, draw: C,
-      desc: '사선 컷 두 장이 왼쪽 위·오른쪽 아래에서 시간차로 미끄러져 들어와 맞은 사람 실루엣과 "탕!"을 보이고 빠진다 · 저: 손바닥 동작선만 빠짐' },
+    { id: 'C', name: 'C. 만화 2컷 · BANG! BANG!', cost: 1, dur: 1600, draw: C,
+      desc: '사선 컷 두 장이 왼쪽 위·오른쪽 아래에서 시간차로 미끄러져 들어와 맞은 사람 실루엣과 "BANG!"을 보이고 빠진다 · 저: 손바닥 동작선만 빠짐' },
     { id: 'D', name: 'D. 사실풍 슬로모션 · 두 발의 시간차', cost: 3, dur: 2200, draw: D,
       desc: '첫 발 뒤 시간이 느려져 두 총알이 공기 고리를 남기며 두 자리로 따로 날아가고, 연기가 피어오른 뒤 다시 빨라진다 · 저: 빛무리 대신 별 섬광, 연기는 단색·개수 줄어듦, 흔들림 없음' },
   ],
