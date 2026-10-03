@@ -223,9 +223,18 @@ export function resolveDiscardSameName(
 // 강탈 · 캣 벌로우
 // ---------------------------------------------------------------------------
 
+/**
+ * 고를 수 있는 손패 장수. 자기 자신에게 쓰면 0 이다: 자기 앞의 카드를 치우는 것만 된다
+ * (결정 I). 자기 손패를 버리는 것은 자발적 버리기라 금지다 (기본판 FAQ Q12).
+ */
+function stealableHand(frame: Frame & { k: 'steal' }, hand: readonly string[]): number {
+  return frame.target === frame.source ? 0 : hand.length;
+}
+
 export function resolveSteal(state: GameState, frame: Frame & { k: 'steal' }): GameState {
   const t = playerOf(state, frame.target);
-  if (!inPlay(t) || (t.hand.length === 0 && t.equipment.length === 0)) {
+  const handCount = stealableHand(frame, t.hand);
+  if (!inPlay(t) || (handCount === 0 && t.equipment.length === 0)) {
     return popFrame(state);
   }
   return {
@@ -235,7 +244,7 @@ export function resolveSteal(state: GameState, frame: Frame & { k: 'steal' }): G
       pid: frame.source,
       target: frame.target,
       mode: frame.mode,
-      handCount: t.hand.length,
+      handCount,
       equipment: t.equipment,
     },
   };
@@ -247,20 +256,21 @@ export function respondSteal(
   choice: Choice,
 ): GameState {
   const t = playerOf(state, frame.target);
+  const hand = t.hand.slice(0, stealableHand(frame, t.hand));
   let card: string | null = null;
   let fromEquipment = false;
 
   if (choice.c === 'pick') {
     if (choice.pick.zone === 'hand') {
-      card = t.hand[choice.pick.index] ?? t.hand[0] ?? null;
+      card = hand[choice.pick.index] ?? hand[0] ?? null;
     } else if (t.equipment.includes(choice.pick.card)) {
       card = choice.pick.card;
       fromEquipment = true;
     }
   }
   if (!card) {
-    card = t.hand[0] ?? t.equipment[0] ?? null;
-    fromEquipment = !t.hand.length && Boolean(card);
+    card = hand[0] ?? t.equipment[0] ?? null;
+    fromEquipment = !hand.length && Boolean(card);
   }
   let cur = popFrame(state);
   if (!card) return cur;

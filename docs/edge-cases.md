@@ -452,6 +452,10 @@ dV Giochi 카드 목록(cardslist.php?id=6)에서 읽었다. 원문이 모호한
 - 근거: 전자는 자기 다이너마이트를 치우는 정당한 전략이고 원작 FAQ도 인정한다.
   후자는 원작 룰에 근거가 없고 배신자의 승리 조건을 왜곡할 수 있다.
   이 맵은 후자까지 허용했지만 그것은 온라인 편의 확장으로 보인다. (EC-24)
+- 덧붙임: **자기 자신에게 쓸 때는 앞의 카드만 고른다. 자기 손패는 고를 수 없다.**
+  자기 손패를 버리는 것은 자발적 버리기다 — 기본판 FAQ Q12 "Can I voluntarily discard my cards?"
+  "No, neither cards from your hand nor cards in play". 수지 라파예트가 일부러 손을 비우는 길도 막힌다.
+  (`frames/cards.ts` 의 `stealableHand`, `area-cards.test.ts`)
 
 ### J. 다이너마이트를 넘길 수 없는 경우의 처리
 

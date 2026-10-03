@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { reduce } from '../reducer';
+import { legalActions } from '../legal';
+import { defaultAction, reduce } from '../reducer';
 import { handCard, logged, p, scenario, totalCards } from './helpers';
 import type { GameState } from '../types';
 
@@ -304,5 +305,27 @@ describe('강탈과 캣 벌로우', () => {
       choice: { c: 'pick', pick: { zone: 'equipment', card: dyn } },
     });
     expect(p(s, 'p0').equipment).toHaveLength(0);
+  });
+
+  // 결정 I 는 자기 앞의 카드를 치우는 것만 허용한다. 자기 손패를 버리는 것은 자발적 버리기다:
+  // 기본판 FAQ Q12 "Can I voluntarily discard my cards?" "No, neither cards from your hand nor cards in play"
+  it('자기 자신에게 쓰면 손패는 고를 수 없고 앞의 카드만 고른다', () => {
+    for (const kind of ['catBalou', 'panic'] as const) {
+      const s0 = scenario({
+        players: [{ hand: [kind, 'beer', 'bang'], equipment: ['dynamite'] }, {}, {}, {}],
+      });
+      const s = playCard(s0, 'p0', kind, 'p0');
+      expect(s.awaiting).toMatchObject({ k: 'stealCard', pid: 'p0', target: 'p0', handCount: 0 });
+      const picks = legalActions(s, 'p0');
+      expect(picks.length).toBeGreaterThan(0);
+      expect(
+        picks.every((a) => a.type === 'respond' && a.choice.c === 'pick' && a.choice.pick.zone === 'equipment'),
+      ).toBe(true);
+      // 시간이 지나 대신 고를 때도 손패를 버리지 않는다
+      const timeout = reduce(s, defaultAction(s, 'p0')!);
+      expect(p(timeout, 'p0').equipment).toHaveLength(0);
+      expect(p(timeout, 'p0').hand).toEqual(expect.arrayContaining(p(s, 'p0').hand));
+      expect(p(timeout, 'p0').hand).toHaveLength(kind === 'panic' ? 3 : 2);
+    }
   });
 });
