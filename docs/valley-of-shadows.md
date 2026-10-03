@@ -27,6 +27,7 @@
 - 유령 공식 해설 (VoS 룰 6쪽·Expansion Pack): "A ghost is considered “in play” for all purposes, but has no life points:
   At the end of your turn, you must discard all your hand cards. If Ghost is removed, the ghost exits play again."
   그래서 한글 효과에 "차례가 끝나면 손패를 모두 버린다" 를 붙였다. 승리 판정에서도 남은 사람으로 센다 (EC-130).
+- 방울뱀 공식 해설: "The check order is: Dynamite > Jail > Rattlesnake." (EC-152)
 - 오른쪽 위 까마귀 표시는 확장판 기호다.
 
 ## 캐릭터 8종

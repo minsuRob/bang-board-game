@@ -18,7 +18,8 @@ turnStart → (revealEvent) → eventTurnStart → drawPhase → playPhase
   엔진은 해결을 멈추고 액션을 기다린다 (`engine/stack.ts` 의 `isBlocked`)
 - `revealEvent` 는 하이 눈을 쓸 때, **보안관의 두 번째 차례부터** 공개된다
 - `eventTurnStart` 는 그 시점에 걸린 훅을 모아 순서대로 쌓는다.
-  발동 순서는 `Modifier.order` 가 정한다: 새로운 신분(1) → 하이 눈(5) → 다이너마이트(10) → 감옥(20)
+  발동 순서는 `Modifier.order` 가 정한다: 새로운 신분(1) → 하이 눈(5) → 다이너마이트(10) → 감옥(20) → 방울뱀(25)
+  (그림자의 계곡 공식 해설 "Dynamite > Jail > Rattlesnake", EC-152)
 - 감옥에 걸리면 `skipRestOfTurn()` 이 이번 차례의 `drawPhase`·`playPhase`·`discardPhase` 를
   스택에서 걷어낸다. `turnEnd` 는 남기므로 차례는 정상적으로 넘어간다.
   `turn.skipped` 를 세워 차례 끝 능력(돈 벨)은 걸지 않는다 (골드 러시 FAQ Q06)

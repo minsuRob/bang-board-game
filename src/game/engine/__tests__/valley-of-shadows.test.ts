@@ -162,6 +162,21 @@ describe('방울뱀 · 포상금 · 샷건 · 르매트', () => {
     expect(p(s, 'p1').equipment).toHaveLength(1);
   });
 
+  // valley.txt 6쪽: "Rattlesnake: ... The check order is: Dynamite > Jail > Rattlesnake."
+  it('판정 순서는 다이너마이트 → 감옥 → 방울뱀이다', () => {
+    const s0 = V({
+      players: [{}, { equipment: ['rattlesnake', 'jail'] }, {}],
+      // 첫 판정 ♥ (감옥 탈출), 둘째 판정 ♠ (방울뱀이 문다)
+      deckTop: [{ kind: 'beer', suit: 'hearts' }, { kind: 'bang', suit: 'spades', rank: 'A' }],
+    });
+    const s = beginTurn(s0, 'p1');
+    expect(logged(s, 'jailEscape')).toBe(true);
+    expect(logged(s, 'rattlesnake')).toBe(true);
+    expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp - 1);
+    const at = (t: string): number => s.log.findIndex((e) => e.t === t);
+    expect(at('jailEscape')).toBeLessThan(at('rattlesnake'));
+  });
+
   it('방울뱀 판정이 ♠가 아니면 아무 일도 없다', () => {
     const s0 = V({
       players: [{}, { equipment: ['rattlesnake'] }, {}],
