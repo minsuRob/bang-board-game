@@ -44,19 +44,43 @@ import { CAN_HOVER, cardPeek, setPeek } from './card-peek';
 import { CharacterCard } from './CharacterCard';
 import { CARD_DIMENSIONS, CardBack, CardView } from './CardView';
 import { EventCardFace } from './EventCardFace';
-import { cardFxFor, type CardFx } from './fx/card-fx';
+import { CARD_FX, cardFxFor, type CardFx } from './fx/card-fx';
 import { GUNSHOT_MS, GunshotFx, recoilStyle, screenFlashStyle } from './fx/GunshotFx';
 import { fxQuality } from './fx/quality';
 import { loadSkiaFx, skiaFx } from './fx/skia/load';
 import { ShotCardWrap } from './fx/skia/ShotCardWrap';
+import { GunFxLabels } from './fx/GunFxLabels';
+import { WinchesterLabels } from './fx/WinchesterLabels';
+import { CardFxLabels } from './fx/CardFxLabels';
 import {
+  ART_INSET,
+  BARREL_HQ_MS,
+  CYLINDER_HQ_MS,
   EMPTY_GEOM,
+  FX_BARREL,
+  FX_CYLINDER,
+  FX_GATLING,
   FX_GUNSHOT,
+  FX_INDIANS,
+  FX_LANE,
   FX_MISSED,
+  FX_MUSTANG,
+  FX_RANGE,
+  FX_SCOPE,
+  FX_WINCHESTER,
+  FX_VOLLEY,
+  GATLING_HQ_MS,
   GUNSHOT_HQ_MS,
+  INDIANS_HQ_MS,
+  LANE_HQ_MS,
   MISSED_HQ_MS,
   MISSED_RELEASE_MS,
+  MUSTANG_HQ_MS,
+  RANGE_HQ_MS,
   RELEASE_MS,
+  SCOPE_HQ_MS,
+  WINCHESTER_HQ_MS,
+  VOLLEY_HQ_MS,
   type ShotGeom,
 } from './fx/skia/timeline';
 import { PaperPlaque, plaque } from './PaperPlaque';
@@ -103,6 +127,8 @@ const STAMP_DELAY_MS = 320;
 
 /** 카드가 튀어 오른 뒤 총이 터지기까지 (1배속) */
 const FIRE_DELAY_MS = 180;
+/** 총 장착 연출이 터지는 때. 카드가 거의 다 올라선 뒤 */
+const GEAR_FIRE_DELAY_MS = 320;
 
 export type PlayedCardSpotlightProps = {
   view: GameState;
@@ -218,6 +244,15 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
       const make = (): GameEvent => ({ ...samples[i++ % samples.length], seq: seq++ });
       show(make());
       const timer = setInterval(() => show(make()), SHOW_MS + 800);
+      return () => clearInterval(timer);
+    }
+    // ?fxloop=volcanic 처럼 연출이 붙은 카드 종류를 주면 그 카드를 되풀이해 낸다
+    const kindLoop = BASE_DECK.find((c) => c.kind === mode && c.kind in CARD_FX);
+    if (kindLoop && mode !== 'bang' && mode !== 'missed') {
+      let seq = 1_000_000;
+      const make = (): GameEvent => ({ t: 'playCard', card: kindLoop.id, text: `연출 시험 — ${kindLoop.kind}`, seq: seq++ });
+      show(make());
+      const timer = setInterval(() => show(make()), 3400);
       return () => clearInterval(timer);
     }
     if (mode !== '1' && mode !== 'missed') return;
@@ -337,6 +372,9 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
       )}
       {/* 카드 위에 그려야 총구 섬광이 카드에 가리지 않는다. 쉬는 동안은 비어 있다 */}
       {hqLayer && <hqLayer.Layer progress={progress} geom={geom} />}
+      {/* 캔버스가 화면을 어둡게 덮는 연출(윈체스터)의 글자는 캔버스 위에 */}
+      {hqLayer && <WinchesterLabels progress={progress} geom={geom} />}
+      {hqLayer && <CardFxLabels progress={progress} geom={geom} />}
     </View>
   );
 }
@@ -369,6 +407,8 @@ export function CardFxPreview({ card, run, onDone }: { card: CardId; run: number
         </View>
       )}
       {hqLayer && <hqLayer.Layer progress={progress} geom={geom} />}
+      {hqLayer && <WinchesterLabels progress={progress} geom={geom} />}
+      {hqLayer && <CardFxLabels progress={progress} geom={geom} />}
     </View>
   );
 }
@@ -412,7 +452,7 @@ function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
   const found = cardFxFor(event);
   // 화질은 카드가 뜰 때 한 번 정한다. 도중에 설정이 바뀌어도 연출이 섞이지 않게
   const [hq] = useState(() => (found ? stage : null));
-  // 빗나감은 아직 고화질에만 있다
+  // 뱅! 말고는 아직 고화질에만 있다
   const fx = found && (found.visual === 'gunshot' || hq) ? found : null;
   // 빗나감은 카드가 튀어 오르지 않는다. 그림 조각이 준비된 뒤에 한꺼번에 나타난다
   const missed = fx?.visual === 'missed';
@@ -429,8 +469,10 @@ function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
 
   useEffect(() => {
     const scale = Math.max(1, fxPacing.getState().timeScale);
-    const fireAt = missed ? 0 : FIRE_DELAY_MS / scale;
-    const shotMs = (missed ? MISSED_HQ_MS : hq ? GUNSHOT_HQ_MS : GUNSHOT_MS) / scale;
+    // 총 장착은 카드 그림 속 자리를 짚으므로, 튀어 오르는 카드가 거의 멈춘 뒤에 출발한다
+    const gear = fx !== null && fx.visual !== 'gunshot' && fx.visual !== 'missed';
+    const fireAt = missed ? 0 : (gear ? GEAR_FIRE_DELAY_MS : FIRE_DELAY_MS) / scale;
+    const shotMs = (hq && fx ? hqMs(fx) : GUNSHOT_MS) / scale;
     // 연출이 끝날 때까지는 떠 있는다. 4배를 넘는 검증용 배속에서는 최소 시간도 같이 줄인다
     const hold = Math.max(600 / beyondFour(scale), SHOW_MS / scale - 400, fx ? fireAt + shotMs - 200 : 0);
     const anim = Animated.sequence([
@@ -443,35 +485,105 @@ function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
     });
 
     let cancelled = false;
-    let whiz: ReturnType<typeof setTimeout> | undefined;
+    const timers: ReturnType<typeof setTimeout>[] = [];
 
     // 일반: 소리와 화면 효과가 같은 틱에서 함께 출발한다
     const fireBasic = () => {
-      if (!fx) return;
+      // 일반 화질 연출은 뱅!만 있다
+      if (fx?.visual !== 'gunshot') return;
       playSfx(fx.sfx);
       Animated.timing(shot, { toValue: 1, duration: shotMs, easing: Easing.linear, useNativeDriver: NATIVE_DRIVER }).start();
     };
 
     // 고화질: 카드가 테이블 캔버스의 어디에 있는지 재고, 소리와 진행도를 같은 틱에 출발시킨다
     const fireHq = (s: HqStage) => {
-      void Promise.all([measure(s.layer.current), measure(anchor.current)]).then(([layerBox, cardBox]) => {
-        if (cancelled || !fx) return;
-        if (layerBox && cardBox) {
-          const cx = cardBox.x - layerBox.x + cardBox.w / 2;
-          const cy = cardBox.y - layerBox.y + cardBox.h / 2;
-          const cw = dim.width;
-          const ch = dim.height;
-          if (fx.visual === 'gunshot') {
+      const place = (layerBox: Box | null, cardBox: Box | null) => {
+        if (!fx || !layerBox || !cardBox) return;
+        const cx = cardBox.x - layerBox.x + cardBox.w / 2;
+        const cy = cardBox.y - layerBox.y + cardBox.h / 2;
+        const cw = dim.width;
+        const ch = dim.height;
+        // 원본 그림(250×389)은 카드에 cover 로 깔린다 (CardView). 그림 속 자리를 캔버스 좌표로 바꾼다
+        const k = Math.max(cw / 250, ch / 389);
+        // 총 장착 연출은 테두리(2)·안쪽 여백(4) 안쪽에 깔린 실제 그림 자리에 맞춘다
+        const ka = Math.max((cw - ART_INSET * 2) / 250, (ch - ART_INSET * 2) / 389);
+        const at = (p: { x: number; y: number }) => ({ x: cx + (p.x - 125) * ka, y: cy + (p.y - 194.5) * ka });
+        const base = { cx, cy, cw, ch, mx: cx, my: cy, fx: 0, fy: 0, dir: 0, r: 0, bx: 0, by: 0 };
+        switch (fx.visual) {
+          case 'gunshot': {
             const mx = cx - cw / 2 + fx.muzzle.x * cw;
             const my = cy - ch / 2 + fx.muzzle.y * ch;
-            s.geom.value = { kind: FX_GUNSHOT, cx, cy, cw, ch, mx, my, fx: 0, fy: 0 };
-          } else {
-            // 원본 그림은 카드에 cover 로 깔린다 (CardView). 얼굴 자리를 카드 가운데 기준으로 바꾼다
-            const k = Math.max(cw / 250, ch / 389);
+            s.geom.value = { ...base, kind: FX_GUNSHOT, mx, my };
+            break;
+          }
+          case 'missed': {
+            // 얼굴 자리를 카드 가운데 기준으로
             const fx0 = (fx.focus.x - 0.5) * 250 * k;
             const fy0 = (fx.focus.y - 0.5) * 389 * k;
-            s.geom.value = { kind: FX_MISSED, cx, cy, cw, ch, mx: cx, my: cy, fx: fx0, fy: fy0 };
+            s.geom.value = { ...base, kind: FX_MISSED, fx: fx0, fy: fy0 };
+            break;
           }
+          case 'volley':
+          case 'range': {
+            const m = at(fx.muzzle);
+            const b = at(fx.back);
+            const dir = Math.atan2(m.y - b.y, m.x - b.x);
+            s.geom.value = { ...base, kind: fx.visual === 'volley' ? FX_VOLLEY : FX_RANGE, mx: m.x, my: m.y, dir };
+            break;
+          }
+          case 'cylinder': {
+            const h = at(fx.hub);
+            s.geom.value = { ...base, kind: FX_CYLINDER, mx: h.x, my: h.y, r: fx.hubR * ka };
+            break;
+          }
+          case 'lane':
+            s.geom.value = { ...base, kind: FX_LANE };
+            break;
+          case 'nightScope': {
+            const m = at(fx.muzzle);
+            s.geom.value = { ...base, kind: FX_WINCHESTER, mx: m.x, my: m.y };
+            break;
+          }
+          case 'scope': {
+            const l = at(fx.lens);
+            s.geom.value = { ...base, kind: FX_SCOPE, mx: l.x, my: l.y };
+            break;
+          }
+          case 'mustang':
+            s.geom.value = { ...base, kind: FX_MUSTANG };
+            break;
+          case 'barrel': {
+            const h = at(fx.hit);
+            s.geom.value = { ...base, kind: FX_BARREL, mx: h.x, my: h.y };
+            break;
+          }
+          case 'gatling': {
+            const m = at(fx.muzzle);
+            const e = at(fx.eject);
+            s.geom.value = { ...base, kind: FX_GATLING, mx: m.x, my: m.y, bx: e.x, by: e.y };
+            break;
+          }
+          case 'indians': {
+            const m = at(fx.mouth);
+            const fe = at(fx.feather);
+            s.geom.value = { ...base, kind: FX_INDIANS, mx: m.x, my: m.y, bx: fe.x, by: fe.y };
+            break;
+          }
+        }
+      };
+      const measureAll = () => Promise.all([measure(s.layer.current), measure(anchor.current)]);
+      void measureAll().then(([layerBox, cardBox]) => {
+        if (cancelled || !fx) return;
+        place(layerBox, cardBox);
+        // 총 장착: 카드가 다 멈춘 자리로 한 번 더 맞춘다 (튀어 오르기 끝물에 쟀을 수 있다)
+        if (gear) {
+          timers.push(
+            setTimeout(() => {
+              void measureAll().then(([l, c]) => {
+                if (!cancelled) place(l, c);
+              });
+            }, 220 / scale),
+          );
         }
         // 0 이 아닌 작은 값에서 출발한다. 0 과 1 은 "쉬는 중"이라 그림 조각을 덮지 않는다
         s.progress.value = 0.0001;
@@ -479,11 +591,17 @@ function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
         if (fx.visual === 'gunshot') {
           playSfx(fx.sfx);
           // 슬로모션이 풀리며 총알이 날아가는 순간 휘익
-          whiz = setTimeout(() => playSfx('bullet_whiz'), RELEASE_MS / scale);
-        } else {
+          timers.push(setTimeout(() => playSfx('bullet_whiz'), RELEASE_MS / scale));
+        } else if (fx.visual === 'missed') {
           // 스친 총알이 빠져나가는 순간 휘익
-          whiz = setTimeout(() => playSfx(fx.sfx), MISSED_RELEASE_MS / scale);
+          timers.push(setTimeout(() => playSfx(fx.sfx), MISSED_RELEASE_MS / scale));
           setArmed(true);
+        } else {
+          // 시간표에 맞춘 소리들 (연사·딸깍·땡)
+          for (const cue of fx.cues) {
+            if (cue.at <= 0) playSfx(cue.sfx);
+            else timers.push(setTimeout(() => playSfx(cue.sfx), cue.at / scale));
+          }
         }
       });
     };
@@ -494,7 +612,7 @@ function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
       cancelled = true;
       anim.stop();
       clearTimeout(fire);
-      clearTimeout(whiz);
+      timers.forEach(clearTimeout);
       shot.stopAnimation();
       if (hq) {
         cancelAnimation(hq.progress);
@@ -514,9 +632,14 @@ function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
           compact={compact}
           anchorRef={anchor}
           cardWrap={(card) => (
-            <ShotCardWrap progress={hq.progress} geom={hq.geom}>
-              {card}
-            </ShotCardWrap>
+            <>
+              <ShotCardWrap progress={hq.progress} geom={hq.geom}>
+                {card}
+              </ShotCardWrap>
+              {(fx.visual === 'volley' || fx.visual === 'range' || fx.visual === 'lane') && (
+                <GunFxLabels visual={fx.visual} progress={hq.progress} cw={dim.width} ch={dim.height} />
+              )}
+            </>
           )}
         />
       </Animated.View>
@@ -556,6 +679,39 @@ function CardFxOverlay({
   switch (fx.visual) {
     case 'gunshot':
       return <GunshotFx shot={shot} width={width} height={height} muzzle={fx.muzzle} compact={compact} />;
+    default:
+      // 나머지 연출은 아직 고화질에만 있다
+      return null;
+  }
+}
+
+/** 고화질 연출 1배속 길이 */
+function hqMs(fx: CardFx) {
+  switch (fx.visual) {
+    case 'gunshot':
+      return GUNSHOT_HQ_MS;
+    case 'missed':
+      return MISSED_HQ_MS;
+    case 'volley':
+      return VOLLEY_HQ_MS;
+    case 'cylinder':
+      return CYLINDER_HQ_MS;
+    case 'range':
+      return RANGE_HQ_MS;
+    case 'lane':
+      return LANE_HQ_MS;
+    case 'nightScope':
+      return WINCHESTER_HQ_MS;
+    case 'scope':
+      return SCOPE_HQ_MS;
+    case 'mustang':
+      return MUSTANG_HQ_MS;
+    case 'barrel':
+      return BARREL_HQ_MS;
+    case 'gatling':
+      return GATLING_HQ_MS;
+    case 'indians':
+      return INDIANS_HQ_MS;
   }
 }
 

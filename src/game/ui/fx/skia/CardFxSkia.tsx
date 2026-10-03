@@ -1,5 +1,6 @@
 /**
  * 고화질 카드 연출 캔버스. 총격(뱅!)은 여기서, 빗나감(빗나감!)은 MissedSkia 가 그린다.
+ * 총 장착(볼캐닉·스코필드·레밍턴·카빈·윈체스터)은 VolleySkia·CylinderSkia·RangeSkia·LaneSkia·WinchesterSkia.
  *
  * 총격 = 슬로모션 총알 + 사실풍 효과.
  *
@@ -30,9 +31,19 @@ import {
 } from '@shopify/react-native-skia';
 import { useDerivedValue, useSharedValue, type SharedValue } from 'react-native-reanimated';
 
+import { BarrelSkia } from './BarrelSkia';
+import { CylinderSkia } from './CylinderSkia';
+import { GatlingSeatsSkia, GatlingSkia } from './GatlingSkia';
+import { IndiansSeatsSkia, IndiansSkia } from './IndiansSkia';
+import { LaneSkia } from './LaneSkia';
 import { MissedSkia } from './MissedSkia';
+import { MustangSkia } from './MustangSkia';
+import { RangeSkia } from './RangeSkia';
+import { ScopeSkia } from './ScopeSkia';
+import { WinchesterSkia } from './WinchesterSkia';
 import { smokeEffect } from './shaders';
-import { cardMotion, FX_GUNSHOT, missFrame, shotFrame, type ShotGeom } from './timeline';
+import { cardMotion, FX_GUNSHOT, FX_MISSED, missFrame, shotFrame, type ShotGeom } from './timeline';
+import { VolleySkia } from './VolleySkia';
 
 export type CardFxSkiaLayerProps = {
   progress: SharedValue<number>;
@@ -85,14 +96,18 @@ export function CardFxSkiaLayer({ progress, geom }: CardFxSkiaLayerProps) {
   const center = useDerivedValue(() => vec(size.value.width / 2, size.value.height / 2));
   const radius = useDerivedValue(() => Math.max(1, Math.max(size.value.width, size.value.height) * 0.72));
   const vignette = useDerivedValue(() =>
-    geom.value.kind === FX_GUNSHOT ? f.value.vignette : missFrame(progress.value).vignette,
+    geom.value.kind === FX_GUNSHOT
+      ? f.value.vignette
+      : geom.value.kind === FX_MISSED
+        ? missFrame(progress.value).vignette
+        : 0,
   );
   const screenFlash = useDerivedValue(() => f.value.screenFlash * 0.35);
 
   // ── 카드 둘레: 카드 감싸개(RN)와 같은 흔들림·반동·확대를 건다
   const stage = useDerivedValue(() => {
     const c = cardMotion(geom.value, progress.value);
-    return [{ translateX: c.tx }, { translateY: c.ty }, { scale: c.zoom }];
+    return [{ translateX: c.tx }, { translateY: c.ty }, { scaleX: c.zoom * c.sx }, { scaleY: c.zoom * c.sy }];
   });
   const stageOrigin = useDerivedValue(() => vec(geom.value.cx, geom.value.cy));
 
@@ -220,8 +235,21 @@ export function CardFxSkiaLayer({ progress, geom }: CardFxSkiaLayerProps) {
         <RadialGradient c={center} r={radius} colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.55)']} positions={[0.45, 1]} />
       </Rect>
 
+      {/* 카드와 함께 흔들리지 않는 배경 무대 */}
+      <LaneSkia progress={progress} geom={geom} />
+      <RangeSkia progress={progress} geom={geom} />
+      <WinchesterSkia progress={progress} geom={geom} />
+      <MustangSkia progress={progress} geom={geom} />
+      <GatlingSeatsSkia progress={progress} geom={geom} />
+      <IndiansSeatsSkia progress={progress} geom={geom} />
+
       <Group transform={stage} origin={stageOrigin}>
         <MissedSkia progress={progress} geom={geom} />
+        <VolleySkia progress={progress} geom={geom} />
+        <CylinderSkia progress={progress} geom={geom} />
+        <BarrelSkia progress={progress} geom={geom} />
+        <GatlingSkia progress={progress} geom={geom} />
+        <IndiansSkia progress={progress} geom={geom} />
 
         {/* 화약 연기 */}
         {smokeEffect && (
@@ -289,6 +317,9 @@ export function CardFxSkiaLayer({ progress, geom }: CardFxSkiaLayerProps) {
           </Circle>
         </Group>
       </Group>
+
+      {/* 조준경 시야는 화면 전체를 어둡게 덮으므로 맨 위에 */}
+      <ScopeSkia progress={progress} geom={geom} />
 
       <Rect x={0} y={0} width={w} height={h} color="#FFF6DA" opacity={screenFlash} />
     </Canvas>

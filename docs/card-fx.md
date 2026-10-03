@@ -43,6 +43,20 @@ src/game/ui/fx/skia/load.ts           Skia 늦게 불러오기 (웹은 CanvasKit
 src/game/ui/fx/skia/timeline.ts       시간표 워클릿. 진행도(0→1) → 그 순간의 모든 값
 src/game/ui/fx/skia/CardFxSkia.tsx    고화질 캔버스 (판마다 하나). 총격을 그리고 빗나감 무리를 품는다
 src/game/ui/fx/skia/MissedSkia.tsx    빗나감: 원본 그림 조각 움직이기
+src/game/ui/fx/skia/ScopeSkia.tsx     조준경: 렌즈 속 시야가 열려 먼 사람을 당긴다 (화면 전체를 덮으므로 캔버스 맨 위)
+src/game/ui/fx/skia/MustangSkia.tsx   야생마: 원근 길·말발굽 자국·점선 자리·착지 먼지 (지금 카드 자리를 도려낸다)
+src/game/ui/fx/skia/BarrelSkia.tsx    술통: 그림 속 머리 조각이 통 뒤로 숨고, 잉크 총알·별·하트
+src/game/ui/fx/skia/GatlingSkia.tsx   기관총: 총구 연사·탄피 (stage 안) + 둘레 자리 여섯 (배경)
+src/game/ui/fx/skia/IndiansSkia.tsx   인디언!: 입·함성 고리·깃털 (stage 안) + 둘레 자리 여섯 (배경)
+src/game/ui/fx/skia/paths.ts          여러 연출이 함께 쓰는 모양 워클릿 (착지 고리·별·하트·돌린 사각형, 시드 난수표)
+src/game/ui/fx/CardFxLabels.tsx       조준경·야생마·술통 글자 (RN, 캔버스 위에 띄운다)
+src/game/ui/fx/skia/VolleySkia.tsx    볼캐닉: 그림 속 총구 7연사 섬광·짧은 예광선·사정거리 고리
+src/game/ui/fx/skia/CylinderSkia.tsx  스코필드: 카드 옆 큰 실린더가 돌며 장전, 그림 속 실린더로 들어간다
+src/game/ui/fx/skia/RangeSkia.tsx     레밍턴: 카드 오른쪽 사격장 과녁 5개, 1~3번을 맞힌다 (배경)
+src/game/ui/fx/skia/LaneSkia.tsx      카빈: 원근 사격 레인 4칸 (기댄 카드 모양을 도려낸다, 배경)
+src/game/ui/fx/skia/WinchesterSkia.tsx 윈체스터: 야간 녹색 조준경, 렌즈 밖을 어둡게 덮는다
+src/game/ui/fx/GunFxLabels.tsx        볼캐닉 카운터·레밍턴 과녁 번호·카빈 띠 번호 (RN, 카드 자리 안)
+src/game/ui/fx/WinchesterLabels.tsx   윈체스터 눈금 숫자·"사정거리 5" (RN, 캔버스 위)
 src/game/ui/fx/skia/shaders.ts        SkSL 셰이더 (화약 연기 fbm)
 src/game/ui/fx/skia/ShotCardWrap.tsx  RN 카드를 캔버스와 같은 값으로 흔들고 확대
 src/game/ui/sfx.ts                    효과음 재생 (expo-audio, 플레이어 풀, 음소거·볼륨)
@@ -106,6 +120,27 @@ AI 배속(`fxPacing.timeScale`)만큼 전체 길이를 나눈다.
 | `?fxloop=hold` | 되풀이 없이 `globalThis.__shot` 만 연다 |
 | `?fxloop=event` | 하이 눈 이벤트 카드를 돌려 가며 띄운다 |
 | `?fxloop=take` | 캣 벌로우·강탈 결과(손패는 뒷면, 장비는 앞면)를 번갈아 띄운다 |
+| `?fxloop=<카드 종류>` | 연출이 붙은 그 카드를 3.4초마다 낸다 (예: `scope`, `gatling`). 고화질 설정이어야 한다 |
+
+### 붙은 연출 (고화질만)
+
+| 카드 | 시안 | 길이 | 그림 속 자리 (원본 px) | 소리 |
+|---|---|---|---|---|
+| 조준경 | A 렌즈 속 당겨 보기 | 2000ms | 대물렌즈 (140,172) | 끼릭 ×2, 거리 줄 때 팅 |
+| 야생마 | B 3D 멀어졌다 돌아오기 | 2000ms | — (카드 전체가 움직인다) | 다그닥 ×3, 착지 퉁 |
+| 술통 | C 만화 잉크 쏙·핑! | 1500ms | 피격점 (158,186), 머리 조각 (98~162, 122~172) | 쏙, 퉁 + 피융, 딩 |
+| 기관총 | A 쓸어 가는 연사 | 1800ms | 총구 (208,199), 탄피 (172,192) | 연사 15발, 헛도는 딸깍 ×2 |
+| 인디언! | A 함성 물결 | 1800ms | 입 (133,234), 깃털 (143,102) | 북 ×3 |
+| 볼캐닉 | A 연사 스트로브 | 1500ms | 총구 (195,117) | 마른 총성 ×7 |
+| 스코필드 | B 3D 실린더 회전 | 1700ms | 실린더 (108,160) 반지름 21 | 철컥, 딸깍 ×6, 철컥 |
+| 레밍턴 | C 사격장 과녁 3개 | 2000ms | 총구 (206,116) | 탕 ×3 + 땡 ×3 |
+| 카빈 | B 원근 사격 레인 | 1800ms | — (카드가 아래 모서리 축으로 기댄다) | 철컥, 딸깍 ×4 |
+| 윈체스터 | B3 야간 녹색 조준경 | 2000ms | 총구 (46,94) | 철컥, 딸깍 ×5, 고정 딸깍 |
+
+시안 머리 주석의 좌표는 그림을 보지 않고 적은 것이라 틀린 데가 많다 (조준경 렌즈 172,160 → 실제 140,172).
+옮길 때는 원본 그림에 격자를 얹어 다시 잰다.
+
+기관총·인디언!의 "다른 사람 자리"는 실제 좌석이 아니라 카드 둘레 타원(시안 카드 폭 92 기준 132×88)이다.
 
 `__shot.progress.value = 0.3` 처럼 넣으면 그 장면에 멈춘다(애니메이션을 덮어쓴다). `__shot.start()` 는 한 번 돌린다.
 반복 모드에서 카드가 뜬 직후 값을 고정하면 **실제 카드 위에서** 장면을 볼 수 있다.
@@ -127,6 +162,8 @@ __shot.progress.value = 0.3;
 - **웹의 Skia `Canvas` 는 스타일 배열을 펼치지 않는다.** 배열을 넘기면 DOM 에 그대로 들어가 렌더가 깨진다. 한 객체로 준다
 - 3D 손패처럼 `GestureDetector` 안의 요소는 웹 `onLayout` 이 창 기준 좌표를 준다. 위치는 `measureInWindow` 로 잰다
 - 늦게 받는 값(예: 그림 로딩 여부)을 워클릿에서 쓰면 처음 값에 붙잡힌다. `useDerivedValue(fn, [값])` 으로 의존성을 준다
+- **`useDerivedValue` 콜백 본문에서 공유값(`.value`)을 직접 읽어야 한다.** 도우미 워클릿 안에서만 읽으면
+  웹 Reanimated 가 구독하지 않아 처음 값(`EMPTY_GEOM`)에 멈춘다. 도우미는 `geom.value` 를 인자로 받게 짠다
 - 렌더 중에 ref 를 쓰지 않는다 (`react-hooks/refs` 린트). `useEffect` 안에서 갱신한다
 - Skia·expo-audio 처럼 네이티브 패키지를 새로 설치하면 Metro 를 다시 시작한다 ("unknown module" 오류)
 - 웹 CanvasKit 은 `postinstall` 이 `public/canvaskit.wasm` 으로 복사한다 (gitignore 됨)

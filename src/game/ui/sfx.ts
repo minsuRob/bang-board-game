@@ -15,6 +15,14 @@ const SOURCES = {
   gunshot: require('../../../assets/sfx/gunshot.wav'),
   bullet_whiz: require('../../../assets/sfx/bullet_whiz.wav'),
   card_draw: require('../../../assets/sfx/card_draw.wav'),
+  rapid_shot: require('../../../assets/sfx/rapid_shot.wav'),
+  cylinder_click: require('../../../assets/sfx/cylinder_click.wav'),
+  gun_latch: require('../../../assets/sfx/gun_latch.wav'),
+  target_ding: require('../../../assets/sfx/target_ding.wav'),
+  hoof_gallop: require('../../../assets/sfx/hoof_gallop.wav'),
+  wood_thud: require('../../../assets/sfx/wood_thud.wav'),
+  ricochet: require('../../../assets/sfx/ricochet.wav'),
+  war_drum: require('../../../assets/sfx/war_drum.wav'),
 } as const;
 
 export type SfxId = keyof typeof SOURCES;
