@@ -184,6 +184,30 @@ describe('맥주 → 금덩이', () => {
     expect(nug(s, 'a')).toBe(1);
     expect(player(s, 'c').hand.length).toBe(yto + 1);
   });
+
+  // 마담 이토 카드: "Each time a Beer card is played, she draws 1 card from the deck."
+  // 골드 러시 해설: "It doesn't matter whether the Beer was played to regain a life point or to take a gold nugget."
+  it('목숨을 회복하려고 낸 보통 맥주에도 마담 이토가 카드 한 장을 받는다', () => {
+    let s = withGold(
+      scenario({
+        players: [...four({ hand: ['beer'], hp: 3 }).slice(0, 2), { id: 'c', role: 'outlaw', character: 'madamYto' }, four()[3]],
+      }),
+    );
+    const yto = player(s, 'c').hand.length;
+    s = reduce(s, { type: 'playCard', pid: 'a', card: handCard(s, 'a', 'beer') });
+    expect(player(s, 'a').hp).toBe(4);
+    expect(player(s, 'c').hand.length).toBe(yto + 1);
+    expect(totalCards(s)).toBe(80);
+  });
+
+  it('마담 이토 자신이 낸 맥주에도 받는다', () => {
+    let s = withGold(
+      scenario({ players: [{ id: 'a', role: 'sheriff', character: 'madamYto', hp: 2, hand: ['beer'] }, ...four().slice(1)] }),
+    );
+    s = reduce(s, { type: 'playCard', pid: 'a', card: handCard(s, 'a', 'beer') });
+    expect(player(s, 'a').hp).toBe(3);
+    expect(player(s, 'a').hand.length).toBe(1);
+  });
 });
 
 describe('검정 장비', () => {

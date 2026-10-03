@@ -393,6 +393,23 @@ describe('캐릭터', () => {
     expect(p(s, 'p1').hp).toBe(3);
     expect(p(s, 'p0').hp).toBe(4);
   });
+
+  // 카드 원문: "Each time another player plays a Beer card, you may discard any card from hand to also
+  // regain 1 life point." 마지막 목숨을 잃을 때 내는 맥주도 맥주 카드를 내는 것이다
+  // (기본 룰: 그때는 남의 차례에도 맥주를 낼 수 있다). 같은 문구인 마담 이토도 그 맥주에 발동한다.
+  it('레모네이드 짐: 남이 쓰러질 때 낸 맥주에도 발동한다', () => {
+    const s0 = V({
+      players: [{ hand: ['bang'] }, { hp: 1, hand: ['beer'] }, { character: 'lemonadeJim', hp: 2, hand: ['missed'] }, {}],
+    });
+    let s = play(s0, 'p0', 'bang', { target: 'p1' });
+    expect(s.awaiting).toMatchObject({ k: 'beerToSurvive', pid: 'p1' });
+    s = pick(s, handCard(s, 'p1', 'beer'));
+    expect(p(s, 'p1').alive).toBe(true);
+    expect(s.awaiting).toMatchObject({ k: 'discardChoice', pid: 'p2', reason: 'lemonadeJim', canPass: true });
+    s = pick(s, handCard(s, 'p2', 'missed'));
+    expect(p(s, 'p2').hp).toBe(3);
+    expect(totalCards(s)).toBe(96);
+  });
 });
 
 describe('하이 눈 이벤트와의 상호작용', () => {

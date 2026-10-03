@@ -28,6 +28,7 @@ import {
   onPutInPlayFrames,
   outgoingBangMissesOf,
   playAnyAsAbilitiesOf,
+  onBeerPlayedFrames,
   onOtherPlaysCardFrames,
   onPlayBangFrames,
   withEvade,
@@ -181,6 +182,9 @@ export function applyPlayCard(
       ),
   );
   frames.push(...onOtherPlaysCardFrames(cur, pid, as));
+  // 마담 이토: 목숨을 회복하려고 낸 보통 맥주에도 받는다. 생존자 2명이라 효과가 없어도 맥주를 낸 것이다.
+  // (골드 러시 해설 "It doesn't matter whether the Beer was played to regain a life point or to take a gold nugget")
+  if (as === 'beer' && own === 'beer') frames.push(...onBeerPlayedFrames(cur, pid));
   return pushSeq(cur, frames);
 }
 

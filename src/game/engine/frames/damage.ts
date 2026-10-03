@@ -32,6 +32,7 @@ import {
   onDamagedFrames,
   onDealtDamageFrames,
   onEliminatedFrames,
+  onOtherPlaysCardFrames,
 } from '../hooks';
 import { goldKindOf } from '../../data/cards.goldrush';
 import { addNuggets, discardGold, goldEnabled, goldEquipOf, nuggetsOf, woundsBeforeLast } from '../gold';
@@ -205,8 +206,9 @@ export function respondCheckDeath(
     text: `${ga(nameOf(cur, p.id))} 맥주를 마시고 버텼다.`,
   });
   // 프레임은 그대로 둔다. 아직 목숨이 0 이하면 다시 물어본다.
-  // 그 위에 맥주에 반응하는 훅(마담 이토)을 먼저 해결한다.
-  return pushSeq(cur, onBeerPlayedFrames(cur, p.id));
+  // 그 위에 맥주에 반응하는 훅(레모네이드 짐·마담 이토)을 먼저 해결한다.
+  // 쓰러질 때 낸 맥주도 맥주 카드를 낸 것이다 (레모네이드 짐 "Each time another player plays a Beer card").
+  return pushSeq(cur, [...onOtherPlaysCardFrames(cur, p.id, 'beer'), ...onBeerPlayedFrames(cur, p.id)]);
 }
 
 export function resolveEliminate(

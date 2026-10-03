@@ -263,6 +263,7 @@ StarCraft II 아케이드 "뱅!" 맵의 2014~2025년 144개 버전 신규 문자
 | EC-130 | "달톤형제가 유령카드를 제거하지 못하는 문제가 수정되었습니다." | 0.254 | 제거된 C 앞에 `ghost`가 놓여 C가 유령이다. 달톤 형제·강탈·캣 벌로우로 그 카드가 떠난다. | 유령 카드를 잃은 유령은 즉시 다시 제거되고 남은 카드를 모두 버린다. 판정은 스택 루프의 상시 점검(`sweepGhosts`) 한 곳. 유령도시 중에는 그 이벤트의 규칙(자기 차례 끝에 사라짐)을 따른다. | `src/game/engine/__tests__/valley-of-shadows.test.ts` |
 | EC-131 | (카드 원문) "Avoid the effects of a brown card (other than BANG!) that includes you as a target." | — | B가 `escape`를 들고 결투·강탈·캣 벌로우·토마호크·기관총·인디언·반디도스의 대상이 된다. | 피할 카드가 있을 때만 묻는다(기본판 흐름 불변). 뱅!과 뱅!으로 치는 패닝은 피하지 못한다. 포커·토네이도는 '모두'에게 걸리는 정리 효과라 제외했다. `mickDefender`는 같은 자리에서 빗나감!도 낸다. | `src/game/engine/__tests__/valley-of-shadows.test.ts` |
 | EC-132 | "닷지시티를 사용하면, ... 총 120장의 플레잉카드를 셔플합니다." (덱 구성 교훈, EC-72) | 0.101 | 그림자의 계곡을 켠 판 전체. 포커 판돈처럼 어느 영역에도 없는 카드가 생긴다. | 카드 총수는 켠 확장판에 따라 80 또는 96으로 보존된다. 포커 판돈은 프레임이 들고 있으며, 모두 낼 때까지 `viewFor`가 가린다. 시뮬레이터와 테스트의 총수 검사가 판돈을 센다. | `src/game/engine/__tests__/valley-of-shadows.test.ts` |
+| EC-152 | 카드 원문: 레모네이드 짐 "Each time another player plays a Beer card, you may discard any card from hand to also regain 1 life point." | — | B 가 마지막 목숨을 잃고 손의 맥주로 살아난다. C 는 레모네이드 짐 | 쓰러질 때 낸 맥주도 맥주 카드를 낸 것이다(기본 룰: 그때는 남의 차례에도 맥주를 낸다). C 는 손패 1장을 버리고 목숨 1을 회복할 수 있다. 같은 문구의 마담 이토도 그 맥주에 발동한다(EC-153) | `valley-of-shadows.test.ts` |
 
 ---
 
@@ -284,6 +285,7 @@ StarCraft II 아케이드 "뱅!" 맵의 2014~2025년 144개 버전 신규 문자
 | EC-131 | 카드 원문: 장화·부적 "마지막 목숨에는 적용되지 않는다" / FAQ 시미언 피코스·부적 "금덩이는 더미에서" | — | 장화를 가진 B 가 목숨 1 에서 맞는다 / 시미언 피코스가 맞는다 | 장화·부적은 죽는 한 점을 세지 않는다. 시미언 피코스는 제한 없이 1점마다 1개. 숙취 중에는 캐릭터 능력만 꺼진다 | `goldrush.test.ts` |
 | EC-132 | FAQ: 배낭 "마지막 목숨을 잃을 때는 남의 차례에도" | — | 목숨 1, 금덩이 2, 배낭. 맥주 없이 맞는다 | 맥주를 물을 때 배낭을 쓸 수 있고 목숨 1 로 산다. 맥주가 없어도 죽음을 곧바로 확정하지 않는다 | `goldrush.test.ts` |
 | EC-133 | FAQ: 프리티 루제나 "한 장만 1개 싸게, 값 1 이면 공짜" / 조시 맥클라우드 "가진 검정 장비를 또 뽑으면 버린다" / 더치 윌 "방금 뽑은 두 장 중 하나를 버린다" / 재키 무리에타 "카드 없이, 여러 번" | — | 각 능력 | 할인은 그 차례 첫 구매에 자동. 조시가 뽑은 갈색은 곧바로 쓰고, 쓸 곳이 없으면 버린다. 더치 윌은 곡괭이면 3장 중 1장을 버린다. 재키의 뱅!은 사거리 안, 뱅! 제한 무관 | — |
+| EC-153 | 카드 원문: 마담 이토 "Each time a Beer card is played, she draws 1 card from the deck." / 설명서 해설 "It doesn't matter whether the Beer was played to regain a life point or to take a gold nugget. It doesn't matter who played the Beer, even Madam Yto's Beer cards count." | — | A 가 차례에 목숨을 회복하려고 맥주를 낸다 / 마담 이토 자신이 낸다 / 쓰러질 때 낸다 / 맥주를 금덩이로 판다 | 네 경우 모두 마담 이토가 덱에서 1장을 받는다. 생존자 2명이라 효과 없는 맥주도 낸 것이다. 병·위스키를 맥주로 쓰면 받지 않는다(EC-127) | `goldrush.test.ts` |
 
 ## 14. 와일드 웨스트 쇼 캐릭터
 
