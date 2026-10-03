@@ -12,6 +12,8 @@ const ONE_WEAPON = '무기는 하나만 든다. 새 무기를 놓으면 들고 �
 const RANGE_ONLY_BANG = '사정거리는 뱅!이 닿는 거리에만 쓴다. 강탈은 무기와 상관없이 거리 1이다.';
 const NO_DUPLICATE = '같은 이름의 장비는 자기 앞에 2장 놓을 수 없다.';
 const DRAW_RESHUFFLE = '덱이 비면 버린 더미를 섞어 마저 가져온다.';
+const WWS_REVEAL =
+  '와일드 웨스트 쇼 판에서는 낸 사람이 상황 카드를 1장 새로 연다. 리 반 클리프가 효과를 다시 내면 열지 않는다.';
 
 const CARDS: Record<string, string[]> = {
   bang: [
@@ -36,8 +38,8 @@ const CARDS: Record<string, string[]> = {
     '생존자가 2명이어도 쓸 수 있다. 2명 제한은 맥주에만 걸린다.',
     '목사 이벤트 중에도 쓸 수 있다.',
   ],
-  stagecoach: [DRAW_RESHUFFLE],
-  wellsFargo: [DRAW_RESHUFFLE],
+  stagecoach: [DRAW_RESHUFFLE, WWS_REVEAL],
+  wellsFargo: [DRAW_RESHUFFLE, WWS_REVEAL],
   generalStore: [
     '지금 살아 있는 사람 수만큼 펼친다. 처음 인원이 아니다.',
     '낸 사람부터 시계 방향으로 1장씩 고르고, 마지막 사람은 남은 1장을 가져간다.',

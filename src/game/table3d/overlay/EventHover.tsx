@@ -17,7 +17,7 @@ import type { EventCardId } from '../../data/types';
 import type { GameState } from '../../engine';
 import { eventArt } from '../../ui/card-art';
 import { CAN_HOVER } from '../../ui/card-peek';
-import { eventProgress } from '../../ui/event-progress';
+import { eventDeckNote, eventProgress } from '../../ui/event-progress';
 import { ANCHOR_EVENT, anchorsStore } from '../core/anchors-store';
 import { usePreviewStyles, type PreviewSlot } from './CharacterHover';
 import { themedStyles } from '../../ui/theme/use-theme';
@@ -128,7 +128,9 @@ function EventPanel({ view, id, slot }: { view: GameState; id: EventCardId; slot
           </View>
         )}
         <Text style={previewStyles.panelMeta}>
-          {remaining > 0 ? `남은 이벤트 ${remaining}장 · 마지막은 하이 눈` : '남은 이벤트 없음 · 게임 끝까지 이어진다'}
+          {remaining > 0
+            ? `남은 이벤트 ${remaining}장 · ${eventDeckNote(view.config.expansions)}`
+            : '남은 이벤트 없음 · 게임 끝까지 이어진다'}
         </Text>
       </View>
     </View>
