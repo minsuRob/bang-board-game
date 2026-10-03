@@ -652,8 +652,10 @@ export function buildPrompt(view: GameState): Prompt | null {
     case 'generalStore':
       return {
         ...base,
-        title: '잡화점',
-        hint: '가져갈 카드를 고른다',
+        title: a.reason === 'poker' ? '포커 판돈' : '잡화점',
+        hint: a.canPass ? '가져갈 카드를 고르거나 그만 가져간다' : '가져갈 카드를 고른다',
+        canPass: Boolean(a.canPass),
+        ...(a.canPass ? { passLabel: '그만 가져감 (W)' } : {}),
         // 숫자키로 고를 수 있게 cardOptions 도 둔다. 카드는 가운데 창에만 그린다
         cardOptions: a.options,
         center: { cards: a.options, zone: 'option', handCount: 0 },
