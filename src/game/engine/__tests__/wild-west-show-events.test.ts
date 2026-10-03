@@ -211,6 +211,14 @@ describe('결전', () => {
     ).toBe(true);
   });
 
+  it('원래 효과로도 낼 수 있다 ("may") — 강탈을 강탈로도, 뱅!으로도', () => {
+    const s = table('showdown', [{ hand: ['panic'] }, { hand: ['beer'] }]);
+    const panic = handCard(s, 'a', 'panic');
+    const plays = legalActions(s, 'a').filter((x) => x.type === 'playCard' && x.card === panic && x.target === 'b');
+    expect(plays.some((x) => x.type === 'playCard' && x.as === undefined)).toBe(true);
+    expect(plays.some((x) => x.type === 'playCard' && x.as === 'bang')).toBe(true);
+  });
+
   it('뱅!을 빗나감!으로 낼 수 있다', () => {
     const s0 = table('showdown', [{ hand: ['bang'] }, { hand: ['bang'] }]);
     const s = reduce(s0, { type: 'playCard', pid: 'a', card: handCard(s0, 'a', 'bang'), target: 'b' });
