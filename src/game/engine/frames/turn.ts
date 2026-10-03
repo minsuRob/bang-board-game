@@ -31,6 +31,7 @@ import {
   firstOutRevival,
   minCardsPerTurn,
   onDrawPhaseEndFrames,
+  onEliminatedFrames,
   onEventEnterFrames,
   onTurnEndFrames,
   onTurnStartFrames,
@@ -39,7 +40,6 @@ import {
   turnDirectionOf,
 } from '../hooks';
 import { reviveFromBoneOrchard } from './wildwest';
-import { discardGold, goldEquipOf } from '../gold';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 import { eul, ga, neun } from '../josa';
 
@@ -192,24 +192,21 @@ export function resolveTurnEnd(state: GameState, frame: Frame & { k: 'turnEnd' }
     endFrames.unshift({ k: 'damage', target: pid, amount: 1, source: null, cause: 'missSusanna' });
   }
 
+  // 유령은 차례가 끝나면 다시 제거된다 (공식 FAQ 하이 눈·한줌의 카드 Q08).
+  // - 목숨이 없어 손패 한도가 0 이므로 손패는 버리기 단계에서 전부 버린다. 버리기 단계를 건너뛰므로
+  //   (stack.ts isBlocked, 수지 라파예트 유령의 무한 반복 방지) 여기서 한꺼번에 버린다.
+  // - 그다음 다시 제거된다. 앞에 남은 카드는 "all of his cards go to Vulture Sam, if this character
+  //   is in play, otherwise they are discarded as usual" — 제거 훅과 정리 프레임을 그대로 탄다.
+  // 유령 카드(그림자의 계곡)로 돌아온 사람은 그 카드가 앞에 있는 동안 남는다.
+  const leaving: Frame[] = [];
   if (p.ghost && !heldAsGhost(p)) {
-    // 유령은 차례가 끝나면 다시 사라진다. 들고 있던 카드는 전부 버려진다.
-    // 유령 카드(그림자의 계곡)로 돌아온 사람은 그 카드가 앞에 있는 동안 남는다.
-    const cards = [...p.hand, ...p.equipment];
-    const gold = goldEquipOf(p);
-    cur = updatePlayer(cur, pid, (x) => ({
-      ...x,
-      ghost: false,
-      hand: [],
-      equipment: [],
-      ...(gold.length > 0 ? { goldEquipment: [] } : {}),
-    }));
-    cur = toDiscard(cur, cards);
-    cur = discardGold(cur, gold);
+    cur = updatePlayer(cur, pid, (x) => ({ ...x, ghost: false, hand: [] }));
+    cur = toDiscard(cur, p.hand);
     cur = log(cur, { t: 'ghostLeave', pid, text: `${nameOf(cur, pid)}의 유령이 사라졌다.` });
+    leaving.push(...onEliminatedFrames(cur, pid), { k: 'eliminateCleanup', target: pid });
   }
 
-  return pushSeq(cur, [...endFrames, { k: 'checkWin' }, { k: 'advanceTurn', from: pid }]);
+  return pushSeq(cur, [...leaving, ...endFrames, { k: 'checkWin' }, { k: 'advanceTurn', from: pid }]);
 }
 
 export function resolveAdvanceTurn(
