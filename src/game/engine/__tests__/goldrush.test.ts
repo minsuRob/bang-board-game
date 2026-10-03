@@ -9,6 +9,7 @@ import { GOLD_DECK } from '../../data/cards.goldrush';
 import { charactersFor } from '../../data/characters';
 import { cardOf } from '../cards';
 import { nuggetsOf } from '../gold';
+import { goldUseOptions } from '../gold-cards';
 import { handLimitOf } from '../hooks';
 import { legalActions } from '../legal';
 import { reduce } from '../reducer';
@@ -218,6 +219,14 @@ describe('수배 · 배낭 · 숙취', () => {
     expect(s.gold!.discard).toContain('gr-wanted-1');
     expect(goldTotal(s)).toBe(24);
     expect(totalCards(s)).toBe(80);
+  });
+
+  // 카드 원문 "Play on any player." / 골드 러시 FAQ Q07 "You must play it immediately in front of you
+  // or in front of another player." — 자기 앞에도 놓을 수 있다. 이미 수배가 붙은 사람은 뺀다.
+  it('수배는 자기 자신을 포함해 아무에게나 놓을 수 있다', () => {
+    const s = withGold(scenario({ players: four() }), { equip: { c: ['gr-wanted-2'] } });
+    const targets = goldUseOptions(s, 'a', 'gr-wanted-1').map((u) => u.target).sort();
+    expect(targets).toEqual(['a', 'b', 'd']);
   });
 
   it('배낭은 죽기 직전에도 금덩이 2개로 목숨 1을 회복한다', () => {

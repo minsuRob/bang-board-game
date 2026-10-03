@@ -64,7 +64,7 @@ export const GOLD_CARD_DEFS: Record<GoldCardKind, GoldCardDef> = {
     cost: 2,
     category: 'brown',
     count: 3,
-    text: '원하는 플레이어 앞에 놓습니다. 그 사람을 제거한 사람이 카드 2장과 금덩이 1개를 받습니다.',
+    text: '자기 자신을 포함해 원하는 플레이어 앞에 놓습니다. 그 사람을 제거한 사람이 카드 2장과 금덩이 1개를 받습니다.',
   },
   rhum: {
     kind: 'rhum',
