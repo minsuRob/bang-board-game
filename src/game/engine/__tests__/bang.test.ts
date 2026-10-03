@@ -123,6 +123,47 @@ describe('술통과 주르도네', () => {
     expect(s.log.filter((e) => e.t === 'judgement')).toHaveLength(2);
   });
 
+  // 공식 원문 (base.txt, 주르도네): "If he has another real Barrel card in play, he can count
+  // both of them, giving him two chances to cancel the BANG! before playing a Missed!."
+  // 첫 판정으로 이미 뱅!이 취소됐으면 두 번째 기회는 쓸 곳이 없다.
+  it('주르도네+술통: 첫 판정이 하트면 두 번째 판정을 하지 않는다', () => {
+    const s0 = scenario({
+      players: [
+        { hand: ['bang'] },
+        { character: 'jourdonnais', equipment: ['barrel'] },
+        {},
+        {},
+      ],
+      deckTop: [
+        { kind: 'beer', suit: 'hearts' },
+        { kind: 'missed', suit: 'spades' },
+      ],
+    });
+    const second = s0.deck[s0.deck.length - 2];
+    const s = reduce(s0, shoot(s0));
+    expect(p(s, 'p1').hp).toBe(p(s0, 'p1').hp);
+    expect(s.log.filter((e) => e.t === 'judgement')).toHaveLength(1);
+    expect(s.deck[s.deck.length - 1]).toBe(second);
+    expect(totalCards(s)).toBe(80);
+  });
+
+  it('주르도네+술통 vs 슬랩 더 킬러: 첫 판정이 하트여도 빗나감이 하나 더 필요하니 두 번째 판정을 한다', () => {
+    const s0 = scenario({
+      players: [
+        { character: 'slabTheKiller', hand: ['bang'] },
+        { character: 'jourdonnais', equipment: ['barrel'] },
+        {},
+        {},
+      ],
+      deckTop: [
+        { kind: 'beer', suit: 'hearts' },
+        { kind: 'missed', suit: 'spades' },
+      ],
+    });
+    const s = reduce(s0, shoot(s0));
+    expect(s.log.filter((e) => e.t === 'judgement')).toHaveLength(2);
+  });
+
   it('술통으로 피해도 프레임이 정상 종료된다 (v0.254)', () => {
     const s0 = scenario({
       players: [{ hand: ['bang'] }, { equipment: ['barrel'] }, {}, {}],

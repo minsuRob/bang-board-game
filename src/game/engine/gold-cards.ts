@@ -13,8 +13,10 @@ import { GOLD_CARD_DEFS, goldDefOf, goldKindOf } from '../data/cards.goldrush';
 import type { CardKind, GoldCardId } from '../data/types';
 import {
   alivePlayers,
+  defOf,
   drawFromDeck,
   effectiveSuit,
+  giveCards,
   log,
   nameOf,
   playerOf,
@@ -26,6 +28,7 @@ import {
 import { canReachAtRange, canReachWithBang } from './distance';
 import { generalStoreQueue } from './frames/cards';
 import { discardGold, giveGoldEquip, hasGoldKind } from './gold';
+import { judgementCardTaker, rhumFlipCountOf } from './hooks';
 import type { Frame, GameState, GoldUse, PlayerId } from './types';
 import { eul, ga, ro } from './josa';
 
@@ -169,16 +172,30 @@ export function applyGoldCard(
         text: `${nameOf(cur, target)}에게 수배가 붙었다.`,
       });
     case 'rhum': {
-      const drawn = drawFromDeck(cur, 4);
+      const drawn = drawFromDeck(cur, rhumFlipCountOf(cur, pid));
       const suits = new Set(drawn.cards.map((c) => effectiveSuit(drawn.state, c)));
-      cur = toDiscard(drawn.state, drawn.cards);
-      cur = log(cur, {
+      cur = log(drawn.state, {
         t: 'rhum',
         pid,
         cards: drawn.cards,
         amount: suits.size,
         text: `럼: 카드 ${drawn.cards.length}장을 펼쳐 무늬 ${suits.size}가지가 나왔다.`,
       });
+      // 펼친 카드도 판정 카드다. 존 페인은 손패가 찰 때까지 한 장씩 가져간다 (골드 러시 FAQ Q12)
+      for (const c of drawn.cards) {
+        const taker = judgementCardTaker(cur, pid);
+        if (!taker) {
+          cur = toDiscard(cur, [c]);
+          continue;
+        }
+        cur = giveCards(cur, taker, [c]);
+        cur = log(cur, {
+          t: 'johnPain',
+          pid: taker,
+          card: c,
+          text: `${ga(nameOf(cur, taker))} 펼친 ${eul(defOf(c).nameKo)} 손에 넣었다.`,
+        });
+      }
       if (suits.size > 0) frames.push({ k: 'heal', pid, amount: suits.size });
       break;
     }

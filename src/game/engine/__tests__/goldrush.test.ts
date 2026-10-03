@@ -172,6 +172,52 @@ describe('상점', () => {
   });
 });
 
+describe('럼', () => {
+  function buyRhum(s: GameState): GameState {
+    const act = legalActions(s, 'a').find((x) => x.type === 'buyGold' && x.card === 'gr-rhum-1');
+    if (!act) throw new Error('럼을 살 수 없다');
+    return reduce(s, act);
+  }
+
+  it('카드 4장을 펼쳐 무늬 가짓수만큼 회복한다', () => {
+    const s0 = withGold(scenario({ players: four({ hp: 1 }) }), { shop: ['gr-rhum-1'], nuggets: { a: 3 } });
+    const s = buyRhum(s0);
+    expect(s.log.find((e) => e.t === 'rhum')?.cards).toHaveLength(4);
+    expect(s.deck).toHaveLength(s0.deck.length - 4);
+    expect(totalCards(s)).toBe(80);
+  });
+
+  // 공식 FAQ Q05 (faq-goldrush): "How does Lucky Duke work with the Rhum?
+  //   A. Lucky Duke draws up to 5 cards instead of 4."
+  it('러키 듀크는 5장을 펼친다 (FAQ Q05)', () => {
+    const s0 = withGold(scenario({ players: four({ character: 'luckyDuke', hp: 1 }) }), {
+      shop: ['gr-rhum-1'],
+      nuggets: { a: 3 },
+    });
+    const s = buyRhum(s0);
+    expect(s.log.find((e) => e.t === 'rhum')?.cards).toHaveLength(5);
+    expect(s.deck).toHaveLength(s0.deck.length - 5);
+    expect(totalCards(s)).toBe(80);
+  });
+
+  // 공식 FAQ Q12 (faq-goldrush): "How does John Pain work with the Rhum?
+  //   A. He takes in his hand all the "drawn" cards, one by one until he has 6 cards or less."
+  it('존 페인은 펼친 카드를 손패가 6장이 될 때까지 한 장씩 가져간다 (FAQ Q12)', () => {
+    const s0 = withGold(
+      scenario({
+        players: four({ hp: 1 }, { character: 'johnPain', hand: ['bang', 'bang', 'missed', 'missed'] }),
+      }),
+      { shop: ['gr-rhum-1'], nuggets: { a: 3 } },
+    );
+    const s = buyRhum(s0);
+    const flipped = s.log.find((e) => e.t === 'rhum')?.cards ?? [];
+    expect(flipped).toHaveLength(4);
+    expect(player(s, 'b').hand).toEqual([...player(s0, 'b').hand, flipped[0], flipped[1]]);
+    expect(s.discard.slice(-2)).toEqual([flipped[2], flipped[3]]);
+    expect(totalCards(s)).toBe(80);
+  });
+});
+
 describe('맥주 → 금덩이', () => {
   it('맥주를 금덩이 1개로 바꾸고, 마담 이토는 카드 한 장을 받는다', () => {
     let s = withGold(
