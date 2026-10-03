@@ -470,7 +470,7 @@ export type Action =
   /**
    * 이벤트가 주는 차례당 한 번 행동 (와일드 웨스트 쇼).
    * - ladyRose: 오른쪽 사람과 자리를 바꾼다
-   * - dorothyRage: forced 에게 kind 카드를 target 에게 내게 한다 (손에 없으면 아무 일도 없다)
+   * - dorothyRage: forced 에게 kind 카드를 target 에게 내게 한다 (손에 없으면 손패를 모두에게 보여 준다)
    */
   | {
       type: 'eventAbility';

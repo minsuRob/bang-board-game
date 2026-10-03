@@ -410,7 +410,7 @@ function eventAbilityActions(state: GameState, pid: PlayerId): Action[] {
 
 /**
  * 도로시 레이지로 시킨 수: forced 가 손의 kind 카드로 target 에게 낼 수 있는 수.
- * 그 카드가 없거나, 있어도 지금 그 대상에게 낼 수 없으면 null (아무 일도 없다).
+ * 그 카드가 없거나, 있어도 지금 그 대상에게 낼 수 없으면 null (그 사람이 손패를 보여 준다).
  */
 export function forcedPlayOf(
   state: GameState,

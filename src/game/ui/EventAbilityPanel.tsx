@@ -133,7 +133,7 @@ function DorothyPicker({ view, orders, send }: { view: GameState; orders: EventA
   return (
     <>
       <Text style={styles.title}>도로시 레이지 — 다른 사람에게 카드를 내게 한다 (차례에 한 번)</Text>
-      <Text style={styles.hint}>그 카드가 손에 없으면 아무 일도 없다.</Text>
+      <Text style={styles.hint}>그 카드가 손에 없으면 그 사람이 손패를 모두에게 보여 준다.</Text>
       <View style={styles.row}>
         {people.map((pid) => (
           <Chip
