@@ -30,6 +30,7 @@ import {
   playAnyAsAbilitiesOf,
   onOtherPlaysCardFrames,
   onPlayBangFrames,
+  revealEventOnPlayFrames,
   withEvade,
 } from './hooks';
 import type { Frame, GameState, PlayerId, StealPick } from './types';
@@ -170,6 +171,8 @@ export function applyPlayCard(
     cur = { ...cur, turn: { ...cur.turn, bangsPlayed: cur.turn.bangsPlayed + 1 } };
   }
 
+  // 와일드 웨스트 쇼: 역마차·웰스 파고를 내면 낸 사람이 이벤트 더미 맨 위를 공개한다 (효과보다 먼저)
+  frames.push(...revealEventOnPlayFrames(cur, pid, as, repeat));
   if (as === 'bang' && target) frames.push(...onPlayBangFrames(cur, pid, target));
   frames.push(
     ...effectFrames(cur, pid, as, target, opts, card)

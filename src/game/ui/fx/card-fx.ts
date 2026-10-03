@@ -91,6 +91,11 @@ export type CardFx =
       /** 깃털이 흩날리는 자리 */
       feather: { x: number; y: number };
       cues: SfxCue[];
+    }
+  | {
+      /** 결투: 사선 만화 컷 셋(나 / 회전초 / 상대)이 밀려들고 유리처럼 깨지며 BANG!. 고화질에서만 */
+      visual: 'duelComic';
+      cues: SfxCue[];
     };
 
 /** 연출 시작에서 몇 ms 뒤에 어떤 소리. AI 배속만큼 함께 당긴다 */
@@ -166,6 +171,11 @@ export const CARD_FX: Partial<Record<CardKind, CardFx>> = {
     mouth: { x: 145, y: 237 },
     feather: { x: 143, y: 102 },
     cues: times([108, 504, 900], 'war_drum'),
+  },
+  // 컷 셋이 스윽 밀려들고, 모래바람 휘익, 심장처럼 둥 두 번, 탕
+  duel: {
+    visual: 'duelComic',
+    cues: [...times([0, 96, 192], 'card_draw'), { at: 300, sfx: 'bullet_whiz' }, ...times([768, 1344], 'war_drum'), { at: 1632, sfx: 'gunshot' }],
   },
 };
 

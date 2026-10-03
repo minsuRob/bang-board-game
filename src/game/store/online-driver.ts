@@ -10,7 +10,7 @@
 
 import { useEffect, useRef } from 'react';
 
-import type { PendingInput } from '../engine';
+import type { GameState, PendingInput } from '../engine';
 import { pickDriver, type RoomDoc, type RoomMember } from '../../firebase/room-model';
 import { syncDraftClock } from './draft-ui';
 import { seatOf, selectActor, selectActors, useGameStore } from './game-store';
@@ -28,6 +28,8 @@ export const TIME_LIMIT_MS = {
   draft: 30_000,
   /** 펼쳐진 카드나 손패에서 카드를 고르는 입력. 살펴볼 시간이 필요해 반응보다 길다 */
   pick: 30_000,
+  /** 도로시 레이지 이벤트 중 내 차례. 남에게 낼 카드 종류와 대상까지 골라야 해서 길게 준다 */
+  dorothyPlay: 120_000,
 } as const;
 
 /** 반응(낼지 말지)이 아니라 카드를 골라야 하는 입력 */
@@ -58,6 +60,13 @@ export function useDriverElection(
     }
     setDrives(pickDriver(room, members) === myUid);
   }, [room, members, myUid, setDrives]);
+}
+
+/** 지금 수에 주는 제한시간 */
+export function timeLimitMs(state: Pick<GameState, 'awaiting' | 'turn' | 'event'>): number {
+  if (state.awaiting) return PICK_INPUTS.has(state.awaiting.k) ? TIME_LIMIT_MS.pick : TIME_LIMIT_MS.reaction;
+  if (state.turn.phase === 'discard') return TIME_LIMIT_MS.discard;
+  return state.event?.current === 'dorothyRage' ? TIME_LIMIT_MS.dorothyPlay : TIME_LIMIT_MS.play;
 }
 
 /**
@@ -107,13 +116,7 @@ export function useTimeoutDriver(controlled: string[], enabled = true) {
     if (startedAt.current.seq !== state.seq) {
       startedAt.current = { seq: state.seq, at: Date.now() };
     }
-    const limit = state.awaiting
-      ? PICK_INPUTS.has(state.awaiting.k)
-        ? TIME_LIMIT_MS.pick
-        : TIME_LIMIT_MS.reaction
-      : state.turn.phase === 'discard'
-        ? TIME_LIMIT_MS.discard
-        : TIME_LIMIT_MS.play;
+    const limit = timeLimitMs(state);
 
     const human = controlled.includes(actor) || seatOf(seats, actor)?.human !== false;
     if (human) setWaitDeadline(startedAt.current.at + limit);

@@ -183,7 +183,11 @@ export type Frame =
   // 턴 흐름
   /** reveal: 라운드와 상관없이 이벤트를 공개한다 (개발용 devEvent 의 첫 차례) */
   | { k: 'turnStart'; pid: PlayerId; extra?: boolean; reveal?: boolean }
-  | { k: 'revealEvent' }
+  /**
+   * 이벤트 덱 맨 위를 공개한다. pid: 더미를 가져가 공개한 사람
+   * (와일드 웨스트 쇼의 역마차·웰스 파고를 낸 사람). 없으면 차례인 사람(보안관)
+   */
+  | { k: 'revealEvent'; pid?: PlayerId }
   | { k: 'eventTurnStart'; pid: PlayerId }
   | { k: 'drawPhase'; pid: PlayerId; done: number }
   /** 카드 사용 단계. 이 프레임이 top 인 동안 엔진은 멈추고 플레이어 입력을 기다린다. */

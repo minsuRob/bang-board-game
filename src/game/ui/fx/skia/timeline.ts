@@ -51,6 +51,8 @@ export function artOffset(cw: number, ch: number, x: number, y: number) {
 }
 /** 윈체스터: 야간 녹색 망원 조준경. 다른 연출 번호와 겹치지 않게 뒤쪽 번호를 쓴다 */
 export const FX_WINCHESTER = 20;
+/** 결투: 사선 만화 컷 셋 → 유리처럼 깨지며 BANG! */
+export const FX_DUEL = 21;
 
 /** 테이블 캔버스 좌표계에서 카드와 총구 자리. 연출이 시작될 때 한 번 재서 넣는다 */
 export type ShotGeom = {
@@ -543,6 +545,91 @@ export function winchesterLens(g: ShotGeom, progress: number) {
 }
 
 // ---------------------------------------------------------------------------
+// 결투 — 사선 만화 컷 (docs/card-fx-prototypes/duel.html B6)
+//
+//   0–528ms     화면이 어두워지고 비스듬히 잘린 컷 셋이 번갈아 옆에서 밀려든다
+//               (모자에 반쯤 가린 나 / 모래바람 속 회전초 / 반쯤 가린 상대)
+//   288–1584ms  두 눈이 가늘어진다. 480·1056 나, 768·1344 상대의 눈빛이 번뜩
+//   1632ms      탕 — 하얗게 번쩍, 노란 "BANG!" 말풍선이 튀어나온다
+//   1656–2208ms 컷이 유리처럼 아홉 조각으로 깨져 흩어진다
+// ---------------------------------------------------------------------------
+
+export const DUEL_HQ_MS = 2400;
+/** 총성. 하얀 번쩍과 말풍선이 여기서 시작한다 */
+export const DUEL_BANG_MS = 1632;
+/** 눈빛이 번뜩이는 시각. 짝수 번째가 나, 홀수 번째가 상대 */
+export const DUEL_GLINTS_MS = [480, 768, 1056, 1344] as const;
+
+export type DuelFrame = {
+  active: number;
+  /** 어두운 바탕 */
+  dark: number;
+  /** 컷마다 밀려 들어온 정도 0~1 */
+  slide: number[];
+  /** 눈이 뜬 정도 (1 → 0.3) */
+  squint: number;
+  /** 나·상대 눈빛 번뜩 */
+  me: number;
+  foe: number;
+  /** 컷이 깨져 흩어진 진행 0~1 (아직이면 0, 다 흩어지면 1) */
+  shatter: number;
+  /** 총성 뒤 진행 0~1 (번쩍·말풍선) */
+  cut: number;
+};
+
+function duelGlint(T: number, a: number) {
+  'worklet';
+  return seg(T, a, a + 72) * (1 - seg(T, a + 144, a + 240));
+}
+
+export function duelFrame(progress: number): DuelFrame {
+  'worklet';
+  const T = progress * DUEL_HQ_MS;
+  const slide = [0, 1, 2].map((i) => easeOut(seg(T, i * 96, 336 + i * 96)));
+  const g = DUEL_GLINTS_MS;
+  return {
+    active: progress > 0 && progress < 1 ? 1 : 0,
+    dark: easeOut(seg(T, 0, 288)),
+    slide,
+    squint: 1 - 0.7 * easeInOut(seg(T, 288, 1584)),
+    me: Math.max(duelGlint(T, g[0]), duelGlint(T, g[2])),
+    foe: Math.max(duelGlint(T, g[1]), duelGlint(T, g[3])),
+    shatter: seg(T, 1656, 2208),
+    cut: seg(T, DUEL_BANG_MS, 2016),
+  };
+}
+
+/** 말풍선 크기·투명도. 캔버스 별 모양과 RN "BANG!" 글자가 같이 쓴다 */
+export function duelBalloon(cut: number) {
+  'worklet';
+  if (cut <= 0 || cut >= 1) return { alpha: 0, scale: 0 };
+  const k = Math.min(1, cut * 3);
+  const c = 1.70158;
+  const back = 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2);
+  return { alpha: Math.min(1, (1 - cut) * 2.5), scale: 0.6 + 0.5 * back };
+}
+/** 말풍선 기울기 (라디안) */
+export const DUEL_BALLOON_TILT = -0.08;
+
+/**
+ * 컷 묶음 자리. 시안 좌표(300×210, 컷은 6~294 × 6~204, 가운데 150,105)를 캔버스에 놓는
+ * 가운데 점(x, y)과 배율(u). 기본은 카드 가운데·카드 폭/92 배이고, 캔버스(w×h)를 넘으면
+ * 줄이고 안쪽으로 민다. 캔버스 그림과 RN "BANG!" 이 같이 쓴다
+ */
+export function duelLayout(g: ShotGeom, w: number, h: number) {
+  'worklet';
+  let u = g.cw / 92;
+  let x = g.cx;
+  let y = g.cy;
+  if (w > 0 && h > 0) {
+    u = Math.min(u, (w - 8) / 288, (h - 8) / 198);
+    x = Math.min(Math.max(x, 144 * u + 4), w - 144 * u - 4);
+    y = Math.min(Math.max(y, 99 * u + 4), h - 99 * u - 4);
+  }
+  return { x, y, u };
+}
+
+// ---------------------------------------------------------------------------
 // 조준경 — 렌즈 속 당겨 보기 (docs/card-fx-prototypes/scope.html A)
 //
 //   160–400ms   그림 속 대물렌즈가 반짝
@@ -786,6 +873,13 @@ export function cardMotion(g: ShotGeom, progress: number): CardMotion {
   if (g.kind === FX_MISSED) {
     const m = missFrame(progress);
     return { zoom: m.zoom, sx: 1, sy: 1, tx: m.shakeX - g.fx * (m.zoom - 1), ty: m.shakeY - g.fy * (m.zoom - 1), tilt: 0 };
+  }
+  if (g.kind === FX_DUEL) {
+    // 컷이 깨지며 드러나는 카드가 총성에 한 번 떨린다
+    const T = progress * DUEL_HQ_MS;
+    const j = T > DUEL_BANG_MS ? 1 - seg(T, DUEL_BANG_MS, DUEL_BANG_MS + 480) : 0;
+    const amp = (g.cw / 92) * 3 * j;
+    return { zoom: 1 + 0.03 * j, sx: 1, sy: 1, tx: Math.sin(T * 0.21) * amp, ty: Math.cos(T * 0.17) * amp, tilt: 0 };
   }
   if (g.kind === FX_VOLLEY || g.kind === FX_RANGE) {
     const rec = g.kind === FX_VOLLEY ? volleyFrame(progress).rec : rangeFrame(progress).rec * 0.8;

@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EventCardId, Role } from '../../data/types';
+import { LEE_VAN_KLIFF_ABILITY } from '../../modifiers';
 import { distance } from '../distance';
 import { chatSilenced } from '../hooks';
 import { legalActions } from '../legal';
@@ -243,5 +244,115 @@ describe('와일드 웨스트 쇼', () => {
     const s0 = table('wildWestShow', [{ hand: ['bang'] }, { hp: 1 }, { alive: false, hp: 0 }, { alive: false, hp: 0 }]);
     const s = reduce(s0, { type: 'playCard', pid: 'a', card: handCard(s0, 'a', 'bang'), target: 'b' });
     expect(s.result).toMatchObject({ winners: ['sheriff'], winnerIds: ['a'] });
+  });
+});
+
+/**
+ * 공개 시점. 와일드 웨스트 쇼 룰(1쪽)·확장 팩 룰(1쪽):
+ * "When you play a Stagecoach or Wells Fargo, take the WWS pile and place it in front of you.
+ *  Then, reveal the top card … continues until a new Stagecoach or Wells Fargo is played …
+ *  Remove the previous card from play. Exception: once revealed, the card titled Wild West Show
+ *  stays in play until the end of the game, and it doesn't get replaced."
+ * 리 반 클리프(룰 2쪽): "If you repeat the effect of a Stagecoach or Wells Fargo, the WWS card only
+ *  changes the first time." · FAQ Q19 "No, you have to use a real Stagecoach or Wells Fargo card."
+ * 도로시 레이지 FAQ Q06: 시킨 사람이 아니라 시킴을 받은 사람이 역마차를 낸다(카드도 그 사람이 가져간다).
+ */
+describe('공개 시점 — 역마차·웰스 파고를 낼 때', () => {
+  /** 이벤트 더미가 그대로 남은 판. a(보안관)·b·c·d */
+  function pile(
+    deck: EventCardId[],
+    current: EventCardId | null,
+    specs: Partial<PlayerSpec>[] = [],
+    deckTop?: PlayerSpec['hand'],
+  ): GameState {
+    const base: PlayerSpec[] = [
+      { id: 'a', role: 'sheriff', character: 'willyTheKid' },
+      { id: 'b', role: 'outlaw', character: 'willyTheKid' },
+      { id: 'c', role: 'renegade', character: 'willyTheKid' },
+      { id: 'd', role: 'deputy', character: 'willyTheKid' },
+    ];
+    const s = scenario({
+      expansions: ['wildwestshow'],
+      deckTop,
+      players: base.map((b, i) => ({ ...b, ...specs[i] })),
+    });
+    return { ...s, event: { deck, current, past: [] } };
+  }
+
+  const play = (s: GameState, pid: PlayerId, kind: 'stagecoach' | 'wellsFargo'): GameState =>
+    reduce(s, { type: 'playCard', pid, card: handCard(s, pid, kind) });
+
+  it('보안관 차례가 돌아와도 공개하지 않는다 (하이 눈과 다르다)', () => {
+    const s0 = pile(['gag', 'wildWestShow'], null);
+    const s = beginTurn(s0, 'a');
+    expect(s.turn.round).toBe(2);
+    expect(s.event).toEqual({ deck: ['gag', 'wildWestShow'], current: null, past: [] });
+    expect(logged(s, 'event')).toBe(false);
+  });
+
+  it('역마차를 내면 맨 위 카드를 공개한다. 그 전에는 이벤트가 없다', () => {
+    const s0 = pile(['gag', 'missSusanna', 'wildWestShow'], null, [{ hand: ['stagecoach'] }]);
+    const s = play(s0, 'a', 'stagecoach');
+    expect(s.event).toEqual({ deck: ['missSusanna', 'wildWestShow'], current: 'gag', past: [] });
+    expect(logged(s, 'event')).toBe(true);
+    expect(p(s, 'a').hand).toHaveLength(2); // 역마차 효과는 그대로
+    roundTrip(s);
+  });
+
+  it('웰스 파고도 공개하고, 새 카드가 이전 카드를 대신한다', () => {
+    const s0 = pile(['missSusanna', 'wildWestShow'], 'gag', [{ hand: ['wellsFargo'] }]);
+    const s = play(s0, 'a', 'wellsFargo');
+    expect(s.event).toEqual({ deck: ['wildWestShow'], current: 'missSusanna', past: ['gag'] });
+    expect(p(s, 'a').hand).toHaveLength(3);
+  });
+
+  it('다른 갈색 카드로는 바뀌지 않는다', () => {
+    const s0 = pile(['gag', 'wildWestShow'], null, [{ hand: ['beer', 'generalStore'], hp: 3 }]);
+    let s = reduce(s0, { type: 'playCard', pid: 'a', card: handCard(s0, 'a', 'beer') });
+    s = reduce(s, { type: 'playCard', pid: 'a', card: handCard(s, 'a', 'generalStore') });
+    for (let i = 0; i < 8 && s.awaiting; i++) s = reduce(s, legalActions(s, s.awaiting.pid)[0]);
+    expect(s.event?.current).toBeNull();
+  });
+
+  it("마지막 '와일드 웨스트 쇼'는 공개된 뒤 바뀌지 않는다", () => {
+    const s0 = pile([], 'wildWestShow', [{ hand: ['stagecoach'] }]);
+    const s = play(s0, 'a', 'stagecoach');
+    expect(s.event).toEqual({ deck: [], current: 'wildWestShow', past: [] });
+    expect(logged(s, 'event')).toBe(false);
+  });
+
+  it('리 반 클리프가 역마차를 다시 낸 효과로는 바뀌지 않는다 (처음 한 번만)', () => {
+    const s0 = pile(['gag', 'missSusanna', 'wildWestShow'], null, [
+      { character: 'leeVanKliff', hand: ['stagecoach', 'bang'] },
+    ]);
+    const s1 = play(s0, 'a', 'stagecoach');
+    expect(s1.event?.current).toBe('gag');
+    const again = legalActions(s1, 'a').find(
+      (x): x is Extract<Action, { type: 'playCard' }> =>
+        x.type === 'playCard' && x.ability === LEE_VAN_KLIFF_ABILITY,
+    );
+    expect(again?.as).toBe('stagecoach');
+    const s2 = reduce(s1, again!);
+    expect(p(s2, 'a').hand).toHaveLength(4); // 효과는 한 번 더 났다
+    expect(s2.event).toEqual({ deck: ['missSusanna', 'wildWestShow'], current: 'gag', past: [] });
+  });
+
+  it('도로시 레이지로 시킨 역마차는 낸 사람이 더미를 가져가 공개한다', () => {
+    const s0 = pile(['helenaZontero', 'wildWestShow'], 'dorothyRage', [{}, { hand: ['stagecoach'] }], [
+      { kind: 'bang', suit: 'clubs' },
+    ]);
+    const s = reduce(s0, { type: 'eventAbility', pid: 'a', ability: 'dorothyRage', forced: 'b', kind: 'stagecoach' });
+    expect(s.event?.current).toBe('helenaZontero');
+    expect(s.event?.past).toEqual(['dorothyRage']);
+    // 헬레나 존테로 판정은 더미를 가져간 사람(b)이 한다
+    expect(s.log.find((e) => e.t === 'judgement')?.pid).toBe('b');
+    expect(s.turn.active).toBe('a');
+  });
+
+  it('하이 눈에서는 역마차를 내도 공개하지 않는다', () => {
+    const s0 = scenario({ expansions: ['highnoon'], players: [{ hand: ['stagecoach'] }, {}, {}, {}] });
+    const s1: GameState = { ...s0, event: { deck: ['thirst', 'highNoon'], current: null, past: [] } };
+    const s = play(s1, 'p0', 'stagecoach');
+    expect(s.event?.current).toBeNull();
   });
 });

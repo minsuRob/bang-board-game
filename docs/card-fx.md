@@ -57,6 +57,8 @@ src/game/ui/fx/skia/LaneSkia.tsx      카빈: 원근 사격 레인 4칸 (기댄 
 src/game/ui/fx/skia/WinchesterSkia.tsx 윈체스터: 야간 녹색 조준경, 렌즈 밖을 어둡게 덮는다
 src/game/ui/fx/GunFxLabels.tsx        볼캐닉 카운터·레밍턴 과녁 번호·카빈 띠 번호 (RN, 카드 자리 안)
 src/game/ui/fx/WinchesterLabels.tsx   윈체스터 눈금 숫자·"사정거리 5" (RN, 캔버스 위)
+src/game/ui/fx/skia/DuelSkia.tsx      결투: 사선 만화 컷 셋 → 유리처럼 깨짐 + 노란 별 말풍선 (워클릿에서 SkPicture 를 직접 기록, 캔버스 맨 위)
+src/game/ui/fx/DuelLabels.tsx         결투 말풍선 속 "BANG!" (RN, 캔버스 위)
 src/game/ui/fx/skia/shaders.ts        SkSL 셰이더 (화약 연기 fbm)
 src/game/ui/fx/skia/ShotCardWrap.tsx  RN 카드를 캔버스와 같은 값으로 흔들고 확대
 src/game/ui/sfx.ts                    효과음 재생 (expo-audio, 플레이어 풀, 음소거·볼륨)
@@ -136,6 +138,7 @@ AI 배속(`fxPacing.timeScale`)만큼 전체 길이를 나눈다.
 | 레밍턴 | C 사격장 과녁 3개 | 2000ms | 총구 (206,116) | 탕 ×3 + 땡 ×3 |
 | 카빈 | B 원근 사격 레인 | 1800ms | — (카드가 아래 모서리 축으로 기댄다) | 철컥, 딸깍 ×4 |
 | 윈체스터 | B3 야간 녹색 조준경 | 2000ms | 총구 (46,94) | 철컥, 딸깍 ×5, 고정 딸깍 |
+| 결투 | B6 사선 만화 컷 | 2400ms | — (카드 그림을 쓰지 않는다. 컷 묶음이 캔버스를 넘으면 줄여 민다) | 스윽 ×3, 휘익, 둥 ×2, 탕 |
 
 시안 머리 주석의 좌표는 그림을 보지 않고 적은 것이라 틀린 데가 많다 (조준경 렌즈 172,160 → 실제 140,172).
 옮길 때는 원본 그림에 격자를 얹어 다시 잰다.

@@ -1,8 +1,9 @@
 /**
  * 와일드 웨스트 쇼 확장 이벤트 10종의 능력 훅.
  *
- * 진행은 하이 눈과 같다. 보안관의 두 번째 차례부터 보안관의 차례 시작마다 새 카드가
- * 공개되어 이전 이벤트를 대체하고, 마지막 '와일드 웨스트 쇼'는 끝까지 남는다.
+ * 누군가 역마차·웰스 파고를 낼 때마다 그 사람이 새 카드를 공개해 이전 이벤트를 대체하고,
+ * 마지막 '와일드 웨스트 쇼'는 끝까지 남는다. 첫 역마차·웰스 파고 전에는 이벤트가 없다.
+ * 공개 시점은 `data/events.ts` 의 `revealOn`, 공개는 `engine/hooks.ts` 의 `revealEventOnPlayFrames`.
  *
  * 카드 원문은 dV Giochi 카드 목록(cardslist.php?id=6)에서 읽었다.
  */
@@ -10,7 +11,7 @@
 import type { WildWestShowEventId } from '../../data/types';
 import type { Modifier } from '../../engine/modifier';
 
-/** 차례 시작 이벤트는 장비(다이너마이트·감옥)보다 먼저 온다. 하이 눈과 같다 */
+/** 차례 시작 이벤트는 장비(다이너마이트·감옥)보다 먼저 온다. 하이 눈과 같은 순서다 */
 const EVENT_TURN_ORDER = 5;
 
 /** 재갈 — 아무도 말할 수 없다. 판 안 채팅을 막는다 */
@@ -37,7 +38,8 @@ const dorothyRage: Modifier = { id: 'event:dorothyRage', from: 'event', eventAbi
 const helenaZontero: Modifier = {
   id: 'event:helenaZontero',
   from: 'event',
-  onEventEnter: (state) => [{ k: 'judgement', pid: state.turn.active, purpose: 'helenaZontero', candidates: [] }],
+  // 판정은 더미를 가져가 공개한 사람(역마차·웰스 파고를 낸 사람)이 한다
+  onEventEnter: (_state, revealer) => [{ k: 'judgement', pid: revealer, purpose: 'helenaZontero', candidates: [] }],
 };
 
 /** 레이디 로즈 오브 텍사스 — 차례에 한 번, 오른쪽 사람과 자리를 바꾼다. 그 사람은 다음 차례를 건너뛴다 */

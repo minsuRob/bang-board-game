@@ -16,7 +16,10 @@ turnStart → (revealEvent) → eventTurnStart → drawPhase → playPhase
 
 - `playPhase` 와 `discardPhase` 는 **멈추는 프레임**이다. 이 둘이 스택 맨 위에 있는 동안
   엔진은 해결을 멈추고 액션을 기다린다 (`engine/stack.ts` 의 `isBlocked`)
-- `revealEvent` 는 하이 눈을 쓸 때, **보안관의 두 번째 차례부터** 공개된다
+- `revealEvent` 는 하이 눈·한줌의 카드를 쓸 때, **보안관의 두 번째 차례부터** 보안관 차례 시작마다 쌓인다.
+  와일드 웨스트 쇼는 차례 뼈대에 끼지 않는다. 손에서 **역마차·웰스 파고를 낼 때** 낸 사람이
+  더미를 가져가 공개한다(`engine/play.ts` → `revealEventOnPlayFrames`, 카드 효과보다 먼저).
+  리 반 클리프가 다시 낸 효과로는 공개하지 않는다. 어느 쪽인지는 덱 스펙의 `revealOn`(`data/events.ts`)이 정한다 (EC-152)
 - `eventTurnStart` 는 그 시점에 걸린 훅을 모아 순서대로 쌓는다.
   발동 순서는 `Modifier.order` 가 정한다: 새로운 신분(1) → 하이 눈(5) → 다이너마이트(10) → 감옥(20)
 - 감옥에 걸리면 `skipRestOfTurn()` 이 이번 차례의 `drawPhase`·`playPhase`·`discardPhase` 를
