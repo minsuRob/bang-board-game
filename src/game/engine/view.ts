@@ -81,9 +81,14 @@ export function viewFor(state: GameState, pid: PlayerId): GameState {
       return secret.to.includes(pid) ? { ...rest, secret, text: secret.text } : rest;
     }),
     // 포커: 모두 엎어 낼 때까지 판돈은 아무에게도 보이지 않는다
-    stack: state.stack.map((f) =>
-      f.k === 'poker' && f.left === undefined ? { ...f, pot: hiddenList(f.pot.length) } : f,
-    ),
+    // 카드 가져오기 단계에서 먼저 받은 카드(제시 존스가 남의 손에서 뽑은 장)는 받은 사람만 안다
+    stack: state.stack.map((f) => {
+      if (f.k === 'poker' && f.left === undefined) return { ...f, pot: hiddenList(f.pot.length) };
+      if (f.k === 'drawCards' && f.lead && f.pid !== pid && !openHands) {
+        return { ...f, lead: hiddenList(f.lead.length) };
+      }
+      return f;
+    }),
   };
 }
 

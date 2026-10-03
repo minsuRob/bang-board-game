@@ -27,6 +27,20 @@ import { nextInt } from '../rng';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 import { eul, ga } from '../josa';
 
+/**
+ * 카드 가져오기 단계(1단계)에 속하는 드로우. 캐릭터 능력이 1단계를 나눠 가져와도 여기에 든다.
+ * afterDraw 훅(블랙 잭·서부의 법)은 이 드로우에서 1단계 전체를 받은 순서대로 본다.
+ * 블랙 잭의 추가 1장은 넣지 않는다 (그 장에 다시 훅이 울리면 안 된다).
+ */
+const PHASE_ONE_DRAWS = ['drawPhase', 'jesseJones', 'pedroRamirez', 'kitCarlson'];
+
+/**
+ * 폐광이 버린 더미로 돌리는 드로우. 원문 "During his phase 1, each player draws from the discards".
+ * 제시 존스·페드로 라미레즈 능력 뒤 나머지 장과 블랙 잭의 추가 1장도 1단계 드로우다.
+ * 킷 칼슨(덱 맨 위를 보고 고르는 능력)은 원문과 정면으로 부딪혀 정하지 않았다. 지금은 덱에서 가져온다.
+ */
+const MINE_DRAWS = ['drawPhase', 'jesseJones', 'pedroRamirez', 'blackJack'];
+
 export function resolveDrawCards(
   state: GameState,
   frame: Frame & { k: 'drawCards' },
@@ -35,9 +49,9 @@ export function resolveDrawCards(
   const p = playerOf(cur, frame.pid);
   if (!inPlay(p) || frame.count <= 0) return cur;
 
-  // 폐광: 정규 드로우는 버린 더미 맨 위부터 가져오고, 모자란 만큼만 덱에서 가져온다.
+  // 폐광: 1단계 드로우는 버린 더미 맨 위부터 가져오고, 모자란 만큼만 덱에서 가져온다.
   const fromDiscard =
-    frame.reason === 'drawPhase' && drawsFromDiscard(cur)
+    MINE_DRAWS.includes(frame.reason) && drawsFromDiscard(cur)
       ? cur.discard.slice(-frame.count).reverse()
       : [];
   if (fromDiscard.length > 0) {
@@ -57,9 +71,10 @@ export function resolveDrawCards(
         : `${ga(nameOf(cur, frame.pid))} 카드 ${cards.length}장을 가져왔다.`,
   });
 
-  // 블랙 잭처럼 뽑은 카드를 보고 반응하는 훅은 정규 드로우 단계에서만 울린다.
-  if (frame.reason === 'drawPhase') {
-    return pushSeq(cur, afterDrawFrames(cur, frame.pid, cards));
+  // 블랙 잭·서부의 법처럼 뽑은 카드를 보고 반응하는 훅은 카드 가져오기 단계에서만 울린다.
+  // 능력으로 먼저 받은 카드(lead)를 앞에 붙여 1단계에서 받은 순서 그대로 넘긴다.
+  if (PHASE_ONE_DRAWS.includes(frame.reason)) {
+    return pushSeq(cur, afterDrawFrames(cur, frame.pid, [...(frame.lead ?? []), ...cards]));
   }
   return cur;
 }
@@ -85,9 +100,22 @@ export function resolveDrawFromPlayer(
     }));
     taken.push(card);
   }
-  if (taken.length === 0) return cur;
+  // 제시 존스: 카드 가져오기 단계의 나머지 장. 남의 손에서 받은 카드가 1단계의 첫 장이다
+  const rest: Frame[] =
+    frame.thenDraw === undefined || frame.thenDraw + frame.count - taken.length <= 0
+      ? []
+      : [
+          {
+            k: 'drawCards',
+            pid: frame.pid,
+            count: frame.thenDraw + frame.count - taken.length,
+            reason: 'jesseJones',
+            lead: taken,
+          },
+        ];
+  if (taken.length === 0) return pushSeq(cur, rest);
 
-  cur = pushSeq(cur, onCardTakenFrames(cur, frame.from, frame.pid));
+  cur = pushSeq(cur, [...onCardTakenFrames(cur, frame.from, frame.pid), ...rest]);
   cur = giveCards(cur, frame.pid, taken);
   return log(cur, {
     t: 'steal',
@@ -308,7 +336,12 @@ export function respondSteal(
 
 // ---------------------------------------------------------------------------
 // 킷 칼슨 — 맨 위 세 장을 보고 두 장을 고른다
+//
+// 가져올 장수가 이벤트로 줄어도(갈증) 늘 세 장을 본다 (하이 눈 FAQ Q06).
+// 세 장 이상 가져오는 경우는 고를 것이 없어 modifiers/characters/kit-carlson.ts 가 그냥 뽑는다.
 // ---------------------------------------------------------------------------
+
+const KIT_LOOK = 3;
 
 export function resolveKitCarlson(
   state: GameState,
@@ -318,13 +351,15 @@ export function resolveKitCarlson(
   let candidates = frame.candidates;
 
   if (candidates.length === 0) {
-    const drawn = drawFromDeck(cur, frame.taken + 1);
+    const drawn = drawFromDeck(cur, KIT_LOOK);
     cur = drawn.state;
     candidates = drawn.cards;
   }
   if (frame.taken <= 0 || candidates.length === 0) {
-    // 남은 카드는 덱 맨 위로 되돌린다.
-    return putOnDeck(popFrame(cur), [...candidates].reverse());
+    // 남은 카드는 덱 맨 위로, 뽑은 순서 그대로 되돌린다.
+    cur = putOnDeck(popFrame(cur), [...candidates].reverse());
+    // 고른 순서가 곧 가져온 순서다 (서부의 법 '두 번째 카드')
+    return pushSeq(cur, afterDrawFrames(cur, frame.pid, frame.picked ?? []));
   }
   cur = replaceTop(cur, { ...frame, candidates });
   return {
@@ -347,6 +382,7 @@ export function respondKitCarlson(
     ...frame,
     candidates: frame.candidates.filter((c) => c !== card),
     taken: frame.taken - 1,
+    picked: [...(frame.picked ?? []), card],
   });
 }
 
@@ -377,10 +413,7 @@ export function respondJesseJones(
   const cur = popFrame(state);
   if (choice.c === 'player') {
     return pushSeq(cur, [
-      { k: 'drawFromPlayer', pid: frame.pid, from: choice.pid, count: 1 },
-      ...(frame.rest > 0
-        ? [{ k: 'drawCards', pid: frame.pid, count: frame.rest, reason: 'jesseJones' } as Frame]
-        : []),
+      { k: 'drawFromPlayer', pid: frame.pid, from: choice.pid, count: 1, thenDraw: frame.rest },
     ]);
   }
   return pushSeq(cur, [
@@ -429,7 +462,7 @@ export function respondPedroRamirez(
     });
     return frame.rest > 0
       ? pushSeq(cur, [
-          { k: 'drawCards', pid: frame.pid, count: frame.rest, reason: 'pedroRamirez' },
+          { k: 'drawCards', pid: frame.pid, count: frame.rest, reason: 'pedroRamirez', lead: [card] },
         ])
       : cur;
   }

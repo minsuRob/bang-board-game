@@ -236,9 +236,22 @@ export type Frame =
   | { k: 'eliminateCleanup'; target: PlayerId }
   | { k: 'bountyOrPenalty'; killer: PlayerId | null; victim: PlayerId }
   // 카드 이동
-  | { k: 'drawCards'; pid: PlayerId; count: number; reason: string }
-  /** 남의 손에서 무작위로 가져온다 (엘 그링고·제시 존스) */
-  | { k: 'drawFromPlayer'; pid: PlayerId; from: PlayerId; count: number }
+  | {
+      k: 'drawCards';
+      pid: PlayerId;
+      count: number;
+      reason: string;
+      /**
+       * 카드 가져오기 단계에서 이 드로우보다 먼저 받은 카드 (제시 존스·페드로 라미레즈가 능력으로
+       * 받은 첫 장). afterDraw 훅이 1단계 전체를 받은 순서대로 보게 한다 (서부의 법 '두 번째 카드')
+       */
+      lead?: CardId[];
+    }
+  /**
+   * 남의 손에서 무작위로 가져온다 (엘 그링고·제시 존스).
+   * thenDraw 가 있으면 카드 가져오기 단계의 나머지 장수다 (제시 존스). 가져온 카드를 lead 로 넘긴다
+   */
+  | { k: 'drawFromPlayer'; pid: PlayerId; from: PlayerId; count: number; thenDraw?: number }
   /** 그 사람의 손패와 장비를 전부 가져온다 (벌쳐 샘) */
   | { k: 'takeAllCards'; pid: PlayerId; from: PlayerId }
   /** 목숨 회복 */
@@ -250,7 +263,8 @@ export type Frame =
   /** 조니 키시: 방금 내려놓은 card 와 이름이 같은 다른 카드를 모두 버린다 */
   | { k: 'discardSameName'; pid: PlayerId; card: CardId }
   // 캐릭터·이벤트가 만드는 선택
-  | { k: 'kitCarlson'; pid: PlayerId; candidates: CardId[]; taken: number }
+  /** picked: 이미 고른 카드, 고른 순서대로 (서부의 법 '두 번째 카드') */
+  | { k: 'kitCarlson'; pid: PlayerId; candidates: CardId[]; taken: number; picked?: CardId[] }
   | { k: 'jesseJonesChoice'; pid: PlayerId; rest: number }
   | { k: 'pedroRamirezChoice'; pid: PlayerId; rest: number }
   | { k: 'blackJackReveal'; pid: PlayerId; card: CardId }

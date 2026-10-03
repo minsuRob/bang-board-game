@@ -662,7 +662,7 @@ export function buildPrompt(view: GameState): Prompt | null {
       return {
         ...base,
         title: '카드 가져오기',
-        hint: `${a.remaining}장을 더 고른다. 남은 한 장은 덱으로 돌아간다`,
+        hint: `${a.remaining}장을 더 고른다. 남은 카드는 뽑은 순서대로 덱 위로 돌아간다`,
         cardOptions: a.options,
       };
     case 'daltonsDiscard':
