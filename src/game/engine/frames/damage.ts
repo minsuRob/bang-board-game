@@ -90,11 +90,14 @@ export function resolveDamage(state: GameState, frame: Frame & { k: 'damage' }):
     }
   }
 
-  // 능력이 먼저 울린다. 바트 캐시디가 뽑은 카드에 맥주가 있을 수 있기 때문이다.
-  const frames: Frame[] = onDamagedFrames(cur, p.id, frame.amount, frame.source, frame.cause);
+  // 죽음 판정이 먼저다. 마지막 목숨을 잃었을 때는 손에 이미 있던 맥주로만 살아나고,
+  // 바트 캐시디·엘 그링고처럼 목숨을 잃어 받는 카드는 살아남은 뒤에야 받는다 (공식 FAQ Q17).
+  // 죽으면 받는 프레임은 inPlay 검사에서 저절로 건너뛴다.
+  const frames: Frame[] = [];
   if (hp <= 0) {
     frames.push({ k: 'checkDeath', target: p.id, source: frame.credit ?? frame.source ?? null });
   }
+  frames.push(...onDamagedFrames(cur, p.id, frame.amount, frame.source, frame.cause));
   if (frame.source && frame.source !== p.id) {
     frames.push(...onDealtDamageFrames(cur, frame.source, p.id, frame.amount, frame.cause));
   }
