@@ -35,6 +35,7 @@ import { SpeedControl } from '@/game/ui/SpeedControl';
 import { ResultTable } from '@/game/ui/ResultTable';
 import { Table } from '@/game/ui/Table';
 import { useHotkeys } from '@/game/ui/use-hotkeys';
+import { handleCardPress } from '@/game/ui/table-text';
 import { useTable } from '@/game/ui/use-table';
 import { WesternFonts } from '@/game/ui/menu/western-fonts';
 import { themedStyles, useColors } from '@/game/ui/theme/use-theme';
@@ -296,10 +297,7 @@ export default function GameScreen() {
         api.discard(card);
         return;
       }
-      if (!api.playable.has(card)) return;
-      const targets = api.targetsFor(card);
-      if (targets.length === 0) api.playCard(card);
-      else api.select(api.selected === card ? null : card);
+      handleCardPress(api, card);
     },
     [api, view, viewer],
   );

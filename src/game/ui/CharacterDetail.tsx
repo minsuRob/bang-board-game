@@ -17,6 +17,7 @@ import { CharacterCard } from './CharacterCard';
 import { WesternFonts } from './menu/western-fonts';
 import { themedStyles, useColors } from './theme/use-theme';
 import { Radius, Spacing, type ThemeColors } from '@/constants/theme';
+import { HpPips } from './HpPips';
 
 /** 역할 색. 테마마다 종이·밤 바탕에서 읽히는 색이 다르다 */
 function roleColor(c: ThemeColors, role: Role): string {
@@ -59,14 +60,12 @@ export function CharacterDetail({
             {character.nameKo}
             {player.ghost ? ' · 유령' : dead ? ' · 제거됨' : ''}
           </Text>
-          <Text style={styles.hp}>
-            {'●'.repeat(hp)}
-            <Text style={styles.hpEmpty}>{'○'.repeat(Math.max(0, player.maxHp - hp))}</Text>
+          <View style={styles.hpRow}>
+            <HpPips hp={hp} maxHp={player.maxHp} style={styles.hp} emptyStyle={styles.hpEmpty} />
             <Text style={styles.hpNumber}>
-              {'  '}
               {hp}/{player.maxHp}
             </Text>
-          </Text>
+          </View>
           {!isSelf && (
             <Text style={styles.meta}>
               손패 {player.hand.length}
@@ -165,6 +164,7 @@ const useStyles = themedStyles((c) => ({
   character: { color: c.text, fontSize: 13, fontWeight: '700' },
   hp: { color: c.hp, fontSize: 13, letterSpacing: 1 },
   hpEmpty: { color: c.border },
+  hpRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   hpNumber: { color: c.text, fontSize: 12, fontWeight: '800', letterSpacing: 0 },
   meta: { color: c.textMuted, fontSize: 11 },
   equipment: { color: c.deputy, fontSize: 11 },

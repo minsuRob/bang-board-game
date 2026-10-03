@@ -48,6 +48,7 @@ import { themedStyles } from './theme/use-theme';
 import { glowingSeat } from './glowing-seat';
 import type { TableApi } from './use-table';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { HpPips } from './HpPips';
 
 const ROLE_COLOR: Record<Role, string> = {
   sheriff: Colors.sheriff,
@@ -361,12 +362,12 @@ function CompactSeat({
           </View>
 
           <View style={styles.compactRow}>
-            <Text style={styles.compactHp}>
-              {'●'.repeat(Math.max(0, player.hp))}
-              <Text style={styles.compactHpEmpty}>
-                {'○'.repeat(Math.max(0, player.maxHp - Math.max(0, player.hp)))}
-              </Text>
-            </Text>
+            <HpPips
+              hp={Math.max(0, player.hp)}
+              maxHp={player.maxHp}
+              style={styles.compactHp}
+              emptyStyle={styles.compactHpEmpty}
+            />
             {dist !== null && <Text style={styles.compactMeta}>거리 {dist}</Text>}
           </View>
         </>

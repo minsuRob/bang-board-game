@@ -29,6 +29,15 @@ export function handleCardPress(api: TableApi, card: CardId) {
     return;
   }
   if (!api.playable.has(card)) return;
+  if (api.selected === card) {
+    api.select(null);
+    return;
+  }
+  // 결전: 원래대로도, 뱅!으로도 낼 수 있으면 종류부터 고른다
+  if (api.kindsFor(card).length > 1) {
+    api.askKind(card);
+    return;
+  }
 
   const targets = api.targetsFor(card);
   if (targets.length === 0) {
@@ -36,7 +45,7 @@ export function handleCardPress(api: TableApi, card: CardId) {
     return;
   }
   // 지목이 필요한 카드는 한 번 더 눌러 대상을 고르게 한다.
-  api.select(api.selected === card ? null : card);
+  api.select(card);
 }
 
 export function statusMessage(view: GameState, viewer: PlayerId): string {
@@ -70,11 +79,17 @@ export function bottomStatus(view: GameState, viewer: PlayerId, api: TableApi): 
     return `손패를 목숨 수(${me.hp}장)까지 줄여야 한다`;
   }
   if (api.selected) {
+    const name = CARD_DEFS[api.selectedAs ?? kindOf(api.selected)].nameKo;
+    const lead = api.selectedAs ? `${ro(name)} 낼 상대를 고른다` : '지목할 상대를 고른다';
     // 대상 없이도 낼 수 있으면 내 자리를 누르면 된다 (결전의 맥주 등)
-    if (api.targetsFor(api.selected).includes(viewer)) {
-      return `지목할 상대를 고른다 · 내 자리를 누르면 ${eul(CARD_DEFS[kindOf(api.selected)].nameKo)} 그대로 낸다 (Esc 취소)`;
+    if (api.canPlayUntargeted(api.selected) && api.targetsFor(api.selected).includes(viewer)) {
+      return `${lead} · 내 자리를 누르면 ${eul(name)} 그대로 낸다 (Esc 취소)`;
     }
-    return '지목할 상대를 고른다 (Esc 취소)';
+    // 강탈·캣 벌로우는 내 앞의 카드도 치울 수 있다
+    if (api.targetsFor(api.selected).includes(viewer)) {
+      return `${lead} · 내 자리를 누르면 내 앞의 카드를 고른다 (Esc 취소)`;
+    }
+    return `${lead} (Esc 취소)`;
   }
   if (api.armed) {
     const ab = api.playAsAbilities.find((x) => x.key === api.armed);

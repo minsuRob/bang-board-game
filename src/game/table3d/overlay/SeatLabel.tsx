@@ -18,6 +18,7 @@ import { PRESENCE_LABEL, PresenceDot } from '../../ui/PresenceDot';
 import { WesternFonts } from '../../ui/menu/western-fonts';
 import { themedStyles, useColors } from '../../ui/theme/use-theme';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { HpPips } from '../../ui/HpPips';
 
 /** 판 팔레트의 역할 색 (테마를 모르는 곳용). 라벨은 테마 팔레트의 c[role] 을 쓴다 */
 export const ROLE_COLOR: Record<Role, string> = {
@@ -192,16 +193,19 @@ export function SeatLabel({
           </Text>
         )}
         <View style={styles.row}>
-          <Text style={[styles.hp, big && styles.selfHp]}>
-            {'●'.repeat(Math.max(0, player.hp))}
-            <Text style={styles.hpEmpty}>{'○'.repeat(Math.max(0, player.maxHp - Math.max(0, player.hp)))}</Text>
+          <View style={styles.hpRow}>
+            <HpPips
+              hp={Math.max(0, player.hp)}
+              maxHp={player.maxHp}
+              style={[styles.hp, big && styles.selfHp]}
+              emptyStyle={styles.hpEmpty}
+            />
             {big && (
               <Text style={styles.selfHpNumber}>
-                {'  '}
                 {Math.max(0, player.hp)}/{player.maxHp}
               </Text>
             )}
-          </Text>
+          </View>
           {dist !== null && <Text style={styles.meta}>거리 {dist}</Text>}
         </View>
         {player.equipment.length > 0 && (
@@ -290,6 +294,7 @@ const useStyles = themedStyles((c) => ({
   character: { color: c.textMuted, fontSize: 10 },
   hp: { color: c.hp, fontSize: 10, letterSpacing: 1 },
   hpEmpty: { color: c.rule },
+  hpRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   meta: { color: c.textMuted, fontSize: 9 },
   guess: {
     borderWidth: 1,

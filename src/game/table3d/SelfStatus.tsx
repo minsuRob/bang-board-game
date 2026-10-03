@@ -17,6 +17,7 @@ import { PRESENCE_LABEL, PresenceDot } from '../ui/PresenceDot';
 import { ROLE_COLOR } from './overlay/SeatLabel';
 import { themedStyles } from '../ui/theme/use-theme';
 import { Radius, Spacing } from '@/constants/theme';
+import { HpPips } from '../ui/HpPips';
 
 export function SelfStatus({
   player,
@@ -57,14 +58,12 @@ export function SelfStatus({
           <Text style={[styles.roleChip, styles.roleChipCompact, { backgroundColor: ROLE_COLOR[player.role] }]}>
             {ROLE_LABEL[player.role]}
           </Text>
-          <Text style={[styles.hp, styles.hpCompact]}>
-            {'●'.repeat(hp)}
-            <Text style={styles.hpEmpty}>{'○'.repeat(Math.max(0, player.maxHp - hp))}</Text>
+          <View style={[styles.hpRow, styles.hpRowCompact]}>
+            <HpPips hp={hp} maxHp={player.maxHp} style={[styles.hp, styles.hpCompact]} emptyStyle={styles.hpEmpty} />
             <Text style={[styles.hpNumber, styles.hpNumberCompact]}>
-              {' '}
               {hp}/{player.maxHp}
             </Text>
-          </Text>
+          </View>
         </View>
         <Text style={styles.detail} numberOfLines={1}>
           {!!equipment && <Text style={styles.equipmentInline}>{equipment} · </Text>}
@@ -91,14 +90,12 @@ export function SelfStatus({
         <Text style={[styles.roleChip, { backgroundColor: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
       </View>
       <View style={styles.row}>
-        <Text style={styles.hp}>
-          {'●'.repeat(hp)}
-          <Text style={styles.hpEmpty}>{'○'.repeat(Math.max(0, player.maxHp - hp))}</Text>
+        <View style={styles.hpRow}>
+          <HpPips hp={hp} maxHp={player.maxHp} style={styles.hp} emptyStyle={styles.hpEmpty} />
           <Text style={styles.hpNumber}>
-            {'  '}
             {hp}/{player.maxHp}
           </Text>
-        </Text>
+        </View>
         {!!equipment && (
           <Text style={styles.equipment} numberOfLines={1}>
             {equipment}
@@ -136,6 +133,7 @@ const useStyles = themedStyles((c) => ({
   },
   hp: { color: c.hp, fontSize: 15, letterSpacing: 2 },
   hpEmpty: { color: c.border },
+  hpRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   hpNumber: { color: c.text, fontSize: 13, fontWeight: '800', letterSpacing: 0 },
   equipment: { color: c.deputy, fontSize: 12, flexShrink: 1 },
   // 좁은 화면
@@ -143,7 +141,8 @@ const useStyles = themedStyles((c) => ({
   nameCompact: { fontSize: 14 },
   characterCompact: { fontSize: 12 },
   roleChipCompact: { fontSize: 10, paddingHorizontal: 6 },
-  hpCompact: { fontSize: 12, letterSpacing: 1, marginLeft: 'auto' },
+  hpCompact: { fontSize: 12, letterSpacing: 1 },
+  hpRowCompact: { gap: Spacing.one, marginLeft: 'auto' },
   hpNumberCompact: { fontSize: 11 },
   detail: { color: c.textMuted, fontSize: 10, lineHeight: 13 },
   equipmentInline: { color: c.deputy },

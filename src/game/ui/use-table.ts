@@ -98,6 +98,14 @@ export type TableApi = {
   selected: CardId | null;
   select: (card: CardId | null) => void;
   targetsFor: (card: CardId) => PlayerId[];
+  /** 대상 없이 그대로 낼 수 있는가 (결전의 맥주처럼 지목해서도 낼 수 있는 카드에서 내 자리의 뜻) */
+  canPlayUntargeted: (card: CardId) => boolean;
+  /** 이 카드를 낼 수 있는 종류들. 둘 이상이면(결전·르맷의 '뱅!으로') 먼저 고르게 한다 */
+  kindsFor: (card: CardId) => CardKind[];
+  /** 낼 종류를 고르는 창을 연다 */
+  askKind: (card: CardId) => void;
+  /** 고른 카드를 무슨 종류로 내기로 했는가. 고르지 않았으면 null */
+  selectedAs: CardKind | null;
   playCard: (card: CardId, target?: PlayerId) => void;
   canEndTurn: boolean;
   endTurn: () => void;
@@ -249,6 +257,10 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
   const [abilityPick, setAbilityPick] = useState<{ key: string; picked: CardId[]; turn: string } | null>(
     null,
   );
+  // 결전처럼 한 카드를 원래대로도, 뱅!으로도 낼 수 있으면 대상을 고르기 전에 종류부터 고른다.
+  // 대상을 합쳐 두면 거리 2 상대를 누른 강탈이 말없이 뱅!으로 나간다
+  const [kindAsk, setKindAsk] = useState<{ card: CardId; kinds: CardKind[]; turn: string } | null>(null);
+  const [kindPick, setKindPick] = useState<{ card: CardId; as: CardKind; turn: string } | null>(null);
 
   const actor = selectActor(view);
   const myTurn = Boolean(view && viewer && view.turn.active === viewer && !view.awaiting);
@@ -271,8 +283,8 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     return set;
   }, [legal]);
 
-  /** 이 카드로 낼 수 있는 수. 저격수 쌍은 어느 쪽 카드로 골라도 잡힌다 */
-  const plays = useCallback(
+  /** 이 카드로 낼 수 있는 모든 수. 저격수 쌍은 어느 쪽 카드로 골라도 잡힌다 */
+  const allPlays = useCallback(
     (card: CardId) =>
       legal.filter(
         (a): a is Extract<Action, { type: 'playCard' }> =>
@@ -281,24 +293,46 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     [legal],
   );
 
+  const kindsFor = useCallback(
+    (card: CardId) => {
+      const kinds = new Set(allPlays(card).map(playedKind));
+      // 원래 종류를 먼저
+      return [...kinds].sort((x, y) => Number(y === kindOf(card)) - Number(x === kindOf(card)));
+    },
+    [allPlays],
+  );
+
+  const pickedKind = useCallback(
+    (card: CardId) => (kindPick && kindPick.card === card && kindPick.turn === turnId ? kindPick.as : null),
+    [kindPick, turnId],
+  );
+
+  /** 이 카드로 낼 수 있는 수. 낼 종류를 골라 두었으면 그 종류만 */
+  const plays = useCallback(
+    (card: CardId, as: CardKind | null = pickedKind(card)) =>
+      allPlays(card).filter((a) => as === null || playedKind(a) === as),
+    [allPlays, pickedKind],
+  );
+
   // 대상 없이도, 지목해서도 낼 수 있는 카드(결전의 맥주·역마차 등)는 내 자리를 '대상 없이 내기'로 쓴다.
   // 지목 수만 있으면 고르기 모드로 들어가, 맥주를 그냥 마실 길이 막힌다.
-  const targetsFor = useCallback(
-    (card: CardId) => {
+  const targetsOf = useCallback(
+    (list: Extract<Action, { type: 'playCard' }>[]) => {
       const out = new Set<PlayerId>();
-      const list = plays(card);
       for (const a of list) if (a.target) out.add(a.target);
       if (out.size > 0 && viewer && list.some((a) => !a.target)) out.add(viewer);
       return [...out];
     },
-    [plays, viewer],
+    [viewer],
   );
+  const targetsFor = useCallback((card: CardId) => targetsOf(plays(card)), [targetsOf, plays]);
+  const canPlayUntargeted = useCallback((card: CardId) => plays(card).some((a) => !a.target), [plays]);
 
-  const playCard = useCallback(
-    (card: CardId, target?: PlayerId) => {
-      let matches = plays(card).filter((a) => a.target === target);
+  const playWith = useCallback(
+    (card: CardId, target: PlayerId | undefined, as: CardKind | null) => {
+      let matches = plays(card, as).filter((a) => a.target === target);
       if (matches.length === 0 && target && target === viewer) {
-        matches = plays(card).filter((a) => !a.target);
+        matches = plays(card, as).filter((a) => !a.target);
       }
       if (matches.length === 0) return;
       // 리코체로 노릴 카드가 여럿이면 고르게 한다
@@ -316,8 +350,24 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
       setSelected(null);
       setArmedFor(null);
       setRicochetAt(null);
+      setKindPick(null);
     },
     [plays, submit, armedMode, turnId, viewer],
+  );
+  const playCard = useCallback(
+    (card: CardId, target?: PlayerId) => playWith(card, target, pickedKind(card)),
+    [playWith, pickedKind],
+  );
+
+  const askKind = useCallback(
+    (card: CardId) => {
+      setSelected(null);
+      setVariantAt(null);
+      setAbilityPick(null);
+      setKindPick(null);
+      setKindAsk({ card, kinds: kindsFor(card), turn: turnId });
+    },
+    [kindsFor, turnId],
   );
 
   const arm = useCallback(
@@ -327,6 +377,8 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
       setRicochetAt(null);
       setVariantAt(null);
       setAbilityPick(null);
+      setKindAsk(null);
+      setKindPick(null);
     },
     [turnId],
   );
@@ -335,7 +387,18 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     setSelected(card);
     setVariantAt(null);
     setAbilityPick(null);
+    setKindAsk(null);
+    // 같은 카드를 다시 고르는 게 아니면 골라 둔 종류는 버린다
+    setKindPick((k) => (card !== null && k?.card === card ? k : null));
   }, []);
+
+  // 종류 고르기. 그새 판이 바뀌어 한 종류만 남았으면 닫는다
+  const kindChoice = useMemo(() => {
+    if (!kindAsk || kindAsk.turn !== turnId) return null;
+    const live = kindsFor(kindAsk.card);
+    const kinds = kindAsk.kinds.filter((k) => live.includes(k));
+    return kinds.length > 1 ? { card: kindAsk.card, kinds } : null;
+  }, [kindAsk, turnId, kindsFor]);
 
   // 리코체 대상 카드 고르기. 엔진의 입력 대기가 아니라 이 화면에만 있는 단계다
   const ricochet = useMemo(() => {
@@ -383,6 +446,19 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
   const respond = useCallback(
     (choice: UiChoice) => {
       if (!viewer) return;
+      if (kindChoice) {
+        setKindAsk(null);
+        const as = choice.c === 'variant' ? kindChoice.kinds[choice.index] : undefined;
+        if (!as) return;
+        const { card } = kindChoice;
+        if (targetsOf(plays(card, as)).length === 0) {
+          playWith(card, undefined, as);
+        } else {
+          setKindPick({ card, as, turn: turnId });
+          setSelected(card);
+        }
+        return;
+      }
       if (variant) {
         const match = choice.c === 'variant' ? variant.options[choice.index] : undefined;
         if (match) {
@@ -424,7 +500,7 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
       const match = legal.find((a) => actionKey(a) === wanted);
       if (match) submit(match);
     },
-    [legal, submit, viewer, ricochet, variant, pickCombos, turnId],
+    [legal, submit, viewer, ricochet, variant, pickCombos, turnId, kindChoice, targetsOf, plays, playWith],
   );
 
   const abilities = useMemo(() => {
@@ -505,6 +581,17 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
         center: { cards, zone: 'option', handCount: 0 },
       };
     }
+    if (view && kindChoice) {
+      const own = kindOf(kindChoice.card);
+      return {
+        ...empty(),
+        title: CARD_DEFS[own].nameKo,
+        hint: '어떻게 낼지 고른다',
+        canPass: true,
+        passLabel: '취소 (W)',
+        variants: kindChoice.kinds.map((k) => `${ro(CARD_DEFS[k].nameKo)} 낸다`),
+      };
+    }
     if (view && variant) {
       const first = variant.options[0];
       const name = CARD_DEFS[kindOf(first.card)].nameKo;
@@ -529,7 +616,7 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
       };
     }
     return view && waitingOnMe ? buildPrompt(view) : null;
-  }, [view, waitingOnMe, ricochet, variant, pickCombos]);
+  }, [view, waitingOnMe, ricochet, variant, pickCombos, kindChoice]);
 
   // 골드 러시: 사기·치우기·맥주 팔기·금덩이 능력. 배낭은 죽기 직전에도 나온다.
   const goldActions = useMemo(
@@ -561,6 +648,10 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     selected,
     select,
     targetsFor,
+    canPlayUntargeted,
+    kindsFor,
+    askKind,
+    selectedAs: selected ? pickedKind(selected) : null,
     playCard,
     canEndTurn,
     endTurn,
@@ -862,6 +953,11 @@ function cardShort(id: CardId): string {
 }
 
 /** 같은 카드·같은 대상의 여러 수를, 서로 다른 점만 적어 구분한다 */
+/** 낸 수가 어떤 종류로 나가는가 */
+function playedKind(a: Extract<Action, { type: 'playCard' }>): CardKind {
+  return a.as ?? kindOf(a.card);
+}
+
 function variantLabel(
   view: GameState,
   a: Extract<Action, { type: 'playCard' }>,

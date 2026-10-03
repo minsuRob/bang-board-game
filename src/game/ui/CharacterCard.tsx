@@ -12,6 +12,7 @@ import type { CharacterId } from '../data/types';
 import { characterArt } from './card-art';
 import { CharacterPortraitImage } from './CharacterPortraitImage';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { HpPips } from './HpPips';
 
 // 그림은 카드 통째가 아니라 초상 칸만 잘라 쓴다. 이름은 아래 띠가 한국어로 대신한다
 export const CHARACTER_CARD = { width: 150, height: 214 } as const;
@@ -36,7 +37,7 @@ export function CharacterCard({ id, compact, width }: { id: CharacterId; compact
             <Text style={[styles.stripName, tiny && styles.stripNameTiny]} numberOfLines={1}>
               {def.nameKo}
             </Text>
-            {showHp && <Text style={styles.stripHp}>{'●'.repeat(def.maxHp)}</Text>}
+            {showHp && <HpPips hp={def.maxHp} maxHp={def.maxHp} style={styles.stripHp} />}
           </View>
         </>
       ) : (
@@ -47,7 +48,7 @@ export function CharacterCard({ id, compact, width }: { id: CharacterId; compact
           <Text style={styles.nameEn} numberOfLines={1}>
             {def.name}
           </Text>
-          <Text style={styles.hp}>{'●'.repeat(def.maxHp)}</Text>
+          <HpPips hp={def.maxHp} maxHp={def.maxHp} style={styles.hp} />
           <View style={styles.rule} />
           <Text style={[styles.ability, compact && { fontSize: 10, lineHeight: 13 }]} numberOfLines={compact ? 6 : 8}>
             {def.ability}
