@@ -21,7 +21,14 @@ import {
   type PlayerId,
 } from '../engine';
 import { isHidden } from '../engine/view';
-import { canUseCardAs, handLimitOf, isRepeatAbility, isSwapAbility, turnDirectionOf } from '../engine/hooks';
+import {
+  canUseCardAs,
+  handLimitOf,
+  isRepeatAbility,
+  isSwapAbility,
+  outgoingBangMissesOf,
+  turnDirectionOf,
+} from '../engine/hooks';
 import { rightNeighborOf } from '../engine/distance';
 import { CHARACTER_VALUE } from './draft';
 import { scoreGold } from './gold-policy';
@@ -34,6 +41,7 @@ import {
   type Situation,
 } from './belief';
 import { cardValue, danger } from './evaluate';
+import { firstWinsDuel, knownHand, knownReactive } from './open-hands';
 
 const NEUTRAL = 0;
 
@@ -63,13 +71,21 @@ function needsSheriffAlive(view: GameState, me: PlayerId, sit: Situation): boole
  * 적이 맞는 만큼 더하고 같은 편이 맞는 만큼 뺀다. 보안관이 한 방에 죽을 수 있으면
  * 역할에 따라 결정타이거나 자살이다.
  */
-function scoreArea(view: GameState, me: PlayerId, beliefs: Beliefs, sit: Situation, perHit: number): number {
+function scoreArea(
+  view: GameState,
+  me: PlayerId,
+  beliefs: Beliefs,
+  sit: Situation,
+  perHit: number,
+  dodge?: CardKind,
+): number {
   let s = 0;
   for (const p of alivePlayers(view)) {
     if (p.id === me) continue;
     const h = hostility(view, me, p.id, beliefs, sit);
-    s += (h - 0.4) * perHit;
-    if (p.hp === 1) s += (h - 0.4) * perHit;
+    const w = (h - 0.4) * perHit * (dodge ? areaHitWeight(view, p.id, dodge) : 1);
+    s += w;
+    if (p.hp === 1) s += w;
   }
   if (sit.sheriffId && sit.sheriffId !== me) {
     const role = playerOf(view, me).role;
@@ -81,6 +97,42 @@ function scoreArea(view: GameState, me: PlayerId, beliefs: Beliefs, sit: Situati
     }
   }
   return s;
+}
+
+/**
+ * 광역 카드가 그 사람에게 실제로 들어가는 정도.
+ * 손패가 펼쳐져 있으면(사카가웨이) 막을 카드가 있는지 안다. 막더라도 카드 한 장은 쓰게 한다.
+ */
+function areaHitWeight(view: GameState, pid: PlayerId, dodge: CardKind): number {
+  const n = knownReactive(view, pid, dodge);
+  if (n === null) return 1;
+  return n > 0 ? 0.35 : 1.25;
+}
+
+/**
+ * 손패가 펼쳐져 있을 때 뱅!(같은 계열)이 들어갈지 보고 점수를 고친다.
+ * 막을 빗나감!이 모자라면 확실히 맞고, 넉넉하면 빗나감! 한 장만 버리게 한다.
+ * 술통은 판정이라 여전히 운이다. 손을 모르면 0.
+ */
+function openHandBangEdge(view: GameState, target: PlayerId, needed: number, enemy: number): number {
+  const dodges = knownReactive(view, target, 'missed');
+  if (dodges === null) return 0;
+  const t = playerOf(view, target);
+  const barrel = t.equipment.some((c) => !isHidden(c) && kindOf(c) === 'barrel');
+  if (dodges >= needed) return -6 * enemy;
+  let s = (barrel ? 3 : 6) * enemy;
+  if (t.hp === 1) s += (barrel ? 4 : 10) * enemy;
+  return s;
+}
+
+/**
+ * 결투를 걸면 이기는가. 지목당한 쪽이 먼저 내므로 상대가 내 장수보다 많이 쥐어야 이긴다.
+ * 상대 손을 모르면 null.
+ */
+function duelOutcome(view: GameState, me: PlayerId, target: PlayerId, spent: CardId): 'win' | 'lose' | null {
+  const theirs = knownReactive(view, target, 'bang');
+  if (theirs === null) return null;
+  return firstWinsDuel(theirs, duelAmmo(view, me, spent)) ? 'lose' : 'win';
 }
 
 /**
@@ -125,12 +177,16 @@ function duelAmmo(view: GameState, me: PlayerId, spent: CardId): number {
  *
  * 내 손에 맞받아 낼 카드가 한 장도 없고 상대 손에 카드가 있으면, 상대가 뱅!을
  * 한 장이라도 쥐었을 때 목숨만 잃는다. 이길 길이 없으니 하·중·상 모두 걸지 않는다.
+ * 손패가 펼쳐져 있으면 상대가 내 장수보다 많이 쥐었을 때 반드시 진다.
  */
 export function isHopelessDuel(view: GameState, me: PlayerId, action: Action): boolean {
   if (action.type !== 'playCard' || !action.target || action.target === me) return false;
   const kind = action.as ?? safeKind(action.card);
   if (kind !== 'duel') return false;
   const target = playerOf(view, action.target);
+  // 손패가 펼쳐져 있으면 셈으로 안다 (사카가웨이)
+  const known = duelOutcome(view, me, target.id, action.card);
+  if (known) return known === 'lose';
   return target.hand.length > 0 && duelAmmo(view, me, action.card) === 0;
 }
 
@@ -281,6 +337,9 @@ function scorePlay(
       if (target.hp === 1) s += 18 * enemy;
       // 술통을 낀 상대는 기대값이 떨어진다
       if (target.equipment.some((c) => kindOf(c) === 'barrel')) s -= 3;
+      // 손패가 펼쳐져 있으면 빗나감!이 있는지 안다
+      const needed = action.also !== undefined ? 2 : outgoingBangMissesOf(view, me);
+      s += openHandBangEdge(view, target.id, needed, enemy);
       // 손에 뱅!이 넘치면 아끼지 않는다
       s += Math.min(3, countKind(view, me, 'bang') - 1);
       // 조준을 함께 내면 한 방이 두 배다. 대신 조준 한 장을 쓴다
@@ -332,16 +391,21 @@ function scorePlay(
       return base - cardValue(own) * 1.2 + (overflow ? cardValue(own) : 0);
     }
     case 'gatling':
-      return scoreArea(view, me, beliefs, sit, 15) + 2;
+      return scoreArea(view, me, beliefs, sit, 15, 'missed') + 2;
     case 'indians':
       // 뱅!을 버리게 만드는 것 자체도 이득이다
-      return scoreArea(view, me, beliefs, sit, 12) + 1;
+      return scoreArea(view, me, beliefs, sit, 12, 'bang') + 1;
     case 'duel': {
       if (!target) return -10;
       if (friend) return -12;
       if (isHopelessDuel(view, me, action)) return -15;
       // 상대 손이 비었으면 뱅!을 낼 수 없으니 반드시 이긴다
       if (target.hand.length === 0) return 16 * enemy;
+      // 손패가 펼쳐져 있으면 이기는 결투다. 상대가 낼 뱅!만큼 내 뱅!도 쓴다
+      if (duelOutcome(view, me, target.id, action.card) === 'win') {
+        const theirs = knownReactive(view, target.id, 'bang') ?? 0;
+        return (16 + (target.hp === 1 ? 14 : 0)) * enemy - theirs * 1.5;
+      }
       // 내 손의 뱅!이 많을수록 이길 가능성이 높다
       const myBangs = duelAmmo(view, me, action.card);
       const edge = myBangs - Math.min(2, target.hand.length / 2);
@@ -388,6 +452,7 @@ function scorePlay(
       if (friend) return -12;
       let s = 12 * enemy + (target.hp === 1 ? 18 * enemy : 0);
       if (target.equipment.some((c) => kindOf(c) === 'barrel')) s -= 3;
+      s += openHandBangEdge(view, target.id, 1, enemy);
       if (kind === 'fanning' && action.target2) {
         const e2 = hostility(view, me, action.target2, beliefs, sit);
         s += e2 < FRIEND ? -12 : 10 * e2;
@@ -479,9 +544,16 @@ function scoreRespond(
       if (choice.c !== 'card') return my.hp > 2 ? -3 : -25;
       return 20;
 
-    case 'duelBang':
+    case 'duelBang': {
+      // 손패가 펼쳐져 있으면 끝까지 셈이 선다. 질 결투에 뱅!을 쏟아붓지 않는다
+      const theirs = knownReactive(view, a.opponent, 'bang');
+      if (theirs !== null) {
+        if (firstWinsDuel(a.options.length, theirs)) return choice.c === 'card' ? 30 : -30;
+        if (my.hp > 1) return choice.c === 'card' ? -5 : 10;
+      }
       if (choice.c !== 'card') return my.hp > 2 ? -5 : -30;
       return 22;
+    }
 
     case 'judgementChoice': {
       if (choice.c !== 'card') return 0;
@@ -560,6 +632,11 @@ function scoreRespond(
         // 무기는 사정거리를, 술통은 방어를 빼앗는다
         return 20 + cardValue(kind) * 3;
       }
+      // 손패가 펼쳐져 있으면(사카가웨이) 고를 수 있다. 같은 편에게서는 덜 아까운 것을,
+      // 적에게서는 가장 값진 것을 가져온다
+      const seen = knownHand(view, a.target)?.[choice.pick.index];
+      const kind = seen ? safeKind(seen) : null;
+      if (kind) return ally ? 10 - cardValue(kind) * 0.5 : 18 + cardValue(kind) * 3;
       // 손패는 뒷면이라 어느 장이든 같다
       return ally ? 10 : 20;
     }

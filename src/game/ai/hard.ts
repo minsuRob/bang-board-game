@@ -36,7 +36,7 @@ const ROLLOUT_PLIES = 30;
 /**
  * 시야에서 숨은 정보를 지어내 완전한 상태 하나를 만든다.
  *
- * 남의 손패 장수·장비·버린 더미·펼쳐진 카드는 실제 값이므로 그대로 두고,
+ * 남의 손패 장수·장비·버린 더미·펼쳐진 카드(사카가웨이의 손패 포함)는 실제 값이므로 그대로 두고,
  * 나머지 카드를 섞어 손패와 덱에 배분한다.
  */
 export function determinize(
@@ -53,6 +53,8 @@ export function determinize(
   for (const c of my?.hand ?? []) seen.add(c);
   for (const p of view.players) for (const c of p.equipment) seen.add(c);
   for (const c of view.discard) seen.add(c);
+  // 펼쳐진 손패(사카가웨이)도 실제 값이다
+  for (const p of view.players) if (p.id !== me && !p.hand.some(isHidden)) for (const c of p.hand) seen.add(c);
   // 스택에 이미 펼쳐져 있는 카드도 실제 값이다.
   for (const f of view.stack) {
     if (f.k === 'judgement') for (const c of f.candidates) seen.add(c);
@@ -68,7 +70,7 @@ export function determinize(
   let at = 0;
 
   const players = view.players.map((p) => {
-    if (p.id === me) return p;
+    if (p.id === me || !p.hand.some(isHidden)) return p;
     const hand = bag.slice(at, at + p.hand.length);
     at += p.hand.length;
     return { ...p, hand };

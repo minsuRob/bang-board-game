@@ -438,10 +438,13 @@ export function simulateParallel(opts: Options): Promise<SimulationReport> {
 
   return new Promise((resolve, reject) => {
     for (let w = 0; w < jobs; w++) {
-      const worker = new Worker(join(__dirname, 'simulate-worker.ts'), {
-        workerData: opts,
-        execArgv: ['--import', 'tsx'],
-      });
+      // 작업자에 `--import tsx` 를 넘기면 Node 22 의 내장 타입 제거가 먼저 잡아
+      // 확장자 없는 import 가 깨진다. tsx 의 CJS 로더로 직접 불러온다.
+      const file = join(__dirname, 'simulate-worker.ts');
+      const worker = new Worker(
+        `require('tsx/cjs/api').require(${JSON.stringify(file)}, ${JSON.stringify(file)})`,
+        { eval: true, workerData: opts },
+      );
       const feed = () => {
         if (next < opts.games) {
           worker.postMessage({ seed: opts.seed + next++ } satisfies WorkerJob);
