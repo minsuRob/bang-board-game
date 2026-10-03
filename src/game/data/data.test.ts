@@ -145,12 +145,14 @@ describe('캐릭터', () => {
     for (const id of base) expect([3, 4]).toContain(CHARACTERS[id].maxHp);
   });
 
-  it('와일드 웨스트 쇼 총알 수: 빅 스펜서 9, 게리 루터 5, 그레고리 덱·테렌 킬 3', () => {
+  // 총알 수는 카드 그림을 따른다 (assets/cards/character/*.png).
+  // 그레고리 덱·시미언 피코스는 그림에 총알 4개. SC2 v0.184 의 "그레고리 덱 목숨 4 → 3" 은 하우스 룰이다.
+  it('확장 캐릭터 총알 수: 빅 스펜서 9, 게리 루터 5, 그레고리 덱·시미언 피코스 4, 테렌 킬 3', () => {
     expect(CHARACTERS.bigSpencer.maxHp).toBe(9);
     expect(CHARACTERS.garyLooter.maxHp).toBe(5);
-    expect(CHARACTERS.greygoryDeck.maxHp).toBe(3);
+    expect(CHARACTERS.greygoryDeck.maxHp).toBe(4);
     expect(CHARACTERS.terenKill.maxHp).toBe(3);
-    expect(CHARACTERS.simeonPicos.maxHp).toBe(3);
+    expect(CHARACTERS.simeonPicos.maxHp).toBe(4);
     expect(CHARACTERS.tucoFranziskaner.maxHp).toBe(5);
   });
 
