@@ -111,7 +111,7 @@ export function ScopeSkia({ progress, geom }: { progress: SharedValue<number>; g
     return p;
   });
 
-  // 대물렌즈 반짝
+  // 대물렌즈 반짝. 그림 바탕이 크림색이라 흰 빛만으로는 묻힌다. 주황 번짐과 짙은 금빛 십자 빛살을 함께 둔다
   const glintRect = useDerivedValue(() => {
     const { mx, my } = geom.value;
     const u = unit.value;
@@ -119,6 +119,26 @@ export function ScopeSkia({ progress, geom }: { progress: SharedValue<number>; g
     return { x: mx - (2 + 3 * k) * u, y: my - (3 + 3 * k) * u, width: (4 + 6 * k) * u, height: (6 + 6 * k) * u };
   });
   const glintOpacity = useDerivedValue(() => f.value.glint);
+  const lensX = useDerivedValue(() => geom.value.mx);
+  const lensY = useDerivedValue(() => geom.value.my);
+  const glowR = useDerivedValue(() => (6 + 12 * f.value.glint) * unit.value);
+  const rays = useDerivedValue(() => {
+    const { mx, my } = geom.value;
+    const u = unit.value;
+    const k = f.value.glint;
+    const p = Skia.Path.Make();
+    if (k <= 0) return p;
+    const len = (8 + 16 * k) * u;
+    const rot = k * 0.8;
+    for (let i = 0; i < 4; i++) {
+      const a = rot + (i * Math.PI) / 4;
+      const l = i % 2 ? len * 0.55 : len;
+      p.moveTo(mx - Math.cos(a) * l, my - Math.sin(a) * l);
+      p.lineTo(mx + Math.cos(a) * l, my + Math.sin(a) * l);
+    }
+    return p;
+  });
+  const rayWidth = useDerivedValue(() => 1.4 * unit.value);
 
   // 끝 고리
   const settle = useDerivedValue(() => settlePath(geom.value, f.value.settle));
@@ -130,9 +150,15 @@ export function ScopeSkia({ progress, geom }: { progress: SharedValue<number>; g
 
   return (
     <>
-      <Oval rect={glintRect} color="#FFF6D6" opacity={glintOpacity}>
-        <BlurMask blur={3} style="solid" />
-      </Oval>
+      <Group opacity={glintOpacity}>
+        <Circle cx={lensX} cy={lensY} r={glowR} color="rgba(255,140,40,0.75)">
+          <BlurMask blur={6} style="normal" />
+        </Circle>
+        <Path path={rays} style="stroke" strokeWidth={rayWidth} strokeCap="round" color="#B8641C" />
+        <Oval rect={glintRect} color="#FFFDF2">
+          <BlurMask blur={2} style="solid" />
+        </Oval>
+      </Group>
       <Group opacity={shown}>
         <Path path={dark} color="#0A0704" opacity={darkOpacity} />
         <Group clip={lens}>

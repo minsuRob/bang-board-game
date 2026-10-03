@@ -460,6 +460,8 @@ function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
   const [shot] = useState(() => new Animated.Value(0));
   const [armed, setArmed] = useState(!missed);
   const anchor = useRef<View>(null);
+  /** 튀어 오르는 감싸개. 카드를 잴 때 그 변형을 되돌리는 데 쓴다 */
+  const spot = useRef<View>(null);
   const size = compact ? 'lg' : 'xl';
   const dim = CARD_DIMENSIONS[size];
   const done = useRef(onDone);
@@ -497,12 +499,11 @@ function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
 
     // 고화질: 카드가 테이블 캔버스의 어디에 있는지 재고, 소리와 진행도를 같은 틱에 출발시킨다
     const fireHq = (s: HqStage) => {
-      const place = (layerBox: Box | null, cardBox: Box | null) => {
+      const place = (layerBox: Box | null, cardBox: Box | null, spotBox: Box | null) => {
         if (!fx || !layerBox || !cardBox) return;
-        const cx = cardBox.x - layerBox.x + cardBox.w / 2;
-        const cy = cardBox.y - layerBox.y + cardBox.h / 2;
         const cw = dim.width;
         const ch = dim.height;
+        const { x: cx, y: cy } = restingCenter(layerBox, cardBox, spotBox, cw);
         // 원본 그림(250×389)은 카드에 cover 로 깔린다 (CardView). 그림 속 자리를 캔버스 좌표로 바꾼다
         const k = Math.max(cw / 250, ch / 389);
         // 총 장착 연출은 테두리(2)·안쪽 여백(4) 안쪽에 깔린 실제 그림 자리에 맞춘다
@@ -571,16 +572,16 @@ function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
           }
         }
       };
-      const measureAll = () => Promise.all([measure(s.layer.current), measure(anchor.current)]);
-      void measureAll().then(([layerBox, cardBox]) => {
+      const measureAll = () => Promise.all([measure(s.layer.current), measure(anchor.current), measure(spot.current)]);
+      void measureAll().then(([layerBox, cardBox, spotBox]) => {
         if (cancelled || !fx) return;
-        place(layerBox, cardBox);
+        place(layerBox, cardBox, spotBox);
         // 총 장착: 카드가 다 멈춘 자리로 한 번 더 맞춘다 (튀어 오르기 끝물에 쟀을 수 있다)
         if (gear) {
           timers.push(
             setTimeout(() => {
-              void measureAll().then(([l, c]) => {
-                if (!cancelled) place(l, c);
+              void measureAll().then(([l, c, sp]) => {
+                if (!cancelled) place(l, c, sp);
               });
             }, 220 / scale),
           );
@@ -624,7 +625,7 @@ function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
 
   if (fx && hq) {
     return (
-      <Animated.View style={[styles.spot, popStyle(t), !armed && styles.hidden]}>
+      <Animated.View ref={spot} style={[styles.spot, popStyle(t), !armed && styles.hidden]}>
         <CardSpotlight
           card={event.card!}
           meta={event.text}
@@ -1280,12 +1281,36 @@ function measure(v: View | null): Promise<Box | null> {
   });
 }
 
+/**
+ * 튀어 오르기가 끝났을 때의 카드 가운데 (layer 좌표).
+ *
+ * 연출을 쏠 때 카드가 아직 튀어 오르는 중이면(JS 가 바쁘면 흔하다) 잰 상자에 popStyle 의 변형
+ * (아래로 24, 0.82배)이 붙어 있어 그림 속 자리가 최대 30px 어긋난다. 잰 폭과 본래 폭의 비로 그 순간의
+ * 진행(t)을 되짚어, 감싸개 가운데를 축으로 한 확대와 아래로 민 만큼을 되돌린다.
+ */
+function restingCenter(layerBox: Box, cardBox: Box, spotBox: Box | null, cw: number) {
+  const mx = cardBox.x - layerBox.x + cardBox.w / 2;
+  const my = cardBox.y - layerBox.y + cardBox.h / 2;
+  const s = cardBox.w / cw;
+  if (!spotBox || Math.abs(s - 1) < 0.005) return { x: mx, y: my };
+  const t = (s - POP_SCALE_FROM) / (1 - POP_SCALE_FROM);
+  const ty = POP_RISE * (1 - t);
+  // 감싸개의 변형 축(가운데)은 아래로 ty 만큼 밀려 보인다
+  const ox = spotBox.x - layerBox.x + spotBox.w / 2;
+  const oy = spotBox.y - layerBox.y + spotBox.h / 2;
+  return { x: ox + (mx - ox) / s, y: oy - ty + (my - oy) / s };
+}
+
+/** 카드가 튀어 오르기 시작할 때 아래로 내려가 있는 거리와 배율 */
+const POP_RISE = 24;
+const POP_SCALE_FROM = 0.82;
+
 function popStyle(t: Animated.Value) {
   return {
     opacity: t.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 1] }),
     transform: [
-      { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) },
-      { scale: t.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] }) },
+      { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [POP_RISE, 0] }) },
+      { scale: t.interpolate({ inputRange: [0, 1], outputRange: [POP_SCALE_FROM, 1] }) },
     ],
   };
 }

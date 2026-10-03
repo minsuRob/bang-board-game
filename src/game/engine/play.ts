@@ -165,8 +165,8 @@ export function applyPlayCard(
     });
   }
 
-  // 패닝은 차례당 한 번인 뱅!으로 친다. 추가 뱅!(블랙 플라워)은 횟수를 쓰지 않는다.
-  if ((as === 'bang' || as === 'fanning') && !isExtraBang(cur, pid, opts.ability)) {
+  // 패닝은 차례당 한 번인 뱅!으로 친다. 추가 뱅!(블랙 플라워)과 리 반 클리프가 다시 낸 뱅!은 횟수를 쓰지 않는다.
+  if ((as === 'bang' || as === 'fanning') && !repeat && !isExtraBang(cur, pid, opts.ability)) {
     cur = { ...cur, turn: { ...cur.turn, bangsPlayed: cur.turn.bangsPlayed + 1 } };
   }
 

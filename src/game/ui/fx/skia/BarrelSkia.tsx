@@ -3,26 +3,26 @@
  *
  * 카드가 찌부러졌다 늘어나며(cardMotion) 그림 속 사내가 통 뒤로 쏙 숨는다. 원본 그림의 머리·모자
  * 조각을 잘라 아래로 내리고, 통 테두리보다 아래로 내려간 부분은 잘라 낸다 (통 뒤로 숨은 것처럼).
- * 조각이 떠난 자리는 흐린 그림으로 메운다. 잉크 지그재그 총알이 통 옆구리(geom.mx, my)에 맞고
+ * 조각이 떠난 자리는 아주 흐린 그림으로 메우고, 가장자리를 흐린 마스크로 풀어 사각형 티가 나지 않게 한다. 잉크 지그재그 총알이 통 옆구리(geom.mx, my)에 맞고
  * 별 모양으로 튕겨 나간 뒤, 카드 왼쪽에 잉크 하트가 톡 터진다.
  * "쏙!"·"핑!" 글자는 RN(GunFxLabels)이 그린다.
  *
  * 그림이 없는 기기에서는 조각 없이 잉크 효과만 그린다. 그림 속 자리는 원본(250×389) 픽셀이다.
  */
 
-import { Blur, Group, Image, Path, Skia, useImage, type DataSourceParam } from '@shopify/react-native-skia';
+import { Blur, BlurMask, Group, Image, Mask, Path, Skia, useImage, type DataSourceParam } from '@shopify/react-native-skia';
 import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
 
 import { playingCardArt } from '../../card-art';
 import { addHeart, addStar } from './paths';
 import { artScale, barrelFrame, FX_BARREL, type ShotGeom } from './timeline';
 
-/** 통 위로 보이는 머리·모자 조각 (원본 픽셀) */
+/** 통 위로 보이는 머리·모자 조각 (원본 픽셀). 모자 챙 오른쪽 끝·통에 얹은 손까지 덮는다 */
 const HEAD = [
-  [98, 122],
-  [160, 122],
-  [162, 172],
-  [98, 172],
+  [100, 118],
+  [176, 118],
+  [178, 172],
+  [100, 172],
 ] as const;
 /** 통 테두리. 이보다 아래로 내려간 조각은 통 뒤에 숨는다 */
 const RIM_Y = 172;
@@ -171,12 +171,17 @@ export function BarrelSkia({ progress, geom }: { progress: SharedValue<number>; 
     <>
       {image && (
         <Group opacity={artOpacity}>
-          {/* 조각이 떠난 자리: 흐린 그림 */}
-          <Group clip={head}>
+          {/* 조각이 떠난 자리: 둘레 벽색으로 번진 그림, 가장자리는 흐린 마스크로 풀어 준다 */}
+          <Mask
+            mask={
+              <Path path={head} color="black">
+                <BlurMask blur={8} style="normal" />
+              </Path>
+            }>
             <Image image={image} x={imgX} y={imgY} width={imgW} height={imgH} fit="fill">
-              <Blur blur={10} />
+              <Blur blur={24} />
             </Image>
-          </Group>
+          </Mask>
           {/* 머리·모자 조각: 통 테두리 아래로 내려가면 숨는다 */}
           <Group clip={aboveRim}>
             <Group transform={duck}>

@@ -661,7 +661,7 @@ export function barrelFrame(progress: number): BarrelFrame {
   const live = progress > 0 && progress < 1;
   const sq = seg(T, 90, 450);
   const squash = live ? Math.sin(sq * Math.PI * 2) * (1 - sq) * 0.12 : 0;
-  const duck = live ? 46 * easeOut(seg(T, 90, 240)) * (1 - easeOut(seg(T, 1050, 1275))) : 0;
+  const duck = live ? 46 * easeInOut(seg(T, 90, 330)) * (1 - easeOut(seg(T, 1050, 1275))) : 0;
   const open = (a: number, b: number) => (live && T > a && T < b ? seg(T, a, b) : -1);
   return {
     active: live ? 1 : 0,

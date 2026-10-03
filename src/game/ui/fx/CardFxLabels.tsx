@@ -2,7 +2,7 @@
  * 조준경·야생마·술통 연출에 붙는 글자. Skia 캔버스는 글꼴을 따로 불러야 해서 글자는 RN 으로 그린다.
  *
  * - 조준경: 시야 아래쪽 "거리 3" → "거리 2"
- * - 야생마: 카드 아래 "거리 +1"
+ * - 야생마: 카드 자리 오른쪽 "거리 +1" (카드 아래는 설명 명판 자리라 겹친다)
  * - 술통: 카드 왼쪽 위 "쏙!", 오른쪽 위 "핑!" (만화 잉크 글씨)
  *
  * 조준경은 시야 밖을 어둡게 덮으므로 글자를 카드 쪽(RN)에 두면 캔버스 아래로 가라앉는다.
@@ -71,14 +71,13 @@ function MustangDistance({ progress, geom }: Props) {
     const g = geom.value;
     if (g.kind !== FX_MUSTANG) return { opacity: 0 };
     const d = mustangFrame(progress.value).away;
-    const u = g.cw / 92;
     return {
       opacity: d > 0.4 ? Math.min(1, (d - 0.4) / 0.4) : 0,
-      left: g.cx - BIG_W / 2,
-      top: g.cy + g.ch / 2 + 20 * u - BIG_H / 2,
+      left: g.cx + g.cw / 2 + 10,
+      top: g.cy - BIG_H / 2,
     };
   });
-  return <Animated.Text style={[styles.gold, style]}>거리 +1</Animated.Text>;
+  return <Animated.Text style={[styles.gold, styles.goldLeft, style]}>거리 +1</Animated.Text>;
 }
 
 /** 술통 만화 글씨. 쏙! 은 떠오르며 사라지고, 핑! 은 튕길 때 커졌다 사라진다 */
@@ -134,6 +133,7 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.85)',
     textShadowRadius: 5,
   },
+  goldLeft: { textAlign: 'left' },
   ink: {
     position: 'absolute',
     width: BIG_W,

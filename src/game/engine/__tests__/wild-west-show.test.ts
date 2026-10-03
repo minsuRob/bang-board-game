@@ -283,12 +283,45 @@ describe('리 반 클리프', () => {
     expect(new Set(repeats(s1, 'p0').map((a) => a.target))).toEqual(new Set(['p3']));
   });
 
-  it('뱅!이나 파랑 카드는 다시 낼 수 없다', () => {
-    const s0 = scenario({ players: [{ character: 'leeVanKliff', hand: ['barrel', 'bang', 'bang'] }, {}, {}, {}] });
+  it('파랑 카드는 다시 낼 수 없다', () => {
+    const s0 = scenario({ players: [{ character: 'leeVanKliff', hand: ['barrel', 'bang'] }, {}, {}, {}] });
     const s1 = reduce(s0, { type: 'playCard', pid: 'p0', card: handCard(s0, 'p0', 'barrel') });
     expect(repeats(s1, 'p0')).toHaveLength(0);
-    const s2 = settle(reduce(s1, { type: 'playCard', pid: 'p0', card: handCard(s1, 'p0', 'bang'), target: 'p1' }));
+  });
+
+  it('뱅!도 다시 낼 수 있고, 다시 낸 뱅!은 뱅! 횟수를 쓰지 않는다', () => {
+    const s0 = scenario({ players: [{ character: 'leeVanKliff', hand: ['bang', 'bang'] }, {}, {}, {}] });
+    const s1 = settle(reduce(s0, { type: 'playCard', pid: 'p0', card: handCard(s0, 'p0', 'bang'), target: 'p1' }));
+    expect(s1.turn.bangsPlayed).toBe(1);
+    const again = repeats(s1, 'p0');
+    expect(again.length).toBeGreaterThan(0);
+    expect(again.every((a) => a.as === 'bang')).toBe(true);
+    const s2 = settle(reduce(s1, again[0]));
+    expect(s2.turn.bangsPlayed).toBe(1);
     expect(repeats(s2, 'p0')).toHaveLength(0);
+    expect(totalCards(s2)).toBe(80);
+  });
+
+  it('한 차례에 갈색 카드마다 한 번씩 쓸 수 있다', () => {
+    const s0 = scenario({
+      players: [{ character: 'leeVanKliff', hand: ['stagecoach', 'panic', 'bang', 'bang'] }, { hand: ['beer', 'beer'] }, {}, {}],
+    });
+    const s1 = reduce(s0, { type: 'playCard', pid: 'p0', card: handCard(s0, 'p0', 'stagecoach') });
+    const s2 = reduce(s1, repeats(s1, 'p0')[0]);
+    const s3 = settle(reduce(s2, { type: 'playCard', pid: 'p0', card: handCard(s2, 'p0', 'panic'), target: 'p1' }));
+    const again = repeats(s3, 'p0');
+    expect(again.length).toBeGreaterThan(0);
+    expect(again[0].as).toBe('panic');
+  });
+
+  it('결전 중에는 아무 카드나 버려 쓴다', () => {
+    const s0 = scenario({ event: 'showdown', players: [{ character: 'leeVanKliff', hand: ['stagecoach', 'beer'] }, {}, {}, {}] });
+    const s1 = reduce(s0, { type: 'playCard', pid: 'p0', card: handCard(s0, 'p0', 'stagecoach') });
+    const again = repeats(s1, 'p0');
+    // 역마차로 받은 2장까지 손패 3장 모두 버릴 수 있다
+    expect(again).toHaveLength(3);
+    expect(again.some((a) => kindOf(a.card) === 'beer')).toBe(true);
+    expect(again.every((a) => a.as === 'stagecoach')).toBe(true);
   });
 });
 

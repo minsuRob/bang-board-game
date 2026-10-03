@@ -429,8 +429,11 @@ export function forcedPlayOf(
   return null;
 }
 
-/** 갈색 카드 중 리 반 클리프가 다시 낼 수 없는 것. 뱅!류와 단독으로 못 내는 카드 */
-const NOT_REPEATABLE: readonly CardKind[] = ['bang', 'fanning', 'missed', 'aim'];
+/**
+ * 갈색 카드 중 리 반 클리프가 다시 낼 수 없는 것. 차례에 혼자 낼 수 없는 카드뿐이다.
+ * 뱅!은 다시 낼 수 있다 (공식 해설 "The brown-bordered card may be also another BANG!")
+ */
+const NOT_REPEATABLE: readonly CardKind[] = ['missed', 'aim'];
 
 /** 리 반 클리프가 다시 낼 수 있는 갈색 카드 종류인가 */
 export function isRepeatableBrown(kind: CardKind): boolean {
@@ -440,6 +443,8 @@ export function isRepeatableBrown(kind: CardKind): boolean {
 /**
  * 리 반 클리프: 방금 낸 갈색 카드를, 뱅! 카드를 버려 한 번 더 낸다.
  * 대상은 새로 고르므로 그 카드를 평소에 낼 때의 수를 그대로 쓰고 ability 만 붙인다.
+ * 다시 낸 뱅!은 효과일 뿐이라 차례당 뱅! 횟수와 상관없이 낼 수 있다.
+ * 버릴 카드는 뱅!으로 쓸 수 있는 카드면 된다 (결전 중에는 아무 카드나).
  */
 function repeatBrownActions(state: GameState, pid: PlayerId): Action[] {
   const last = state.turn.lastBrown;
@@ -448,7 +453,7 @@ function repeatBrownActions(state: GameState, pid: PlayerId): Action[] {
   const out: Action[] = [];
   for (const ab of repeatAbilitiesOf(state, pid)) {
     for (const card of unique(me.hand)) {
-      if (kindOf(card) !== ab.from) continue;
+      if (!canUseCardAs(state, pid, kindOf(card), ab.from)) continue;
       for (const a of kindActions(state, pid, card, last, last, true)) {
         if (a.type === 'playCard') out.push({ ...a, ability: ab.key });
       }
