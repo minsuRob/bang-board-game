@@ -923,6 +923,18 @@ describe('새로운 신분', () => {
     expect(totalCards(s)).toBe(80);
   });
 
+  it('신분을 바꾼 로그는 받침에 맞는 조사를 쓴다 — `(으)로` 같은 표기를 남기지 않는다 (AGENTS.md)', () => {
+    const base = scenario({
+      players: [{ character: 'willyTheKid' }, {}, {}, {}],
+      event: 'newIdentity',
+    });
+    let s = beginTurn(withSpare(base, 'p0', 'paulRegret'), 'p0');
+    s = reduce(s, { type: 'respond', pid: 'p0', choice: { c: 'yes' } });
+    const text = s.log.filter((e) => e.t === 'newIdentity').map((e) => e.text).join('\n');
+    expect(text).toContain('폴 리그렛으로 신분을 바꿨다');
+    expect(text).not.toContain('(으)로');
+  });
+
   it('거절하면 캐릭터도 목숨도 그대로다', () => {
     const base = scenario({
       players: [{ character: 'willyTheKid', hp: 4 }, {}, {}, {}],

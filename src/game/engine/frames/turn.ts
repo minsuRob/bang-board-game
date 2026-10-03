@@ -41,7 +41,7 @@ import {
 import { reviveFromBoneOrchard } from './wildwest';
 import { discardGold, goldEquipOf } from '../gold';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
-import { eul, ga, neun } from '../josa';
+import { eul, ga, neun, ro } from '../josa';
 
 /**
  * 감옥에 걸려 차례를 건너뛸 때, 이번 차례의 남은 단계를 스택에서 걷어낸다.
@@ -350,7 +350,7 @@ export function respondNewIdentity(
   return log(cur, {
     t: 'newIdentity',
     pid: frame.pid,
-    text: `${ga(prevNameKo)} ${CHARACTERS[next].nameKo}(으)로 신분을 바꿨다 (목숨 2).`,
+    text: `${ga(prevNameKo)} ${ro(CHARACTERS[next].nameKo)} 신분을 바꿨다 (목숨 2).`,
   });
 }
 
