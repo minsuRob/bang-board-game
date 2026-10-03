@@ -39,14 +39,15 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     name: 'Calamity Janet',
     nameKo: '칼라미티 자넷',
     maxHp: 4,
-    ability: '<뱅!>을 <빗나감!>으로, <빗나감!>을 <뱅!>으로 사용할 수 있습니다.',
+    ability:
+      '<뱅!>을 <빗나감!>으로, <빗나감!>을 <뱅!>으로 사용할 수 있습니다. <빗나감!>을 <뱅!>으로 내도 차례당 <뱅!> 1장 제한을 받습니다.',
   },
   elGringo: {
     id: 'elGringo',
     name: 'El Gringo',
     nameKo: '엘 그링고',
     maxHp: 3,
-    ability: '생명력 1을 잃을 때마다 공격한 사람의 손에서 카드 한 장을 가져옵니다.',
+    ability: '다른 사람이 낸 카드로 생명력 1을 잃을 때마다 그 사람의 손에서 카드 한 장을 무작위로 가져옵니다.',
   },
   jesseJones: {
     id: 'jesseJones',
@@ -54,7 +55,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     nameKo: '제시 존스',
     maxHp: 4,
     ability:
-      "'카드 가져오기' 단계에서 첫 번째 카드를 다른 사람의 손에서 가져올 수도 있습니다.",
+      "'카드 가져오기' 단계에서 첫 번째 카드를 다른 사람의 손에서 무작위로 가져올 수도 있습니다. 두 번째 카드는 카드 더미에서 가져옵니다.",
   },
   jourdonnais: {
     id: 'jourdonnais',
@@ -70,7 +71,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     nameKo: '킷 칼슨',
     maxHp: 4,
     ability:
-      "'카드 가져오기' 단계에서 카드 더미 맨 위의 세 장을 보고 가져갈 두 장을 고릅니다.",
+      "'카드 가져오기' 단계에서 카드 더미 맨 위의 세 장을 보고 가져갈 두 장을 고릅니다. 남은 한 장은 카드 더미 맨 위로 되돌립니다.",
   },
   luckyDuke: {
     id: 'luckyDuke',
@@ -106,7 +107,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     name: 'Sid Ketchum',
     nameKo: '시드 케첨',
     maxHp: 4,
-    ability: '카드 두 장을 버려 생명력을 1 회복할 수 있습니다.',
+    ability: '언제든지 손패 두 장을 버려 생명력을 1 회복할 수 있습니다.',
   },
   slabTheKiller: {
     id: 'slabTheKiller',
@@ -280,7 +281,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     id: 'simeonPicos',
     name: 'Simeon Picos',
     nameKo: '시미언 피코스',
-    maxHp: 3,
+    maxHp: 4,
     ability: '목숨 1을 잃을 때마다 금덩이 1개를 받습니다.',
     expansion: 'goldrush',
   },
@@ -289,7 +290,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     name: 'Big Spencer',
     nameKo: '빅 스펜서',
     maxHp: 9,
-    ability: '카드 5장을 들고 시작합니다. <빗나감!>을 낼 수 없습니다.',
+    ability: '카드 5장을 들고 시작합니다. <빗나감!> 카드를 낼 수 없습니다.',
     expansion: 'wildwestshow',
   },
   flintWestwood: {
@@ -312,7 +313,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     id: 'greygoryDeck',
     name: 'Greygory Deck',
     nameKo: '그레고리 덱',
-    maxHp: 3,
+    maxHp: 4,
     ability: '차례 시작에 캐릭터 2장을 무작위로 뽑을 수 있습니다. 뽑은 캐릭터들의 능력을 모두 가집니다.',
     expansion: 'wildwestshow',
   },

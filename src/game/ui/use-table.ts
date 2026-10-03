@@ -676,8 +676,11 @@ export function buildPrompt(view: GameState): Prompt | null {
       return {
         ...base,
         title: `${nameOf(view, a.target)}의 카드`,
+        // 손패 뒷면은 어느 장을 눌러도 무작위 1장이다 (엔진이 뽑는다)
         hint:
-          a.mode === 'panic' ? '가져올 카드를 고른다' : '버리게 할 카드를 고른다',
+          a.mode === 'panic'
+            ? '가져올 카드를 고른다. 손패는 무작위 1장'
+            : '버리게 할 카드를 고른다. 손패는 무작위 1장',
         // 좌석에서 고르던 것을 가운데 창으로 옮겼다. 좌석은 펼치지 않는다
         center: { cards: a.equipment, zone: 'equipment', handCount: a.handCount },
       };

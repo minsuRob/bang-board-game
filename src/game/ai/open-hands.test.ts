@@ -1,12 +1,12 @@
 /**
  * 사카가웨이(모두 손패를 펼쳐 놓는다) 아래에서 AI 가 펼쳐진 손패를 읽는가.
- * 결투는 셈으로, 뱅!·광역은 막을 카드가 있는지로, 강탈은 무엇을 가져올지로.
+ * 결투는 셈으로, 뱅!·광역은 막을 카드가 있는지로, 강탈은 손패 전체의 값어치로.
  */
 
 import { describe, expect, it } from 'vitest';
 
 import type { EventCardId } from '../data/types';
-import { kindOf, legalActions, reduce, type Action, type GameState, type PlayerId } from '../engine';
+import { legalActions, reduce, type Action, type GameState, type PlayerId } from '../engine';
 import { handCard, scenario, type PlayerSpec } from '../engine/__tests__/helpers';
 import { viewFor } from '../engine/view';
 import { createRng } from '../engine/rng';
@@ -115,18 +115,22 @@ describe('펼쳐진 손패로 뱅!·광역을 고른다', () => {
   });
 });
 
-describe('펼쳐진 손패에서 가져올 카드를 고른다', () => {
-  it('적의 손에서 가장 값진 카드를 집는다', () => {
-    const s0 = table({ hand: ['dynamite', 'beer', 'saloon'] }, { hand: ['panic'] });
-    const s = reduce(s0, { type: 'playCard', pid: 'b', card: handCard(s0, 'b', 'panic'), target: 'a' });
-    expect(s.awaiting?.k).toBe('stealCard');
-    const hand = s.players[0].hand;
-    const picks = legalActions(s, 'b').filter((m) => m.type === 'respond' && m.choice.c === 'pick');
-    const best = picks.reduce((x, y) => (score(s, 'b', y) > score(s, 'b', x) ? y : x));
-    const index = best.type === 'respond' && best.choice.c === 'pick' && best.choice.pick.zone === 'hand'
-      ? best.choice.pick.index
-      : -1;
-    expect(kindOf(hand[index])).toBe('beer');
+describe('펼쳐진 손패에서 가져올 카드', () => {
+  // 와일드 웨스트 쇼 FAQ Q17: 사카가웨이 중 강탈·캣 벌로우는 손패를 엎어 섞고 무작위로 뽑는다.
+  // 엔진이 번호와 상관없이 무작위로 뽑으므로 손패 번호끼리는 점수가 같다
+  it('손패 번호끼리는 점수가 같고, 손패가 값질수록 손패 쪽 점수가 오른다', () => {
+    const steal = (hand: PlayerSpec['hand']) => {
+      const s0 = table({ hand }, { hand: ['panic'] });
+      const s = reduce(s0, { type: 'playCard', pid: 'b', card: handCard(s0, 'b', 'panic'), target: 'a' });
+      expect(s.awaiting?.k).toBe('stealCard');
+      return legalActions(s, 'b')
+        .filter((m) => m.type === 'respond' && m.choice.c === 'pick')
+        .map((m) => score(s, 'b', m));
+    };
+    const rich = steal(['beer', 'saloon', 'beer']);
+    expect(new Set(rich).size).toBe(1);
+    const poor = steal(['dynamite', 'bang', 'jail']);
+    expect(rich[0]).not.toBe(poor[0]);
   });
 });
 

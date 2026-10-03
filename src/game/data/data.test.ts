@@ -145,13 +145,28 @@ describe('캐릭터', () => {
     for (const id of base) expect([3, 4]).toContain(CHARACTERS[id].maxHp);
   });
 
-  it('와일드 웨스트 쇼 총알 수: 빅 스펜서 9, 게리 루터 5, 그레고리 덱·테렌 킬 3', () => {
+  // 총알 수는 카드 그림을 따른다 (assets/cards/character/*.png).
+  // 그레고리 덱·시미언 피코스는 그림에 총알 4개. SC2 v0.184 의 "그레고리 덱 목숨 4 → 3" 은 하우스 룰이다.
+  it('확장 캐릭터 총알 수: 빅 스펜서 9, 게리 루터 5, 그레고리 덱·시미언 피코스 4, 테렌 킬 3', () => {
     expect(CHARACTERS.bigSpencer.maxHp).toBe(9);
     expect(CHARACTERS.garyLooter.maxHp).toBe(5);
-    expect(CHARACTERS.greygoryDeck.maxHp).toBe(3);
+    expect(CHARACTERS.greygoryDeck.maxHp).toBe(4);
     expect(CHARACTERS.terenKill.maxHp).toBe(3);
-    expect(CHARACTERS.simeonPicos.maxHp).toBe(3);
+    expect(CHARACTERS.simeonPicos.maxHp).toBe(4);
     expect(CHARACTERS.tucoFranziskaner.maxHp).toBe(5);
+  });
+
+  // 기본판 룰북(base.txt)의 조건이 한국어 문구에서 빠지지 않게 한다
+  it('기본 캐릭터 문구에 원문의 조건이 들어 있다', () => {
+    // "If she plays a Missed! as a BANG!, she cannot play another BANG! card that turn"
+    expect(CHARACTERS.calamityJanet.ability).toContain('차례당 <뱅!> 1장 제한');
+    // "at any time, he may discard 2 cards from his hand"
+    expect(CHARACTERS.sidKetchum.ability).toContain('언제든지');
+    // "randomly from the hand of any other player" / "draws a random card from the hands of that player"
+    expect(CHARACTERS.jesseJones.ability).toContain('무작위');
+    expect(CHARACTERS.elGringo.ability).toContain('무작위');
+    // "puts the other one back on the top of the deck"
+    expect(CHARACTERS.kitCarlson.ability).toContain('남은 한 장은 카드 더미 맨 위로');
   });
 
   it('id가 레코드 키와 일치한다', () => {

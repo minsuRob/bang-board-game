@@ -42,7 +42,7 @@ export const WILDWESTSHOW_EVENTS: Record<WildWestShowEventId, EventCardDef> = {
     name: 'Dorothy Rage',
     nameKo: '도로시 레이지',
     text:
-      '자기 차례에 한 번, 다른 플레이어에게 카드 종류와 대상을 정해 그 카드를 내게 할 수 있다. 그 카드가 손에 없으면 아무 일도 없다.',
+      '자기 차례에 한 번, 다른 플레이어에게 카드 종류와 대상을 정해 그 카드를 내게 할 수 있다. 그 카드가 손에 없으면 그 사람은 손패를 모두에게 보여 준다.',
   },
   helenaZontero: {
     id: 'helenaZontero',

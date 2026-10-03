@@ -223,9 +223,18 @@ export function resolveDiscardSameName(
 // 강탈 · 캣 벌로우
 // ---------------------------------------------------------------------------
 
+/**
+ * 고를 수 있는 손패 장수. 자기 자신에게 쓰면 0 이다: 자기 앞의 카드를 치우는 것만 된다
+ * (결정 I). 자기 손패를 버리는 것은 자발적 버리기라 금지다 (기본판 FAQ Q12).
+ */
+function stealableHand(frame: Frame & { k: 'steal' }, hand: readonly string[]): number {
+  return frame.target === frame.source ? 0 : hand.length;
+}
+
 export function resolveSteal(state: GameState, frame: Frame & { k: 'steal' }): GameState {
   const t = playerOf(state, frame.target);
-  if (!inPlay(t) || (t.hand.length === 0 && t.equipment.length === 0)) {
+  const handCount = stealableHand(frame, t.hand);
+  if (!inPlay(t) || (handCount === 0 && t.equipment.length === 0)) {
     return popFrame(state);
   }
   return {
@@ -235,7 +244,7 @@ export function resolveSteal(state: GameState, frame: Frame & { k: 'steal' }): G
       pid: frame.source,
       target: frame.target,
       mode: frame.mode,
-      handCount: t.hand.length,
+      handCount,
       equipment: t.equipment,
     },
   };
@@ -247,22 +256,33 @@ export function respondSteal(
   choice: Choice,
 ): GameState {
   const t = playerOf(state, frame.target);
+  const hand = t.hand.slice(0, stealableHand(frame, t.hand));
+  let rng = state.rng;
+  // 손패는 무작위 1장이다 ("a random card from his hand", 기본판 룰). 손패 순서는 받은 순서라
+  // 고른 번호를 그대로 쓰면 공개된 경로로 들어온 카드를 노릴 수 있다. 번호는 '손패 쪽'이라는 뜻만 쓴다.
+  // 사카가웨이로 손패가 펼쳐져 있어도 마찬가지다 (와일드 웨스트 쇼 FAQ Q17).
+  const randomFromHand = (): string | null => {
+    if (hand.length === 0) return null;
+    const rolled = nextInt(rng, hand.length);
+    rng = rolled.rng;
+    return hand[rolled.value];
+  };
   let card: string | null = null;
   let fromEquipment = false;
 
   if (choice.c === 'pick') {
     if (choice.pick.zone === 'hand') {
-      card = t.hand[choice.pick.index] ?? t.hand[0] ?? null;
+      card = randomFromHand();
     } else if (t.equipment.includes(choice.pick.card)) {
       card = choice.pick.card;
       fromEquipment = true;
     }
   }
   if (!card) {
-    card = t.hand[0] ?? t.equipment[0] ?? null;
-    fromEquipment = !t.hand.length && Boolean(card);
+    card = randomFromHand() ?? t.equipment[0] ?? null;
+    fromEquipment = !hand.length && Boolean(card);
   }
-  let cur = popFrame(state);
+  let cur = popFrame({ ...state, rng });
   if (!card) return cur;
   // 헨리 블록: 내 카드를 가져가거나 버리게 한 사람은 뱅!의 표적이 된다
   cur = pushSeq(cur, onCardTakenFrames(cur, frame.target, frame.source));

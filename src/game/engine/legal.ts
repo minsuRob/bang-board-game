@@ -410,7 +410,7 @@ function eventAbilityActions(state: GameState, pid: PlayerId): Action[] {
 
 /**
  * 도로시 레이지로 시킨 수: forced 가 손의 kind 카드로 target 에게 낼 수 있는 수.
- * 그 카드가 없거나, 있어도 지금 그 대상에게 낼 수 없으면 null (아무 일도 없다).
+ * 그 카드가 없거나, 있어도 지금 그 대상에게 낼 수 없으면 null (그 사람이 손패를 보여 준다).
  */
 export function forcedPlayOf(
   state: GameState,
@@ -534,10 +534,14 @@ function kindActions(
       if (!bangsLeft) break;
       for (const t of seatedPlayers(state)) {
         if (t.id === pid || !t.alive) continue;
-        if (!canReachWithBang(state, pid, t.id)) continue;
+        if (!canReachWithBang(state, pid, t.id) || immuneToCard(state, t.id, card, pid)) continue;
         // 두 번째 표적: 첫 표적에서 거리 1, 나 제외 (원본 맵 v0.327)
         const seconds = alivePlayers(state).filter(
-          (u) => u.id !== pid && u.id !== t.id && distance(state, t.id, u.id) <= 1,
+          (u) =>
+            u.id !== pid &&
+            u.id !== t.id &&
+            distance(state, t.id, u.id) <= 1 &&
+            !immuneToCard(state, u.id, card, pid),
         );
         if (seconds.length === 0) {
           out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
@@ -568,7 +572,8 @@ function kindActions(
       // 무기와 무관하게 거리 2 이내. 뱅! 카드가 아니라 횟수를 쓰지 않는다.
       for (const t of seatedPlayers(state)) {
         if (t.id === pid || !t.alive) continue;
-        if (canReachAtRange(state, pid, t.id, 2)) {
+        // 칼루멧: 남이 낸 ♦ 카드(토마호크 ♦A)는 효과가 없다
+        if (canReachAtRange(state, pid, t.id, 2) && !immuneToCard(state, t.id, card, pid)) {
           out.push({ type: 'playCard', pid, card, as: explicit, target: t.id });
         }
       }

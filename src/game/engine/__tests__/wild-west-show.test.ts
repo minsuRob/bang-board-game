@@ -71,6 +71,43 @@ describe('빅 스펜서', () => {
     expect(p(s2, 'p1').hp).toBe(p(s0, 'p1').hp - 1);
     expect(p(s2, 'p1').hand).toHaveLength(2);
   });
+
+  // 공식 해설(결전): "Big Spencer may use BANG! as they were Missed!" (wildwestshow.txt / expansion-pack.txt)
+  // 막히는 것은 빗나감! 카드뿐이다.
+  it('결전 중에는 뱅!을 빗나감!으로 낼 수 있다', () => {
+    const s0 = scenario({
+      event: 'showdown',
+      players: [{ hand: ['bang'] }, { character: 'bigSpencer', hand: ['bang', 'missed'] }, {}, {}],
+    });
+    const s1 = reduce(s0, { type: 'playCard', pid: 'p0', card: handCard(s0, 'p0', 'bang'), target: 'p1' });
+    expect(s1.awaiting).toMatchObject({ k: 'missed', pid: 'p1' });
+    const options = s1.awaiting?.k === 'missed' ? s1.awaiting.options : [];
+    expect(options).toContain(handCard(s0, 'p1', 'bang'));
+    expect(options).not.toContain(handCard(s0, 'p1', 'missed'));
+  });
+
+  // 카드 문구 "빗나감! 카드를 낼 수 없다" 를 글자대로: 결전 중에도 빗나감! 카드는 뱅!으로도 못 낸다
+  it('결전 중에도 빗나감! 카드를 뱅!으로 내지는 못한다', () => {
+    const s0 = scenario({
+      event: 'showdown',
+      players: [{ character: 'bigSpencer', hand: ['missed', 'beer'] }, {}, {}, {}],
+    });
+    const plays = legalActions(s0, 'p0').filter((a) => a.type === 'playCard' && a.as === 'bang');
+    expect(plays.some((a) => a.type === 'playCard' && a.card === handCard(s0, 'p0', 'missed'))).toBe(false);
+    expect(plays.some((a) => a.type === 'playCard' && a.card === handCard(s0, 'p0', 'beer'))).toBe(true);
+  });
+
+  // 와일드 웨스트 쇼 FAQ Q07: "Can Big Spencer use the Barrel, or other cards with a Missed! effect?"
+  // "Yes, his ability is restricted to Missed! cards only." — 빗나감!으로 치는 역화(그림자의 계곡)는 낼 수 있다.
+  it('빗나감! 효과를 가진 다른 카드(역화)는 낼 수 있다', () => {
+    const s0 = scenario({
+      expansions: ['valley'],
+      players: [{ hand: ['bang'] }, { character: 'bigSpencer', hand: ['backfire'] }, {}, {}],
+    });
+    const s1 = reduce(s0, { type: 'playCard', pid: 'p0', card: handCard(s0, 'p0', 'bang'), target: 'p1' });
+    expect(s1.awaiting).toMatchObject({ k: 'missed', pid: 'p1' });
+    expect(s1.awaiting?.k === 'missed' && s1.awaiting.options).toContain(handCard(s0, 'p1', 'backfire'));
+  });
 });
 
 describe('플린트 웨스트우드', () => {

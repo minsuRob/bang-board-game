@@ -79,7 +79,10 @@ export function goldUseOptions(state: GameState, pid: PlayerId, card: GoldCardId
       return out;
     }
     case 'wanted':
-      return others.filter((t) => !hasGoldKind(state, t.id, 'wanted')).map((t) => ({ target: t.id }));
+      // "Play on any player." — 자기 앞에도 (골드 러시 FAQ Q07)
+      return alivePlayers(state)
+        .filter((t) => !hasGoldKind(state, t.id, 'wanted'))
+        .map((t) => ({ target: t.id }));
     default:
       return [{}];
   }

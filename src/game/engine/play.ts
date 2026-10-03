@@ -234,7 +234,8 @@ function effectFrames(
   opts: PlayOptions,
   card?: CardId,
 ): Frame[] {
-  // 칼루멧: 남이 낸 ♦ 기관총·인디언은 그 사람을 건너뛴다.
+  // 칼루멧: 남이 낸 ♦ 광역 카드(기관총·인디언·노상강도 ♦Q·포커)는 그 사람을 건너뛴다.
+  // 이로운 광역 카드(주점·잡화점)와 자기도 끼는 토네이도는 거르지 않는다 (EC-130 결정).
   const hit = (ids: PlayerId[]) =>
     card ? ids.filter((t) => !immuneToCard(state, t, card, pid)) : ids;
   switch (as) {
@@ -290,9 +291,9 @@ function effectFrames(
       if (!target) return [];
       return [{ k: 'duel', a: pid, b: target, toPlay: target }];
     case 'bandidos':
-      return [{ k: 'bandidos', source: pid, queue: othersInOrder(state, pid) }];
+      return [{ k: 'bandidos', source: pid, queue: hit(othersInOrder(state, pid)) }];
     case 'poker':
-      return [{ k: 'poker', source: pid, queue: othersInOrder(state, pid), pot: [] }];
+      return [{ k: 'poker', source: pid, queue: hit(othersInOrder(state, pid)), pot: [] }];
     case 'tornado':
       return [{ k: 'tornado', queue: [pid, ...othersInOrder(state, pid)] }];
     case 'panic':

@@ -117,10 +117,26 @@ describe('도로시 레이지', () => {
     expect(s.turn.active).toBe('a');
   });
 
-  it('그 카드가 없으면 아무 일도 없고, 기회는 쓴 것이다', () => {
+  it('그 카드가 없으면 낸 것은 없고, 기회는 쓴 것이다', () => {
     const s = reduce(table('dorothyRage'), order('b', 'bang', 'c'));
     expect(logged(s, 'dorothyRageMiss')).toBe(true);
     expect(legalActions(s, 'a').some((x) => x.type === 'eventAbility')).toBe(false);
+  });
+
+  // 공식 해설: "If the forced player does not have the called card, he must show his hand."
+  // 와일드 웨스트 쇼 FAQ Q20: 누가 보는가 — "All players."
+  it('그 카드가 없으면 시킨 사람이 손패를 모두에게 보여 준다', () => {
+    const s0 = table('dorothyRage', [{}, { hand: ['beer', 'missed'] }]);
+    const s = reduce(s0, order('b', 'bang', 'c'));
+    const shown = s.log.find((e) => e.t === 'dorothyRageMiss');
+    expect(shown?.cards?.slice().sort()).toEqual(p(s0, 'b').hand.slice().sort());
+    // 공개 로그라 다른 사람의 시점에도 그대로 남는다
+    for (const viewer of ['a', 'c', 'd']) {
+      const seen = viewFor(s, viewer).log.find((e) => e.t === 'dorothyRageMiss');
+      expect(seen?.cards).toEqual(shown?.cards);
+      expect(seen?.text).toContain('맥주');
+      expect(seen?.text).toContain('빗나감!');
+    }
   });
 
   it('고를 수 있는 수는 시키는 사람의 손패를 보지 않는다 (장수만 본다)', () => {

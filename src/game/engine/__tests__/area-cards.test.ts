@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { reduce } from '../reducer';
+import { legalActions } from '../legal';
+import { defaultAction, reduce } from '../reducer';
 import { handCard, logged, p, scenario, totalCards } from './helpers';
 import type { GameState } from '../types';
 
@@ -304,5 +305,49 @@ describe('강탈과 캣 벌로우', () => {
       choice: { c: 'pick', pick: { zone: 'equipment', card: dyn } },
     });
     expect(p(s, 'p0').equipment).toHaveLength(0);
+  });
+
+  // 기본판 룰 기호 설명: 강탈 "you can draw a random card from his hand",
+  // 캣 벌로우 "discard a random card from his hand". 손패 순서는 받은 순서라(잡화점에서 고른 카드는 맨 끝)
+  // 번호로 고르면 공개된 카드를 노릴 수 있다. 번호와 상관없이 시드 RNG 로 뽑는다.
+  it('손패에서는 고른 번호와 상관없이 무작위로 뽑는다', () => {
+    for (const kind of ['panic', 'catBalou'] as const) {
+      const taken = new Set<string>();
+      for (let seed = 1; seed <= 12; seed++) {
+        const s0 = scenario({
+          seed,
+          players: [{ hand: [kind] }, { hand: ['beer', 'bang', 'missed', 'saloon'] }, {}, {}],
+        });
+        const last = p(s0, 'p1').hand.length - 1;
+        let s = playCard(s0, 'p0', kind, 'p1');
+        s = reduce(s, { type: 'respond', pid: 'p0', choice: { c: 'pick', pick: { zone: 'hand', index: last } } });
+        const gone = p(s0, 'p1').hand.filter((c) => !p(s, 'p1').hand.includes(c));
+        expect(gone).toHaveLength(1);
+        taken.add(gone[0]);
+      }
+      expect(taken.size).toBeGreaterThan(1);
+    }
+  });
+
+  // 결정 I 는 자기 앞의 카드를 치우는 것만 허용한다. 자기 손패를 버리는 것은 자발적 버리기다:
+  // 기본판 FAQ Q12 "Can I voluntarily discard my cards?" "No, neither cards from your hand nor cards in play"
+  it('자기 자신에게 쓰면 손패는 고를 수 없고 앞의 카드만 고른다', () => {
+    for (const kind of ['catBalou', 'panic'] as const) {
+      const s0 = scenario({
+        players: [{ hand: [kind, 'beer', 'bang'], equipment: ['dynamite'] }, {}, {}, {}],
+      });
+      const s = playCard(s0, 'p0', kind, 'p0');
+      expect(s.awaiting).toMatchObject({ k: 'stealCard', pid: 'p0', target: 'p0', handCount: 0 });
+      const picks = legalActions(s, 'p0');
+      expect(picks.length).toBeGreaterThan(0);
+      expect(
+        picks.every((a) => a.type === 'respond' && a.choice.c === 'pick' && a.choice.pick.zone === 'equipment'),
+      ).toBe(true);
+      // 시간이 지나 대신 고를 때도 손패를 버리지 않는다
+      const timeout = reduce(s, defaultAction(s, 'p0')!);
+      expect(p(timeout, 'p0').equipment).toHaveLength(0);
+      expect(p(timeout, 'p0').hand).toEqual(expect.arrayContaining(p(s, 'p0').hand));
+      expect(p(timeout, 'p0').hand).toHaveLength(kind === 'panic' ? 3 : 2);
+    }
   });
 });

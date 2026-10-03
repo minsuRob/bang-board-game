@@ -632,12 +632,13 @@ function scoreRespond(
         // 무기는 사정거리를, 술통은 방어를 빼앗는다
         return 20 + cardValue(kind) * 3;
       }
-      // 손패가 펼쳐져 있으면(사카가웨이) 고를 수 있다. 같은 편에게서는 덜 아까운 것을,
-      // 적에게서는 가장 값진 것을 가져온다
-      const seen = knownHand(view, a.target)?.[choice.pick.index];
-      const kind = seen ? safeKind(seen) : null;
-      if (kind) return ally ? 10 - cardValue(kind) * 0.5 : 18 + cardValue(kind) * 3;
-      // 손패는 뒷면이라 어느 장이든 같다
+      // 손패는 무작위 1장이다 (번호를 골라도 엔진이 무작위로 뽑는다). 손패가 펼쳐져 있으면(사카가웨이)
+      // 평균 값어치로 장비와 견준다. 같은 편에게서는 덜 아까울수록, 적에게서는 값질수록 낫다
+      const kinds = (knownHand(view, a.target) ?? []).map(safeKind).filter((k): k is CardKind => k !== null);
+      if (kinds.length > 0) {
+        const avg = kinds.reduce((n, k) => n + cardValue(k), 0) / kinds.length;
+        return ally ? 10 - avg * 0.5 : 18 + avg * 3;
+      }
       return ally ? 10 : 20;
     }
 
