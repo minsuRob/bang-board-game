@@ -35,6 +35,7 @@ import {
   onTurnEndFrames,
   onTurnStartFrames,
   resurrectsEliminated,
+  revealsEventOnSheriffTurn,
   revivesWithShuffledRoles,
   turnDirectionOf,
 } from '../hooks';
@@ -82,8 +83,10 @@ export function resolveTurnStart(state: GameState, frame: Frame & { k: 'turnStar
   cur = updatePlayer(cur, pid, (x) => ({ ...x, usedThisTurn: [] }));
   cur = log(cur, { t: 'turnStart', pid, text: `${nameOf(cur, pid)}의 차례.` });
 
-  // 이벤트는 보안관의 두 번째 차례부터 공개된다.
-  const shouldReveal = Boolean(cur.event) && ((isSheriff && !extra && round >= 2) || frame.reveal === true);
+  // 하이 눈·한줌의 카드: 이벤트는 보안관의 두 번째 차례부터 공개된다.
+  // 와일드 웨스트 쇼는 역마차·웰스 파고를 낼 때 공개한다 (engine/play.ts → revealEventOnPlayFrames).
+  const onSheriffTurn = isSheriff && !extra && round >= 2 && revealsEventOnSheriffTurn(cur);
+  const shouldReveal = Boolean(cur.event) && (onSheriffTurn || frame.reveal === true);
 
   const frames: Frame[] = [];
   if (shouldReveal) frames.push({ k: 'revealEvent' });
@@ -96,15 +99,16 @@ export function resolveTurnStart(state: GameState, frame: Frame & { k: 'turnStar
   return pushSeq(cur, frames);
 }
 
-export function resolveRevealEvent(state: GameState): GameState {
+export function resolveRevealEvent(state: GameState, frame: Frame & { k: 'revealEvent' }): GameState {
   let cur = popFrame(state);
   const ev = cur.event;
   if (!ev) return cur;
 
   if (ev.deck.length === 0) {
-    // 하이 눈 카드가 마지막이다. 더 공개할 것이 없으면 그대로 둔다.
+    // 맨 밑의 고정 카드(하이 눈·와일드 웨스트 쇼 등)가 마지막이다. 더 공개할 것이 없으면 그대로 둔다.
     return cur;
   }
+  const revealer = frame.pid ?? cur.turn.active;
   const [next, ...rest] = ev.deck;
   cur = {
     ...cur,
@@ -114,9 +118,10 @@ export function resolveRevealEvent(state: GameState): GameState {
       past: ev.current ? [...ev.past, ev.current] : ev.past,
     },
   };
-  cur = log(cur, { t: 'event', card: next, text: `이벤트 공개 — ${EVENTS[next].nameKo}` });
+  const by = frame.pid ? `${ga(nameOf(cur, frame.pid))} 더미를 가져가 ` : '';
+  cur = log(cur, { t: 'event', card: next, text: `${by}이벤트 공개 — ${EVENTS[next].nameKo}` });
 
-  return pushSeq(cur, onEventEnterFrames(cur));
+  return pushSeq(cur, onEventEnterFrames(cur, revealer));
 }
 
 export function resolveEventTurnStart(

@@ -111,7 +111,7 @@ export function resolveFrame(state: GameState, frame: Frame): GameState {
     case 'turnStart':
       return resolveTurnStart(state, frame);
     case 'revealEvent':
-      return resolveRevealEvent(state);
+      return resolveRevealEvent(state, frame);
     case 'eventTurnStart':
       return resolveEventTurnStart(state, frame);
     case 'drawPhase':

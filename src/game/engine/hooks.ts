@@ -7,6 +7,7 @@
 
 import { CHARACTER_MODIFIERS, equipmentModifier, EVENT_MODIFIERS } from '../modifiers';
 import { CARD_DEFS } from '../data/cards.base';
+import { eventDeckFor, type EventRevealTrigger } from '../data/events';
 import { GOLD_MODIFIERS } from '../modifiers/goldrush';
 import { goldKindOf } from '../data/cards.goldrush';
 import type { CardId, CardKind, CharacterId } from '../data/types';
@@ -406,8 +407,37 @@ export function onPutInPlayFrames(
   return getModifiers(state, pid).flatMap((m) => m.onPutInPlay?.(ctx, card, holder) ?? []);
 }
 
-export function onEventEnterFrames(state: GameState): Frame[] {
-  return eventModifier(state)?.onEventEnter?.(state) ?? [];
+export function onEventEnterFrames(state: GameState, revealer: PlayerId): Frame[] {
+  return eventModifier(state)?.onEventEnter?.(state, revealer) ?? [];
+}
+
+/** 이 판의 이벤트 덱이 다음 카드를 공개하는 때. 이벤트 덱이 없으면 null */
+function eventRevealTrigger(state: GameState): EventRevealTrigger | null {
+  if (!state.event) return null;
+  // 설정에 상황 카드 확장판이 없는 예전 상태는 하이 눈처럼 다룬다
+  return eventDeckFor(state.config.expansions)?.revealOn ?? { k: 'sheriffTurn' };
+}
+
+/** 보안관 차례 시작마다 이벤트를 공개하는 판인가 (하이 눈·한줌의 카드) */
+export function revealsEventOnSheriffTurn(state: GameState): boolean {
+  return eventRevealTrigger(state)?.k === 'sheriffTurn';
+}
+
+/**
+ * 카드를 내서 이벤트를 공개하는 판이면, 이 카드를 낸 사람이 공개하는 프레임.
+ * 와일드 웨스트 쇼: 역마차·웰스 파고를 낸 사람이 더미를 가져가 맨 위를 공개한다.
+ * 리 반 클리프가 다시 낸 효과(repeat)로는 공개하지 않는다
+ * ("the WWS card only changes the first time", FAQ Q19 "you have to use a real Stagecoach or Wells Fargo").
+ */
+export function revealEventOnPlayFrames(
+  state: GameState,
+  pid: PlayerId,
+  as: CardKind,
+  repeat: boolean,
+): Frame[] {
+  const trigger = eventRevealTrigger(state);
+  if (repeat || trigger?.k !== 'playCard' || !trigger.kinds.includes(as)) return [];
+  return [{ k: 'revealEvent', pid }];
 }
 
 export function onDrawPhaseEndFrames(state: GameState, pid: PlayerId): Frame[] {

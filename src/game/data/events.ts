@@ -17,7 +17,7 @@ import {
   WILDWESTSHOW_FINAL_ID,
   WILDWESTSHOW_SHUFFLED_IDS,
 } from './cards.wildwestshow';
-import type { EventCardDef, EventCardId, EventExpansion, Expansion } from './types';
+import type { CardKind, EventCardDef, EventCardId, EventExpansion, Expansion } from './types';
 
 export const EVENTS: Record<EventCardId, EventCardDef> = {
   ...HIGHNOON_EVENTS,
@@ -25,22 +25,47 @@ export const EVENTS: Record<EventCardId, EventCardDef> = {
   ...FISTFUL_EVENTS,
 };
 
+/**
+ * 다음 이벤트를 공개하는 때.
+ * - sheriffTurn: 보안관의 두 번째 차례부터 보안관 차례 시작마다 (하이 눈·한줌의 카드)
+ * - playCard: 이 종류의 카드를 손에서 낼 때, 낸 사람이 더미를 가져가 공개한다 (와일드 웨스트 쇼의
+ *   역마차·웰스 파고). 리 반 클리프가 다시 낸 효과로는 공개하지 않는다
+ */
+export type EventRevealTrigger =
+  | { k: 'sheriffTurn' }
+  | { k: 'playCard'; kinds: readonly CardKind[] };
+
 export type EventDeckSpec = {
   expansion: EventExpansion;
   /** 섞어서 위에 쌓는 카드 */
   shuffled: EventCardId[];
   /** 맨 밑에 고정되는 카드 */
   final: EventCardId;
+  revealOn: EventRevealTrigger;
 };
 
+const SHERIFF_TURN: EventRevealTrigger = { k: 'sheriffTurn' };
+
 const DECKS: Record<EventExpansion, EventDeckSpec> = {
-  highnoon: { expansion: 'highnoon', shuffled: HIGHNOON_SHUFFLED_IDS, final: HIGHNOON_FINAL_ID },
+  highnoon: {
+    expansion: 'highnoon',
+    shuffled: HIGHNOON_SHUFFLED_IDS,
+    final: HIGHNOON_FINAL_ID,
+    revealOn: SHERIFF_TURN,
+  },
+  // "When you play a Stagecoach or Wells Fargo, take the WWS pile … reveal the top card" (WWS 룰 1쪽)
   wildwestshow: {
     expansion: 'wildwestshow',
     shuffled: WILDWESTSHOW_SHUFFLED_IDS,
     final: WILDWESTSHOW_FINAL_ID,
+    revealOn: { k: 'playCard', kinds: ['stagecoach', 'wellsFargo'] },
   },
-  fistful: { expansion: 'fistful', shuffled: FISTFUL_SHUFFLED_IDS, final: FISTFUL_FINAL_ID },
+  fistful: {
+    expansion: 'fistful',
+    shuffled: FISTFUL_SHUFFLED_IDS,
+    final: FISTFUL_FINAL_ID,
+    revealOn: SHERIFF_TURN,
+  },
 };
 
 /** 상황 카드 확장판. 로비에 이 순서로 놓고, 둘 이상 켜져 있으면 앞의 것을 쓴다 */
