@@ -16,6 +16,11 @@ export default function Root({ children }: PropsWithChildren) {
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        {/* iPhone 은 전체 화면 API 가 없다. 홈 화면에 추가해서 열면 주소창 없이 뜨게 한다 (FullscreenButton) */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+        <meta name="apple-mobile-web-app-title" content="BANG!" />
         <ScrollViewStyleReset />
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
       </head>
