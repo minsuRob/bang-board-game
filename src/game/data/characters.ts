@@ -289,7 +289,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     name: 'Big Spencer',
     nameKo: '빅 스펜서',
     maxHp: 9,
-    ability: '카드 5장을 들고 시작합니다. <빗나감!>을 낼 수 없습니다.',
+    ability: '카드 5장을 들고 시작합니다. <빗나감!> 카드를 낼 수 없습니다.',
     expansion: 'wildwestshow',
   },
   flintWestwood: {
