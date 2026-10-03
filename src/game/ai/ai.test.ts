@@ -1,54 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { actionKey, actorsOf, legalActions, reduce, type Action, type GameState } from '../engine';
+import { actionKey, actorsOf, legalActions, reduce, type Action } from '../engine';
 import { viewFor } from '../engine/view';
+import { startDrafted, startGame } from './__tests__/play';
 import { decide } from './index';
 import type { AiTier } from './types';
-
-function startGame(seed: number, count: number, highnoon = false): GameState {
-  const seats = Array.from({ length: count }, (_, i) => ({ id: `p${i}`, name: `P${i}` }));
-  return reduce(null, {
-    type: 'startGame',
-    seed,
-    config: { playerCount: count, expansions: highnoon ? ['highnoon'] : [] },
-    seats,
-  });
-}
-
-/** 드래프트까지 AI 가 마친 판 */
-function startDrafted(seed: number, count: number): GameState {
-  let state = startGame(seed, count);
-  while (state.draft) {
-    const actor = actorsOf(state)[0];
-    state = reduce(state, decide(state, actor, 'medium', seed) as Action);
-  }
-  return state;
-}
-
-type PlayResult = { state: GameState; steps: number };
-
-function playOut(
-  seed: number,
-  count: number,
-  tierOf: (seat: number) => AiTier,
-  maxSteps = 4000,
-  highnoon = false,
-): PlayResult {
-  let state = startGame(seed, count, highnoon);
-  let steps = 0;
-
-  while (!state.result && steps < maxSteps) {
-    const actor = actorsOf(state)[0];
-    const seat = state.players.findIndex((p) => p.id === actor);
-    const action = decide(state, actor, tierOf(seat), seed * 31 + steps);
-    if (!action) break;
-    const next = reduce(state, action);
-    expect(next, `상태가 진행되지 않았다 (seed ${seed}, step ${steps})`).not.toBe(state);
-    state = next;
-    steps++;
-  }
-  return { state, steps };
-}
 
 describe('AI 기본 동작', () => {
   it('세 난이도 모두 합법적인 수만 낸다', () => {
@@ -94,70 +50,5 @@ describe('AI 기본 동작', () => {
       if (a) seen.add(actionKey(a));
     }
     expect(seen.size).toBeGreaterThan(1);
-  });
-});
-
-describe('AI 대전', () => {
-  it('4~7인 대전 20판이 예외 없이 끝난다', () => {
-    let finished = 0;
-    for (let seed = 200; seed < 220; seed++) {
-      const count = 4 + (seed % 4);
-      const { state } = playOut(seed, count, (s) => (['easy', 'medium', 'hard'] as AiTier[])[s % 3]);
-      if (state.result) finished++;
-    }
-    expect(finished).toBeGreaterThanOrEqual(18);
-  });
-
-  it('하이 눈 확장에서도 끝난다', () => {
-    let finished = 0;
-    for (let seed = 300; seed < 310; seed++) {
-      const { state } = playOut(seed, 5, () => 'medium', 4000, true);
-      if (state.result) finished++;
-    }
-    expect(finished).toBeGreaterThanOrEqual(9);
-  });
-
-  // 상 난이도는 시뮬레이션을 돌리므로 한 판이 느리다. 판 수를 줄이는 대신 넉넉히 기다린다.
-  it('난이도 순서가 뒤집히지 않는다 (상 > 중 > 하)', { timeout: 180_000 }, () => {
-    // 좌석마다 난이도를 돌려 가며 배정해 역할 편향을 없앤다.
-    const wins: Record<string, number> = { easy: 0, medium: 0, hard: 0 };
-    const seats: Record<string, number> = { easy: 0, medium: 0, hard: 0 };
-    const order: AiTier[] = ['easy', 'medium', 'hard'];
-
-    for (let seed = 500; seed < 518; seed++) {
-      const count = 6;
-      const tierOf = (s: number): AiTier => order[(s + seed) % 3];
-      const { state } = playOut(seed, count, tierOf);
-      if (!state.result) continue;
-      for (let s = 0; s < count; s++) {
-        const tier = tierOf(s);
-        seats[tier]++;
-        if (state.result.winnerIds.includes(`p${s}`)) wins[tier]++;
-      }
-    }
-    const rate = (t: string) => wins[t] / Math.max(1, seats[t]);
-    // 18판으로는 상과 하만 가른다. 중 > 하는 판 수가 넉넉한 아래 테스트가 본다.
-    expect(rate('hard')).toBeGreaterThan(rate('easy'));
-    expect(rate('hard')).toBeGreaterThanOrEqual(rate('medium'));
-  });
-
-  it('중 난이도가 하 난이도보다 확실히 강하다', () => {
-    // 좌석마다 난이도를 번갈아 배정해 역할 편향을 없앤다
-    const wins: Record<string, number> = { easy: 0, medium: 0 };
-    const seats: Record<string, number> = { easy: 0, medium: 0 };
-
-    for (let seed = 400; seed < 440; seed++) {
-      const count = 6;
-      const tierOf = (s: number): AiTier => ((s + seed) % 2 === 0 ? 'easy' : 'medium');
-      const { state } = playOut(seed, count, tierOf);
-      if (!state.result) continue;
-      for (let s = 0; s < count; s++) {
-        const tier = tierOf(s);
-        seats[tier]++;
-        if (state.result.winnerIds.includes(`p${s}`)) wins[tier]++;
-      }
-    }
-    const rate = (t: string) => wins[t] / Math.max(1, seats[t]);
-    expect(rate('medium')).toBeGreaterThan(rate('easy') + 0.05);
   });
 });
