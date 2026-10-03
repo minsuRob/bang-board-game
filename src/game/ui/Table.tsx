@@ -27,6 +27,7 @@ import { SidePanel } from './SidePanel';
 import { TableCenter } from './TableCenter';
 import { TableMobile } from './TableMobile';
 import { bottomStatus, handleHandTap, statusMessage } from './table-text';
+import { glowingSeat } from './glowing-seat';
 import { themedStyles } from './theme/use-theme';
 import type { TableApi } from './use-table';
 import { Colors, MinTableHeight, MobileBreakpoint, Spacing } from '@/constants/theme';
@@ -125,7 +126,7 @@ export function Table({ view, viewer, api, clock }: TableProps) {
             view={view}
             player={player}
             viewer={viewer}
-            active={view.turn.active === player.id}
+            active={glowingSeat(view) === player.id}
             targetable={targets.includes(player.id)}
             onPress={() => onSeatPress(player.id)}
             picking={steal && steal.target === player.id ? steal : null}
@@ -201,7 +202,7 @@ export function Table({ view, viewer, api, clock }: TableProps) {
                   view={view}
                   player={me}
                   viewer={viewer}
-                  active={view.turn.active === viewer}
+                  active={glowingSeat(view) === viewer}
                   targetable={targets.includes(viewer)}
                   onPress={() => onSeatPress(viewer)}
                   picking={steal && steal.target === viewer ? steal : null}

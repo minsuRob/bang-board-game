@@ -45,6 +45,7 @@ import { SidePanel } from './SidePanel';
 import { WesternFonts } from './menu/western-fonts';
 import { useToolbarStyles } from './theme/toolbar';
 import { themedStyles } from './theme/use-theme';
+import { glowingSeat } from './glowing-seat';
 import type { TableApi } from './use-table';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
@@ -148,7 +149,7 @@ export function TableMobile({
                 view={view}
                 viewer={viewer}
                 player={player}
-                active={view.turn.active === player.id}
+                active={glowingSeat(view) === player.id}
                 targetable={targets.includes(player.id)}
                 onPress={() => pressSeat(player.id)}
                 picking={steal && steal.target === player.id ? steal : null}
@@ -226,7 +227,7 @@ export function TableMobile({
               view={view}
               viewer={viewer}
               player={me}
-              active={view.turn.active === viewer}
+              active={glowingSeat(view) === viewer}
               targetable={targets.includes(viewer)}
               onPress={() => pressSeat(viewer)}
               picking={steal && steal.target === viewer ? steal : null}

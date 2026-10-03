@@ -35,6 +35,7 @@ import { CardHandle, IDLE_POSE, type Pose } from './CardHandle';
 import { OpponentFans } from './OpponentFans';
 import { SeatCards } from './SeatCards';
 import { TableGeometry } from './TableGeometry';
+import { glowingSeat } from '../../ui/glowing-seat';
 
 const T = CARD_SIZE.thickness;
 
@@ -221,7 +222,7 @@ export class CardWorld {
     // 매트 색
     state.players.forEach((p, i) => {
       const dead = !p.alive && !p.ghost;
-      this.table.setMatTone(i, dead ? 'dead' : state.turn.active === p.id ? 'active' : 'idle');
+      this.table.setMatTone(i, dead ? 'dead' : glowingSeat(state) === p.id ? 'active' : 'idle');
     });
   }
 
@@ -251,7 +252,7 @@ export class CardWorld {
     if (!state) return;
     state.players.forEach((p, i) => {
       const dead = !p.alive && !p.ghost;
-      const tone = pids.includes(p.id) ? 'target' : dead ? 'dead' : state.turn.active === p.id ? 'active' : 'idle';
+      const tone = pids.includes(p.id) ? 'target' : dead ? 'dead' : glowingSeat(state) === p.id ? 'active' : 'idle';
       this.table.setMatTone(i, tone);
     });
   }

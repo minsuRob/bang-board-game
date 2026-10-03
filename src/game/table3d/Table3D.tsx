@@ -22,6 +22,7 @@ import { setDeckMeasure } from '../ui/hand-arrival';
 import { useChatUnread } from '../ui/ChatPanel';
 import { SidePanel } from '../ui/SidePanel';
 import { bottomStatus, handleHandTap, statusMessage } from '../ui/table-text';
+import { glowingSeat } from '../ui/glowing-seat';
 import type { TableApi } from '../ui/use-table';
 import { Canvas } from './canvas/Canvas';
 import { ANCHOR_DECK, anchorsStore, seatKey } from './core/anchors-store';
@@ -240,7 +241,7 @@ export function Table3D({ view, viewer, api, clock }: Table3DProps) {
               aside={
                 <SelfStatus
                   player={me}
-                  active={view.turn.active === viewer}
+                  active={glowingSeat(view) === viewer}
                   targetable={targets.includes(viewer)}
                   onPress={() => onSeatPress(viewer)}
                   compact={!wide}

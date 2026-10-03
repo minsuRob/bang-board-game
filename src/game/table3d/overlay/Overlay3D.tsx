@@ -22,6 +22,7 @@ import { CharacterHover, type PreviewSlot } from './CharacterHover';
 import { EventHover } from './EventHover';
 import { FloatingNumbers } from './FloatingNumbers';
 import { LABEL_W, LABEL_W_COMPACT, LABEL_W_SELF, LABEL_W_SELF_COMPACT, SeatLabel } from './SeatLabel';
+import { glowingSeat } from '../../ui/glowing-seat';
 import { themedStyles, useColors } from '../../ui/theme/use-theme';
 import type { ThemeColor } from '@/constants/theme';
 
@@ -118,7 +119,7 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
             mode={mode}
             compact={compact}
             canvasHeight={anchors.height}
-            active={view.turn.active === player.id}
+            active={glowingSeat(view) === player.id}
             targetable={targets.includes(player.id)}
             onPress={() => (targets.includes(player.id) ? onSeatPress(player.id) : setDetail(player.id))}
             picking={steal && steal.target === player.id ? steal : null}
