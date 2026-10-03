@@ -77,6 +77,8 @@ function factsOf(item: CodexItem, ink: string): Fact[] {
       ];
       if (def.countsAs) facts.push({ label: '취급', value: `${CARD_DEFS[def.countsAs].nameKo} 카드로도 친다` });
       if (def.outOfTurn) facts.push({ label: '때', value: '남의 차례에도 낼 수 있다' });
+      const fx = CARD_FX[item.id];
+      if (fx) facts.push({ label: '연출', value: `${fx.doc.title} · ${fx.doc.durationMs}ms · ${fx.doc.quality}` });
       return facts;
     }
     case 'characters': {

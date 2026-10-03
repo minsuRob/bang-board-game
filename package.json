@@ -62,6 +62,8 @@
     "test:rules": "firebase emulators:exec --only firestore --project demo-bang \"vitest run --config vitest.rules.config.mts\"",
     "typecheck": "tsc --noEmit",
     "simulate": "tsx scripts/simulate.ts",
+    "fx:docs": "tsx scripts/sync-card-fx-doc.ts",
+    "fx:docs:check": "npm run fx:docs && git diff --exit-code -- docs/card-fx.md",
     "gen:sfx": "node scripts/gen-sfx.mjs",
     "art:check": "tsx scripts/art/check.ts",
     "deploy": "expo export --platform web && firebase deploy --only hosting",

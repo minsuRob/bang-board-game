@@ -10,6 +10,7 @@
 
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { createStore } from 'zustand/vanilla';
+import type { SfxId } from './fx/sfx-types';
 
 const SOURCES = {
   gunshot: require('../../../assets/sfx/gunshot.wav'),
@@ -24,8 +25,6 @@ const SOURCES = {
   ricochet: require('../../../assets/sfx/ricochet.wav'),
   war_drum: require('../../../assets/sfx/war_drum.wav'),
 } as const;
-
-export type SfxId = keyof typeof SOURCES;
 
 /** 종류마다 겹쳐 틀 수 있는 수 */
 const VOICES = 3;

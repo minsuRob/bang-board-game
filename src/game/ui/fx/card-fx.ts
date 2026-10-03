@@ -7,7 +7,22 @@
 
 import type { CardKind } from '../../data/types';
 import { isHidden, kindOf, type GameEvent } from '../../engine';
-import type { SfxId } from '../sfx';
+import type { SfxId } from './sfx-types';
+
+export type CardFxDoc = {
+  /** 도감과 문서에 표시할 짧은 이름 */
+  title: string;
+  /** 시안 이름. 없으면 — */
+  prototype: string;
+  durationMs: number;
+  /** 원본 그림에서 맞춘 자리와 보충 설명 */
+  placement: string;
+  sounds: string;
+  /** 일반 화질에서도 보이는지 */
+  quality: '일반·고화질' | '고화질만';
+};
+
+type FxMeta = { doc: CardFxDoc };
 
 export type CardFx =
   | {
@@ -15,14 +30,14 @@ export type CardFx =
       sfx: SfxId;
       /** 그림 속 총구 자리. 카드 폭·높이에 대한 비율 */
       muzzle: { x: number; y: number };
-    }
+    } & FxMeta
   | {
       /** 슬로모션 스침. 고화질에서만 (일반 연출은 아직 없다) */
       visual: 'missed';
       sfx: SfxId;
       /** 확대할 때 붙잡아 둘 얼굴 자리. 원본 그림(250×389)에 대한 비율 */
       focus: { x: number; y: number };
-    }
+    } & FxMeta
   | {
       /** 볼캐닉: 그림 속 총구에서 7연사. 고화질에서만 */
       visual: 'volley';
@@ -30,7 +45,7 @@ export type CardFx =
       muzzle: { x: number; y: number };
       back: { x: number; y: number };
       cues: SfxCue[];
-    }
+    } & FxMeta
   | {
       /** 스코필드: 큰 실린더가 돌며 장전된 뒤 그림 속 실린더로 들어간다. 고화질에서만 */
       visual: 'cylinder';
@@ -38,44 +53,44 @@ export type CardFx =
       hub: { x: number; y: number };
       hubR: number;
       cues: SfxCue[];
-    }
+    } & FxMeta
   | {
       /** 레밍턴: 오른쪽 사격장 과녁 3개를 맞힌다. 고화질에서만 */
       visual: 'range';
       muzzle: { x: number; y: number };
       back: { x: number; y: number };
       cues: SfxCue[];
-    }
+    } & FxMeta
   | {
       /** 카빈: 카드가 뒤로 기대고 원근 레인 4칸에 불이 든다. 고화질에서만 */
       visual: 'lane';
       cues: SfxCue[];
-    }
+    } & FxMeta
   | {
       /** 윈체스터: 총구에서 야간 녹색 조준경이 커지고 눈금 1~5. 고화질에서만 */
       visual: 'nightScope';
       muzzle: { x: number; y: number };
       cues: SfxCue[];
-    }
+    } & FxMeta
   | {
       /** 조준경: 그림 속 대물렌즈에서 둥근 시야가 열려 먼 사람이 당겨진다. 고화질에서만 */
       visual: 'scope';
       /** 대물렌즈 (원본 픽셀) */
       lens: { x: number; y: number };
       cues: SfxCue[];
-    }
+    } & FxMeta
   | {
       /** 야생마: 카드가 원근 길을 따라 멀어졌다 돌아온다. 고화질에서만 */
       visual: 'mustang';
       cues: SfxCue[];
-    }
+    } & FxMeta
   | {
       /** 술통: 사내가 통 뒤로 쏙 숨고 총알이 통에 맞아 핑 튕긴다. 고화질에서만 */
       visual: 'barrel';
       /** 총알이 맞는 통 옆구리 (원본 픽셀) */
       hit: { x: number; y: number };
       cues: SfxCue[];
-    }
+    } & FxMeta
   | {
       /** 기관총: 그림 속 총구에서 연사가 모든 자리를 쓸어 간다. 고화질에서만 */
       visual: 'gatling';
@@ -83,7 +98,7 @@ export type CardFx =
       /** 탄피가 튀는 총 몸통 */
       eject: { x: number; y: number };
       cues: SfxCue[];
-    }
+    } & FxMeta
   | {
       /** 인디언!: 그림 속 외치는 입에서 함성 고리가 판 전체로 번진다. 고화질에서만 */
       visual: 'indians';
@@ -91,12 +106,12 @@ export type CardFx =
       /** 깃털이 흩날리는 자리 */
       feather: { x: number; y: number };
       cues: SfxCue[];
-    }
+    } & FxMeta
   | {
       /** 결투: 사선 만화 컷 셋(나 / 회전초 / 상대)이 밀려들고 유리처럼 깨지며 BANG!. 고화질에서만 */
       visual: 'duelComic';
       cues: SfxCue[];
-    };
+    } & FxMeta;
 
 /** 연출 시작에서 몇 ms 뒤에 어떤 소리. AI 배속만큼 함께 당긴다 */
 export type SfxCue = { at: number; sfx: SfxId };
@@ -105,47 +120,54 @@ const times = (list: readonly number[], sfx: SfxId): SfxCue[] => list.map((at) =
 
 export const CARD_FX: Partial<Record<CardKind, CardFx>> = {
   // 뱅! 그림의 권총은 오른쪽을 겨눈다
-  bang: { visual: 'gunshot', sfx: 'gunshot', muzzle: { x: 0.84, y: 0.36 } },
+  bang: { visual: 'gunshot', sfx: 'gunshot', muzzle: { x: 0.84, y: 0.36 }, doc: { title: '총격', prototype: '—', durationMs: 1400, placement: '그림 속 총구 (비율 0.84, 0.36)', sounds: '총성', quality: '일반·고화질' } },
   // 빗나감! 그림은 총알이 머리 옆을 스쳐 모자를 날린 장면이다
-  missed: { visual: 'missed', sfx: 'bullet_whiz', focus: { x: 118 / 250, y: 165 / 389 } },
+  missed: { visual: 'missed', sfx: 'bullet_whiz', focus: { x: 118 / 250, y: 165 / 389 }, doc: { title: '슬로모션 스침', prototype: '—', durationMs: 2400, placement: '얼굴 초점 (118,165)', sounds: '탄환이 스치는 소리', quality: '고화질만' } },
   // 총 장착. 시간은 timeline.ts 의 시간표와 맞춘다
   volcanic: {
     visual: 'volley',
     muzzle: { x: 195, y: 117 },
     back: { x: 112, y: 165 },
     cues: times([120, 255, 375, 480, 570, 660, 750], 'rapid_shot'),
+    doc: { title: '연사 스트로브', prototype: 'A', durationMs: 1500, placement: '총구 (195,117)', sounds: '마른 총성 ×7', quality: '고화질만' },
   },
   schofield: {
     visual: 'cylinder',
     hub: { x: 108, y: 160 },
     hubR: 21,
     cues: [{ at: 0, sfx: 'gun_latch' }, ...times([340, 459, 578, 697, 816, 935], 'cylinder_click'), { at: 1564, sfx: 'gun_latch' }],
+    doc: { title: '3D 실린더 회전', prototype: 'B', durationMs: 1700, placement: '실린더 (108,160), 반지름 21', sounds: '철컥, 딸깍 ×6, 철컥', quality: '고화질만' },
   },
   remington: {
     visual: 'range',
     muzzle: { x: 206, y: 116 },
     back: { x: 118, y: 178 },
     cues: [...times([580, 860, 1140], 'rapid_shot'), ...times([680, 960, 1240], 'target_ding')],
+    doc: { title: '사격장 과녁 3개', prototype: 'C', durationMs: 2000, placement: '총구 (206,116)', sounds: '탕 ×3 + 땡 ×3', quality: '고화질만' },
   },
   carabine: {
     visual: 'lane',
     cues: [{ at: 0, sfx: 'gun_latch' }, ...times([360, 540, 720, 900], 'cylinder_click')],
+    doc: { title: '원근 사격 레인', prototype: 'B', durationMs: 1800, placement: '카드가 아래 모서리 축으로 기댐', sounds: '철컥, 딸깍 ×4', quality: '고화질만' },
   },
   winchester: {
     visual: 'nightScope',
     muzzle: { x: 46, y: 94 },
     cues: [{ at: 0, sfx: 'gun_latch' }, ...times([580, 680, 780, 880, 980, 1160], 'cylinder_click')],
+    doc: { title: '야간 녹색 조준경', prototype: 'B3', durationMs: 2000, placement: '총구 (46,94)', sounds: '철컥, 딸깍 ×5, 고정 딸깍', quality: '고화질만' },
   },
   // 렌즈 돌리는 끼릭 두 번, 먼 사람이 당겨져 거리가 줄 때 맑은 팅
   scope: {
     visual: 'scope',
     lens: { x: 140, y: 172 },
     cues: [...times([300, 560], 'cylinder_click'), { at: 1040, sfx: 'target_ding' }],
+    doc: { title: '렌즈 속 당겨 보기', prototype: 'A', durationMs: 2000, placement: '대물렌즈 (140,172)', sounds: '끼릭 ×2, 거리 줄 때 팅', quality: '고화질만' },
   },
   // 다그닥 (멀어질 때 두 번, 돌아올 때 한 번), 착지 털썩
   mustang: {
     visual: 'mustang',
     cues: [...times([100, 500, 1160], 'hoof_gallop'), { at: 1720, sfx: 'wood_thud' }],
+    doc: { title: '3D 멀어졌다 돌아오기', prototype: 'B', durationMs: 2000, placement: '카드 전체가 원근 길을 따라 움직임', sounds: '다그닥 ×3, 착지 퉁', quality: '고화질만' },
   },
   // 쏙 숨고, 통에 퉁 + 핑 튕김, 하트에 딩
   barrel: {
@@ -157,6 +179,7 @@ export const CARD_FX: Partial<Record<CardKind, CardFx>> = {
       { at: 760, sfx: 'ricochet' },
       { at: 930, sfx: 'target_ding' },
     ],
+    doc: { title: '만화 잉크 쏙·핑!', prototype: 'C', durationMs: 1500, placement: '피격점 (158,186), 머리 조각이 통 뒤로 숨음', sounds: '쏙, 퉁 + 피융, 딩', quality: '고화질만' },
   },
   // 연사 15발 뒤 크랭크가 헛도는 딸깍 두 번
   gatling: {
@@ -164,6 +187,7 @@ export const CARD_FX: Partial<Record<CardKind, CardFx>> = {
     muzzle: { x: 208, y: 199 },
     eject: { x: 172, y: 192 },
     cues: [...times(Array.from({ length: 15 }, (_, i) => 144 + i * 77), 'rapid_shot'), ...times([1360, 1440], 'cylinder_click')],
+    doc: { title: '쓸어 가는 연사', prototype: 'A', durationMs: 1800, placement: '총구 (208,199), 탄피 (172,192)', sounds: '연사 15발, 헛도는 딸깍 ×2', quality: '고화질만' },
   },
   // 함성 박자마다 둥
   indians: {
@@ -171,11 +195,13 @@ export const CARD_FX: Partial<Record<CardKind, CardFx>> = {
     mouth: { x: 145, y: 237 },
     feather: { x: 143, y: 102 },
     cues: times([108, 504, 900], 'war_drum'),
+    doc: { title: '함성 물결', prototype: 'A', durationMs: 1800, placement: '입 (145,237), 깃털 (143,102)', sounds: '북 ×3', quality: '고화질만' },
   },
   // 컷 셋이 스윽 밀려들고, 모래바람 휘익, 심장처럼 둥 두 번, 탕
   duel: {
     visual: 'duelComic',
     cues: [...times([0, 96, 192], 'card_draw'), { at: 300, sfx: 'bullet_whiz' }, ...times([768, 1344], 'war_drum'), { at: 1632, sfx: 'gunshot' }],
+    doc: { title: '사선 만화 컷', prototype: 'B6', durationMs: 2400, placement: '카드 그림 대신 컷 묶음이 화면을 가득 채움', sounds: '스윽 ×3, 휘익, 둥 ×2, 탕', quality: '고화질만' },
   },
 };
 
