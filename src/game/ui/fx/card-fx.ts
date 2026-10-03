@@ -163,7 +163,7 @@ export const CARD_FX: Partial<Record<CardKind, CardFx>> = {
   // 함성 박자마다 둥
   indians: {
     visual: 'indians',
-    mouth: { x: 133, y: 234 },
+    mouth: { x: 145, y: 237 },
     feather: { x: 143, y: 102 },
     cues: times([108, 504, 900], 'war_drum'),
   },

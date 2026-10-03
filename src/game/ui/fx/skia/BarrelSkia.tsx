@@ -3,29 +3,40 @@
  *
  * 카드가 찌부러졌다 늘어나며(cardMotion) 그림 속 사내가 통 뒤로 쏙 숨는다. 원본 그림의 머리·모자
  * 조각을 잘라 아래로 내리고, 통 테두리보다 아래로 내려간 부분은 잘라 낸다 (통 뒤로 숨은 것처럼).
- * 조각이 떠난 자리는 아주 흐린 그림으로 메우고, 가장자리를 흐린 마스크로 풀어 사각형 티가 나지 않게 한다. 잉크 지그재그 총알이 통 옆구리(geom.mx, my)에 맞고
+ * 조각이 떠난 자리는 머리 바로 위의 깨끗한 벽 띠(원본 y 100~116)를 아래로 늘려 메운다. 둘레와 같은 수채 질감·색이
+ * 이어진다. (같은 자리 그림을 흐리면 머리 색이 번져 잔상이 남고, 단색·그라데이션은 매끈한 면으로 떠 보였다.)
+ * 메움은 머리만 덮는다. 왼쪽의 갈색 그림자 인물까지 덮으면 사각형이 드러난다.
+ *
+ * 잉크 지그재그 총알이 통 옆구리(geom.mx, my)에 맞고
  * 별 모양으로 튕겨 나간 뒤, 카드 왼쪽에 잉크 하트가 톡 터진다.
  * "쏙!"·"핑!" 글자는 RN(GunFxLabels)이 그린다.
  *
  * 그림이 없는 기기에서는 조각 없이 잉크 효과만 그린다. 그림 속 자리는 원본(250×389) 픽셀이다.
  */
 
-import { Blur, BlurMask, Group, Image, Mask, Path, Skia, useImage, type DataSourceParam } from '@shopify/react-native-skia';
+import { BlurMask, Group, Image, Mask, Path, Skia, useImage, type DataSourceParam } from '@shopify/react-native-skia';
 import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
 
 import { playingCardArt } from '../../card-art';
 import { addHeart, addStar } from './paths';
 import { artScale, barrelFrame, FX_BARREL, type ShotGeom } from './timeline';
 
-/** 통 위로 보이는 머리·모자 조각 (원본 픽셀). 모자 챙 오른쪽 끝·통에 얹은 손까지 덮는다 */
-const HEAD = [
-  [100, 118],
-  [176, 118],
-  [178, 172],
-  [100, 172],
+/**
+ * 통 뚜껑의 위쪽 가장자리 (원본 픽셀, 왼쪽 → 오른쪽). 왼쪽이 낮은 곡선이다.
+ * 머리 조각은 이 선 위만이고, 선 아래로 내려간 조각은 통 뒤에 숨는다
+ */
+const RIM = [
+  [108, 172],
+  [115, 170],
+  [135, 166],
+  [160, 162],
+  [182, 160],
 ] as const;
-/** 통 테두리. 이보다 아래로 내려간 조각은 통 뒤에 숨는다 */
-const RIM_Y = 172;
+/** 머리·모자 조각의 위쪽 (원본 픽셀). 모자 챙 오른쪽 끝·통에 얹은 손까지 덮는다 */
+const HEAD_TOP = 118;
+/** 메움에 늘려 쓰는 벽 띠 (원본 y). 머리 바로 위의 그림자·불꽃 없는 연노랑 물감 */
+const WALL_FROM = 100;
+const WALL_TO = 116;
 const INK = '#1E140B';
 
 export function BarrelSkia({ progress, geom }: { progress: SharedValue<number>; geom: SharedValue<ShotGeom> }) {
@@ -62,23 +73,36 @@ export function BarrelSkia({ progress, geom }: { progress: SharedValue<number>; 
   const imgY = useDerivedValue(() => imgRect.value.y);
   const imgW = useDerivedValue(() => imgRect.value.width);
   const imgH = useDerivedValue(() => imgRect.value.height);
-  const head = useDerivedValue(() => {
-    const g = geom.value;
+  /** 뚜껑 선 위, top 부터 아래로 닫힌 모양 (좌우는 뚜껑 선 양 끝) */
+  const aboveLid = (g: ShotGeom, top: number, left: number, right: number) => {
+    'worklet';
     const p = Skia.Path.Make();
-    HEAD.forEach(([x, y], i) => {
-      const q = art(g, x, y);
-      if (i === 0) p.moveTo(q.x, q.y);
-      else p.lineTo(q.x, q.y);
-    });
+    const a = art(g, left, top);
+    const b = art(g, right, top);
+    p.moveTo(a.x, a.y);
+    p.lineTo(b.x, b.y);
+    for (let i = RIM.length - 1; i >= 0; i--) {
+      const q = art(g, i === RIM.length - 1 ? right : i === 0 ? left : RIM[i][0], RIM[i][1]);
+      p.lineTo(q.x, q.y);
+    }
     p.close();
     return p;
-  });
-  const aboveRim = useDerivedValue(() => {
+  };
+  const head = useDerivedValue(() => aboveLid(geom.value, HEAD_TOP, RIM[0][0], RIM[RIM.length - 1][0]));
+  // 벽 띠를 세로로 늘린 그림: WALL_FROM 줄은 제자리, WALL_TO 줄이 뚜껑 왼쪽 끝 높이까지 내려간다
+  const wallImg = useDerivedValue(() => {
     const g = geom.value;
-    const a = art(g, 80, 60);
-    const b = art(g, 180, RIM_Y);
-    return Skia.XYWHRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    const k = artScale(g.cw, g.ch);
+    const stretch = (RIM[0][1] - WALL_FROM) / (WALL_TO - WALL_FROM);
+    const top = art(g, 0, WALL_FROM).y - WALL_FROM * k * stretch;
+    return { x: art(g, 0, 0).x, y: top, width: 250 * k, height: 389 * k * stretch };
   });
+  const wallX = useDerivedValue(() => wallImg.value.x);
+  const wallY = useDerivedValue(() => wallImg.value.y);
+  const wallW = useDerivedValue(() => wallImg.value.width);
+  const wallH = useDerivedValue(() => wallImg.value.height);
+  // 내려간 조각을 숨기는 자리. 흐린 메움도 이 안에서만 번지게 해 뚜껑 위에 띠가 생기지 않게 한다
+  const aboveRim = useDerivedValue(() => aboveLid(geom.value, 60, 80, 190));
   const duck = useDerivedValue(() => [{ translateY: f.value.duck * artScale(geom.value.cw, geom.value.ch) }]);
   // 그림을 늦게 받으므로 hasArt 를 의존성으로 준다
   const artOpacity = useDerivedValue(() => (hasArt && f.value.duck > 0.01 ? 1 : 0), [hasArt]);
@@ -171,17 +195,18 @@ export function BarrelSkia({ progress, geom }: { progress: SharedValue<number>; 
     <>
       {image && (
         <Group opacity={artOpacity}>
-          {/* 조각이 떠난 자리: 둘레 벽색으로 번진 그림, 가장자리는 흐린 마스크로 풀어 준다 */}
-          <Mask
-            mask={
-              <Path path={head} color="black">
-                <BlurMask blur={8} style="normal" />
-              </Path>
-            }>
-            <Image image={image} x={imgX} y={imgY} width={imgW} height={imgH} fit="fill">
-              <Blur blur={24} />
-            </Image>
-          </Mask>
+          {/* 조각이 떠난 자리: 위쪽 벽 띠를 늘려 메우고, 가장자리는 흐린 마스크로 풀어 준다 */}
+          <Group clip={aboveRim}>
+            {/* 마스크 흐림은 solid: 안쪽은 꽉 채우고 바깥으로만 번진다. normal 이면 가운데까지 반투명해져 원래 머리가 비친다 */}
+            <Mask
+              mask={
+                <Path path={head} color="black">
+                  <BlurMask blur={4} style="solid" />
+                </Path>
+              }>
+              <Image image={image} x={wallX} y={wallY} width={wallW} height={wallH} fit="fill" />
+            </Mask>
+          </Group>
           {/* 머리·모자 조각: 통 테두리 아래로 내려가면 숨는다 */}
           <Group clip={aboveRim}>
             <Group transform={duck}>
