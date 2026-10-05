@@ -13,6 +13,64 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ---------------------------------------------------------------
+    // 보상·프로필 (docs/economy.md)
+    //
+    // 지갑과 원장은 Cloud Functions 만 쓴다. 클라이언트는 자기 것을 읽기만 한다.
+    // 로컬 판 기록(matches)은 본인이 한 번 만들 수 있고 그 뒤로는 손대지 못한다.
+    // 문서 id 가 uid_seed 라 같은 시드로 두 번 받을 수 없다.
+    // ---------------------------------------------------------------
+
+    function owner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+      function validNick(d) {
+        return d.nick is string && d.nick.size() >= 1 && d.nick.size() <= 12;
+      }
+      allow read: if owner(uid);
+      allow create: if owner(uid)
+        && request.resource.data.keys().hasOnly(['nick', 'createdAt', 'updatedAt'])
+        && validNick(request.resource.data);
+      allow update: if owner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nick', 'updatedAt'])
+        && validNick(request.resource.data);
+      allow delete: if false;
+
+      match /wallet/{id} {
+        allow read: if owner(uid);
+        allow write: if false;
+      }
+      match /ledger/{id} {
+        allow read: if owner(uid);
+        allow write: if false;
+      }
+    }
+
+    match /matches/{id} {
+      function validMatch(d) {
+        return d.keys().hasOnly(['uid', 'seed', 'seats', 'controlled', 'log', 'actions', 'status', 'createdAt'])
+          && d.keys().hasAll(['uid', 'seed', 'seats', 'controlled', 'log', 'actions', 'status', 'createdAt'])
+          && d.uid == request.auth.uid
+          && d.seed is int
+          && id == request.auth.uid + '_' + string(d.seed)
+          && d.status == 'pending'
+          && d.log is string
+          && d.log.size() <= 900000
+          && d.seats is list
+          && d.seats.size() >= 4
+          && d.seats.size() <= 8
+          && d.controlled is list
+          && d.controlled.size() == 1
+          && d.actions is int
+          && d.createdAt == request.time;
+      }
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null && validMatch(request.resource.data);
+      allow update, delete: if false;
+    }
+
     match /rooms/{code} {
       function signedIn() {
         return request.auth != null;
