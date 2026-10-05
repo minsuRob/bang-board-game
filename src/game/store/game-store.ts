@@ -63,6 +63,12 @@ type GameStore = {
   status: TransportStatus;
   seed: number;
   drives: boolean;
+  /**
+   * 이 판에 적용된 액션 전부 (startGame 포함). 판이 끝나면 보상 정산을 위해 올린다.
+   * 저장본에서 이어 본 판은 앞부분이 없으므로 historyComplete 가 false 다.
+   */
+  history: Action[];
+  historyComplete: boolean;
 
   start(options: StartOptions): void;
   submit(action: Action): void;
@@ -84,6 +90,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   status: 'closed',
   seed: 0,
   drives: true,
+  history: [],
+  historyComplete: false,
 
   start(options) {
     get().reset();
@@ -99,7 +107,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         console.warn('액션을 적용하지 못했다', action, err);
         return;
       }
-      set({ state: next, viewer: get().viewer ?? options.controlled[0] ?? null });
+      // 결과가 난 뒤의 액션은 상태를 바꾸지 않으므로 기록에도 넣지 않는다
+      const history = prev?.result ? get().history : [...get().history, action];
+      set({ state: next, history, viewer: get().viewer ?? options.controlled[0] ?? null });
       // 연출 층은 가리지 않은 prev/next 가 필요하다. 커밋 전에 동기로 알린다.
       emitTransition({ prev, next, action });
     });
@@ -116,6 +126,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       seed: options.seed,
       drives: options.drives ?? true,
       handoffPending: false,
+      history: [],
+      historyComplete: !options.resume,
     });
 
     const startAction: Action = {
@@ -163,6 +175,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       viewer: null,
       handoffPending: false,
       status: 'closed',
+      history: [],
+      historyComplete: false,
     });
   },
 }));

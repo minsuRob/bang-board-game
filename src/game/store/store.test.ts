@@ -288,3 +288,64 @@ describe('AI 박자', () => {
     expect(aiDelayMs(100, 100)).toBe(110);
   });
 });
+
+describe('액션 기록과 보상 검증', () => {
+  it('스토어가 남긴 기록을 서버 검증기가 그대로 통과시킨다', async () => {
+    const { aiDraftActions, aiNextAction } = await import('../ai/driver-policy');
+    const { legalActions } = await import('../engine');
+    const { makeMatchUpload, verifyLocalMatch } = await import('../economy');
+
+    useGameStore.getState().reset();
+    useGameStore.getState().start({
+      seed: 77,
+      config: { playerCount: 4, expansions: [] },
+      seats,
+      controlled: ['p0'],
+    });
+    const store = useGameStore.getState;
+    expect(store().historyComplete).toBe(true);
+    expect(store().history[0]?.type).toBe('startGame');
+
+    // ai-driver 처럼: 드래프트는 열린 상태 하나로 AI 전부, 사람은 첫 후보
+    for (const a of aiDraftActions(store().state!, seats, ['p0'], 77)) store().submit(a);
+    if (store().state!.draft) {
+      store().submit(legalActions(store().state!, 'p0')[0]);
+    }
+    for (let guard = 0; guard < 5000 && !store().state!.result; guard++) {
+      const s = store().state!;
+      const ai = aiNextAction(s, seats, ['p0'], 77);
+      store().submit(ai ?? legalActions(s, 'p0')[0] ?? { type: 'timeout', pid: 'p0' });
+    }
+    expect(store().state!.result).not.toBeNull();
+
+    // 결과 뒤에 들어온 액션은 기록에 남지 않는다
+    const len = store().history.length;
+    store().submit({ type: 'endTurn', pid: 'p0' });
+    expect(store().history).toHaveLength(len);
+
+    const { doc } = makeMatchUpload({
+      uid: 'me',
+      seed: 77,
+      seats,
+      controlled: ['p0'],
+      actions: store().history,
+    });
+    const verdict = verifyLocalMatch(doc);
+    expect(verdict).toMatchObject({ ok: true });
+  });
+
+  it('저장본에서 이어 보면 기록이 완전하지 않다', () => {
+    useGameStore.getState().reset();
+    startLocal();
+    const snapshot = useGameStore.getState().state!;
+    useGameStore.getState().reset();
+    useGameStore.getState().start({
+      seed: 42,
+      config: { playerCount: 4, expansions: [] },
+      seats,
+      controlled: ['p0'],
+      resume: snapshot,
+    });
+    expect(useGameStore.getState().historyComplete).toBe(false);
+  });
+});

@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
  */
 
 const ROOT = join(process.cwd(), 'src', 'game');
-const PURE_DIRS = ['engine', 'data', 'modifiers', 'ai'];
+const PURE_DIRS = ['engine', 'data', 'modifiers', 'ai', 'economy'];
 const FORBIDDEN = [
   'react',
   'react-native',
