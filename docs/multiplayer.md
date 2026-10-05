@@ -31,6 +31,7 @@ rooms/{CODE}                      ← 방 코드가 곧 문서 id. 색인 없이
   actionCount                      지금까지 확정된 액션 수
   aiSpeed?                         판 도중 방장이 고른 AI 빠르기 (없으면 1배)
   deadChat?                        탈락자도 채팅할 수 있는가 (없으면 허용)
+  settlement?                      보상 정산 기록. 판이 끝나면 Cloud Functions 가 한 번 쓴다 (docs/economy.md)
 
 rooms/{CODE}/actions/{seq}        ← 덧붙이기만 되는 로그. 문서 id 가 곧 순번
   seq, uid, action, ts
@@ -94,6 +95,12 @@ AI 자리와 제한시간 만료는 **한 명만** 굴려야 한다. 여럿이 �
 패치노트에서 가장 많은 비중을 차지한 문제가 "이탈 시 프레임이 멈춤"이었다.
 온라인에서 이탈은 예외가 아니라 **응답의 한 종류**다.
 
+## 보상 정산
+
+판이 끝나면 자리에 앉은 사람 모두가 `settleRoom` (Cloud Functions callable) 을 부른다. 서버가 액션 로그를
+같은 리듀서로 다시 접어 사람 자리마다 지갑에 적고 `rooms/{CODE}.settlement` 와 `status: 'ended'` 를 쓴다.
+두 번째 호출부터는 있는 기록을 돌려준다. 자세한 것은 `docs/economy.md`.
+
 ## 채팅
 
 진행 기록 칸 아래에 붙는다 (넓은 화면은 오른쪽 칸을 기록 3 : 채팅 7 로 나누고,
@@ -148,7 +155,8 @@ npx firebase deploy --only firestore:rules
 ## 로컬 에뮬레이터로 시험하기
 
 ```bash
-npx firebase emulators:start
+npm --prefix functions run build
+npx firebase emulators:start --only auth,firestore,functions
 ```
 
 그리고 `.env` 에 `EXPO_PUBLIC_FIREBASE_EMULATOR=1` 을 넣는다.
@@ -159,5 +167,5 @@ npx firebase emulators:start
 ## 알려진 한계
 
 - 손패가 클라이언트에 있다 (위 "대가" 참고)
-- 방을 정리하는 배치 작업이 없다. 끝난 방은 `status: 'ended'` 로 남는다
+- 방을 정리하는 배치 작업이 없다. 끝난 방은 정산과 함께 `status: 'ended'` 로 남는다
 - 관전 전용 입장은 아직 없다. 자리에 앉아야 들어온다

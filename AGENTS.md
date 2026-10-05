@@ -10,8 +10,8 @@ SDK 56 이하의 기억으로 API 를 쓰면 조용히 틀린다.
 
 ## 경계
 
-`src/game/engine/` · `src/game/data/` · `src/game/modifiers/` · `src/game/ai/` 는
-**순수 TypeScript** 다. 다음을 import 하지 않는다.
+`src/game/engine/` · `src/game/data/` · `src/game/modifiers/` · `src/game/ai/` · `src/game/economy/` 는
+**순수 TypeScript** 다. Cloud Functions(`functions/`)가 이 폴더들을 그대로 번들해 서버에서 돌린다. 다음을 import 하지 않는다.
 
 - react, react-native, react-dom
 - expo, expo-router
@@ -67,6 +67,12 @@ Skia 캔버스는 판마다 하나만 띄운다 (WebGL 컨텍스트가 넘치면
 
 새 확장판(캐릭터·이벤트·카드)을 붙일 때는 `docs/expansion-playbook.md` 의 순서를 따른다.
 범위 확인 → 원본 자료 → 그림 → 데이터 → Modifier 훅 → UI → AI → 테스트·시뮬레이터.
+
+## 보상·경험치
+
+지갑(`users/{uid}/wallet`)은 Cloud Functions 만 쓴다. 클라이언트에 지갑을 쓰는 코드를 넣지 않는다.
+AI 시드 공식은 `src/game/ai/driver-policy.ts` 한 곳에만 둔다. 서버가 같은 함수로 AI 수를 다시 계산해
+로컬 판 기록을 검증하기 때문이다. 자세한 것은 `docs/economy.md`.
 
 ## 한국어
 
