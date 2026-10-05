@@ -8,6 +8,7 @@ import { characterArt, playingCardArt, type ArtCrop } from '@/game/ui/card-art';
 import { CharacterPortraitImage } from '@/game/ui/CharacterPortraitImage';
 import { codexCounts } from '@/game/ui/codex/codex-model';
 import { FullscreenButton } from '@/game/ui/FullscreenButton';
+import { AccountBadge } from '@/game/ui/menu/AccountBadge';
 import { MenuBackdrop } from '@/game/ui/menu/MenuBackdrop';
 import { CroppedArt, MenuCard, type MenuCardProps } from '@/game/ui/menu/MenuCard';
 import { WesternFonts } from '@/game/ui/menu/western-fonts';
@@ -178,7 +179,8 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* 흐름 밖에 띄운다. 첫 화면에서는 늘 오른쪽 위다. */}
+      {/* 흐름 밖에 띄운다. 첫 화면에서는 늘 오른쪽 위다. 계정 배지는 왼쪽 위. */}
+      <AccountBadge style={styles.account} onPress={() => setSettingsOpen(true)} />
       <FullscreenButton style={styles.fullscreen} />
       {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
     </View>
@@ -188,6 +190,7 @@ export default function HomeScreen() {
 const useStyles = themedStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.background },
   fullscreen: { position: 'absolute', top: Spacing.two, right: Spacing.two },
+  account: { position: 'absolute', top: Spacing.two, left: Spacing.two },
   container: {
     flexGrow: 1,
     alignItems: 'center',

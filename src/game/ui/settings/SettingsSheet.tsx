@@ -1,5 +1,5 @@
 /**
- * 설정 팝업: 연출 화질, 화면 테마.
+ * 설정 팝업: 프로필·지갑, 연출 화질, 화면 테마.
  *
  * 첫 화면의 "설정" 카드와 게임 중 ⚙ 버튼이 연다. 폰 폭의 판에서는 위쪽 버튼 줄(AI 속도·일시정지 등)을
  * 접어서 children 으로 넘기고, 맨 위 "이 판" 칸에 보여 준다. 고르는 즉시 저장되고 화면도 바로 바뀐다.
@@ -7,6 +7,8 @@
  */
 
 import { useEffect, type ReactNode } from 'react';
+
+import { startAccountSync, useAccount } from '../../../firebase/account-store';
 import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useStore } from 'zustand';
 
@@ -16,6 +18,8 @@ import { WesternFonts } from '../menu/western-fonts';
 import { InkSegmented, QUALITY_OPTIONS, qualityHint, useFxQuality } from '../QualityPicker';
 import { setThemePref, themePref, type ThemePref } from '../theme/theme-store';
 import { themedStyles } from '../theme/use-theme';
+import { ProfileSection } from './ProfileSection';
+import { WalletSection } from './WalletSection';
 
 const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
   { value: 'system', label: '시스템' },
@@ -43,6 +47,12 @@ export function SettingsSheet({ onClose, children }: { onClose: () => void; chil
   const text = usePaperText();
   const quality = useFxQuality();
   const pref = useStore(themePref, (s) => s.pref);
+  const account = useAccount();
+
+  // 로그인돼 있으면(= Firebase 구성이 있으면) 프로필·지갑을 보인다
+  useEffect(() => {
+    startAccountSync();
+  }, []);
 
   // 웹에서는 Esc 로도 닫는다
   useEffect(() => {
@@ -62,6 +72,17 @@ export function SettingsSheet({ onClose, children }: { onClose: () => void; chil
           <PaperHeading eyebrow="SETTINGS" title="설정" />
 
           {children && <PaperSection title="이 판">{children}</PaperSection>}
+
+          {account.status !== 'offline' && (
+            <>
+              <PaperSection title="프로필">
+                <ProfileSection />
+              </PaperSection>
+              <PaperSection title="지갑">
+                <WalletSection />
+              </PaperSection>
+            </>
+          )}
 
           <PaperSection title="연출 화질">
             <InkSegmented label="연출 화질" options={QUALITY_OPTIONS} value={quality} onChange={setFxQuality} />

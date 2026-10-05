@@ -33,6 +33,8 @@ import { SettingsSheet } from '@/game/ui/settings/SettingsSheet';
 import { SoundButton } from '@/game/ui/SoundButton';
 import { SpeedControl } from '@/game/ui/SpeedControl';
 import { ResultTable } from '@/game/ui/ResultTable';
+import { RewardLine } from '@/game/ui/RewardLine';
+import { useSettlement } from '@/game/store/use-settlement';
 import { Table } from '@/game/ui/Table';
 import { useHotkeys } from '@/game/ui/use-hotkeys';
 import { handleCardPress } from '@/game/ui/table-text';
@@ -270,6 +272,15 @@ export default function GameScreen() {
   const view = useMemo(() => makeView(state, viewer), [state, viewer]);
   const api = useTable(view, viewer);
 
+  // 판이 끝나면 보상 정산 (docs/economy.md)
+  const settlement = useSettlement({
+    online,
+    code,
+    room: conn.room,
+    state,
+    uid: conn.identity?.uid ?? null,
+  });
+
   const onPickIndex = useCallback(
     (index: number) => {
       if (!view || !viewer) return;
@@ -430,6 +441,7 @@ export default function GameScreen() {
             <Text style={styles.resultReason}>{state.result.reason}</Text>
             {/* 판이 끝나면 스톱워치가 서므로 이 값이 최종 시간이다 */}
             <Text style={styles.resultElapsed}>걸린 시간 {formatElapsed(stopwatch.elapsed())}</Text>
+            <RewardLine view={settlement} />
             <ResultTable state={state} viewer={viewer} compact={compact} />
             <View style={styles.resultButtons}>
               <Pressable

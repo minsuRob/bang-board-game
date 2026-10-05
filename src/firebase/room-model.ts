@@ -8,6 +8,7 @@
 import type { AiSpeed, AiTier } from '../game/ai/types';
 import { isEventExpansion } from '../game/data/events';
 import type { EventExpansion } from '../game/data/types';
+import type { RoomSettlement } from '../game/economy/model';
 
 /** 이 시간 안에 소식이 없으면 나간 것으로 본다 */
 export const PRESENCE_TIMEOUT_MS = 30_000;
@@ -55,6 +56,8 @@ export type RoomDoc = {
   aiSpeed?: AiSpeed;
   /** 탈락한 사람도 채팅할 수 있는가. 예전 방에는 없다 (허용) */
   deadChat?: boolean;
+  /** 보상 정산. 판이 끝나고 Cloud Functions 가 한 번 쓴다 (docs/economy.md) */
+  settlement?: RoomSettlement;
 };
 
 export type RoomMember = {

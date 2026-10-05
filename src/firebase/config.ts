@@ -17,6 +17,7 @@ import {
   getFirestore,
   type Firestore,
 } from 'firebase/firestore';
+import { connectFunctionsEmulator, getFunctions, type Functions } from 'firebase/functions';
 import { Platform } from 'react-native';
 
 import { nativePersistence } from './persistence';
@@ -40,6 +41,10 @@ export function isFirebaseConfigured(): boolean {
 let app: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
 let dbInstance: Firestore | null = null;
+let functionsInstance: Functions | null = null;
+
+/** Cloud Functions 리전. functions/src/index.ts 의 setGlobalOptions 와 같아야 한다 */
+export const FUNCTIONS_REGION = 'us-central1';
 
 function ensureApp(): FirebaseApp {
   if (app) return app;
@@ -71,6 +76,13 @@ export function getDb(): Firestore {
   dbInstance = getFirestore(ensureApp());
   if (useEmulator) connectFirestoreEmulator(dbInstance, '127.0.0.1', 8080);
   return dbInstance;
+}
+
+export function getFunctionsClient(): Functions {
+  if (functionsInstance) return functionsInstance;
+  functionsInstance = getFunctions(ensureApp(), FUNCTIONS_REGION);
+  if (useEmulator) connectFunctionsEmulator(functionsInstance, '127.0.0.1', 5001);
+  return functionsInstance;
 }
 
 export const FIREBASE_EMULATOR = useEmulator;
