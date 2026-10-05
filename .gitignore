@@ -60,3 +60,7 @@ assets-source/
 # Skia 웹 런타임. npm install 때 postinstall 이 public/ 에 복사한다
 public/canvaskit.wasm
 .kiro
+
+# Cloud Functions 번들 (npm --prefix functions run build)
+functions/lib/
+functions/node_modules/

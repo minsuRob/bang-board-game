@@ -14,6 +14,7 @@
       "node"
     ]
   },
+  "exclude": ["functions", "node_modules", "dist"],
   "include": [
     "**/*.ts",
     "**/*.tsx",
