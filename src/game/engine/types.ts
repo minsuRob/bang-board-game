@@ -19,6 +19,7 @@ import type {
   Suit,
 } from '../data/types';
 import type { RngState } from './rng';
+import type { LogMsg } from './log-msg';
 
 export type PlayerId = string;
 
@@ -470,13 +471,15 @@ export type GameEvent = {
    * hit 는 카드의 조건이 맞았다는 뜻이다. 좋은 결과인지는 목적마다 다르다 (다이너마이트 hit = 폭발)
    */
   reveal?: { suit: Suit; hit: boolean; purpose?: JudgementPurpose };
-  /** UI 에 그대로 보여줄 한국어 문장 */
-  text: string;
+  /** 무슨 일이 있었나. 문장은 화면의 렌더러(i18n/log)가 현재 언어로 만든다 */
+  msg: LogMsg;
+  /** 옛 저장 파일에 남은 한국어 문장 (msg 는 {k:'legacy'}). 그대로 보여 준다 */
+  legacyText?: string;
   /**
-   * 몇 사람만 아는 내용 (강탈로 손패에서 가져간 카드). viewFor 가 to 에게만 text·card 를
+   * 몇 사람만 아는 내용 (강탈로 손패에서 가져간 카드). viewFor 가 to 에게만 msg·card 를
    * 이것으로 바꿔 보여 주고, 나머지에게서는 지운다
    */
-  secret?: { to: PlayerId[]; card: CardId; text: string };
+  secret?: { to: PlayerId[]; card: CardId; msg: LogMsg; legacyText?: string };
   /** 캣 벌로우가 장비가 아니라 손패에서 뽑아 버렸다. card 는 버린 더미에 앞면으로 놓여 공개된다 */
   fromHand?: boolean;
   /** 이 로그를 만든 액션의 순번 */

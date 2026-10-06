@@ -78,7 +78,9 @@ export function viewFor(state: GameState, pid: PlayerId): GameState {
     log: state.log.map((e) => {
       if (!e.secret) return e;
       const { secret, ...rest } = e;
-      return secret.to.includes(pid) ? { ...rest, secret, text: secret.text } : rest;
+      return secret.to.includes(pid)
+        ? { ...rest, secret, msg: secret.msg, ...(secret.legacyText !== undefined ? { legacyText: secret.legacyText } : {}) }
+        : rest;
     }),
     // 포커: 모두 엎어 낼 때까지 판돈은 아무에게도 보이지 않는다
     // 카드 가져오기 단계에서 먼저 받은 카드(제시 존스가 남의 손에서 뽑은 장)는 받은 사람만 안다

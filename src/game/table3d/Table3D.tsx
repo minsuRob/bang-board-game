@@ -211,7 +211,7 @@ export function Table3D({ view, viewer, api, clock }: Table3DProps) {
           )}
         </View>
 
-        {wide && <SidePanel log={view.log} style={styles.side} panelStyle={styles.sidePanel} />}
+        {wide && <SidePanel log={view.log} players={view.players} style={styles.side} panelStyle={styles.sidePanel} />}
       </View>
 
       <View style={[styles.bottom, { paddingBottom: insets.bottom }]}>
@@ -274,7 +274,7 @@ export function Table3D({ view, viewer, api, clock }: Table3DProps) {
 
       {!wide && logOpen && (
         <View style={[styles.logOverlay, { top: insets.top + 44 }]}>
-          <SidePanel log={view.log} style={styles.logPanel} panelStyle={styles.logPanelInner} />
+          <SidePanel log={view.log} players={view.players} style={styles.logPanel} panelStyle={styles.logPanelInner} />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t.logCloseA11y}

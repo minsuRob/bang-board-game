@@ -67,7 +67,7 @@ export function drawGold(state: GameState): { state: GameState; card: GoldCardId
     cur = log(cur, {
       t: 'goldReshuffle',
       amount: value.length,
-      text: `버린 장비 ${value.length}장을 섞어 장비 덱을 새로 만들었다.`,
+      msg: { k: 'goldReshuffle', amount: value.length },
     });
   }
   const deck = cur.gold!.deck;

@@ -261,7 +261,7 @@ export function TableMobile({
 
       {logOpen && (
         <View style={styles.logOverlay}>
-          <SidePanel log={view.log} style={styles.logPanel} panelStyle={styles.logPanelInner} />
+          <SidePanel log={view.log} players={view.players} style={styles.logPanel} panelStyle={styles.logPanelInner} />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t.ui.mobile.closeLog}

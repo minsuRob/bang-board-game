@@ -9,7 +9,7 @@ import { attacksBy } from './attacks';
 const idOf = (kind: CardKind): CardId => BASE_DECK.find((c) => c.kind === kind)!.id;
 
 function play(pid: string, kind: CardKind, target?: string): GameEvent {
-  return { t: 'playCard', pid, card: idOf(kind), target, text: '', seq: 0 };
+  return { t: 'playCard', pid, card: idOf(kind), target, msg: { k: 'timeout' }, seq: 0 };
 }
 
 describe('나를 겨눈 카드 세기', () => {
@@ -39,9 +39,9 @@ describe('나를 겨눈 카드 세기', () => {
   it('후속 로그는 다시 세지 않는다', () => {
     const log: GameEvent[] = [
       play('p1', 'panic', 'p0'),
-      { t: 'panic', pid: 'p1', target: 'p0', text: '', seq: 0 },
+      { t: 'panic', pid: 'p1', target: 'p0', msg: { k: 'timeout' }, seq: 0 },
       play('p1', 'duel', 'p0'),
-      { t: 'duelBang', pid: 'p0', target: 'p1', card: idOf('bang'), text: '', seq: 0 },
+      { t: 'duelBang', pid: 'p0', target: 'p1', card: idOf('bang'), msg: { k: 'timeout' }, seq: 0 },
     ];
     expect(attacksBy(log, 'p1', 'p0')).toEqual({ panic: 1, duel: 1 });
   });

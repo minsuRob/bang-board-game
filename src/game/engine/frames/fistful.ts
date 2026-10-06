@@ -5,27 +5,10 @@
  */
 
 import { RED_SUITS } from '../../data/types';
-import {
-  alivePlayers,
-  defOf,
-  drawFromDeck,
-  effectiveSuit,
-  giveCards,
-  inPlay,
-  log,
-  nameOf,
-  playerOf,
-  popFrame,
-  pushSeq,
-  replaceTop,
-  toDiscard,
-  updatePlayer,
-} from '../cards';
+import { alivePlayers, defOf, drawFromDeck, effectiveSuit, giveCards, inPlay, log, playerOf, popFrame, pushSeq, replaceTop, toDiscard, updatePlayer, kindOf } from '../cards';
 import { drawCountOf, drawPhaseOverride, playableAs } from '../hooks';
 import type { Choice, Frame, GameState } from '../types';
-import { ga, neun } from '../josa';
 import { discardFromHand } from './combat';
-import { nameKo } from '../legacy-ko';
 
 // ---------------------------------------------------------------------------
 // 한줌의 카드 — 차례 시작에 손패 장수만큼 가해자 없는 뱅!
@@ -41,7 +24,7 @@ export function resolveFistfulBangs(
     t: 'fistfulBang',
     target: frame.pid,
     amount: frame.remaining,
-    text: `한줌의 카드: ${ga(nameOf(state, frame.pid))} 뱅!을 맞는다 (남은 ${frame.remaining}발).`,
+    msg: { k: 'fistfulBang', who: frame.pid, left: frame.remaining },
   });
   return pushSeq(cur, [
     { k: 'bang', source: null, target: frame.pid, missesRequired: 1, cause: 'fistful', dodgeChecked: false },
@@ -80,7 +63,7 @@ export function respondRussianRoulette(
     t: 'russianRoulette',
     pid,
     card: choice.card,
-    text: `러시안 룰렛: ${ga(nameOf(cur, pid))} 빗나감!을 버렸다.`,
+    msg: { k: 'russianRoulette', who: pid },
   });
   return replaceTop(cur, { ...frame, i: frame.i + 1 });
 }
@@ -90,7 +73,7 @@ function rouletteLoss(state: GameState, pid: string): GameState {
   const cur = log(popFrame(state), {
     t: 'russianRoulette',
     target: pid,
-    text: `러시안 룰렛: ${ga(nameOf(state, pid))} 빗나감!을 버리지 못해 목숨 2를 잃는다.`,
+    msg: { k: 'rouletteLoss', who: pid },
   });
   return pushSeq(cur, [
     { k: 'damage', target: pid, amount: 2, source: null, credit: null, cause: 'russianRoulette' },
@@ -126,7 +109,7 @@ export function respondBloodBrothers(
     t: 'bloodBrothers',
     pid: frame.pid,
     target: to,
-    text: `의형제: ${ga(nameOf(cur, frame.pid))} ${nameOf(cur, to)}에게 목숨 1을 넘겼다.`,
+    msg: { k: 'bloodBrothers', who: frame.pid, to },
   });
   return pushSeq(logged, [
     { k: 'damage', target: frame.pid, amount: 1, source: null, credit: null, cause: 'bloodBrothers' },
@@ -154,7 +137,7 @@ export function respondHardLiquor(
     cur = log(cur, {
       t: 'hardLiquor',
       pid,
-      text: `독한 술: ${neun(nameOf(cur, pid))} 카드를 가져오지 않고 목숨을 회복한다.`,
+      msg: { k: 'hardLiquor', who: pid },
     });
     return pushSeq(cur, [{ k: 'heal', pid, amount: 1 }]);
   }
@@ -186,7 +169,7 @@ export function respondPeyote(
   // 한 번 맞힌 뒤에는 그만둘 수 있다 ("may guess again")
   if (choice.c === 'pass' && frame.guessed) {
     const cur = popFrame(state);
-    return log(cur, { t: 'peyoteStop', pid, text: `피요테: ${neun(nameOf(cur, pid))} 그만 맞히기로 했다.` });
+    return log(cur, { t: 'peyoteStop', pid, msg: { k: 'peyoteStop', who: pid } });
   }
   const guess = choice.c === 'color' ? choice.color : 'red';
   const drawn = drawFromDeck(state, 1);
@@ -196,7 +179,6 @@ export function respondPeyote(
   const suit = effectiveSuit(drawn.state, card);
   const red = RED_SUITS.includes(suit);
   const right = (guess === 'red') === red;
-  const said = guess === 'red' ? '빨강' : '검정';
   if (right) {
     // 맞히면 카드를 갖고 한 번 더 맞힐 수 있다. 프레임은 남고, 이제 그만둘 수도 있다.
     const given = giveCards(drawn.state, pid, [card]);
@@ -209,7 +191,7 @@ export function respondPeyote(
       pid,
       card,
       reveal: { suit, hit: true },
-      text: `피요테: ${ga(nameOf(cur, pid))} ${said}을 맞혀 카드를 가져왔다.`,
+      msg: { k: 'peyote', who: pid, color: guess, right: true },
     });
   }
   const cur = toDiscard(popFrame(drawn.state), [card]);
@@ -218,7 +200,7 @@ export function respondPeyote(
     pid,
     card,
     reveal: { suit, hit: false },
-    text: `피요테: ${ga(nameOf(cur, pid))} ${said}을 불렀지만 틀렸다.`,
+    msg: { k: 'peyote', who: pid, color: guess, right: false },
   });
 }
 
@@ -253,7 +235,7 @@ export function respondRanch(
     t: 'ranch',
     pid,
     cards: picked,
-    text: `목장: ${ga(nameOf(cur, pid))} ${picked.length}장을 버리고 새로 가져온다.`,
+    msg: { k: 'ranch', who: pid, amount: picked.length },
   });
   return pushSeq(cur, [{ k: 'drawCards', pid, count: picked.length, reason: 'ranch' }]);
 }
@@ -278,7 +260,7 @@ export function resolveLawOfTheWest(
       t: 'lawOfTheWest',
       pid: frame.pid,
       card: frame.card,
-      text: `서부의 법: ${ga(nameOf(cur, frame.pid))} 두 번째로 가져온 카드를 보여 줬다.`,
+      msg: { k: 'lawOfTheWest', who: frame.pid },
     },
   );
 }
@@ -311,7 +293,7 @@ export function respondRicochet(
     t: 'playMissed',
     pid: frame.target,
     card: choice.card,
-    text: `${ga(nameOf(cur, frame.target))} 빗나감!으로 카드를 지켰다.`,
+    msg: { k: 'ricochetSave', who: frame.target },
   });
 }
 
@@ -326,6 +308,6 @@ function ricochetHit(state: GameState, frame: Frame & { k: 'ricochet' }): GameSt
     pid: frame.source,
     target: frame.target,
     card: frame.card,
-    text: `리코체: ${nameOf(cur, frame.target)} 앞의 ${ga(nameKo(defOf(frame.card)))} 버려졌다.`,
+    msg: { k: 'ricochetHit', target: frame.target, card: kindOf(frame.card) },
   });
 }

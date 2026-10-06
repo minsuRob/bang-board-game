@@ -12,7 +12,6 @@ import {
   inPlay,
   kindOf,
   log,
-  nameOf,
   playerOf,
   popFrame,
   pushSeq,
@@ -25,8 +24,6 @@ import {
 import { afterDrawFrames, drawsFromDiscard, onCardTakenFrames } from '../hooks';
 import { nextInt } from '../rng';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
-import { eul, ga } from '../josa';
-import { nameKo } from '../legacy-ko';
 
 /**
  * 카드 가져오기 단계(1단계)에 속하는 드로우. 캐릭터 능력이 1단계를 나눠 가져와도 여기에 든다.
@@ -65,11 +62,7 @@ export function resolveDrawCards(
     t: 'draw',
     pid: frame.pid,
     amount: cards.length,
-    text:
-      fromDiscard.length > 0
-        ? `${ga(nameOf(cur, frame.pid))} 버린 더미에서 ${fromDiscard.length}장` +
-          (drawn.cards.length ? `, 덱에서 ${drawn.cards.length}장을 가져왔다.` : '을 가져왔다.')
-        : `${ga(nameOf(cur, frame.pid))} 카드 ${cards.length}장을 가져왔다.`,
+    msg: { k: 'draw', who: frame.pid, fromDiscard: fromDiscard.length, fromDeck: drawn.cards.length },
   });
 
   // 블랙 잭·서부의 법처럼 뽑은 카드를 보고 반응하는 훅은 카드 가져오기 단계에서만 울린다.
@@ -140,7 +133,7 @@ export function resolveDrawFromPlayer(
     pid: frame.pid,
     target: frame.from,
     amount: taken.length,
-    text: `${ga(nameOf(cur, frame.pid))} ${nameOf(cur, frame.from)}의 손에서 ${taken.length}장을 가져갔다.`,
+    msg: { k: 'steal', who: frame.pid, from: frame.from, amount: taken.length },
   });
 }
 
@@ -175,7 +168,7 @@ export function resolveSwapCards(state: GameState, frame: Frame & { k: 'swapCard
     pid,
     target,
     amount: taken.length,
-    text: `${ga(nameOf(cur, pid))} ${nameOf(cur, target)}에게 카드 1장을 주고 ${taken.length}장을 가져왔다.`,
+    msg: { k: 'flintWestwood', who: pid, target, amount: taken.length },
   });
 }
 
@@ -196,7 +189,7 @@ export function resolveTakeAllCards(
     pid: frame.pid,
     target: frame.from,
     amount: cards.length,
-    text: `${ga(nameOf(cur, frame.pid))} ${nameOf(cur, frame.from)}의 카드 ${cards.length}장을 챙겼다.`,
+    msg: { k: 'vultureSam', who: frame.pid, from: frame.from, amount: cards.length },
   });
 }
 
@@ -219,7 +212,7 @@ export function resolveGeneralStore(
       t: 'generalStore',
       pid: frame.source,
       cards: revealed,
-      text: `잡화점: 카드 ${revealed.length}장이 펼쳐졌다.`,
+      msg: { k: 'generalStore', amount: revealed.length },
     });
   }
 
@@ -253,7 +246,7 @@ export function respondGeneralStore(
     t: 'generalStorePick',
     pid,
     card,
-    text: `${ga(nameOf(cur, pid))} 잡화점에서 ${eul(nameKo(defOf(card)))} 골랐다.`,
+    msg: { k: 'generalStorePick', who: pid, card: kindOf(card) },
   });
   return replaceTop(cur, {
     ...frame,
@@ -290,13 +283,12 @@ export function resolveDiscardSameName(
   if (discarded.length === 0) return cur;
 
   cur = toDiscard(cur, discarded);
-  const where = owners.map((id) => nameOf(cur, id)).join('·');
   return log(cur, {
     t: 'discardSameName',
     pid: frame.pid,
     card: frame.card,
     cards: discarded,
-    text: `${ga(nameOf(cur, frame.pid))} ${eul(nameKo(defOf(frame.card)))} 내려놓아 ${where} 앞의 같은 카드가 버려졌다.`,
+    msg: { k: 'discardSameName', who: frame.pid, card: kindOf(frame.card), owners },
   });
 }
 
@@ -406,10 +398,16 @@ function moveStolen(
             secret: {
               to: [frame.source, frame.target],
               card: picked,
-              text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 "${nameKo(defOf(picked))}"${eul(nameKo(defOf(picked))).slice(-1)} 강탈했다.`,
+              msg: { k: 'panic', who: frame.source, target: frame.target, fromHand: true, card: kindOf(picked) },
             },
           }),
-      text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 ${fromEquipment ? eul(nameKo(defOf(picked))) : '카드를'} 강탈했다.`,
+      msg: {
+        k: 'panic',
+        who: frame.source,
+        target: frame.target,
+        fromHand: !fromEquipment,
+        ...(fromEquipment ? { card: kindOf(picked) } : {}),
+      },
     });
   }
   cur = toDiscard(cur, [picked]);
@@ -420,7 +418,7 @@ function moveStolen(
     // 버린 카드는 버린 더미에 앞면으로 놓이므로 손패에서 뽑았어도 이름을 밝힌다
     card: picked,
     ...(fromEquipment ? {} : { fromHand: true }),
-    text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 ${fromEquipment ? eul(nameKo(defOf(picked))) : `"${nameKo(defOf(picked))}"${eul(nameKo(defOf(picked))).slice(-1)}`} 버리게 했다.`,
+    msg: { k: 'catBalou', who: frame.source, target: frame.target, fromHand: !fromEquipment, card: kindOf(picked) },
   });
 }
 
@@ -548,7 +546,7 @@ export function respondPedroRamirez(
       t: 'pedroRamirez',
       pid: frame.pid,
       card,
-      text: `${ga(nameOf(cur, frame.pid))} 버린 더미에서 ${eul(nameKo(defOf(card)))} 가져왔다.`,
+      msg: { k: 'pedroRamirez', who: frame.pid, card: kindOf(card) },
     });
     return frame.rest > 0
       ? pushSeq(cur, [
@@ -578,7 +576,7 @@ export function resolveBlackJackReveal(
     pid: frame.pid,
     card: frame.card,
     reveal: { suit, hit: bonus },
-    text: `${nameOf(cur, frame.pid)}의 두 번째 카드 공개 ${SUIT_GLYPH[suit]} ${bonus ? '— 한 장 더!' : '— 그대로'}`,
+    msg: { k: 'blackJack', who: frame.pid, suit, bonus },
   });
   return bonus
     ? pushSeq(logged, [{ k: 'drawCards', pid: frame.pid, count: 1, reason: 'blackJack' }])

@@ -10,19 +10,20 @@
  * 상세는 손패 HUD 위에 그려야 해서 패널 안이 아니라 게임 화면 맨 위에 둔다. 스토어(detailPeek)로 잇는다.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Pressable, ScrollView, Text, View, type TextProps } from 'react-native';
 import { useStore } from 'zustand';
 
 import type { CardId } from '../data/types';
-import { defOf, type GameEvent } from '../engine';
+import { defOf, type GameEvent, type Player } from '../engine';
 import { CAN_HOVER, detailPeek, setDetailPeek } from './card-peek';
 import { CardView } from './CardView';
 import { splitLogText, type LogSegment } from './log-text';
 import { PaperPlaque, plaque } from './PaperPlaque';
 import { WesternFonts } from './menu/western-fonts';
 import { themedStyles, useColors } from './theme/use-theme';
-import { useT } from '../../i18n/use-t';
+import { useLang, useT } from '../../i18n/use-t';
+import { logCtx, renderLog } from '../../i18n/log';
 import { Radius, Spacing, type ThemeColors } from '@/constants/theme';
 import { useNames } from '../../i18n/use-names';
 
@@ -53,11 +54,13 @@ function toneOf(c: ThemeColors, t: string): string {
   }
 }
 
-export function LogPanel({ log, style }: { log: GameEvent[]; style?: object }) {
+export function LogPanel({ log, players, style }: { log: GameEvent[]; players: readonly Player[]; style?: object }) {
   const ref = useRef<ScrollView>(null);
   const styles = useStyles();
   const c = useColors();
   const t = useT();
+  const lang = useLang();
+  const ctx = useMemo(() => logCtx(lang, players), [lang, players]);
   const recent = log.slice(-120);
 
   useEffect(() => {
@@ -70,7 +73,7 @@ export function LogPanel({ log, style }: { log: GameEvent[]; style?: object }) {
       <ScrollView ref={ref} style={styles.list} showsVerticalScrollIndicator={false}>
         {recent.map((e, i) => (
           <Text key={`${e.seq}-${i}`} style={[styles.line, { color: toneOf(c, e.t) }]}>
-            {splitLogText(e).map((seg, j) => (seg.card ? <CardName key={j} seg={seg} onPeek={setPeek} /> : seg.text))}
+            {splitLogText(e, renderLog(e, lang, ctx), lang).map((seg, j) => (seg.card ? <CardName key={j} seg={seg} onPeek={setPeek} /> : seg.text))}
           </Text>
         ))}
       </ScrollView>

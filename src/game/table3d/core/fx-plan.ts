@@ -5,6 +5,8 @@
  * 순수 함수라 테스트에서 실제 엔진으로 상태를 만들어 검증한다.
  */
 
+import { renderLog } from '../../../i18n/log';
+import type { Lang } from '../../../i18n/types';
 import type { CardId } from '../../data/types';
 import { kindOf, type GameEvent, type GameState, type PlayerId } from '../../engine';
 import type { Transition } from '../../store/transition-bus';
@@ -14,7 +16,7 @@ import type { CardMove, FlightStyle, FxBatch, FxCommand, Zone } from './types';
 
 type MoveCmd = Extract<FxCommand, { k: 'moveCard' }>;
 
-export function planFx(t: Transition, moves: CardMove[], viewer: PlayerId | null): FxBatch {
+export function planFx(t: Transition, moves: CardMove[], viewer: PlayerId | null, lang: Lang = 'ko'): FxBatch {
   const { prev, next } = t;
   // 첫 상태거나 여러 액션을 한꺼번에 따라잡는 중이면 그냥 놓는다
   if (!prev || next.seq - prev.seq !== 1) return makeBatch(next.seq, [], { snap: true });
@@ -171,7 +173,7 @@ export function planFx(t: Transition, moves: CardMove[], viewer: PlayerId | null
 
       case 'judgement': {
         const m = moveOf(e.card);
-        if (m) push(moveCmd(m, 'reveal', { holdMs: DUR.revealHold }), { k: 'caption', text: e.text, ms: DUR.caption });
+        if (m) push(moveCmd(m, 'reveal', { holdMs: DUR.revealHold }), { k: 'caption', text: renderLog(e, lang, t.next.players), ms: DUR.caption });
         break;
       }
 
@@ -212,7 +214,7 @@ export function planFx(t: Transition, moves: CardMove[], viewer: PlayerId | null
       }
 
       case 'event':
-        push({ k: 'caption', text: e.text, ms: DUR.caption });
+        push({ k: 'caption', text: renderLog(e, lang, t.next.players), ms: DUR.caption });
         break;
 
       default:

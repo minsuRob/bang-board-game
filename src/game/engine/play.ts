@@ -13,7 +13,6 @@ import {
   equipCard,
   kindOf,
   log,
-  nameOf,
   playerOf,
   pushSeq,
   toDiscard,
@@ -35,8 +34,6 @@ import {
   withEvade,
 } from './hooks';
 import type { Frame, GameState, PlayerId, StealPick } from './types';
-import { eul, ga, ro } from './josa';
-import { nameKo } from './legacy-ko';
 
 /** 대상 한 명을 지목하는 갈색 효과 중 탈출로 피할 수 있는 것 */
 const SINGLE_TARGET_EVADABLE: readonly Frame['k'][] = ['duel', 'steal', 'bang'];
@@ -120,19 +117,21 @@ export function applyPlayCard(
   // 리코체(한줌의 카드): 뱅!에 앞의 카드가 붙으면 사람이 아니라 그 카드를 노린다.
   const ricochet = as === 'bang' && target && opts.pick?.zone === 'equipment' ? opts.pick.card : null;
 
-  const played =
-    as === own
-      ? eul(nameKo(def))
-      : `${eul(nameKo(CARD_DEFS[own]))} ${ro(nameKo(def))}`;
   cur = log(cur, {
     t: 'playCard',
     pid,
     card,
     as: as === own ? undefined : as,
     target,
-    text:
-      `${ga(nameOf(cur, pid))}${ricochet ? ' 리코체로' : ''}${repeat ? ' 한 번 더,' : ''} ${played} 냈다` +
-      (target ? ` → ${nameOf(cur, target)}.` : '.'),
+    msg: {
+      k: 'played',
+      who: pid,
+      card: own,
+      ...(as === own ? {} : { as }),
+      ...(target ? { to: target } : {}),
+      ...(ricochet ? { ricochet: true } : {}),
+      ...(repeat ? { again: true } : {}),
+    },
   });
 
   if (ricochet && target) {
@@ -150,7 +149,7 @@ export function applyPlayCard(
       pid,
       card: extra,
       target,
-      text: `${ga(nameOf(cur, pid))} ${eul(nameKo(CARD_DEFS[kindOf(extra)]))} 함께 냈다.`,
+      msg: { k: 'playedWith', who: pid, card: kindOf(extra) },
     });
   }
 
@@ -164,7 +163,7 @@ export function applyPlayCard(
       pid,
       card: also,
       target,
-      text: `${ga(nameOf(cur, pid))} 저격수로 ${eul(nameKo(CARD_DEFS[kindOf(also)]))} 함께 냈다.`,
+      msg: { k: 'playedWith', who: pid, card: kindOf(also), sniper: true },
     });
   }
 
@@ -203,14 +202,14 @@ function equipBlueCard(
 
   // 감옥·방울뱀·포상금은 상대 앞에, 유령은 제거된 사람 앞에 놓는다.
   if (def.equip === 'other' || def.equip === 'eliminated') {
-    if (!target) throw new Error(`대상이 필요하다: ${nameKo(def)}`);
+    if (!target) throw new Error(`대상이 필요하다: ${as}`);
     const placed = equipCard(state, target, card);
     if (def.equip !== 'eliminated') return placed;
     // 유령: 제거된 사람이 목숨 없이 게임에 돌아온다.
     return log(updatePlayer(placed, target, (p) => ({ ...p, ghost: true })), {
       t: 'ghostRise',
       pid: target,
-      text: `${ga(nameOf(placed, target))} 유령으로 돌아왔다.`,
+      msg: { k: 'ghostRise', who: target, fromCard: true },
     });
   }
 

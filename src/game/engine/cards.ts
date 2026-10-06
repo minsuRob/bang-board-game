@@ -5,11 +5,9 @@
  */
 
 import { ALL_CARDS_BY_ID, CARD_DEFS } from '../data/cards.base';
-import { CHARACTERS } from '../data/characters';
 import type { CardDef, CardId, CardInstance, CardKind, Suit } from '../data/types';
 import { shuffle } from './rng';
 import type { Frame, GameEvent, GameState, Player, PlayerId } from './types';
-import { nameKo } from './legacy-ko';
 
 // ---------------------------------------------------------------------------
 // 카드 조회
@@ -92,13 +90,6 @@ export function log(state: GameState, ev: Omit<GameEvent, 'seq'>): GameState {
   return { ...state, log: [...state.log, { ...ev, seq: state.seq }] };
 }
 
-/** 로그에 이름을 쓰기 위한 표시용 이름 (닉네임 대신 캐릭터명) */
-export function nameOf(state: GameState, pid: PlayerId): string {
-  const p = playerOf(state, pid);
-  const def = CHARACTERS[p.character];
-  return def ? nameKo(def) : p.name;
-}
-
 // ---------------------------------------------------------------------------
 // 스택
 // ---------------------------------------------------------------------------
@@ -142,7 +133,7 @@ export function refillDeck(state: GameState): GameState {
   return log({ ...state, deck: value, discard: [], rng }, {
     t: 'reshuffle',
     amount: value.length,
-    text: `버린 더미 ${value.length}장을 섞어 새 덱을 만들었다.`,
+    msg: { k: 'reshuffle', amount: value.length },
   });
 }
 

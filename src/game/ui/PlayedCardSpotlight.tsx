@@ -19,7 +19,7 @@
  * 카드가 올라선 뒤 나온 무늬를 큰 배지로 강조하고, 성공·실패 도장을 찍는다.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Image, Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { cancelAnimation, Easing as ReEasing, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useStore } from 'zustand';
@@ -37,7 +37,7 @@ import {
   type JudgementPurpose,
   type PlayerId,
 } from '../engine';
-import { useT } from '../../i18n/use-t';
+import { useLang, useT } from '../../i18n/use-t';
 import type { Messages } from '../../i18n/types-messages';
 import { fxPacing } from '../store/fx-pacing';
 import { roleArt } from './card-art';
@@ -103,8 +103,12 @@ import {
 import type { CenterPick, TableApi } from './use-table';
 import { Colors, Spacing } from '@/constants/theme';
 import { useNames } from '../../i18n/use-names';
+import { logCtx, renderLog } from '../../i18n/log';
 
 const NATIVE_DRIVER = Platform.OS !== 'web';
+
+/** 개발용 연출 시험 로그의 내용. 글은 legacyText 로 그대로 보인다 (번역하지 않는다) */
+const DEV_MSG = { msg: { k: 'legacy' } } as const;
 
 /** 카드 양옆에 세우는 캐릭터 카드 폭 */
 const FACE_W = 112;
@@ -168,6 +172,11 @@ function useFxStage() {
 
 export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSpotlightProps) {
   const t = useT();
+  const lang = useLang();
+  const logText = useMemo(() => {
+    const ctx = logCtx(lang, view.players);
+    return (e: GameEvent) => renderLog(e, lang, ctx);
+  }, [lang, view.players]);
   const [shown, setShown] = useState<GameEvent | null>(null);
   // 지금 떠 있는 것과, 그 뒤에 줄 선 결과들 (캣 벌로우·강탈의 결과, 판정으로 펼친 카드)
   const shownRef = useRef<GameEvent | null>(null);
@@ -210,7 +219,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
       let seq = 1_000_000;
       const make = (): GameEvent => {
         const id = HIGHNOON_EVENT_IDS[i++ % HIGHNOON_EVENT_IDS.length];
-        return { t: 'event', card: id, text: '연출 시험 — 이벤트', seq: seq++ };
+        return { t: 'event', card: id, ...DEV_MSG, legacyText: 'fx test — event', seq: seq++ };
       };
       show(make());
       const timer = setInterval(() => show(make()), EVENT_SHOW_MS + 800);
@@ -220,15 +229,15 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
       const pick = (kind: string, suit: Suit) => BASE_DECK.find((c) => c.kind === kind && c.suit === suit)?.id ?? BASE_DECK[0].id;
       const a = view.players[0]?.id;
       const samples: Omit<GameEvent, 'seq'>[] = [
-        { t: 'judgement', pid: a, card: pick('beer', 'hearts'), reveal: { suit: 'hearts', hit: true, purpose: 'barrel' }, text: '연출 시험 — 술통 판정 성공' },
-        { t: 'judgement', pid: a, card: pick('bang', 'spades'), reveal: { suit: 'spades', hit: true, purpose: 'dynamite' }, text: '연출 시험 — 다이너마이트 폭발' },
-        { t: 'judgement', pid: a, card: pick('bang', 'clubs'), reveal: { suit: 'clubs', hit: false, purpose: 'jail' }, text: '연출 시험 — 감옥 판정 실패' },
-        { t: 'blackJack', pid: a, card: pick('bang', 'diamonds'), reveal: { suit: 'diamonds', hit: true }, text: '연출 시험 — 블랙 잭' },
-        { t: 'judgement', pid: a, card: pick('missed', 'clubs'), reveal: { suit: 'hearts', hit: true, purpose: 'barrel' }, text: '연출 시험 — 축복으로 ♥' },
-        { t: 'judgement', pid: a, card: pick('bang', 'diamonds'), reveal: { suit: 'diamonds', hit: true, purpose: 'helenaZontero' }, text: '연출 시험 — 헬레나 존테로 섞임' },
-        { t: 'judgement', pid: a, card: pick('bang', 'spades'), reveal: { suit: 'spades', hit: false, purpose: 'helenaZontero' }, text: '연출 시험 — 헬레나 존테로 그대로' },
-        { t: 'pokerReveal', pid: a, cards: [pick('bang', 'hearts'), pick('missed', 'clubs'), pick('beer', 'hearts'), pick('bang', 'spades')], text: '연출 시험 — 포커' },
-        { t: 'rhum', pid: a, cards: [pick('bang', 'hearts'), pick('missed', 'clubs'), pick('beer', 'hearts'), pick('bang', 'diamonds')], amount: 3, text: '연출 시험 — 럼' },
+        { t: 'judgement', pid: a, card: pick('beer', 'hearts'), reveal: { suit: 'hearts', hit: true, purpose: 'barrel' }, ...DEV_MSG, legacyText: 'fx test — barrel hit' },
+        { t: 'judgement', pid: a, card: pick('bang', 'spades'), reveal: { suit: 'spades', hit: true, purpose: 'dynamite' }, ...DEV_MSG, legacyText: 'fx test — dynamite explodes' },
+        { t: 'judgement', pid: a, card: pick('bang', 'clubs'), reveal: { suit: 'clubs', hit: false, purpose: 'jail' }, ...DEV_MSG, legacyText: 'fx test — jail miss' },
+        { t: 'blackJack', pid: a, card: pick('bang', 'diamonds'), reveal: { suit: 'diamonds', hit: true }, ...DEV_MSG, legacyText: 'fx test — black jack' },
+        { t: 'judgement', pid: a, card: pick('missed', 'clubs'), reveal: { suit: 'hearts', hit: true, purpose: 'barrel' }, ...DEV_MSG, legacyText: 'fx test — blessing hearts' },
+        { t: 'judgement', pid: a, card: pick('bang', 'diamonds'), reveal: { suit: 'diamonds', hit: true, purpose: 'helenaZontero' }, ...DEV_MSG, legacyText: 'fx test — helena shuffles' },
+        { t: 'judgement', pid: a, card: pick('bang', 'spades'), reveal: { suit: 'spades', hit: false, purpose: 'helenaZontero' }, ...DEV_MSG, legacyText: 'fx test — helena keeps' },
+        { t: 'pokerReveal', pid: a, cards: [pick('bang', 'hearts'), pick('missed', 'clubs'), pick('beer', 'hearts'), pick('bang', 'spades')], ...DEV_MSG, legacyText: 'fx test — poker' },
+        { t: 'rhum', pid: a, cards: [pick('bang', 'hearts'), pick('missed', 'clubs'), pick('beer', 'hearts'), pick('bang', 'diamonds')], amount: 3, ...DEV_MSG, legacyText: 'fx test — rhum' },
       ];
       let i = 0;
       let seq = 1_000_000;
@@ -241,9 +250,9 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
       const barrel = BASE_DECK.find((c) => c.kind === 'barrel')?.id;
       const [a, b] = [view.players[0]?.id, view.players[1]?.id];
       const samples: Omit<GameEvent, 'seq'>[] = [
-        { t: 'catBalou', pid: a, target: b, text: '연출 시험 — 손패를 버리게 했다.' },
-        { t: 'catBalou', pid: a, target: b, card: barrel, text: '연출 시험 — 장비를 버리게 했다.' },
-        { t: 'panic', pid: b, target: a, text: '연출 시험 — 손패를 강탈했다.' },
+        { t: 'catBalou', pid: a, target: b, ...DEV_MSG, legacyText: 'fx test — discard from hand' },
+        { t: 'catBalou', pid: a, target: b, card: barrel, ...DEV_MSG, legacyText: 'fx test — discard equipment' },
+        { t: 'panic', pid: b, target: a, ...DEV_MSG, legacyText: 'fx test — panic from hand' },
       ];
       let i = 0;
       let seq = 1_000_000;
@@ -256,7 +265,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
     const kindLoop = BASE_DECK.find((c) => c.kind === mode && c.kind in CARD_FX);
     if (kindLoop && mode !== 'bang' && mode !== 'missed') {
       let seq = 1_000_000;
-      const make = (): GameEvent => ({ t: 'playCard', card: kindLoop.id, text: `연출 시험 — ${kindLoop.kind}`, seq: seq++ });
+      const make = (): GameEvent => ({ t: 'playCard', card: kindLoop.id, ...DEV_MSG, legacyText: `fx test — ${kindLoop.kind}`, seq: seq++ });
       show(make());
       const timer = setInterval(() => show(make()), 3400);
       return () => clearInterval(timer);
@@ -268,8 +277,8 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
     let seq = 1_000_000;
     const make = (): GameEvent =>
       isMissed
-        ? { t: 'playMissed', card: card.id, text: '연출 시험 — 빗나감!', seq: seq++ }
-        : { t: 'playCard', card: card.id, text: '연출 시험 — 뱅!', seq: seq++ };
+        ? { t: 'playMissed', card: card.id, ...DEV_MSG, legacyText: 'fx test — missed', seq: seq++ }
+        : { t: 'playCard', card: card.id, ...DEV_MSG, legacyText: 'fx test — bang', seq: seq++ };
     const timer = setInterval(() => show(make()), 3400);
     return () => clearInterval(timer);
     // 개발용이라 처음 한 번만 본다
@@ -321,6 +330,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
             <EventSpot key={`${shown.seq}:${shown.card}`} def={shownEvent} compact={compact} onDone={() => clear(shown)} />
           ) : isRevealEvent(shown) ? (
             <RevealSpot
+              text={logText(shown)}
               key={`${shown.seq}:${shown.t}:${shown.card}`}
               event={shown}
               faces={facesOf(view, viewer, shown)}
@@ -329,6 +339,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
             />
           ) : isGroupRevealEvent(shown) ? (
             <GroupRevealSpot
+              text={logText(shown)}
               key={`${shown.seq}:${shown.t}`}
               event={shown}
               faces={facesOf(view, viewer, shown)}
@@ -337,6 +348,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
             />
           ) : isTakeEvent(shown) ? (
             <TakenSpot
+              text={logText(shown)}
               key={`${shown.seq}:${shown.t}:${shown.card ?? 'back'}`}
               event={shown}
               faces={facesOf(view, viewer, shown)}
@@ -345,6 +357,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
             />
           ) : (
             <PlayedSpot
+              text={logText(shown)}
               key={`${shown.seq}:${shown.card}`}
               event={shown}
               faces={facesOf(view, viewer, shown)}
@@ -403,14 +416,15 @@ function storeWatch(view: GameState, t: Messages): { hint: string; center: Cente
  * 부모를 꽉 채우는 레이어라 연출이 그 위에 겹친다.
  */
 export function CardFxPreview({ card, run, onDone }: { card: CardId; run: number; onDone: () => void }) {
+  const names = useNames();
   const { hqLayer, progress, geom, layer, stage } = useFxStage();
   const event: GameEvent | null =
-    run > 0 ? { t: kindOf(card) === 'missed' ? 'playMissed' : 'playCard', card, text: '연출 미리보기', seq: run } : null;
+    run > 0 ? { t: kindOf(card) === 'missed' ? 'playMissed' : 'playCard', card, msg: { k: 'timeout' }, seq: run } : null;
   return (
     <View ref={layer} style={styles.root}>
       {event && (
         <View style={[styles.layer, styles.passThrough]}>
-          <PlayedSpot key={run} event={event} faces={null} stage={stage} onDone={onDone} />
+          <PlayedSpot key={run} event={event} text={names.cardName(kindOf(card))} faces={null} stage={stage} onDone={onDone} />
         </View>
       )}
       {hqLayer && <hqLayer.Layer progress={progress} geom={geom} />}
@@ -450,6 +464,8 @@ function facesOf(view: GameState, viewer: PlayerId, event: GameEvent): Faces | n
 /** 누가 낸 카드. 튀어 올랐다가 잠시 뒤 사라진다. 연출이 붙은 카드면 올라선 직후 터진다 */
 type PlayedSpotProps = {
   event: GameEvent;
+  /** 로그 문장 (현재 언어) */
+  text: string;
   faces: Faces | null;
   compact?: boolean;
   /** 고화질 무대. 없으면 일반 연출 */
@@ -457,7 +473,7 @@ type PlayedSpotProps = {
   onDone: () => void;
 };
 
-function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
+function PlayedSpot({ event, text, faces, compact, stage, onDone }: PlayedSpotProps) {
   const found = cardFxFor(event);
   // 화질은 카드가 뜰 때 한 번 정한다. 도중에 설정이 바뀌어도 연출이 섞이지 않게
   const [hq] = useState(() => (found ? stage : null));
@@ -640,7 +656,7 @@ function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
       <Animated.View ref={spot} style={[styles.spot, popStyle(t), !armed && styles.hidden]}>
         <CardSpotlight
           card={event.card!}
-          meta={event.text}
+          meta={text}
           faces={faces}
           compact={compact}
           anchorRef={anchor}
@@ -665,7 +681,7 @@ function PlayedSpot({ event, faces, compact, stage, onDone }: PlayedSpotProps) {
       <Animated.View style={[styles.spot, popStyle(t)]}>
         <CardSpotlight
           card={event.card!}
-          meta={event.text}
+          meta={text}
           faces={faces}
           compact={compact}
           cardStyle={fx ? recoilStyle(shot) : undefined}
@@ -734,7 +750,7 @@ function hqMs(fx: CardFx) {
  * 남의 카드를 버리게·가져간 결과. 공개된 카드면 그 카드, 손패에서 뽑았으면 뒷면을 띄운다.
  * 명판에는 엔진 로그 글을 그대로 쓴다
  */
-function TakenSpot({ event, faces, compact, onDone }: { event: GameEvent; faces: Faces | null; compact?: boolean; onDone: () => void }) {
+function TakenSpot({ event, text, faces, compact, onDone }: { event: GameEvent; text: string; faces: Faces | null; compact?: boolean; onDone: () => void }) {
   const tr = useT();
   const [t] = useState(() => new Animated.Value(0));
   const done = useRef(onDone);
@@ -764,7 +780,7 @@ function TakenSpot({ event, faces, compact, onDone }: { event: GameEvent; faces:
       <CardSpotlight
         card={card}
         meta={card ? takeTitle : `${takeTitle} · ${hiddenNote}`}
-        body={event.text}
+        body={text}
         faces={faces}
         compact={compact}
       />
@@ -805,7 +821,7 @@ function revealRuleOf(e: GameEvent, t: Messages): RevealRule {
  * 판정·블랙 잭·피요테로 펼친 카드. 카드가 올라서면 나온 무늬가 큰 배지로 튀어 오르고,
  * 이어서 성공·실패 도장이 찍힌다. 명판에는 필요한 무늬와 결과, 엔진 로그 글을 적는다
  */
-function RevealSpot({ event, faces, compact, onDone }: { event: GameEvent; faces: Faces | null; compact?: boolean; onDone: () => void }) {
+function RevealSpot({ event, text, faces, compact, onDone }: { event: GameEvent; text: string; faces: Faces | null; compact?: boolean; onDone: () => void }) {
   const tr = useT();
   const [t] = useState(() => new Animated.Value(0));
   const [badge] = useState(() => new Animated.Value(0));
@@ -861,7 +877,7 @@ function RevealSpot({ event, faces, compact, onDone }: { event: GameEvent; faces
           <>
             <Text style={[plaque.name, { color: tone }]}>{reveal.hit ? rule.hitText : rule.missText}</Text>
             {'  '}
-            {event.text}
+            {text}
             {printed !== reveal.suit ? tr.table.spot.printedSuit(SUIT_GLYPH[printed], SUIT_GLYPH[reveal.suit]) : ''}
           </>
         }
@@ -973,7 +989,7 @@ function groupGap(count: number, width: number, compact?: boolean): number {
  * 포커 판돈·럼처럼 여러 장을 한꺼번에 펼친 결과. 카드가 한 장씩 뒤집혀 올라오고,
  * 조건에 걸린 카드(에이스·새 무늬)가 떠오른 뒤 가운데에 성공·실패 도장이 찍힌다
  */
-function GroupRevealSpot({ event, faces, compact, onDone }: { event: GameEvent; faces: Faces | null; compact?: boolean; onDone: () => void }) {
+function GroupRevealSpot({ event, text, faces, compact, onDone }: { event: GameEvent; text: string; faces: Faces | null; compact?: boolean; onDone: () => void }) {
   const tr = useT();
   const cards = event.cards ?? [];
   const [t] = useState(() => new Animated.Value(0));
@@ -1089,7 +1105,7 @@ function GroupRevealSpot({ event, faces, compact, onDone }: { event: GameEvent; 
         <Text style={[plaque.text, compact && plaque.textCompact]} numberOfLines={3}>
           <Text style={[plaque.name, { color: tone }]}>{rule.result}</Text>
           {'  '}
-          {event.text}
+          {text}
         </Text>
       </PaperPlaque>
     </Animated.View>

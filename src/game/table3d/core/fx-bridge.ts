@@ -7,13 +7,14 @@ import type { PlayerId } from '../../engine';
 import { extendFx, fxPacing, releaseFx } from '../../store/fx-pacing';
 import { onTransition } from '../../store/transition-bus';
 import { clearFx, enqueueFx } from './fx-store';
+import { getLang } from '../../../i18n/use-t';
 import { planFx } from './fx-plan';
 import { diffZones } from './move-diff';
 
 export function startFxBridge(getViewer: () => PlayerId | null): () => void {
   const stop = onTransition((t) => {
     const moves = t.prev ? diffZones(t.prev, t.next) : [];
-    const batch = planFx(t, moves, getViewer());
+    const batch = planFx(t, moves, getViewer(), getLang());
     enqueueFx(batch);
     if (!batch.snap && batch.estMs > 0) extendFx(batch.estMs / fxPacing.getState().timeScale + 60);
   });

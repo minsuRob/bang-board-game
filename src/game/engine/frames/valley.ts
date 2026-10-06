@@ -8,24 +8,10 @@
 
 import { CARD_DEFS } from '../../data/cards.base';
 import { RANK_VALUE } from '../../data/types';
-import {
-  cardOf,
-  giveCards,
-  inPlay,
-  log,
-  nameOf,
-  playerOf,
-  popFrame,
-  pushSeq,
-  replaceTop,
-  toDiscard,
-  updatePlayer,
-} from '../cards';
+import { cardOf, giveCards, inPlay, log, playerOf, popFrame, pushSeq, replaceTop, toDiscard, updatePlayer, kindOf } from '../cards';
 import { canReachWithBang } from '../distance';
 import { canPlayCard, evadeOptions } from '../hooks';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
-import { eul, ga } from '../josa';
-import { nameKo } from '../legacy-ko';
 
 function takeFromHand(state: GameState, pid: PlayerId, card: string): GameState {
   return updatePlayer(state, pid, (p) => ({ ...p, hand: p.hand.filter((c) => c !== card) }));
@@ -100,7 +86,7 @@ export function respondBandidos(
     const cur = log(state, {
       t: 'bandidosHit',
       pid,
-      text: `${ga(nameOf(state, pid))} 카드를 버리지 않고 목숨을 내놓았다.`,
+      msg: { k: 'bandidosHit', who: pid },
     });
     return pushSeq(replaceTop(cur, { ...frame, queue: frame.queue.slice(1) }), [
       { k: 'damage', target: pid, amount: 1, source: frame.source, credit: frame.source, cause: 'bandidos' },
@@ -116,7 +102,7 @@ export function respondBandidos(
     t: 'bandidosDiscard',
     pid,
     card,
-    text: `${ga(nameOf(cur, pid))} 반디도스에 카드를 버렸다.`,
+    msg: { k: 'bandidosDiscard', who: pid },
   });
   return replaceTop(cur, { ...frame, left });
 }
@@ -158,7 +144,7 @@ export function resolvePoker(state: GameState, frame: Frame & { k: 'poker' }): G
       t: 'pokerReveal',
       pid: frame.source,
       cards: frame.pot,
-      text: ace ? '포커: 에이스가 나와 모두 버려졌다.' : '포커: 에이스가 없다.',
+      msg: { k: 'pokerReveal', ace },
     });
     if (ace || !inPlay(playerOf(cur, frame.source))) return toDiscard(revealed, frame.pot);
     return pushSeq(revealed, [{ ...frame, queue: [], left: Math.min(2, frame.pot.length) }]);
@@ -184,7 +170,7 @@ export function respondPoker(
     const cur = log(takeFromHand(state, pid, card), {
       t: 'pokerBet',
       pid,
-      text: `${ga(nameOf(state, pid))} 포커에 카드 1장을 엎어 냈다.`,
+      msg: { k: 'pokerBet', who: pid },
     });
     return replaceTop(cur, { ...frame, queue: frame.queue.slice(1), pot: [...frame.pot, card] });
   }
@@ -198,13 +184,9 @@ export function respondPoker(
     t: 'pokerTake',
     pid: frame.source,
     card,
-    text: `${ga(nameOf(cur, frame.source))} 판돈에서 ${eul(nameOfCard(card))} 가져갔다.`,
+    msg: { k: 'pokerTake', who: frame.source, card: kindOf(card) },
   });
   return replaceTop(cur, { ...frame, pot: frame.pot.filter((c) => c !== card), left: frame.left - 1 });
-}
-
-function nameOfCard(card: string): string {
-  return nameKo(CARD_DEFS[cardOf(card).kind]);
 }
 
 // ---------------------------------------------------------------------------
@@ -237,7 +219,7 @@ export function respondTornado(
   let cur = replaceTop(state, { ...frame, queue: frame.queue.slice(1) });
   if (card) {
     cur = toDiscard(takeFromHand(cur, pid, card), [card]);
-    cur = log(cur, { t: 'tornadoDiscard', pid, card, text: `${ga(nameOf(cur, pid))} 토네이도에 카드를 버렸다.` });
+    cur = log(cur, { t: 'tornadoDiscard', pid, card, msg: { k: 'tornadoDiscard', who: pid } });
   }
   return pushSeq(cur, [{ k: 'drawCards', pid, count: 2, reason: 'tornado' }]);
 }
@@ -267,7 +249,7 @@ export function respondShotgunDiscard(
   let cur = popFrame(state);
   if (!card) return cur;
   cur = toDiscard(takeFromHand(cur, frame.pid, card), [card]);
-  return log(cur, { t: 'shotgun', pid: frame.pid, card, text: `샷건: ${ga(nameOf(cur, frame.pid))} 카드 1장을 버렸다.` });
+  return log(cur, { t: 'shotgun', pid: frame.pid, card, msg: { k: 'shotgun', who: frame.pid } });
 }
 
 // ---------------------------------------------------------------------------
@@ -298,7 +280,7 @@ export function respondEvade(
     pid: frame.pid,
     card: choice.card,
     target: frame.source,
-    text: `${ga(nameOf(cur, frame.pid))} ${eul(nameOfCard(choice.card))} 내서 ${nameKo(CARD_DEFS[frame.kind])}의 효과를 피했다.`,
+    msg: { k: 'evade', who: frame.pid, card: kindOf(choice.card), from: frame.kind },
   });
 }
 
@@ -349,7 +331,7 @@ export function respondSavedOffer(
     pid: saver,
     target: frame.target,
     card: choice.card,
-    text: `${ga(nameOf(cur, saver))} 구조!로 ${nameOf(cur, frame.target)}의 목숨 1을 지켰다.`,
+    msg: { k: 'saved', who: saver, target: frame.target },
   });
   // 바로 아래가 막으려던 피해다. 1 줄이고, 그 피해가 다 해결된 뒤에 보상을 준다.
   const top = cur.stack[cur.stack.length - 1];
@@ -418,7 +400,7 @@ export function respondEvelyn(
     t: 'evelyn',
     pid: frame.pid,
     target,
-    text: `${ga(nameOf(state, frame.pid))} 카드 1장을 포기하고 ${nameOf(state, target)}에게 뱅!을 쏜다.`,
+    msg: { k: 'evelyn', who: frame.pid, target },
   });
   return pushSeq(cur, [
     { k: 'bang', source: frame.pid, target, missesRequired: 1, cause: 'evelyn', dodgeChecked: false },
@@ -450,7 +432,7 @@ export function respondLemonadeJim(
     t: 'lemonadeJim',
     pid: frame.pid,
     card: choice.card,
-    text: `${ga(nameOf(cur, frame.pid))} 카드 1장을 버리고 같이 한잔했다.`,
+    msg: { k: 'lemonadeJim', who: frame.pid },
   });
   return pushSeq(after, [{ k: 'heal', pid: frame.pid, amount: 1 }]);
 }

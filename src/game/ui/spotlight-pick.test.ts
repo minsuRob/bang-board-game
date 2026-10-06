@@ -4,7 +4,7 @@ import type { GameEvent, JudgementPurpose } from '../engine';
 import { HIDDEN_CARD } from '../engine/view';
 import { isGroupRevealEvent, isRevealEvent, isTakeEvent, pickSpotlight, pickSpotlights, revealedEventOf, takenCardOf } from './spotlight-pick';
 
-const ev = (seq: number, t: string, card?: string): GameEvent => ({ t, card, seq, text: t });
+const ev = (seq: number, t: string, card?: string): GameEvent => ({ t, card, seq, msg: { k: 'timeout' } });
 
 describe('pickSpotlight', () => {
   it('새로 공개된 이벤트 카드를 가운데에 띄운다', () => {
@@ -48,7 +48,7 @@ describe('남의 카드를 버리게·가져간 결과', () => {
     target: 'p0',
     card,
     seq,
-    text: t,
+    msg: { k: 'timeout' },
   });
 
   it('손패에서 뽑은 캣 벌로우·강탈은 뒷면으로 띄운다', () => {
@@ -78,7 +78,7 @@ describe('카드 펼치기 결과', () => {
     card,
     reveal: { suit, hit: suit === 'hearts', purpose },
     seq,
-    text: 'judgement',
+    msg: { k: 'timeout' },
   });
 
   it('판정 로그를 띄운다', () => {
@@ -109,8 +109,8 @@ describe('카드 펼치기 결과', () => {
   });
 
   it('포커 판돈 공개와 럼은 여러 장을 펼친 결과로 띄운다', () => {
-    const poker: GameEvent = { t: 'pokerReveal', pid: 'p0', cards: ['bang-1', 'beer-1'], seq: 6, text: '' };
-    const rhum: GameEvent = { t: 'rhum', pid: 'p0', cards: ['bang-1'], amount: 1, seq: 6, text: '' };
+    const poker: GameEvent = { t: 'pokerReveal', pid: 'p0', cards: ['bang-1', 'beer-1'], seq: 6, msg: { k: 'timeout' } };
+    const rhum: GameEvent = { t: 'rhum', pid: 'p0', cards: ['bang-1'], amount: 1, seq: 6, msg: { k: 'timeout' } };
     expect(isGroupRevealEvent(poker)).toBe(true);
     expect(isGroupRevealEvent(rhum)).toBe(true);
     expect(isGroupRevealEvent({ ...poker, cards: ['bang-1', HIDDEN_CARD] })).toBe(false);

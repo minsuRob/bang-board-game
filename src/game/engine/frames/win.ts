@@ -8,8 +8,6 @@
 
 import { alivePlayers, inPlay, log, popFrame } from '../cards';
 import { lastOneStanding } from '../hooks';
-import { ga } from '../josa';
-import { reasonKo, roleKo } from '../legacy-ko';
 import type { GameResult, GameState } from '../types';
 
 export function checkWin(state: GameState): GameResult | null {
@@ -75,17 +73,15 @@ export function resolveCheckWin(state: GameState): GameState {
   const result = checkWin(cur);
   if (!result) return cur;
 
-  // 와일드 웨스트 쇼에서는 역할이 아니라 사람이 이긴다
-  const who = lastOneStanding(cur)
-    ? result.winnerIds.map((id) => cur.players.find((p) => p.id === id)?.name ?? id).join('·')
-    : result.winners.map((r) => roleKo(r)).join('·');
-  // 로그 문장용 (번역 묶음 D 에서 LogMsg 로 바뀐다)
-  const why =
-    result.reason === 'lastStanding'
-      ? `${ga(cur.players.find((p) => p.id === result.winnerIds[0])?.name ?? '')} ${reasonKo(result.reason)}`
-      : reasonKo(result.reason);
   return log({ ...cur, result, stack: [], awaiting: null }, {
     t: 'gameEnd',
-    text: who ? `${who} 승리. ${why}` : `승자 없음. ${why}`,
+    // 와일드 웨스트 쇼에서는 역할이 아니라 사람이 이긴다 (byPlayer)
+    msg: {
+      k: 'gameEnd',
+      reason: result.reason,
+      roles: [...result.winners],
+      ids: [...result.winnerIds],
+      byPlayer: lastOneStanding(cur),
+    },
   });
 }

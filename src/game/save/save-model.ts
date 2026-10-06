@@ -18,7 +18,7 @@
 import type { AiTier } from '../ai/types';
 import type { Expansion } from '../data/types';
 import { namesFor } from '../../i18n/names';
-import type { GameState, PlayerId } from '../engine';
+import type { GameEvent, GameState, PlayerId } from '../engine';
 import { formatMonthDayTime } from '../../i18n/format';
 import { saveLocale } from './save-text';
 
@@ -180,7 +180,27 @@ export function readSaveRecord(record: SaveRecord): SavedGame {
     typeof s.seq === 'number' &&
     s.turn != null;
   if (!shapeOk) throw new SaveError(saveLocale().t.infra.save.corrupt);
-  return { meta, seed: body.seed, seats: body.seats, controlled: body.controlled, state: s };
+  return { meta, seed: body.seed, seats: body.seats, controlled: body.controlled, state: migrateLog(s) };
+}
+
+/**
+ * 예전 저장 파일의 로그에는 한국어 문장(`text`)만 있다. 그 문장은 legacyText 로 옮겨 한국어 그대로 보이고,
+ * msg 는 {k:'legacy'} 로 채운다. 이미 msg 가 있는 로그는 건드리지 않는다.
+ */
+export function migrateLog(state: GameState): GameState {
+  const old = (x: unknown): x is { text: string } => typeof (x as { text?: unknown })?.text === 'string';
+  if (!state.log.some((e) => old(e) && !(e as { msg?: unknown }).msg)) return state;
+  const log = state.log.map((e) => {
+    if (!old(e) || (e as { msg?: unknown }).msg) return e;
+    const { text, secret, ...rest } = e as typeof e & { text: string };
+    const next: GameEvent = { ...rest, msg: { k: 'legacy' }, legacyText: text };
+    if (secret) {
+      const { text: secretText, ...s } = secret as typeof secret & { text?: string };
+      next.secret = { ...s, msg: { k: 'legacy' }, ...(typeof secretText === 'string' ? { legacyText: secretText } : {}) };
+    }
+    return next;
+  });
+  return { ...state, log };
 }
 
 /** 목록 한 줄. 저장소가 돌려준 값이라 모양을 한 번 확인한다 */

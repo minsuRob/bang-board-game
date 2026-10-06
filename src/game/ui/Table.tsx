@@ -165,7 +165,7 @@ export function Table({ view, viewer, api, clock }: TableProps) {
 
       <View style={styles.main}>
         {table}
-        {wide && <SidePanel log={view.log} style={styles.side} panelStyle={styles.sidePanel} />}
+        {wide && <SidePanel log={view.log} players={view.players} style={styles.side} panelStyle={styles.sidePanel} />}
       </View>
 
       <View style={styles.bottom}>

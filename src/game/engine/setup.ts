@@ -137,7 +137,7 @@ export function createGame(seed: number, config: GameConfig, seats: Seat[]): Gam
     log: [
       {
         t: 'gameStart',
-        text: `${count}명이 자리에 앉았다. 보안관은 ${sheriff.name}. 캐릭터를 고른다.`,
+        msg: { k: 'gameStart', count, sheriff: sheriff.id },
         seq: 0,
       },
     ],
