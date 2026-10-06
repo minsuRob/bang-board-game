@@ -9,6 +9,7 @@ import { inPlay, log, nameOf, playerOf, popFrame, pushSeq, replaceTop, toDiscard
 import { nextInt, shuffle } from '../rng';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 import { ga, neun } from '../josa';
+import { nameKo } from '../legacy-ko';
 
 // ---------------------------------------------------------------------------
 // 그레고리 덱 — 기본판 캐릭터를 뽑아 능력을 빌린다
@@ -56,7 +57,7 @@ function borrow(state: GameState, pid: PlayerId, count: number): GameState {
   const picked = rolled.value.slice(0, count);
 
   const cur = updatePlayer({ ...state, rng: rolled.rng }, pid, (p) => ({ ...p, borrowed: picked }));
-  const names = picked.map((c) => CHARACTERS[c].nameKo).join(', ');
+  const names = picked.map((c) => nameKo(CHARACTERS[c])).join(', ');
   return log(cur, {
     t: 'borrowCharacters',
     pid,

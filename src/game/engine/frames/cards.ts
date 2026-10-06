@@ -26,6 +26,7 @@ import { afterDrawFrames, drawsFromDiscard, onCardTakenFrames } from '../hooks';
 import { nextInt } from '../rng';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 import { eul, ga } from '../josa';
+import { nameKo } from '../legacy-ko';
 
 /**
  * 카드 가져오기 단계(1단계)에 속하는 드로우. 캐릭터 능력이 1단계를 나눠 가져와도 여기에 든다.
@@ -252,7 +253,7 @@ export function respondGeneralStore(
     t: 'generalStorePick',
     pid,
     card,
-    text: `${ga(nameOf(cur, pid))} 잡화점에서 ${eul(defOf(card).nameKo)} 골랐다.`,
+    text: `${ga(nameOf(cur, pid))} 잡화점에서 ${eul(nameKo(defOf(card)))} 골랐다.`,
   });
   return replaceTop(cur, {
     ...frame,
@@ -295,7 +296,7 @@ export function resolveDiscardSameName(
     pid: frame.pid,
     card: frame.card,
     cards: discarded,
-    text: `${ga(nameOf(cur, frame.pid))} ${eul(defOf(frame.card).nameKo)} 내려놓아 ${where} 앞의 같은 카드가 버려졌다.`,
+    text: `${ga(nameOf(cur, frame.pid))} ${eul(nameKo(defOf(frame.card)))} 내려놓아 ${where} 앞의 같은 카드가 버려졌다.`,
   });
 }
 
@@ -405,10 +406,10 @@ function moveStolen(
             secret: {
               to: [frame.source, frame.target],
               card: picked,
-              text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 "${defOf(picked).nameKo}"${eul(defOf(picked).nameKo).slice(-1)} 강탈했다.`,
+              text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 "${nameKo(defOf(picked))}"${eul(nameKo(defOf(picked))).slice(-1)} 강탈했다.`,
             },
           }),
-      text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 ${fromEquipment ? eul(defOf(picked).nameKo) : '카드를'} 강탈했다.`,
+      text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 ${fromEquipment ? eul(nameKo(defOf(picked))) : '카드를'} 강탈했다.`,
     });
   }
   cur = toDiscard(cur, [picked]);
@@ -419,7 +420,7 @@ function moveStolen(
     // 버린 카드는 버린 더미에 앞면으로 놓이므로 손패에서 뽑았어도 이름을 밝힌다
     card: picked,
     ...(fromEquipment ? {} : { fromHand: true }),
-    text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 ${fromEquipment ? eul(defOf(picked).nameKo) : `"${defOf(picked).nameKo}"${eul(defOf(picked).nameKo).slice(-1)}`} 버리게 했다.`,
+    text: `${ga(nameOf(cur, frame.source))} ${nameOf(cur, frame.target)}의 ${fromEquipment ? eul(nameKo(defOf(picked))) : `"${nameKo(defOf(picked))}"${eul(nameKo(defOf(picked))).slice(-1)}`} 버리게 했다.`,
   });
 }
 
@@ -547,7 +548,7 @@ export function respondPedroRamirez(
       t: 'pedroRamirez',
       pid: frame.pid,
       card,
-      text: `${ga(nameOf(cur, frame.pid))} 버린 더미에서 ${eul(defOf(card).nameKo)} 가져왔다.`,
+      text: `${ga(nameOf(cur, frame.pid))} 버린 더미에서 ${eul(nameKo(defOf(card)))} 가져왔다.`,
     });
     return frame.rest > 0
       ? pushSeq(cur, [

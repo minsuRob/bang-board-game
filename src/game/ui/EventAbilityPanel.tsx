@@ -19,12 +19,14 @@ import type { CardKind } from '../data/types';
 import { isHidden, type Action, type GameState, type PlayerId } from '../engine';
 import { rightNeighborOf } from '../engine/distance';
 import { handsRevealed, turnDirectionOf } from '../engine/hooks';
-import { wa } from '../engine/josa';
+import { useT } from '../../i18n/use-t';
 import { CAN_HOVER } from './card-peek';
 import { CardView } from './CardView';
 import { WesternFonts } from './menu/western-fonts';
 import { themedStyles } from './theme/use-theme';
 import { Radius } from '@/constants/theme';
+import { useNames } from '../../i18n/use-names';
+import type { Names } from '../../i18n/names';
 
 type EventAction = Extract<Action, { type: 'eventAbility' }>;
 
@@ -35,26 +37,28 @@ type Props = {
   send: (a: Action) => void;
 };
 
-function who(view: GameState, pid: PlayerId): string {
+function who(view: GameState, pid: PlayerId, names: Names): string {
   const p = view.players.find((x) => x.id === pid);
-  return p ? (CHARACTERS[p.character]?.nameKo ?? p.name) : pid;
+  return p ? (CHARACTERS[p.character] ? names.charName(p.character) : p.name) : pid;
 }
 
 export function EventAbilityPanel({ view, viewer, actions, send }: Props) {
   const styles = useStyles();
+  const t = useT();
+  const names = useNames();
   const open = handsRevealed(view);
   const rose = actions.find((a) => a.ability === 'ladyRose');
   const orders = actions.filter((a) => a.ability === 'dorothyRage');
   if (!open && !rose && orders.length === 0) return null;
 
   return (
-    <View style={styles.panel} accessibilityLabel="이벤트 행동">
+    <View style={styles.panel} accessibilityLabel={t.table.event.panel}>
       {open && <OpenHands view={view} viewer={viewer} />}
       {rose && viewer && (
         <View style={styles.row}>
-          <Text style={styles.label}>레이디 로즈 오브 텍사스</Text>
+          <Text style={styles.label}>{t.table.event.ladyRose}</Text>
           <Button
-            label={`${wa(who(view, rightNeighborOf(view, viewer, turnDirectionOf(view)) ?? viewer))} 자리 바꾸기`}
+            label={t.table.event.swapWith(who(view, rightNeighborOf(view, viewer, turnDirectionOf(view)) ?? viewer, names))}
             onPress={() => send(rose)}
           />
         </View>
@@ -69,7 +73,9 @@ export function EventAbilityPanel({ view, viewer, actions, send }: Props) {
  * 기본은 차례인 사람(내 차례면 다음 사람). 웹은 이름에 올리는 동안, 폰은 탭해서 바꾼다
  */
 function OpenHands({ view, viewer }: { view: GameState; viewer: PlayerId | null }) {
+  const names = useNames();
   const styles = useStyles();
+  const t = useT();
   const others = view.players.filter((p) => p.id !== viewer && (p.alive || p.ghost));
   const active = view.turn.active;
   const [picked, setPicked] = useState<PlayerId | null>(null);
@@ -88,12 +94,12 @@ function OpenHands({ view, viewer }: { view: GameState; viewer: PlayerId | null 
 
   return (
     <>
-      <Text style={styles.title}>사카가웨이 — 모두 손패를 펼쳐 놓는다</Text>
+      <Text style={styles.title}>{t.table.event.sacagawea}</Text>
       <View style={styles.row}>
         {others.map((p) => (
           <Chip
             key={p.id}
-            label={`${who(view, p.id)} ${p.hand.length}장`}
+            label={t.table.event.handCount(who(view, p.id, names), p.hand.length)}
             active={p.id === shown.id}
             marked={p.id === active}
             {...(CAN_HOVER
@@ -107,11 +113,11 @@ function OpenHands({ view, viewer }: { view: GameState; viewer: PlayerId | null 
           {shown.hand.filter((c) => !isHidden(c)).map((c) => (
             <CardView key={c} card={c} size="sm" />
           ))}
-          {shown.hand.length === 0 && <Text style={styles.hint}>손패가 없다</Text>}
+          {shown.hand.length === 0 && <Text style={styles.hint}>{t.table.event.noHand}</Text>}
         </View>
       </ScrollView>
       <Text style={styles.hint}>
-        {CAN_HOVER ? '이름에 마우스를 올리면 그 사람 손패를 본다' : '이름을 누르면 그 사람 손패를 본다'}
+        {CAN_HOVER ? t.table.event.hintHover : t.table.event.hintTap}
       </Text>
     </>
   );
@@ -119,7 +125,9 @@ function OpenHands({ view, viewer }: { view: GameState; viewer: PlayerId | null 
 
 /** 도로시 레이지: 시킬 사람 → 카드 → 대상 순으로 고르고 시킨다 */
 function DorothyPicker({ view, orders, send }: { view: GameState; orders: EventAction[]; send: (a: Action) => void }) {
+  const names = useNames();
   const styles = useStyles();
+  const t = useT();
   const [forced, setForced] = useState<PlayerId | null>(null);
   const [kind, setKind] = useState<CardKind | null>(null);
 
@@ -132,13 +140,13 @@ function DorothyPicker({ view, orders, send }: { view: GameState; orders: EventA
 
   return (
     <>
-      <Text style={styles.title}>도로시 레이지 — 다른 사람에게 카드를 내게 한다 (차례에 한 번)</Text>
-      <Text style={styles.hint}>그 카드가 손에 없으면 그 사람이 손패를 모두에게 보여 준다.</Text>
+      <Text style={styles.title}>{t.table.event.dorothy}</Text>
+      <Text style={styles.hint}>{t.table.event.dorothyHint}</Text>
       <View style={styles.row}>
         {people.map((pid) => (
           <Chip
             key={pid}
-            label={who(view, pid)}
+            label={who(view, pid, names)}
             active={forced === pid}
             onPress={() => {
               setForced(pid);
@@ -150,7 +158,7 @@ function DorothyPicker({ view, orders, send }: { view: GameState; orders: EventA
       {forced && (
         <View style={styles.row}>
           {kinds.map((k) => (
-            <Chip key={k} label={CARD_DEFS[k].nameKo} active={kind === k} onPress={() => setKind(k)} />
+            <Chip key={k} label={names.cardName(k)} active={kind === k} onPress={() => setKind(k)} />
           ))}
         </View>
       )}
@@ -159,7 +167,7 @@ function DorothyPicker({ view, orders, send }: { view: GameState; orders: EventA
           {finals.map((a, i) => (
             <Button
               key={a.target ?? i}
-              label={a.target ? `${who(view, a.target)}에게 내게 하기` : '내게 하기'}
+              label={a.target ? t.table.event.forceTo(who(view, a.target, names)) : t.table.event.force}
               onPress={() => {
                 send(a);
                 setForced(null);

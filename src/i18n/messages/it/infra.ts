@@ -1,3 +1,94 @@
 import type { Messages } from '../../types-messages';
 
-export const infra: Messages['infra'] = {};
+const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+
+export const infra: Messages['infra'] = {
+  table3d: {
+    me: 'Io',
+    ghost: 'Fantasma',
+    removed: 'Eliminato',
+    close: 'Chiudi',
+    selfA11y: (presence, character, hp, maxHp) =>
+      ['Io', presence, character, `Punti vita ${hp}/${maxHp}`].filter(Boolean).join(' · '),
+    logA11y: 'Cronologia e chat',
+    logA11yUnread: 'Cronologia e chat, nuovi messaggi',
+    logChat: 'Cronologia · Chat',
+    logCloseA11y: 'Chiudi la cronologia',
+    emptyHand: 'Nessuna carta in mano',
+    eventViewA11y: (name) => `Vedi l'evento ${name}`,
+    eventCloseA11y: "Chiudi la descrizione dell'evento",
+    eventKicker: 'Evento',
+    eventKickerFinal: 'Evento · Ultima carta',
+    pastEvents: (n) => `Eventi passati ${n}`,
+    pastNone: 'Ancora nessuno',
+    remainingEvents: (n, note) => `${n} ${plural(n, 'evento rimasto', 'eventi rimasti')} · ${note}`,
+    noRemainingEvents: 'Nessun evento rimasto · dura fino alla fine della partita',
+    deckPill: (n) => `Mazzo ${n}`,
+    discardPill: (n) => `Scarti ${n}`,
+    abilityViewA11y: (name) => `Vedi l'abilità di ${name}`,
+    seatDraftA11y: (name, presence, done) =>
+      `${name}${presence ? ` · ${presence}` : ''} · ${done ? 'Scelto' : 'Sta scegliendo'}`,
+    draftDone: 'Scelto',
+    draftPicking: 'Sceglie il personaggio…',
+    seatA11y: (name, presence, character, targetable) =>
+      `${name}${presence ? ` · ${presence}` : ''} · ${character}${targetable ? '' : ' · Vedi dettagli'}`,
+    distance: (n) => `Distanza ${n}`,
+    guessA11y: (role) => `Ruolo ipotizzato: ${role}. Tocca per cambiare`,
+    guessAsk: 'Indovina il ruolo',
+    handCountA11y: (n) => `${n} ${plural(n, 'carta', 'carte')} in mano`,
+    cardViewA11y: (name) => `Vedi la carta ${name}`,
+    kickerBlueWeapon: (range) => `Carta blu · Arma · Distanza ${range}`,
+    kickerBlueEquip: 'Carta blu · Equipaggiamento',
+    kickerBrown: 'Carta marrone',
+    onMine: 'Davanti a me',
+    onOther: (name) => `Davanti a ${name}`,
+  },
+  account: {
+    provider: { anonymous: 'Anonimo', google: 'Google', other: 'Altro' },
+    googleHint: "Nell'app non puoi ancora collegare un account. Apri lo stesso account sul web per collegarlo.",
+    signInFirst: 'Accedi prima.',
+    alreadyLinked: "L'account è già collegato.",
+    credentialInUse: 'Quell\'account Google è già legato a un altro pistolero.',
+    linkCancelled: 'Collegamento annullato.',
+    linkFailed: "Impossibile collegare l'account.",
+  },
+  nick: { anonymous: 'Pistolero senza nome', short: 'Pistolero' },
+  errors: {
+    unknown: 'Qualcosa è andato storto. Riprova tra poco.',
+    notSignedIn: 'Accesso richiesto.',
+    badRoomCode: 'Il codice della stanza non sembra giusto.',
+    noRoom: 'Questa stanza non esiste.',
+    notStarted: 'La stanza non è ancora iniziata.',
+    notSeated: 'Non hai un posto in questa stanza.',
+    actionGap: "La sequenza delle azioni ha un buco.",
+    actionCount: 'Il numero di azioni non corrisponde alla stanza.',
+    roomCodeFailed: 'Impossibile creare il codice della stanza. Riprova tra poco.',
+    roomStarted: 'La stanza è già iniziata.',
+    roomFull: 'La stanza è piena.',
+    roomGone: 'La stanza non esiste più.',
+  },
+  chat: {
+    receiveFailed: (detail) => `Impossibile ricevere la chat. ${detail}`,
+    tooFast: "Troppo veloce. Aspetta un attimo prima di inviare.",
+    sendFailed: (detail) => `Impossibile inviare. ${detail}`,
+  },
+  settle: {
+    alreadyRewarded: 'Per questo seme hai già ricevuto la ricompensa.',
+    readFailed: 'Impossibile leggere il risultato della liquidazione.',
+    uploadFailed: 'Impossibile caricare il resoconto.',
+  },
+  save: {
+    slotsFull: (limit) =>
+      `Gli slot di salvataggio sono pieni (${limit}). Elimina una partita salvata nella schermata di impostazione e salva di nuovo.`,
+    noSpace: 'Spazio insufficiente sul dispositivo per salvare.',
+    tooLong: (kb, limitKb) => `La partita è troppo lunga per essere salvata (${kb} KB, limite ${limitKb} KB).`,
+    oldFormat: 'Questo salvataggio ha un formato vecchio e non può essere caricato.',
+    corrupt: 'Questo salvataggio è danneggiato e non può essere caricato.',
+    summary: {
+      players: (n) => `${n} ${plural(n, 'giocatore', 'giocatori')}`,
+      round: (n) => `Round ${n}`,
+      alive: (n) => `${n} in vita`,
+      spectate: 'Spettatore',
+    },
+  },
+};

@@ -7,9 +7,9 @@
 
 import { Image, StyleSheet, Text, View } from 'react-native';
 
+import { useT } from '../../../i18n/use-t';
 import { GOLD_CARD_DEFS } from '../../data/cards.goldrush';
 import { EVENTS } from '../../data/events';
-import { ROLE_LABEL } from '../../data/roles';
 import type { CardKind, GoldCardKind, Role } from '../../data/types';
 import { goldCardArt, roleArt } from '../card-art';
 import { CARD_DIMENSIONS, CardView } from '../CardView';
@@ -17,6 +17,7 @@ import { CharacterCard } from '../CharacterCard';
 import { EventCardFace } from '../EventCardFace';
 import { sampleCardId, type CodexItem } from './codex-model';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useNames } from '../../../i18n/use-names';
 
 /** 플레잉 카드 비율로 높이를 맞춘다 */
 const CARD_RATIO = CARD_DIMENSIONS.xl.height / CARD_DIMENSIONS.xl.width;
@@ -31,11 +32,13 @@ const ROLE_COLOR: Record<Role, string> = {
 const GOLD_BLACK = '#1E1814';
 
 export function GoldCardFace({ kind, width }: { kind: GoldCardKind; width: number }) {
+  const t = useT();
+  const names = useNames();
   const def = GOLD_CARD_DEFS[kind];
   const art = goldCardArt(kind);
   if (art) {
     return (
-      <Image source={art} style={[styles.art, { width, height: Math.round(width * CARD_RATIO) }]} resizeMode="cover" accessibilityLabel={def.nameKo} />
+      <Image source={art} style={[styles.art, { width, height: Math.round(width * CARD_RATIO) }]} resizeMode="cover" accessibilityLabel={names.goldName(kind)} />
     );
   }
   const small = width < 110;
@@ -46,12 +49,12 @@ export function GoldCardFace({ kind, width }: { kind: GoldCardKind; width: numbe
         { width, height: Math.round(width * CARD_RATIO), borderColor: def.category === 'black' ? GOLD_BLACK : Colors.cardBrown },
       ]}>
       <Text style={[styles.name, small && styles.nameSmall]} numberOfLines={2}>
-        {def.nameKo}
+        {names.goldName(kind)}
       </Text>
       <Text style={styles.en} numberOfLines={1}>
         {def.nameEn}
       </Text>
-      <View style={styles.cost} accessibilityLabel={`금덩이 ${def.cost}`}>
+      <View style={styles.cost} accessibilityLabel={t.codex.goldCost(def.cost)}>
         {Array.from({ length: def.cost }, (_, i) => (
           <View key={i} style={[styles.nugget, small && styles.nuggetSmall]} />
         ))}
@@ -61,17 +64,18 @@ export function GoldCardFace({ kind, width }: { kind: GoldCardKind; width: numbe
 }
 
 export function RoleCardFace({ role, width }: { role: Role; width: number }) {
+  const names = useNames();
   const art = roleArt(role);
   const height = Math.round(width * CARD_RATIO);
   if (art) {
-    return <Image source={art} style={[styles.art, { width, height }]} resizeMode="cover" accessibilityLabel={ROLE_LABEL[role]} />;
+    return <Image source={art} style={[styles.art, { width, height }]} resizeMode="cover" accessibilityLabel={names.roleName(role)} />;
   }
   const color = ROLE_COLOR[role];
   const star = role === 'sheriff' || role === 'deputy';
   return (
     <View style={[styles.paper, { width, height, borderColor: color }]}>
       <Text style={[styles.roleGlyph, { color, fontSize: width * 0.36 }]}>{star ? '★' : role === 'outlaw' ? '✕' : '◆'}</Text>
-      <Text style={[styles.name, width < 110 && styles.nameSmall]}>{ROLE_LABEL[role]}</Text>
+      <Text style={[styles.name, width < 110 && styles.nameSmall]}>{names.roleName(role)}</Text>
     </View>
   );
 }

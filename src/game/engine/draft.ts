@@ -14,6 +14,7 @@ import { log, nameOf, push } from './cards';
 import { startingHandOf } from './hooks';
 import { ga } from './josa';
 import type { GameState, PlayerId } from './types';
+import { nameKo } from './legacy-ko';
 
 /** 아직 고르지 않은 사람들 (좌석 순) */
 export function undrafted(state: GameState): PlayerId[] {
@@ -55,7 +56,7 @@ function finishDraft(state: GameState): GameState {
 
   let cur: GameState = { ...state, players, deck, draft: null };
   const reveal = players
-    .map((p) => `${p.name}·${CHARACTERS[p.character].nameKo}`)
+    .map((p) => `${p.name}·${nameKo(CHARACTERS[p.character])}`)
     .join(', ');
   cur = log(cur, {
     t: 'draftDone',

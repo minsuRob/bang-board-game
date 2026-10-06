@@ -9,9 +9,10 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { CARD_DEFS } from '../data/cards.base';
 import { CHARACTERS } from '../data/characters';
-import { eul, ga, ro } from '../engine/josa';
 import { SUIT_GLYPH, type CardId, type CardKind, type CharacterId, type Suit } from '../data/types';
 import { SID_KETCHUM_ABILITY } from '../modifiers';
+import { useT } from '../../i18n/use-t';
+import type { Messages } from '../../i18n/types-messages';
 import {
   actionKey,
   anytimeAbilitiesOf,
@@ -30,6 +31,8 @@ import {
 } from '../engine';
 import type { GoldUse } from '../engine/types';
 import { selectActor, useGameStore } from '../store/game-store';
+import { namesFor, type Names } from '../../i18n/names';
+import { useNames } from '../../i18n/use-names';
 
 export type Prompt = {
   title: string;
@@ -65,17 +68,6 @@ function eventModeOf(a: Action): EventMode | null {
   if (a.pick?.zone === 'equipment') return 'ricochet';
   return null;
 }
-
-const EVENT_MODE_INFO: Record<EventMode, { label: string; status: string }> = {
-  sniper: {
-    label: '저격수 · 뱅! 2장',
-    status: '함께 버릴 뱅! 한 장을 고르고 상대를 지목한다 (Esc 취소)',
-  },
-  ricochet: {
-    label: '리코체 · 앞의 카드 맞히기',
-    status: '버릴 뱅!을 고르고, 노릴 카드가 있는 상대를 지목한다 (Esc 취소)',
-  },
-};
 
 /** 가운데 창에 펼칠 카드. 손패는 뒷면으로, 나머지는 앞면으로 */
 export type CenterPick = {
@@ -144,6 +136,8 @@ export type DraftInfo = {
 };
 
 export function useTable(view: GameState | null, viewer: PlayerId | null): TableApi {
+  const t = useT();
+  const names = useNames();
   const submit = useGameStore((s) => s.submit);
   const [selected, setSelected] = useState<CardId | null>(null);
   // 켠 차례를 같이 적어 두어, 차례가 넘어가면 저절로 꺼지게 한다
@@ -169,23 +163,23 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     for (const ab of swapAbilitiesOf(view, viewer)) {
       out.push({
         key: ab.key,
-        label: `능력 · ${ab.label}`,
-        status: '줄 카드를 고르고, 맞바꿀 상대를 지목한다 (Esc 취소)',
+        label: t.table.ability(names.abilityLabel(ab.key)),
+        status: t.table.swapStatus,
       });
     }
     const last = view.turn.lastBrown;
     if (last) {
-      const name = CARD_DEFS[last].nameKo;
+      const name = names.cardName(last);
       for (const ab of repeatAbilitiesOf(view, viewer)) {
         out.push({
           key: ab.key,
-          label: `능력 · ${name} 한 번 더`,
-          status: `버릴 뱅!을 고른다 — ${eul(name)} 한 번 더 낸다 (Esc 취소)`,
+          label: t.table.repeatLabel(name),
+          status: t.table.repeatStatus(name),
         });
       }
     }
     return out.filter((m) => allLegal.some((a) => a.type === 'playCard' && a.ability === m.key));
-  }, [view, viewer, allLegal]);
+  }, [view, viewer, allLegal, t]);
 
   // 이 액션이 어느 차례당 한 번 능력으로 내는 것인가. 조건이 붙은 능력(블랙 플라워·더 스팟)은
   // 액션에 ability 가 적혀 있고, 엉클 윌은 '다른 종류로 냈다'로 알아본다.
@@ -214,16 +208,16 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     () => [
       ...playAs
         .filter((ab) => allLegal.some((a) => abilityOf(a) === ab.key))
-        .map((ab) => ({ key: ab.key, label: `능력 · ${ab.label}`, as: ab.as })),
+        .map((ab) => ({ key: ab.key, label: t.table.ability(names.abilityLabel(ab.key)), as: ab.as })),
       ...turnModes,
       ...eventModes.map((m) => ({
         key: m,
-        label: EVENT_MODE_INFO[m].label,
+        label: t.table.eventMode[m].label,
         as: 'bang' as CardKind,
-        status: EVENT_MODE_INFO[m].status,
+        status: t.table.eventMode[m].status,
       })),
     ],
-    [playAs, allLegal, abilityOf, eventModes, turnModes],
+    [playAs, allLegal, abilityOf, eventModes, turnModes, t],
   );
   const armedLive = armedFor && armedFor.turn === turnId ? armedFor.key : null;
   const armedAbility = armedLive
@@ -507,10 +501,10 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     const out: { key: string; label: string; cards: CardId[] }[] = [];
     for (const a of legal) {
       if (a.type !== 'useAbility') continue;
-      out.push({ key: a.ability, label: '카드 2장 → 목숨 1', cards: a.cards ?? [] });
+      out.push({ key: a.ability, label: t.table.sidAbility, cards: a.cards ?? [] });
     }
     return out;
-  }, [legal]);
+  }, [legal, t]);
 
   // 능력 버튼이 말없이 사라지면 고장처럼 보이므로, 지금 못 쓰는 이유를 흐린 칩으로 띄운다
   const abilityBlocked = useMemo(() => {
@@ -519,18 +513,18 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
     if (!me || me.ghost) return null;
     // 시드 케첨: 목숨이 가득 차면 엔진이 회복을 막는다
     const hasSid = anytimeAbilitiesOf(view, viewer).some((ab) => ab.key === SID_KETCHUM_ABILITY);
-    if (hasSid && me.hp >= me.maxHp) return '능력 · 목숨이 가득 차서 쓸 수 없음';
+    if (hasSid && me.hp >= me.maxHp) return t.table.blocked.fullHp;
     // 리 반 클리프: 내 차례에 '한 번 더' 버튼이 없을 때
     const repeat = repeatAbilitiesOf(view, viewer)[0];
     if (repeat && canEndTurn && !turnModes.some((m) => m.key === repeat.key)) {
       const last = view.turn.lastBrown;
-      if (!last || !isRepeatableBrown(last)) return '능력 · 갈색 카드를 낸 뒤 뱅!을 버려 한 번 더';
-      const name = CARD_DEFS[last].nameKo;
+      if (!last || !isRepeatableBrown(last)) return t.table.blocked.needBrown;
+      const name = names.cardName(last);
       const hasFrom = me.hand.some((c) => kindOf(c) === repeat.from);
-      return hasFrom ? `능력 · ${eul(name)} 다시 낼 수 없음` : `능력 · 뱅!이 없어 ${name} 한 번 더 못 냄`;
+      return hasFrom ? t.table.blocked.cannotRepeat(name) : t.table.blocked.noBang(name);
     }
     return null;
-  }, [view, viewer, abilities, canEndTurn, turnModes]);
+  }, [view, viewer, abilities, canEndTurn, turnModes, t]);
 
   const useAbility = useCallback(
     (key: string, cards: CardId[]) => {
@@ -574,10 +568,10 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
       const cards = ricochet.options.flatMap((a) => (a.pick?.zone === 'equipment' ? [a.pick.card] : []));
       return {
         ...empty(),
-        title: `리코체 — ${nameOf(view, ricochet.target)}`,
-        hint: '노릴 카드를 고른다',
+        title: t.table.ricochetPick.title(nameOf(view, ricochet.target)),
+        hint: t.table.ricochetPick.hint,
         canPass: true,
-        passLabel: '취소 (W)',
+        passLabel: t.table.cancelW,
         center: { cards, zone: 'option', handCount: 0 },
       };
     }
@@ -585,38 +579,38 @@ export function useTable(view: GameState | null, viewer: PlayerId | null): Table
       const own = kindOf(kindChoice.card);
       return {
         ...empty(),
-        title: CARD_DEFS[own].nameKo,
-        hint: '어떻게 낼지 고른다',
+        title: names.cardName(own),
+        hint: t.table.variant.chooseHow,
         canPass: true,
-        passLabel: '취소 (W)',
-        variants: kindChoice.kinds.map((k) => `${ro(CARD_DEFS[k].nameKo)} 낸다`),
+        passLabel: t.table.cancelW,
+        variants: kindChoice.kinds.map((k) => t.table.variant.playAs(names.cardName(k))),
       };
     }
     if (view && variant) {
       const first = variant.options[0];
-      const name = CARD_DEFS[kindOf(first.card)].nameKo;
+      const name = names.cardName(kindOf(first.card));
       return {
         ...empty(),
         title: first.target ? `${name} — ${nameOf(view, first.target)}` : name,
-        hint: '어떻게 낼지 고른다',
+        hint: t.table.variant.chooseHow,
         canPass: true,
-        passLabel: '취소 (W)',
-        variants: variant.options.map((a) => variantLabel(view, a, variant.options, variant.card)),
+        passLabel: t.table.cancelW,
+        variants: variant.options.map((a) => variantLabel(view, a, variant.options, variant.card, t, names)),
       };
     }
     if (view && pickCombos) {
       const need = pickCombos.combos[0].length - pickCombos.picked.length;
       return {
         ...empty(),
-        title: '능력 · 카드 2장 → 목숨 1',
-        hint: `버릴 카드 ${need}장을 고른다`,
+        title: t.table.ability(t.table.sidAbility),
+        hint: t.table.pickDiscard(need),
         cardOptions: uniqueCards(pickCombos.combos.flatMap((cards) => without(cards, pickCombos.picked))),
         canPass: true,
-        passLabel: '취소 (W)',
+        passLabel: t.table.cancelW,
       };
     }
-    return view && waitingOnMe ? buildPrompt(view) : null;
-  }, [view, waitingOnMe, ricochet, variant, pickCombos, kindChoice]);
+    return view && waitingOnMe ? buildPrompt(view, t, names) : null;
+  }, [view, waitingOnMe, ricochet, variant, pickCombos, kindChoice, t]);
 
   // 골드 러시: 사기·치우기·맥주 팔기·금덩이 능력. 배낭은 죽기 직전에도 나온다.
   const goldActions = useMemo(
@@ -692,19 +686,20 @@ function empty(): Prompt {
   };
 }
 
-export function buildPrompt(view: GameState): Prompt | null {
+export function buildPrompt(view: GameState, t: Messages, names: Names = namesFor('ko')): Prompt | null {
   const a = view.awaiting;
   if (!a) return null;
   const base = empty();
+  const p = t.table.prompt;
 
   switch (a.k) {
     case 'missed': {
       // 쏜 사람이 없는 뱅! (한줌의 카드)
-      const who = a.source ? `${nameOf(view, a.source)}의 뱅!` : '한줌의 카드 — 뱅!';
+      const who = a.source ? p.missed.byPlayer(nameOf(view, a.source)) : p.missed.noShooter;
       return {
         ...base,
-        title: a.remaining > 1 ? `${who} — 빗나감 ${a.remaining}장이 필요하다` : who,
-        hint: '빗나감!을 내거나 그냥 맞는다',
+        title: a.remaining > 1 ? p.missed.needMore(who, a.remaining) : who,
+        hint: p.missed.hint,
         cardOptions: a.options,
         canPass: true,
       };
@@ -712,41 +707,41 @@ export function buildPrompt(view: GameState): Prompt | null {
     case 'indiansBang':
       return {
         ...base,
-        title: '인디언!이 몰려온다',
-        hint: '뱅!을 버리지 않으면 목숨 1을 잃는다',
+        title: p.indiansBang.title,
+        hint: p.indiansBang.hint,
         cardOptions: a.options,
         canPass: true,
       };
     case 'duelBang':
       return {
         ...base,
-        title: `${nameOf(view, a.opponent)}와의 결투`,
-        hint: '뱅!을 내지 못하면 목숨 1을 잃는다',
+        title: p.duelBang.title(nameOf(view, a.opponent)),
+        hint: p.duelBang.hint,
         cardOptions: a.options,
         canPass: true,
       };
     case 'beerToSurvive':
       return {
         ...base,
-        title: '쓰러지기 직전',
-        hint: `맥주 ${a.needed}장을 마시면 버틸 수 있다`,
+        title: p.beerToSurvive.title,
+        hint: p.beerToSurvive.hint(a.needed),
         cardOptions: a.options,
         canPass: true,
       };
     case 'judgementChoice':
       return {
         ...base,
-        title: '카드 펼치기',
-        hint: '두 장 중 어느 쪽을 펼칠지 고른다',
+        title: p.judgementChoice.title,
+        hint: p.judgementChoice.hint,
         cardOptions: a.options,
       };
     case 'generalStore':
       return {
         ...base,
-        title: a.reason === 'poker' ? '포커 판돈' : '잡화점',
-        hint: a.canPass ? '가져갈 카드를 고르거나 그만 가져간다' : '가져갈 카드를 고른다',
+        title: a.reason === 'poker' ? p.generalStore.pokerTitle : p.generalStore.title,
+        hint: a.canPass ? p.generalStore.hintPass : p.generalStore.hint,
         canPass: Boolean(a.canPass),
-        ...(a.canPass ? { passLabel: '그만 가져감 (W)' } : {}),
+        ...(a.canPass ? { passLabel: p.generalStore.passLabel } : {}),
         // 숫자키로 고를 수 있게 cardOptions 도 둔다. 카드는 가운데 창에만 그린다
         cardOptions: a.options,
         center: { cards: a.options, zone: 'option', handCount: 0 },
@@ -754,191 +749,178 @@ export function buildPrompt(view: GameState): Prompt | null {
     case 'kitCarlson':
       return {
         ...base,
-        title: '카드 가져오기',
-        hint: `${a.remaining}장을 더 고른다. 남은 카드는 뽑은 순서대로 덱 위로 돌아간다`,
+        title: p.kitCarlson.title,
+        hint: p.kitCarlson.hint(a.remaining),
         cardOptions: a.options,
       };
     case 'daltonsDiscard':
       return {
         ...base,
-        title: '달톤 형제',
-        hint: '앞에 놓인 파랑 카드 1장을 버린다',
+        title: p.daltonsDiscard.title,
+        hint: p.daltonsDiscard.hint,
         cardOptions: a.options,
       };
     case 'stealCard':
       return {
         ...base,
-        title: `${nameOf(view, a.target)}의 카드`,
+        title: p.stealCard.title(nameOf(view, a.target)),
         // 손패 뒷면은 어느 장을 눌러도 무작위 1장이다 (엔진이 뽑는다)
-        hint:
-          a.mode === 'panic'
-            ? '가져올 카드를 고른다. 손패는 무작위 1장'
-            : '버리게 할 카드를 고른다. 손패는 무작위 1장',
+        hint: a.mode === 'panic' ? p.stealCard.hintPanic : p.stealCard.hintCatBalou,
         // 좌석에서 고르던 것을 가운데 창으로 옮겼다. 좌석은 펼치지 않는다
         center: { cards: a.equipment, zone: 'equipment', handCount: a.handCount },
       };
     case 'jesseJones':
       return {
         ...base,
-        title: '첫 번째 카드를 어디서 가져올까',
-        hint: '남의 손에서 한 장을 뽑거나, 덱에서 뽑는다',
+        title: p.jesseJones.title,
+        hint: p.jesseJones.hint,
         players: a.targets,
         canPass: true,
       };
     case 'pedroRamirez':
       return {
         ...base,
-        title: '버린 더미에서 가져올까',
-        hint: `맨 위: ${CARD_DEFS[kindOf(a.topDiscard)].nameKo}`,
+        title: p.pedroRamirez.title,
+        hint: p.pedroRamirez.hint(names.cardName(kindOf(a.topDiscard))),
         yesNo: true,
         canPass: true,
       };
     case 'newIdentity':
       return {
         ...base,
-        title: '새로운 신분',
-        hint: '예비 캐릭터로 바꾸면 목숨 2로 시작한다',
+        title: p.newIdentity.title,
+        hint: p.newIdentity.hint,
         yesNo: true,
         canPass: true,
       };
     case 'evelyn':
       return {
         ...base,
-        title: `이블린 쉬뱅 — 가져올 카드 ${a.remaining}장`,
-        hint: '1장 대신 쏠 사람을 고르거나, 남은 카드를 그대로 가져온다',
+        title: p.evelyn.title(a.remaining),
+        hint: p.evelyn.hint,
         players: a.targets,
         canPass: true,
       };
     case 'saved':
       return {
         ...base,
-        title: `${ga(nameOf(view, a.target))} 목숨을 잃으려 한다`,
-        hint: '구조!를 내면 목숨 1을 지켜 준다. 살아남으면 2장을 가져온다',
+        title: p.saved.title(nameOf(view, a.target)),
+        hint: p.saved.hint,
         cardOptions: a.options,
         canPass: true,
       };
     case 'savedReward':
       return {
         ...base,
-        title: '구조! 보상',
-        hint: `그렇게 한다: ${nameOf(view, a.target)}의 손에서 2장 · 반응하지 않음: 덱에서 2장`,
+        title: p.savedReward.title,
+        hint: p.savedReward.hint(nameOf(view, a.target)),
         yesNo: true,
         canPass: true,
       };
     case 'evade':
       return {
         ...base,
-        title: `${nameOf(view, a.source)}의 ${CARD_DEFS[a.kind].nameKo}`,
-        hint: '탈출(또는 빗나감!)을 내면 이 카드의 효과를 피한다',
+        title: p.evade.title(nameOf(view, a.source), names.cardName(a.kind)),
+        hint: p.evade.hint,
         cardOptions: a.options,
         canPass: true,
       };
     case 'discardChoice': {
-      const TITLE = { bandidos: '반디도스!', poker: '포커', tornado: '토네이도', shotgun: '샷건', lemonadeJim: '레모네이드 짐' } as const;
-      const HINT = {
-        bandidos: `손패 ${a.remaining}장을 버리거나, 버리지 않고 목숨 1을 잃는다`,
-        poker: '손패 1장을 엎어 낸다. 에이스가 없으면 낸 사람이 가져간다',
-        tornado: '손패 1장을 버린다. 그 뒤 2장을 가져온다',
-        shotgun: '샷건에 맞았다. 손패 1장을 골라 버린다',
-        lemonadeJim: '손패 1장을 버리면 나도 목숨 1을 회복한다',
-      } as const;
+      const d = p.discardChoice;
+      const title = d.title[a.reason];
+      const hint = a.reason === 'bandidos' ? d.hint.bandidos(a.remaining) : d.hint[a.reason];
       return {
         ...base,
-        title: a.remaining > 1 && a.reason === 'bandidos' ? `${TITLE[a.reason]} (${a.remaining}장 더)` : TITLE[a.reason],
-        hint: HINT[a.reason],
+        title: a.remaining > 1 && a.reason === 'bandidos' ? d.more(title, a.remaining) : title,
+        hint,
         cardOptions: a.options,
         canPass: a.canPass,
       };
     }
     case 'declareSuit':
-      return { ...base, title: '수갑', hint: '이번 차례에 쓸 무늬를 선언한다', suits: SUIT_ALL };
+      return { ...base, title: p.declareSuit.title, hint: p.declareSuit.hint, suits: SUIT_ALL };
     case 'dutchWill':
       return {
         ...base,
-        title: '더치 윌',
-        hint: '방금 뽑은 카드 중 버릴 1장을 고른다. 금덩이 1개를 받는다',
+        title: p.dutchWill.title,
+        hint: p.dutchWill.hint,
         cardOptions: a.options,
       };
     case 'goldUse':
       return {
         ...base,
-        title: '골드 러시 카드',
-        hint: '이 카드를 어떻게 쓸지 고른다',
+        title: p.goldUse.title,
+        hint: p.goldUse.hint,
         goldUses: a.options,
       };
     case 'russianRoulette':
       return {
         ...base,
-        title: '러시안 룰렛',
-        hint: '빗나감!을 버리지 않으면 목숨 2를 잃고 룰렛이 멈춘다',
+        title: p.russianRoulette.title,
+        hint: p.russianRoulette.hint,
         cardOptions: a.options,
         canPass: true,
-        passLabel: '목숨 2를 잃는다 (W)',
+        passLabel: p.russianRoulette.passLabel,
       };
     case 'bloodBrothers':
       return {
         ...base,
-        title: '의형제',
-        hint: '목숨 1을 잃고 고른 사람의 목숨을 1 회복시킨다',
+        title: p.bloodBrothers.title,
+        hint: p.bloodBrothers.hint,
         players: a.targets,
         canPass: true,
-        passLabel: '넘겨주지 않는다 (W)',
+        passLabel: p.bloodBrothers.passLabel,
       };
     case 'hardLiquor':
       return {
         ...base,
-        title: '독한 술',
-        hint: '카드를 가져오지 않고 목숨을 1 회복할까',
+        title: p.hardLiquor.title,
+        hint: p.hardLiquor.hint,
         yesNo: true,
         canPass: true,
-        passLabel: '카드를 가져온다 (W)',
+        passLabel: p.hardLiquor.passLabel,
       };
     case 'peyote':
       return {
         ...base,
-        title: '피요테',
-        hint: a.canStop
-          ? '맞혔다. 다시 색을 부르거나 여기서 그만둔다 (틀려도 잃는 카드는 없다)'
-          : '덱 맨 위 카드의 색을 맞힌다',
+        title: p.peyote.title,
+        hint: a.canStop ? p.peyote.hintAgain : p.peyote.hint,
         colors: true,
-        ...(a.canStop ? { canPass: true, passLabel: '그만둔다 (W)' } : {}),
+        ...(a.canStop ? { canPass: true, passLabel: p.peyote.passLabel } : {}),
       };
     case 'ranch':
       return {
         ...base,
-        title: '목장',
-        hint:
-          a.picked.length > 0
-            ? `${a.picked.length}장을 골랐다. 더 고르거나 확정한다`
-            : '버리고 새로 가져올 카드를 고른다',
+        title: p.ranch.title,
+        hint: a.picked.length > 0 ? p.ranch.hintPicked(a.picked.length) : p.ranch.hint,
         cardOptions: a.options,
         canPass: true,
-        passLabel: a.picked.length > 0 ? `${a.picked.length}장 바꾼다 (W)` : '바꾸지 않는다 (W)',
+        passLabel: a.picked.length > 0 ? p.ranch.passPicked(a.picked.length) : p.ranch.passNone,
       };
     case 'borrowCharacters':
       return {
         ...base,
-        title: '그레고리 덱',
-        hint: `지금 빌린 능력: ${a.current.map((c) => CHARACTERS[c].nameKo).join(', ')} · 새로 2명을 뽑을까`,
+        title: p.borrowCharacters.title,
+        hint: p.borrowCharacters.hint(a.current.map((c) => names.charName(c)).join(', ')),
         yesNo: true,
         canPass: true,
-        passLabel: '그대로 둔다 (W)',
+        passLabel: p.borrowCharacters.passLabel,
       };
     case 'giveCard':
       return {
         ...base,
-        title: `율 그리너 — ${nameOf(view, a.to)}`,
-        hint: '손패가 더 많아 카드 1장을 줘야 한다. 줄 카드를 고른다',
+        title: p.giveCard.title(nameOf(view, a.to)),
+        hint: p.giveCard.hint,
         cardOptions: a.options,
       };
     case 'ricochet':
       return {
         ...base,
-        title: `리코체 — ${nameOf(view, a.source)}`,
-        hint: `${eul(CARD_DEFS[kindOf(a.card)].nameKo)} 지키려면 빗나감!을 낸다`,
+        title: p.ricochet.title(nameOf(view, a.source)),
+        hint: p.ricochet.hint(names.cardName(kindOf(a.card))),
         cardOptions: a.options,
         canPass: true,
-        passLabel: '카드를 내준다 (W)',
+        passLabel: p.ricochet.passLabel,
       };
   }
 }
@@ -947,9 +929,9 @@ export function buildPrompt(view: GameState): Prompt | null {
 // 낼 방법 고르기 · 카드 조합
 // ---------------------------------------------------------------------------
 
-function cardShort(id: CardId): string {
+function cardShort(id: CardId, names: Names): string {
   const c = cardOf(id);
-  return `${CARD_DEFS[c.kind].nameKo} ${SUIT_GLYPH[c.suit]}${c.rank}`;
+  return `${names.cardName(c.kind)} ${SUIT_GLYPH[c.suit]}${c.rank}`;
 }
 
 /** 같은 카드·같은 대상의 여러 수를, 서로 다른 점만 적어 구분한다 */
@@ -963,17 +945,20 @@ function variantLabel(
   a: Extract<Action, { type: 'playCard' }>,
   all: Extract<Action, { type: 'playCard' }>[],
   picked: CardId,
+  t: Messages,
+  names: Names,
 ): string {
+  const v = t.table.variant;
   const kind = a.as ?? kindOf(a.card);
-  const name = CARD_DEFS[kind].nameKo;
+  const name = names.cardName(kind);
   const parts: string[] = [];
-  if (all.some((x) => (x.as ?? kindOf(x.card)) !== kind)) parts.push(`${ro(name)} 낸다`);
-  if (a.extra) parts.push(`${eul(cardShort(a.extra))} 함께`);
-  else if (all.some((x) => x.extra)) parts.push(`${name}만`);
-  if (a.target2) parts.push(`${nameOf(view, a.target2)}에게도`);
-  else if (all.some((x) => x.target2)) parts.push('한 명만');
+  if (all.some((x) => (x.as ?? kindOf(x.card)) !== kind)) parts.push(v.playAs(name));
+  if (a.extra) parts.push(v.with(cardShort(a.extra, names)));
+  else if (all.some((x) => x.extra)) parts.push(v.only(name));
+  if (a.target2) parts.push(v.alsoTarget(nameOf(view, a.target2)));
+  else if (all.some((x) => x.target2)) parts.push(v.onlyOne);
   // 저격수: 고른 카드가 아닌 쪽이 함께 버릴 카드다
-  if (a.also) parts.push(`${eul(cardShort(a.card === picked ? a.also : a.card))} 함께 버린다`);
+  if (a.also) parts.push(v.alsoDiscard(cardShort(a.card === picked ? a.also : a.card, names)));
   return parts.length > 0 ? parts.join(' · ') : name;
 }
 

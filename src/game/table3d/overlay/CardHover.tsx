@@ -11,6 +11,7 @@
 
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useStore } from 'zustand';
+import { useT } from '@/i18n/use-t';
 
 import { CHARACTERS } from '../../data/characters';
 import type { CardId } from '../../data/types';
@@ -20,6 +21,7 @@ import { CardView } from '../../ui/CardView';
 import { anchorsStore, equipmentKey } from '../core/anchors-store';
 import { themedStyles } from '../../ui/theme/use-theme';
 import { usePreviewStyles, type PreviewSlot } from './CharacterHover';
+import { useNames } from '@/i18n/use-names';
 
 export function EquipmentHover({
   view,
@@ -32,6 +34,8 @@ export function EquipmentHover({
   onSeatPress: (pid: PlayerId) => void;
 }) {
   const anchors = useStore(anchorsStore);
+  const t = useT().infra.table3d;
+  const names = useNames();
   if (view.draft) return null;
 
   return (
@@ -55,7 +59,7 @@ export function EquipmentHover({
                 }
                 if (!CAN_HOVER) setDetailPeek(card);
               }}
-              accessibilityLabel={`${defOf(card).nameKo} 카드 보기`}
+              accessibilityLabel={t.cardViewA11y(names.cardName(defOf(card).kind))}
               style={[styles.hit, { left: r.left, top, width: r.right - r.left, height: bottom - top }]}
             />
           );
@@ -68,15 +72,17 @@ export function EquipmentHover({
 /** 캐릭터 설명 자리에 띄우는 카드 상세. 누구 앞에 놓였는지도 적는다 */
 export function CardPreviewPanel({ view, viewer, card, slot }: { view: GameState; viewer: PlayerId; card: CardId; slot: PreviewSlot }) {
   const previewStyles = usePreviewStyles();
+  const t = useT().infra.table3d;
+  const names = useNames();
   const themed = useThemed();
   const def = defOf(card);
   const owner = view.players.find((p) => p.equipment.includes(card)) ?? null;
   const kicker =
     def.category === 'blue'
       ? def.weaponRange !== undefined
-        ? `파랑 카드 · 무기 · 사정거리 ${def.weaponRange}`
-        : '파랑 카드 · 장착'
-      : '갈색 카드';
+        ? t.kickerBlueWeapon(def.weaponRange)
+        : t.kickerBlueEquip
+      : t.kickerBrown;
   return (
     <View style={[previewStyles.tip, previewStyles.panel, { left: slot.left, bottom: slot.bottom, width: slot.width }]}>
       <View style={previewStyles.panelTop}>
@@ -84,17 +90,17 @@ export function CardPreviewPanel({ view, viewer, card, slot }: { view: GameState
         <View style={previewStyles.panelInfo}>
           <Text style={[themed.kicker, def.category === 'blue' && themed.kickerBlue]}>{kicker}</Text>
           <Text style={previewStyles.panelName} numberOfLines={1}>
-            {def.nameKo}
+            {names.cardName(def.kind)}
           </Text>
           <Text style={previewStyles.panelMeta}>{def.name}</Text>
           {owner && (
             <Text style={previewStyles.panelMeta}>
-              {owner.id === viewer ? '내 앞에 놓임' : `${CHARACTERS[owner.character]?.nameKo ?? owner.name} 앞에 놓임`}
+              {owner.id === viewer ? t.onMine : t.onOther(CHARACTERS[owner.character] ? names.charName(owner.character) : owner.name)}
             </Text>
           )}
         </View>
       </View>
-      <Text style={previewStyles.panelAbility}>{def.text}</Text>
+      <Text style={previewStyles.panelAbility}>{names.cardText(def.kind)}</Text>
     </View>
   );
 }

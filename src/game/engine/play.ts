@@ -36,6 +36,7 @@ import {
 } from './hooks';
 import type { Frame, GameState, PlayerId, StealPick } from './types';
 import { eul, ga, ro } from './josa';
+import { nameKo } from './legacy-ko';
 
 /** 대상 한 명을 지목하는 갈색 효과 중 탈출로 피할 수 있는 것 */
 const SINGLE_TARGET_EVADABLE: readonly Frame['k'][] = ['duel', 'steal', 'bang'];
@@ -121,8 +122,8 @@ export function applyPlayCard(
 
   const played =
     as === own
-      ? eul(def.nameKo)
-      : `${eul(CARD_DEFS[own].nameKo)} ${ro(def.nameKo)}`;
+      ? eul(nameKo(def))
+      : `${eul(nameKo(CARD_DEFS[own]))} ${ro(nameKo(def))}`;
   cur = log(cur, {
     t: 'playCard',
     pid,
@@ -149,7 +150,7 @@ export function applyPlayCard(
       pid,
       card: extra,
       target,
-      text: `${ga(nameOf(cur, pid))} ${eul(CARD_DEFS[kindOf(extra)].nameKo)} 함께 냈다.`,
+      text: `${ga(nameOf(cur, pid))} ${eul(nameKo(CARD_DEFS[kindOf(extra)]))} 함께 냈다.`,
     });
   }
 
@@ -163,7 +164,7 @@ export function applyPlayCard(
       pid,
       card: also,
       target,
-      text: `${ga(nameOf(cur, pid))} 저격수로 ${eul(CARD_DEFS[kindOf(also)].nameKo)} 함께 냈다.`,
+      text: `${ga(nameOf(cur, pid))} 저격수로 ${eul(nameKo(CARD_DEFS[kindOf(also)]))} 함께 냈다.`,
     });
   }
 
@@ -202,7 +203,7 @@ function equipBlueCard(
 
   // 감옥·방울뱀·포상금은 상대 앞에, 유령은 제거된 사람 앞에 놓는다.
   if (def.equip === 'other' || def.equip === 'eliminated') {
-    if (!target) throw new Error(`대상이 필요하다: ${def.nameKo}`);
+    if (!target) throw new Error(`대상이 필요하다: ${nameKo(def)}`);
     const placed = equipCard(state, target, card);
     if (def.equip !== 'eliminated') return placed;
     // 유령: 제거된 사람이 목숨 없이 게임에 돌아온다.

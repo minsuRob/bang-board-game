@@ -25,6 +25,7 @@ import { CAN_HOVER } from './card-peek';
 import { setMuted, setVolume, sfxSettings } from './sfx';
 import { useToolbarStyles } from './theme/toolbar';
 import { themedStyles } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
 import { Radius, Spacing } from '@/constants/theme';
 
 /** 폰에서 탭으로 연 슬라이더를 닫기까지 (ms) */
@@ -40,6 +41,7 @@ export function SoundButton({ style }: { style?: StyleProp<ViewStyle> }) {
   const [dragging, setDragging] = useState(false);
   const toolbar = useToolbarStyles();
   const styles = useStyles();
+  const t = useT();
 
   // 드래그 시작 시점의 볼륨을 기준으로 이동량을 더한다.
   const startVolume = useRef(volume);
@@ -127,7 +129,7 @@ export function SoundButton({ style }: { style?: StyleProp<ViewStyle> }) {
         ]}
         accessibilityRole="button"
         accessibilityState={{ selected: !muted }}
-        accessibilityLabel={muted ? '소리 켜기' : '소리 끄기'}
+        accessibilityLabel={muted ? t.ui.sound.on : t.ui.sound.off}
         onPress={onPress}>
         <Text style={styles.text}>{muted ? '🔇' : '🔊'}</Text>
       </Pressable>

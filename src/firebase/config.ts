@@ -50,7 +50,7 @@ function ensureApp(): FirebaseApp {
   if (app) return app;
   if (!isFirebaseConfigured()) {
     throw new Error(
-      'Firebase 구성이 비어 있다. .env.example 을 .env 로 복사해 EXPO_PUBLIC_FIREBASE_* 를 채워라.',
+      'Firebase config is empty. Copy .env.example to .env and fill in EXPO_PUBLIC_FIREBASE_*.',
     );
   }
   app = getApps().length ? getApp() : initializeApp(config as Record<string, string>);

@@ -16,8 +16,11 @@
  */
 
 import type { AiTier } from '../ai/types';
-import { EXPANSION_LABEL, type Expansion } from '../data/types';
+import type { Expansion } from '../data/types';
+import { namesFor } from '../../i18n/names';
 import type { GameState, PlayerId } from '../engine';
+import { formatMonthDayTime } from '../../i18n/format';
+import { saveLocale } from './save-text';
 
 /** 레코드 형식 번호. 본문 모양이 바뀌면 올리고, 예전 저장본은 불러오기에서 거절한다 */
 export const SAVE_FORMAT = 1;
@@ -131,7 +134,7 @@ export function makeSaveRecord(input: SaveInput): SaveRecord {
   const bytes = utf8Length(text);
   if (bytes > MAX_SAVE_BYTES) {
     throw new SaveError(
-      `판이 너무 길어 저장할 수 없다 (${Math.ceil(bytes / 1024)}KB, 한도 ${Math.floor(MAX_SAVE_BYTES / 1024)}KB).`,
+      saveLocale().t.infra.save.tooLong(Math.ceil(bytes / 1024), Math.floor(MAX_SAVE_BYTES / 1024)),
     );
   }
   const { state } = input;
@@ -156,13 +159,13 @@ export function makeSaveRecord(input: SaveInput): SaveRecord {
 export function readSaveRecord(record: SaveRecord): SavedGame {
   const { meta } = record;
   if (meta.format !== SAVE_FORMAT) {
-    throw new SaveError('예전 형식의 저장본이라 불러올 수 없다.');
+    throw new SaveError(saveLocale().t.infra.save.oldFormat);
   }
   let body: SaveBody;
   try {
     body = JSON.parse(record.body) as SaveBody;
   } catch {
-    throw new SaveError('저장본이 깨져 불러올 수 없다.');
+    throw new SaveError(saveLocale().t.infra.save.corrupt);
   }
   const s = body?.state;
   const shapeOk =
@@ -176,7 +179,7 @@ export function readSaveRecord(record: SaveRecord): SavedGame {
     Array.isArray(s.stack) &&
     typeof s.seq === 'number' &&
     s.turn != null;
-  if (!shapeOk) throw new SaveError('저장본이 깨져 불러올 수 없다.');
+  if (!shapeOk) throw new SaveError(saveLocale().t.infra.save.corrupt);
   return { meta, seed: body.seed, seats: body.seats, controlled: body.controlled, state: s };
 }
 
@@ -217,18 +220,17 @@ export function newSaveId(now: number, random: () => number): string {
 
 /** 예: "5인 · 하이 눈 · 4라운드 · 3명 생존" */
 export function saveSummary(meta: SaveMeta): string {
-  const parts = [`${meta.playerCount}인`];
-  for (const e of meta.expansions) parts.push(EXPANSION_LABEL[e] ?? e);
-  parts.push(`${Math.max(1, meta.round)}라운드`, `${meta.alive}명 생존`);
-  if (meta.spectate) parts.push('관전');
+  const s = saveLocale().t.infra.save.summary;
+  const parts = [s.players(meta.playerCount)];
+  for (const e of meta.expansions) parts.push(namesFor(saveLocale().lang).expansionName(e));
+  parts.push(s.round(Math.max(1, meta.round)), s.alive(meta.alive));
+  if (meta.spectate) parts.push(s.spectate);
   return parts.join(' · ');
 }
 
 /** 예: "9월 30일 15:22". 기기 시간대를 따른다 */
 export function savedAtLabel(savedAt: number): string {
-  const d = new Date(savedAt);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return formatMonthDayTime(savedAt, saveLocale().lang);
 }
 
 /** 문자열을 UTF-8 로 적었을 때의 바이트 수. Firestore 는 이 값으로 한도를 잰다 */

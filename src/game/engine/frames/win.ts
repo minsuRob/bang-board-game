@@ -6,10 +6,10 @@
  * 여러 탈락이 한 번에 일어나면 전부 처리한 뒤 한 번만 판정한다.
  */
 
-import type { Role } from '../../data/types';
 import { alivePlayers, inPlay, log, popFrame } from '../cards';
 import { lastOneStanding } from '../hooks';
 import { ga } from '../josa';
+import { reasonKo, roleKo } from '../legacy-ko';
 import type { GameResult, GameState } from '../types';
 
 export function checkWin(state: GameState): GameResult | null {
@@ -20,11 +20,11 @@ export function checkWin(state: GameState): GameResult | null {
   if (lastOneStanding(state)) {
     if (alive.length > 1) return null;
     const last = alive[0];
-    if (!last) return { winners: [], winnerIds: [], reason: '아무도 살아남지 못했다.' };
+    if (!last) return { winners: [], winnerIds: [], reason: 'nobodyAlive' };
     return {
       winners: [last.role],
       winnerIds: [last.id],
-      reason: `${ga(last.name)} 마지막까지 살아남았다.`,
+      reason: 'lastStanding',
     };
   }
 
@@ -44,13 +44,13 @@ export function checkWin(state: GameState): GameResult | null {
       return {
         winners: ['renegade'],
         winnerIds: [others[0].id],
-        reason: '보안관이 제거되고 배신자만 남았다.',
+        reason: 'sheriffDownRenegadeLeft',
       };
     }
     return {
       winners: ['outlaw'],
       winnerIds: state.players.filter((p) => p.role === 'outlaw').map((p) => p.id),
-      reason: '보안관이 제거되었다.',
+      reason: 'sheriffDown',
     };
   }
 
@@ -62,7 +62,7 @@ export function checkWin(state: GameState): GameResult | null {
     return {
       winners: ['sheriff', 'deputy'],
       winnerIds: lawIds,
-      reason: '모든 무법자와 배신자가 제거되었다.',
+      reason: 'lawWon',
     };
   }
   return null;
@@ -75,18 +75,17 @@ export function resolveCheckWin(state: GameState): GameState {
   const result = checkWin(cur);
   if (!result) return cur;
 
-  const label: Record<Role, string> = {
-    sheriff: '보안관',
-    deputy: '부관',
-    outlaw: '무법자',
-    renegade: '배신자',
-  };
   // 와일드 웨스트 쇼에서는 역할이 아니라 사람이 이긴다
   const who = lastOneStanding(cur)
     ? result.winnerIds.map((id) => cur.players.find((p) => p.id === id)?.name ?? id).join('·')
-    : result.winners.map((r) => label[r]).join('·');
+    : result.winners.map((r) => roleKo(r)).join('·');
+  // 로그 문장용 (번역 묶음 D 에서 LogMsg 로 바뀐다)
+  const why =
+    result.reason === 'lastStanding'
+      ? `${ga(cur.players.find((p) => p.id === result.winnerIds[0])?.name ?? '')} ${reasonKo(result.reason)}`
+      : reasonKo(result.reason);
   return log({ ...cur, result, stack: [], awaiting: null }, {
     t: 'gameEnd',
-    text: who ? `${who} 승리. ${result.reason}` : `승자 없음. ${result.reason}`,
+    text: who ? `${who} 승리. ${why}` : `승자 없음. ${why}`,
   });
 }

@@ -28,6 +28,7 @@ import type { Choice, Frame, GameState, JudgementPurpose, PlayerId } from '../ty
 import { skipRestOfTurn } from './turn';
 import { shuffleLivingRoles } from './wildwest';
 import { eul, ga, neun } from '../josa';
+import { nameKo } from '../legacy-ko';
 
 const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
   barrel: '술통',
@@ -196,7 +197,7 @@ function applyJudgement(
       t: 'johnPain',
       pid: taker,
       card,
-      text: `${ga(nameOf(cur, taker))} 펼친 ${eul(defOf(card).nameKo)} 손에 넣었다.`,
+      text: `${ga(nameOf(cur, taker))} 펼친 ${eul(nameKo(defOf(card)))} 손에 넣었다.`,
     });
   }
 

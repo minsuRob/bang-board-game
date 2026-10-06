@@ -11,8 +11,12 @@ import { eventArt } from './card-art';
 import { CardBack, CardView } from './CardView';
 import { useDeckAnchor } from './HandFlights';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useT } from '../../i18n/use-t';
+import { useNames } from '../../i18n/use-names';
 
 export function TableCenter({ view, message }: { view: GameState; message: string }) {
+  const t = useT();
+  const names = useNames();
   const top = view.discard[view.discard.length - 1];
   const event = view.event?.current ? EVENTS[view.event.current] : null;
   const eventImage = view.event?.current ? eventArt(view.event.current) : null;
@@ -26,32 +30,34 @@ export function TableCenter({ view, message }: { view: GameState; message: strin
           <View ref={deck} collapsable={false}>
             <CardBack size="md" />
           </View>
-          <Text style={styles.pileLabel}>덱 {view.deck.length}</Text>
+          <Text style={styles.pileLabel}>{t.ui.pile.deck(view.deck.length)}</Text>
         </View>
         <View style={styles.pile}>
           {top ? <CardView card={top} size="md" /> : <View style={styles.emptyPile} />}
-          <Text style={styles.pileLabel}>버린 더미 {view.discard.length}</Text>
+          <Text style={styles.pileLabel}>{t.ui.pile.discard(view.discard.length)}</Text>
         </View>
         {event && (
           <View style={styles.pile}>
             {eventImage ? (
               <View style={styles.eventArtCard}>
                 <Image source={eventImage} style={styles.eventArt} resizeMode="cover" />
-                <View style={styles.eventStrip}>
-                  <Text style={styles.eventStripText} numberOfLines={1}>
-                    {event.nameKo}
-                  </Text>
-                </View>
+                {names.eventName(event.id).toLowerCase() !== event.name.toLowerCase() && (
+                  <View style={styles.eventStrip}>
+                    <Text style={styles.eventStripText} numberOfLines={1}>
+                      {names.eventName(event.id)}
+                    </Text>
+                  </View>
+                )}
               </View>
             ) : (
               <View style={styles.eventCard}>
-                <Text style={styles.eventName}>{event.nameKo}</Text>
+                <Text style={styles.eventName}>{names.eventName(event.id)}</Text>
                 <Text style={styles.eventText} numberOfLines={4}>
-                  {event.text}
+                  {names.eventText(event.id)}
                 </Text>
               </View>
             )}
-            <Text style={styles.pileLabel}>이벤트</Text>
+            <Text style={styles.pileLabel}>{t.ui.pile.event}</Text>
           </View>
         )}
       </View>

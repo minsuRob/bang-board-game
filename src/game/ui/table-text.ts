@@ -4,11 +4,10 @@
  * 2D 와 3D 테이블이 같이 쓴다. 규칙 판단은 전부 TableApi(=legalActions) 에 맡긴다.
  */
 
-import { CARD_DEFS } from '../data/cards.base';
 import type { CardId } from '../data/types';
-import { ROLE_LABEL } from '../data/roles';
 import { kindOf, type GameState, type PlayerId } from '../engine';
-import { eul, ga, ro } from '../engine/josa';
+import type { Messages } from '../../i18n/types-messages';
+import { namesFor, type Names } from '../../i18n/names';
 import { CAN_HOVER, cardPeek, setPeek } from './card-peek';
 import type { TableApi } from './use-table';
 
@@ -48,59 +47,53 @@ export function handleCardPress(api: TableApi, card: CardId) {
   api.select(card);
 }
 
-export function statusMessage(view: GameState, viewer: PlayerId): string {
-  if (view.result) {
-    return `${view.result.reason} — ${view.result.winners.map((r) => ROLE_LABEL[r]).join('·')} 승리`;
-  }
+export function statusMessage(view: GameState, viewer: PlayerId, t: Messages, names: Names = namesFor('ko')): string {
+  const s = t.table.status;
+  if (view.result) return s.won(names.resultReason(view.result, view.players), view.result.winners.map((r) => names.roleName(r)));
   if (view.draft) {
     const picks = Object.values(view.draft.picked);
-    return `캐릭터 선택 · ${picks.filter((c) => c !== null).length}/${picks.length}명 완료`;
+    return s.draft(picks.filter((c) => c !== null).length, picks.length);
   }
   const active = view.players.find((p) => p.id === view.turn.active);
-  const who = active?.id === viewer ? '내' : `${active?.name}의`;
-  const phase = view.turn.phase === 'discard' ? '버리기' : view.turn.phase === 'draw' ? '카드 가져오기' : '카드 사용';
-  return `${who} 차례 · ${phase} 단계 · ${view.turn.round}라운드`;
+  const phase = view.turn.phase === 'discard' ? s.phase.discard : view.turn.phase === 'draw' ? s.phase.draw : s.phase.play;
+  return s.turn(active?.id === viewer, active?.name ?? '', phase, view.turn.round);
 }
 
-export function bottomStatus(view: GameState, viewer: PlayerId, api: TableApi): string {
-  if (view.result) return '게임이 끝났다.';
+export function bottomStatus(view: GameState, viewer: PlayerId, api: TableApi, t: Messages, names: Names = namesFor('ko')): string {
+  const s = t.table.status;
+  if (view.result) return s.over;
   if (api.waitingOnMe) return '';
-  if (api.draft) return api.draft.picked ? '다른 사람이 고르기를 기다리는 중' : '캐릭터를 고른다';
+  if (api.draft) return api.draft.picked ? s.draftWaiting : s.draftPick;
   if (view.awaiting) {
     const who = view.players.find((p) => p.id === view.awaiting!.pid)?.name;
-    return `${who}의 반응을 기다리는 중`;
+    return s.waitingReaction(who);
   }
   if (view.turn.active !== viewer) {
     const name = view.players.find((p) => p.id === view.turn.active)?.name ?? '';
-    return `${ga(name)} 생각하는 중`;
+    return s.thinking(name);
   }
   if (view.turn.phase === 'discard') {
     const me = view.players.find((p) => p.id === viewer)!;
-    return `손패를 목숨 수(${me.hp}장)까지 줄여야 한다`;
+    return s.discardTo(me.hp);
   }
   if (api.selected) {
-    const name = CARD_DEFS[api.selectedAs ?? kindOf(api.selected)].nameKo;
-    const lead = api.selectedAs ? `${ro(name)} 낼 상대를 고른다` : '지목할 상대를 고른다';
+    const name = names.cardName(api.selectedAs ?? kindOf(api.selected));
+    const lead = api.selectedAs ? s.leadAs(name) : s.leadPlain;
     // 대상 없이도 낼 수 있으면 내 자리를 누르면 된다 (결전의 맥주 등)
     if (api.canPlayUntargeted(api.selected) && api.targetsFor(api.selected).includes(viewer)) {
-      return `${lead} · 내 자리를 누르면 ${eul(name)} 그대로 낸다 (Esc 취소)`;
+      return s.leadUntargeted(lead, name);
     }
     // 강탈·캣 벌로우는 내 앞의 카드도 치울 수 있다
-    if (api.targetsFor(api.selected).includes(viewer)) {
-      return `${lead} · 내 자리를 누르면 내 앞의 카드를 고른다 (Esc 취소)`;
-    }
-    return `${lead} (Esc 취소)`;
+    if (api.targetsFor(api.selected).includes(viewer)) return s.leadOwnEquipment(lead);
+    return s.leadEsc(lead);
   }
   if (api.armed) {
     const ab = api.playAsAbilities.find((x) => x.key === api.armed);
     if (ab?.status) return ab.status;
-    const name = ab?.as ? CARD_DEFS[ab.as].nameKo : '능력';
-    return `${ro(name)} 낼 카드를 고른다 (Esc 취소)`;
+    return s.armed(ab?.as ? names.cardName(ab.as) : s.abilityWord);
   }
   // 서부의 법: 보여 준 카드를 내기 전에는 차례를 마칠 수 없다
   const must = view.turn.mustPlay;
-  if (must !== undefined && !api.canEndTurn) {
-    return `서부의 법 — ${eul(CARD_DEFS[kindOf(must)].nameKo)} 내야 차례를 마칠 수 있다`;
-  }
-  return '낼 카드를 고른다';
+  if (must !== undefined && !api.canEndTurn) return s.mustPlay(names.cardName(kindOf(must)));
+  return s.pickCard;
 }

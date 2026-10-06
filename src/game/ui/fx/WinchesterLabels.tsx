@@ -9,6 +9,8 @@
  */
 
 import { StyleSheet, View } from 'react-native';
+
+import { useT } from '../../../i18n/use-t';
 import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 
 import { FX_WINCHESTER, WINCHESTER_TICKS, winchesterFrame, winchesterLens, type ShotGeom } from './skia/timeline';
@@ -21,6 +23,7 @@ const LABEL_W = 90;
 const LABEL_H = 18;
 
 export function WinchesterLabels({ progress, geom }: Props) {
+  const t = useT();
   const label = useAnimatedStyle(() => {
     const g = geom.value;
     if (g.kind !== FX_WINCHESTER) return { opacity: 0 };
@@ -37,7 +40,7 @@ export function WinchesterLabels({ progress, geom }: Props) {
       {Array.from({ length: WINCHESTER_TICKS }, (_, i) => (
         <TickNumber key={i} n={i + 1} progress={progress} geom={geom} />
       ))}
-      <Animated.Text style={[styles.label, label]}>사정거리 5</Animated.Text>
+      <Animated.Text style={[styles.label, label]}>{t.ui.fx.range5}</Animated.Text>
     </View>
   );
 }

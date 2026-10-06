@@ -6,6 +6,8 @@
 import { View } from 'react-native';
 
 import type { Presence } from '../../firebase/room-model';
+import { getT, useT } from '../../i18n/use-t';
+import type { Messages } from '../../i18n/types-messages';
 import { themedStyles, useColors } from './theme/use-theme';
 import { Colors, type ThemeColors } from '@/constants/theme';
 
@@ -23,21 +25,33 @@ export function presenceColor(c: ThemeColors, presence: Presence): string {
   return c.presenceLeft;
 }
 
+export function presenceLabel(t: Messages, presence: Presence): string {
+  return t.ui.presence[presence];
+}
+
+/** @deprecated 언어를 바꿔도 다시 그려지지 않는다. useT() 와 presenceLabel 을 쓴다 */
 export const PRESENCE_LABEL: Record<Presence, string> = {
-  active: '접속 중',
-  away: '자리 비움',
-  left: '나감',
+  get active() {
+    return presenceLabel(getT(), 'active');
+  },
+  get away() {
+    return presenceLabel(getT(), 'away');
+  },
+  get left() {
+    return presenceLabel(getT(), 'left');
+  },
 };
 
 export function PresenceDot({ presence, size = 8 }: { presence: Presence | null; size?: number }) {
   const c = useColors();
   const styles = useStyles();
+  const t = useT();
   if (!presence) return null;
   const color = presenceColor(c, presence);
   return (
     <View
       testID={`presence-${presence}`}
-      accessibilityLabel={PRESENCE_LABEL[presence]}
+      accessibilityLabel={presenceLabel(t, presence)}
       style={[
         styles.dot,
         {

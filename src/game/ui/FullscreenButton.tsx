@@ -17,6 +17,7 @@ import { PaperHeading, PaperSheet, usePaperText } from './menu/PaperUi';
 import { WesternFonts } from './menu/western-fonts';
 import { useToolbarStyles } from './theme/toolbar';
 import { themedStyles, useColors } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
 
 // Safari(iPad 포함)는 아직 webkit 접두사 API 만 있는 버전이 남아 있다.
 type FsDocument = Document & {
@@ -112,6 +113,7 @@ export function FullscreenButton({ style }: { style?: StyleProp<ViewStyle> }) {
   const [hintOpen, setHintOpen] = useState(false);
   const toolbar = useToolbarStyles();
   const c = useColors();
+  const t = useT();
   if (mode === 'none') return null;
 
   return (
@@ -125,7 +127,7 @@ export function FullscreenButton({ style }: { style?: StyleProp<ViewStyle> }) {
         ]}
         accessibilityRole="button"
         accessibilityState={{ selected: active }}
-        accessibilityLabel={active ? '전체 화면 끄기' : '전체 화면'}
+        accessibilityLabel={active ? t.ui.fullscreen.off : t.ui.fullscreen.on}
         onPress={() => (mode === 'api' ? void toggle() : setHintOpen(true))}>
         <Svg width={14} height={14} viewBox="0 0 21 21">
           <Path
@@ -147,24 +149,22 @@ export function FullscreenButton({ style }: { style?: StyleProp<ViewStyle> }) {
 function HomeScreenHint({ onClose }: { onClose: () => void }) {
   const styles = useHintStyles();
   const text = usePaperText();
+  const t = useT();
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.layer}>
-        <Pressable accessibilityRole="button" accessibilityLabel="안내 닫기" onPress={onClose} style={styles.scrim} />
+        <Pressable accessibilityRole="button" accessibilityLabel={t.ui.fullscreen.hintClose} onPress={onClose} style={styles.scrim} />
         <PaperSheet style={styles.sheet}>
-          <PaperHeading eyebrow="FULL SCREEN" title="전체 화면" />
-          <Text style={styles.body}>
-            iPhone 브라우저는 웹 페이지를 전체 화면으로 띄우지 못한다. 홈 화면에 추가해서 열면 주소창 없이 판을 볼 수
-            있다.
-          </Text>
+          <PaperHeading eyebrow="FULL SCREEN" title={t.ui.fullscreen.title} />
+          <Text style={styles.body}>{t.ui.fullscreen.body}</Text>
           <View style={styles.steps}>
-            <Text style={styles.step}>1. 공유 버튼을 누른다 (사파리는 ⋯ 안, 크롬은 주소창 옆)</Text>
-            <Text style={styles.step}>2. 홈 화면에 추가를 고른다</Text>
-            <Text style={styles.step}>3. 홈 화면의 BANG! 아이콘으로 연다</Text>
+            <Text style={styles.step}>{t.ui.fullscreen.step1}</Text>
+            <Text style={styles.step}>{t.ui.fullscreen.step2}</Text>
+            <Text style={styles.step}>{t.ui.fullscreen.step3}</Text>
           </View>
-          <Text style={text.hint}>홈 화면에서 연 판은 저장·설정이 브라우저와 따로 간다.</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="닫기" onPress={onClose} style={styles.close}>
-            <Text style={styles.closeText}>닫기</Text>
+          <Text style={text.hint}>{t.ui.fullscreen.note}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={t.ui.fullscreen.close} onPress={onClose} style={styles.close}>
+            <Text style={styles.closeText}>{t.ui.fullscreen.close}</Text>
           </Pressable>
         </PaperSheet>
       </View>

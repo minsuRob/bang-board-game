@@ -11,5 +11,5 @@ export const SID_KETCHUM_ABILITY = 'sidKetchum';
 export const sidKetchum: Modifier = {
   id: 'char:sidKetchum',
   from: 'character',
-  anytime: [{ key: SID_KETCHUM_ABILITY, label: '카드 2장을 버리고 목숨 1 회복' }],
+  anytime: [{ key: SID_KETCHUM_ABILITY }],
 };

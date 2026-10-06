@@ -43,6 +43,7 @@ import {
 import { reviveFromBoneOrchard } from './wildwest';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 import { eul, ga, neun, ro } from '../josa';
+import { nameKo } from '../legacy-ko';
 
 /**
  * 감옥에 걸려 차례를 건너뛸 때, 이번 차례의 남은 단계를 스택에서 걷어낸다.
@@ -123,7 +124,7 @@ export function resolveRevealEvent(state: GameState, frame: Frame & { k: 'reveal
     },
   };
   const by = frame.pid ? `${ga(nameOf(cur, frame.pid))} 더미를 가져가 ` : '';
-  cur = log(cur, { t: 'event', card: next, text: `${by}이벤트 공개 — ${EVENTS[next].nameKo}` });
+  cur = log(cur, { t: 'event', card: next, text: `${by}이벤트 공개 — ${nameKo(EVENTS[next])}` });
 
   return pushSeq(cur, onEventEnterFrames(cur, revealer));
 }
@@ -340,7 +341,7 @@ export function respondNewIdentity(
     });
   }
   const next = p.spareCharacter;
-  const prevNameKo = CHARACTERS[p.character].nameKo;
+  const prevNameKo = nameKo(CHARACTERS[p.character]);
   const bonus = p.role === 'sheriff' ? 1 : 0;
   cur = updatePlayer(cur, frame.pid, (x) => ({
     ...x,
@@ -352,7 +353,7 @@ export function respondNewIdentity(
   return log(cur, {
     t: 'newIdentity',
     pid: frame.pid,
-    text: `${ga(prevNameKo)} ${ro(CHARACTERS[next].nameKo)} 신분을 바꿨다 (목숨 2).`,
+    text: `${ga(prevNameKo)} ${ro(nameKo(CHARACTERS[next]))} 신분을 바꿨다 (목숨 2).`,
   });
 }
 
@@ -426,7 +427,7 @@ export function respondDaltonsDiscard(
     t: 'daltons',
     pid,
     card,
-    text: `달톤 형제: ${ga(nameOf(cur, pid))} ${eul(defOf(card).nameKo)} 버렸다.`,
+    text: `달톤 형제: ${ga(nameOf(cur, pid))} ${eul(nameKo(defOf(card)))} 버렸다.`,
   });
 
   return {

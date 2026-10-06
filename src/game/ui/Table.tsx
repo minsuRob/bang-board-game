@@ -10,7 +10,6 @@ import { useMemo, type ReactNode } from 'react';
 import { ImageBackground, Text, View, useWindowDimensions } from 'react-native';
 
 import { CHARACTERS } from '../data/characters';
-import { ROLE_GOAL, ROLE_LABEL } from '../data/roles';
 import type { CardId } from '../data/types';
 import type { GameState, PlayerId } from '../engine';
 import { Table3D, useTableMode } from '../table3d';
@@ -29,8 +28,10 @@ import { TableMobile } from './TableMobile';
 import { bottomStatus, handleHandTap, statusMessage } from './table-text';
 import { glowingSeat } from './glowing-seat';
 import { themedStyles } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
 import type { TableApi } from './use-table';
 import { Colors, MinTableHeight, MobileBreakpoint, Spacing } from '@/constants/theme';
+import { useNames } from '../../i18n/use-names';
 
 const BOTTOM_HEIGHT = 232;
 const LOG_WIDTH = 268;
@@ -46,7 +47,9 @@ export type TableProps = {
 };
 
 export function Table({ view, viewer, api, clock }: TableProps) {
+  const names = useNames();
   const styles = useStyles();
+  const t = useT();
   const mode = useTableMode();
   const { width, height } = useWindowDimensions();
   // 폭도 높이도 넉넉해야 원형 배치를 쓴다. 하나라도 모자라면 좌석이 겹친다.
@@ -102,8 +105,8 @@ export function Table({ view, viewer, api, clock }: TableProps) {
         view={view}
         viewer={viewer}
         api={api}
-        status={bottomStatus(view, viewer, api)}
-        headline={statusMessage(view, viewer)}
+        status={bottomStatus(view, viewer, api, t, names)}
+        headline={statusMessage(view, viewer, t, names)}
         onSeatPress={onSeatPress}
         targets={targets}
         onCardPress={(card) => handleHandTap(api, card)}
@@ -140,7 +143,7 @@ export function Table({ view, viewer, api, clock }: TableProps) {
       ))}
 
       <View style={styles.centerSlot}>
-        <TableCenter view={view} message={statusMessage(view, viewer)} />
+        <TableCenter view={view} message={statusMessage(view, viewer, t, names)} />
       </View>
 
       <PlayedCardSpotlight view={view} viewer={viewer} api={api} />
@@ -184,7 +187,7 @@ export function Table({ view, viewer, api, clock }: TableProps) {
             <ActionBar
               prompt={api.prompt}
               onRespond={api.respond}
-              status={bottomStatus(view, viewer, api)}
+              status={bottomStatus(view, viewer, api, t, names)}
               canEndTurn={api.canEndTurn}
               onEndTurn={api.endTurn}
               playerNameOf={(pid) => view.players.find((p) => p.id === pid)?.name ?? pid}
@@ -212,12 +215,12 @@ export function Table({ view, viewer, api, clock }: TableProps) {
                   }
                 />
                 <Text style={styles.goal} numberOfLines={2}>
-                  {ROLE_LABEL[me.role]} · {ROLE_GOAL[me.role]}
+                  {names.roleName(me.role)} · {names.roleGoal(me.role)}
                 </Text>
                 <Text style={styles.ability} numberOfLines={3}>
-                  {CHARACTERS[me.character].ability}
+                  {names.charAbility(me.character)}
                   {me.borrowed?.length
-                    ? ` · 빌린 능력: ${me.borrowed.map((c) => CHARACTERS[c].nameKo).join(', ')}`
+                    ? t.ui.seat.borrowed(me.borrowed.map((c) => names.charName(c)).join(', '))
                     : ''}
                 </Text>
               </View>

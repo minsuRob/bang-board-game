@@ -14,13 +14,13 @@ const ROOT = process.cwd();
 const HANGUL = /[ᄀ-ᇿ㄰-㆏가-힣]/;
 
 /** 이미 번역을 마쳐 한글이 없어야 하는 곳 (파일 또는 폴더) */
-export const ENFORCED = ['src/game/ui/settings/SettingsSheet.tsx', 'src/i18n/messages/en', 'src/i18n/messages/it'];
+export const ENFORCED = ['src/app','src/game/ui/settings/SettingsSheet.tsx', 'src/game/ui/codex', 'src/game/table3d', 'src/firebase', 'src/game/store', 'src/game/save', 'src/i18n/messages/en', 'src/i18n/messages/it', 'src/game/ui/AttackBadges.tsx', 'src/game/ui/CardView.tsx', 'src/game/ui/CharacterDetail.tsx', 'src/game/ui/ChatPanel.tsx', 'src/game/ui/DraftPanel.tsx', 'src/game/ui/DraftSeatStatus.tsx', 'src/game/ui/EventCardFace.tsx', 'src/game/ui/FullscreenButton.tsx', 'src/game/ui/GameClock.tsx', 'src/game/ui/Hand.tsx', 'src/game/ui/LogPanel.tsx', 'src/game/ui/PauseButton.tsx', 'src/game/ui/PlayerSeat.tsx', 'src/game/ui/PresenceDot.tsx', 'src/game/ui/QualityPicker.tsx', 'src/game/ui/ResultTable.tsx', 'src/game/ui/RewardLine.tsx', 'src/game/ui/SaveButton.tsx', 'src/game/ui/SavedGames.tsx', 'src/game/ui/SettingsButton.tsx', 'src/game/ui/SoundButton.tsx', 'src/game/ui/SpeedControl.tsx', 'src/game/ui/Table.tsx', 'src/game/ui/TableCenter.tsx', 'src/game/ui/TableMobile.tsx', 'src/game/ui/card-symbols.ts', 'src/game/ui/chat-text.ts', 'src/game/ui/event-progress.ts', 'src/game/ui/fx/CardFxLabels.tsx', 'src/game/ui/fx/GunFxLabels.tsx', 'src/game/ui/fx/WinchesterLabels.tsx', 'src/game/ui/menu', 'src/game/ui/settings', 'src/game/ui/use-table.ts', 'src/game/ui/table-text.ts', 'src/game/ui/ActionBar.tsx', 'src/game/ui/PickSpotlight.tsx', 'src/game/ui/EventAbilityPanel.tsx', 'src/game/ui/GoldPanel.tsx', 'src/game/data', 'src/game/modifiers'];
 
 /** 번역하지 않는 개발용 파일 */
 const ALLOW = ['src/game/table3d/demo/FxDemo.tsx'];
 
 function walk(path: string): string[] {
-  if (statSync(path).isFile()) return /\.tsx?$/.test(path) ? [path] : [];
+  if (statSync(path).isFile()) return /\.tsx?$/.test(path) && !/\.test\.tsx?$/.test(path) ? [path] : [];
   return readdirSync(path).flatMap((n) => (n === '__tests__' ? [] : walk(join(path, n))));
 }
 

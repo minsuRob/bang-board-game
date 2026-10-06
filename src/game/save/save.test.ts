@@ -92,7 +92,7 @@ describe('저장할 수 있는가', () => {
 
   it('판이 끝났으면 못 한다', () => {
     const { state } = findHumanOut();
-    const ended: GameState = { ...state, result: { winners: ['sheriff'], winnerIds: [], reason: '' } };
+    const ended: GameState = { ...state, result: { winners: ['sheriff'], winnerIds: [], reason: 'lawWon' } };
     expect(canSaveGame(ended, ['p0'])).toBe(false);
   });
 });

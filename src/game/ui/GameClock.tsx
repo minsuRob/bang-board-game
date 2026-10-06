@@ -11,6 +11,7 @@ import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-na
 
 import { useToolbarStyles } from './theme/toolbar';
 import { useColors } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
 
 export type Stopwatch = {
   /** 흐른 밀리초. 멈춘 동안은 늘지 않는다 */
@@ -64,6 +65,7 @@ type Props = {
 export function GameClock({ stopwatch, style }: Props) {
   const toolbar = useToolbarStyles();
   const c = useColors();
+  const t = useT();
   const read = () => ({ ms: stopwatch.elapsed(), running: stopwatch.running() });
   const [now, setNow] = useState(read);
 
@@ -78,7 +80,7 @@ export function GameClock({ stopwatch, style }: Props) {
     <View
       style={[toolbar.pill, styles.root, !now.running && { borderColor: c.highlight }, style]}
       accessibilityRole="timer"
-      accessibilityLabel={`흐른 시간 ${label}${now.running ? '' : ', 멈춤'}`}>
+      accessibilityLabel={t.ui.clock.label(label, now.running)}>
       <Text style={[toolbar.text, styles.text, !now.running && { color: c.highlight }]}>⏱ {label}</Text>
     </View>
   );

@@ -25,6 +25,7 @@ import { drawCountOf, drawPhaseOverride, playableAs } from '../hooks';
 import type { Choice, Frame, GameState } from '../types';
 import { ga, neun } from '../josa';
 import { discardFromHand } from './combat';
+import { nameKo } from '../legacy-ko';
 
 // ---------------------------------------------------------------------------
 // 한줌의 카드 — 차례 시작에 손패 장수만큼 가해자 없는 뱅!
@@ -325,6 +326,6 @@ function ricochetHit(state: GameState, frame: Frame & { k: 'ricochet' }): GameSt
     pid: frame.source,
     target: frame.target,
     card: frame.card,
-    text: `리코체: ${nameOf(cur, frame.target)} 앞의 ${ga(defOf(frame.card).nameKo)} 버려졌다.`,
+    text: `리코체: ${nameOf(cur, frame.target)} 앞의 ${ga(nameKo(defOf(frame.card)))} 버려졌다.`,
   });
 }

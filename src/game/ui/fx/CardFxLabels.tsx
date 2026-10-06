@@ -11,6 +11,8 @@
  */
 
 import { StyleSheet, View } from 'react-native';
+
+import { useT } from '../../../i18n/use-t';
 import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 
 import {
@@ -45,6 +47,7 @@ export function CardFxLabels({ progress, geom }: Props) {
 
 /** 조준경 시야 아래쪽 거리 표시. 먼 사람이 반쯤 당겨지면 3 이 2 로 바뀐다 */
 function ScopeDistance({ progress, geom, n }: Props & { n: 2 | 3 }) {
+  const t = useT();
   const style = useAnimatedStyle(() => {
     const g = geom.value;
     if (g.kind !== FX_SCOPE) return { opacity: 0 };
@@ -61,12 +64,13 @@ function ScopeDistance({ progress, geom, n }: Props & { n: 2 | 3 }) {
   });
   return (
     <Animated.View style={[styles.pill, style]}>
-      <Animated.Text style={styles.pillText}>거리 {n}</Animated.Text>
+      <Animated.Text style={styles.pillText}>{t.ui.fx.distance(n)}</Animated.Text>
     </Animated.View>
   );
 }
 
 function MustangDistance({ progress, geom }: Props) {
+  const t = useT();
   const style = useAnimatedStyle(() => {
     const g = geom.value;
     if (g.kind !== FX_MUSTANG) return { opacity: 0 };
@@ -77,11 +81,12 @@ function MustangDistance({ progress, geom }: Props) {
       top: g.cy - BIG_H / 2,
     };
   });
-  return <Animated.Text style={[styles.gold, styles.goldLeft, style]}>거리 +1</Animated.Text>;
+  return <Animated.Text style={[styles.gold, styles.goldLeft, style]}>{t.ui.fx.distancePlus}</Animated.Text>;
 }
 
 /** 술통 만화 글씨. 쏙! 은 떠오르며 사라지고, 핑! 은 튕길 때 커졌다 사라진다 */
 function BarrelWord({ progress, geom, word }: Props & { word: 'sok' | 'ping' }) {
+  const t = useT();
   const style = useAnimatedStyle(() => {
     const g = geom.value;
     if (g.kind !== FX_BARREL) return { opacity: 0 };
@@ -104,7 +109,7 @@ function BarrelWord({ progress, geom, word }: Props & { word: 'sok' | 'ping' }) 
       transform: [{ scale: k < 0 ? 1 : k < 0.2 ? 0.6 + k * 3 : 1.2 }, { rotate: '0.12rad' }],
     };
   });
-  return <Animated.Text style={[styles.ink, word === 'ping' && styles.inkGold, style]}>{word === 'sok' ? '쏙!' : '핑!'}</Animated.Text>;
+  return <Animated.Text style={[styles.ink, word === 'ping' && styles.inkGold, style]}>{word === 'sok' ? t.ui.fx.sok : t.ui.fx.ping}</Animated.Text>;
 }
 
 // 판 위에 뜨는 연출 글자라 테마와 무관한 고정 색이다 (카드 그림·잉크와 같은 팔레트)

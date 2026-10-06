@@ -13,11 +13,13 @@ import { getSaveBackend, saveSummary, savedAtLabel, SAVE_FORMAT, type SaveMeta }
 import { formatElapsed } from '@/game/ui/GameClock';
 import { themedStyles } from '@/game/ui/theme/use-theme';
 import { PaperSection } from '@/game/ui/menu/PaperUi';
+import { useT } from '../../i18n/use-t';
 import { Spacing } from '@/constants/theme';
 
 export function SavedGames() {
   const router = useRouter();
   const styles = useStyles();
+  const t = useT();
   const [saves, setSaves] = useState<SaveMeta[]>([]);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +28,7 @@ export function SavedGames() {
     getSaveBackend()
       .list()
       .then(setSaves)
-      .catch(() => setError('저장한 판 목록을 읽지 못했다.'));
+      .catch(() => setError(t.ui.saved.listError));
   }, []);
 
   useFocusEffect(
@@ -45,13 +47,13 @@ export function SavedGames() {
     getSaveBackend()
       .remove(id)
       .then(refresh)
-      .catch(() => setError('지우지 못했다.'));
+      .catch(() => setError(t.ui.saved.removeError));
   };
 
   if (saves.length === 0 && !error) return null;
 
   return (
-    <PaperSection title="저장한 판">
+    <PaperSection title={t.ui.saved.title}>
       {error && <Text style={styles.error}>{error}</Text>}
       {saves.map((m) => {
         const usable = m.format === SAVE_FORMAT;
@@ -60,26 +62,26 @@ export function SavedGames() {
             <View style={styles.info}>
               <Text style={styles.summary}>{saveSummary(m)}</Text>
               <Text style={styles.sub}>
-                {savedAtLabel(m.savedAt)} 저장 · ⏱ {formatElapsed(m.elapsedMs)}
-                {usable ? '' : ' · 예전 형식이라 열 수 없다'}
+                {t.ui.saved.meta(savedAtLabel(m.savedAt), formatElapsed(m.elapsedMs))}
+                {usable ? '' : t.ui.saved.legacy}
               </Text>
             </View>
             <Pressable
               style={[styles.button, styles.resume, !usable && styles.disabled]}
               disabled={!usable}
               accessibilityRole="button"
-              accessibilityLabel="이어 보기"
+              accessibilityLabel={t.ui.saved.resume}
               onPress={() =>
                 router.push({ pathname: '/game/[id]', params: { id: 'local', save: m.id } })
               }>
-              <Text style={[styles.buttonText, styles.resumeText]}>이어 보기</Text>
+              <Text style={[styles.buttonText, styles.resumeText]}>{t.ui.saved.resume}</Text>
             </Pressable>
             <Pressable
               style={[styles.button, confirming === m.id && styles.danger]}
               accessibilityRole="button"
-              accessibilityLabel={confirming === m.id ? '정말 지우기' : '지우기'}
+              accessibilityLabel={confirming === m.id ? t.ui.saved.confirmRemove : t.ui.saved.remove}
               onPress={() => remove(m.id)}>
-              <Text style={styles.buttonText}>{confirming === m.id ? '정말 지우기' : '지우기'}</Text>
+              <Text style={styles.buttonText}>{confirming === m.id ? t.ui.saved.confirmRemove : t.ui.saved.remove}</Text>
             </Pressable>
           </View>
         );

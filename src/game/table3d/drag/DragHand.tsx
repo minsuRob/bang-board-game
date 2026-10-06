@@ -9,6 +9,7 @@
 
 import { useCallback, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import { useT } from '@/i18n/use-t';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import type { CardId } from '../../data/types';
@@ -50,13 +51,14 @@ export function DragHand({
   resetKey,
 }: DragHandProps) {
   const styles = useStyles();
+  const t = useT().infra.table3d;
   const [dragging, setDragging] = useState<CardId | null>(null);
   const arrivals = useHandArrivals(cards, { waitFor3d: true, owner, resetKey });
 
   if (cards.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>손패가 없다</Text>
+        <Text style={styles.emptyText}>{t.emptyHand}</Text>
       </View>
     );
   }

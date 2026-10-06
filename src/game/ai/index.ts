@@ -139,7 +139,7 @@ export function decide(
   return chooseAction({ view: viewFor(state, me), me, tier, seed, budget });
 }
 
-export { AI_TIERS, AI_TIER_LABEL } from './types';
+export { AI_TIERS } from './types';
 export type { AiTier, AiContext } from './types';
 export { analyze, hostility, situation } from './belief';
 export type { Belief, Beliefs, InferDepth, RoleProbs } from './belief';

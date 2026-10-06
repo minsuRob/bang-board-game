@@ -11,6 +11,7 @@ import { Text, View } from 'react-native';
 import { draftOfferCount, type GameState, type PlayerId } from '../engine';
 import { draftUi } from '../store/draft-ui';
 import { themedStyles } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
 import { Colors, Spacing, type ThemeColors } from '@/constants/theme';
 
 export function DraftSeatStatus({ view, pid, isSelf }: { view: GameState; pid: PlayerId; isSelf: boolean }) {
@@ -20,6 +21,7 @@ export function DraftSeatStatus({ view, pid, isSelf }: { view: GameState; pid: P
     () => null,
   );
   const styles = useStyles();
+  const t = useT();
   const draft = view.draft;
   if (!draft) return null;
   const done = draft.picked[pid] !== null;
@@ -39,10 +41,10 @@ export function DraftSeatStatus({ view, pid, isSelf }: { view: GameState; pid: P
           <View style={styles.check}>
             <Text style={styles.checkText}>✓</Text>
           </View>
-          <Text style={styles.done}>선택 완료</Text>
+          <Text style={styles.done}>{t.ui.draft.seatDone}</Text>
         </View>
       ) : (
-        <Text style={styles.picking}>고르는 중…</Text>
+        <Text style={styles.picking}>{t.ui.draft.seatPicking}</Text>
       )}
     </View>
   );

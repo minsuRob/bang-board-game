@@ -6,6 +6,8 @@
 
 import { Pressable, Text, type StyleProp, type ViewStyle } from 'react-native';
 
+import { useT } from '../../i18n/use-t';
+
 import { useToolbarStyles } from './theme/toolbar';
 
 type Props = {
@@ -16,6 +18,7 @@ type Props = {
 
 export function PauseButton({ paused, onToggle, style }: Props) {
   const toolbar = useToolbarStyles();
+  const t = useT();
   return (
     <Pressable
       style={({ hovered }: { hovered?: boolean }) => [
@@ -26,9 +29,9 @@ export function PauseButton({ paused, onToggle, style }: Props) {
       ]}
       accessibilityRole="button"
       accessibilityState={{ selected: paused }}
-      accessibilityLabel={paused ? '계속하기' : '일시정지'}
+      accessibilityLabel={paused ? t.ui.pause.resume : t.ui.pause.pause}
       onPress={onToggle}>
-      <Text style={[toolbar.text, paused && toolbar.textActive]}>{paused ? '▶ 계속' : '❚❚ 일시정지'}</Text>
+      <Text style={[toolbar.text, paused && toolbar.textActive]}>{paused ? t.ui.pause.resumeBtn : t.ui.pause.pauseBtn}</Text>
     </Pressable>
   );
 }

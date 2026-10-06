@@ -26,7 +26,9 @@ import { chatSilenced } from '../engine/hooks';
 import { chatBlockReason, chatSpeaker } from './chat-text';
 import { WesternFonts } from './menu/western-fonts';
 import { themedStyles, useColors } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
 import { Radius, Spacing, type ThemeColors } from '@/constants/theme';
+import { useNames } from '../../i18n/use-names';
 
 /** 말한 사람 이름 색. 라이트는 종이 위에서 읽히게 짙은 직업색을 쓴다 */
 function roleColor(c: ThemeColors, role: Role): string {
@@ -39,6 +41,8 @@ const NOTICE_MS = 3_000;
 
 export function ChatPanel({ style }: { style?: object }) {
   const styles = useStyles();
+  const t = useT();
+  const names = useNames();
   const c = useColors();
   // 직업 공개 여부는 가리지 않은 상태로 직접 판단한다 (가린 상태는 모르는 직업을 무법자로 채운다)
   const state = useGameStore((s) => s.state);
@@ -46,7 +50,7 @@ export function ChatPanel({ style }: { style?: object }) {
   const { mode, messages, myUid, mySeat, deadChat, error, notice, send } = useChatStore();
 
   const me = mode === 'online' && mySeat !== null ? (state?.players.find((p) => p.seat === mySeat) ?? null) : null;
-  const blocked = chatBlockReason({ mode, me, deadChat, gagged: state ? chatSilenced(state) : false });
+  const blocked = chatBlockReason(t, { mode, me, deadChat, gagged: state ? chatSilenced(state) : false });
   const canSend = !blocked && send !== null;
 
   const [draft, setDraft] = useState('');
@@ -85,7 +89,7 @@ export function ChatPanel({ style }: { style?: object }) {
 
   return (
     <View style={[styles.panel, style]}>
-      <Text style={styles.heading}>채팅</Text>
+      <Text style={styles.heading}>{t.ui.chat.heading}</Text>
 
       <ScrollView
         ref={scrollRef}
@@ -98,7 +102,7 @@ export function ChatPanel({ style }: { style?: object }) {
         }}>
         {state &&
           messages.map((m) => {
-            const who = chatSpeaker(state, viewer, m.seat);
+            const who = chatSpeaker(t, state, viewer, m.seat, names);
             const mine = m.uid === myUid;
             return (
               <Text key={m.id} style={[styles.line, mine && styles.mine]}>
@@ -111,7 +115,7 @@ export function ChatPanel({ style }: { style?: object }) {
             );
           })}
         {messages.length === 0 && (
-          <Text style={styles.empty}>{mode === 'local' ? blocked : '아직 아무 말도 없다'}</Text>
+          <Text style={styles.empty}>{mode === 'local' ? blocked : t.ui.chat.empty}</Text>
         )}
       </ScrollView>
 
@@ -129,7 +133,7 @@ export function ChatPanel({ style }: { style?: object }) {
             value={canSend ? draft : ''}
             onChangeText={setDraft}
             editable={canSend}
-            placeholder={blocked ?? '할 말을 적는다'}
+            placeholder={blocked ?? t.ui.chat.placeholder}
             placeholderTextColor={c.textMuted}
             maxLength={CHAT_MAX_LENGTH}
             onSubmitEditing={submit}
@@ -139,16 +143,16 @@ export function ChatPanel({ style }: { style?: object }) {
             returnKeyType="send"
             enterKeyHint="send"
             autoCorrect={false}
-            accessibilityLabel="채팅 입력"
+            accessibilityLabel={t.ui.chat.inputLabel}
           />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="채팅 보내기"
+            accessibilityLabel={t.ui.chat.sendLabel}
             accessibilityState={{ disabled: !canSend || !draft.trim() }}
             disabled={!canSend || !draft.trim()}
             onPress={submit}
             style={[styles.send, (!canSend || !draft.trim()) && styles.sendOff]}>
-            <Text style={styles.sendText}>보내기</Text>
+            <Text style={styles.sendText}>{t.ui.chat.send}</Text>
           </Pressable>
         </View>
       </View>

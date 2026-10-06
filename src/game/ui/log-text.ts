@@ -7,6 +7,7 @@
  */
 
 import { ALL_CARDS_BY_ID, CARD_DEFS } from '../data/cards.base';
+import { namesFor } from '../../i18n/names';
 import type { CardCategory, CardId } from '../data/types';
 import { isHidden, type GameEvent } from '../engine';
 
@@ -21,7 +22,9 @@ function namedCardsOf(e: GameEvent): Named[] {
     const inst = ALL_CARDS_BY_ID.get(id);
     if (!inst) continue;
     const def = CARD_DEFS[inst.kind];
-    if (!out.some((n) => n.name === def.nameKo)) out.push({ name: def.nameKo, card: id, category: def.category });
+    // 로그 문장이 아직 엔진에서 한국어로 만들어져 나오므로 한국어 이름으로 찾는다 (묶음 D 에서 현재 언어로)
+    const name = namesFor('ko').cardName(inst.kind);
+    if (!out.some((n) => n.name === name)) out.push({ name, card: id, category: def.category });
   }
   // 긴 이름부터 찾는다. 짧은 이름이 긴 이름 안에 들어 있어도 긴 쪽이 이긴다
   return out.sort((a, b) => b.name.length - a.name.length);

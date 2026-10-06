@@ -18,6 +18,7 @@ import { eventAbilityKey, forcedPlayOf } from './legal';
 import { applyPlayCard } from './play';
 import type { Action, GameState, PlayerId } from './types';
 import { ga, eul, neun, wa } from './josa';
+import { nameKo } from './legacy-ko';
 
 export function applyEventAbility(state: GameState, action: Extract<Action, { type: 'eventAbility' }>): GameState {
   const { pid, ability } = action;
@@ -58,7 +59,7 @@ function forcePlay(
   kind: CardKind,
   target: PlayerId | undefined,
 ): GameState {
-  const name = CARD_DEFS[kind].nameKo;
+  const name = nameKo(CARD_DEFS[kind]);
   const aim = target ? ` → ${nameOf(state, target)}` : '';
   let cur = log(state, {
     t: 'dorothyRage',
@@ -71,7 +72,7 @@ function forcePlay(
     // 공식 해설: 시킨 카드가 없으면 손패를 보여 준다. 누구에게나 (FAQ Q20 "All players.")
     // 공개 로그(secret 없음)라 viewFor 가 가리지 않는다.
     const hand = playerOf(cur, forced).hand;
-    const shown = hand.length ? hand.map((c) => defOf(c).nameKo).join(', ') : '없음';
+    const shown = hand.length ? hand.map((c) => nameKo(defOf(c))).join(', ') : '없음';
     return log(cur, {
       t: 'dorothyRageMiss',
       pid: forced,

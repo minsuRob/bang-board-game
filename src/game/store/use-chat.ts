@@ -15,6 +15,7 @@ import {
 } from '../../firebase/chat';
 import { INITIAL_CHAT, useChatStore } from './chat-store';
 import type { OnlineGame } from './use-online-game';
+import { getT } from '../../i18n/use-t';
 
 export function useChat(code: string | null, conn: OnlineGame) {
   const uid = conn.identity?.uid ?? null;
@@ -34,7 +35,7 @@ export function useChat(code: string | null, conn: OnlineGame) {
     const stop = watchChat(
       code,
       (messages) => useChatStore.setState({ messages, loaded: true, error: null }),
-      (err) => useChatStore.setState({ error: `채팅을 받지 못했다. ${err.message}` }),
+      (err) => useChatStore.setState({ error: getT().infra.chat.receiveFailed(err.message) }),
     );
     return () => {
       stop();
@@ -54,7 +55,7 @@ export function useChat(code: string | null, conn: OnlineGame) {
       if (!text) return false;
       const now = Date.now();
       if (now - lastSent.current < CHAT_MIN_INTERVAL_MS) {
-        useChatStore.setState({ notice: '너무 빠르다. 잠깐 뒤에 보내라' });
+        useChatStore.setState({ notice: getT().infra.chat.tooFast });
         return false;
       }
       lastSent.current = now;
@@ -63,7 +64,7 @@ export function useChat(code: string | null, conn: OnlineGame) {
         useChatStore.setState({ notice: null });
         return true;
       } catch (err) {
-        useChatStore.setState({ notice: `보내지 못했다. ${(err as Error).message}` });
+        useChatStore.setState({ notice: getT().infra.chat.sendFailed((err as Error).message) });
         return false;
       }
     };

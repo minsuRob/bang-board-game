@@ -8,7 +8,12 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { getLang, getT } from '../../i18n/use-t';
 import { createDeviceSaveBackend, type SaveBackend } from './save-backend';
+import { setSaveLocale } from './save-text';
+
+// 순수 저장 모듈이 오류·요약 문구에 현재 언어를 쓰게 한다
+setSaveLocale(() => ({ lang: getLang(), t: getT() }));
 
 let device: SaveBackend | null = null;
 

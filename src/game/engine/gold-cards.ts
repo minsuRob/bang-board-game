@@ -31,6 +31,7 @@ import { discardGold, giveGoldEquip, hasGoldKind } from './gold';
 import { judgementCardTaker, rhumFlipCountOf } from './hooks';
 import type { Frame, GameState, GoldUse, PlayerId } from './types';
 import { eul, ga, ro } from './josa';
+import { nameKo } from './legacy-ko';
 
 function hasCards(state: GameState, pid: PlayerId): boolean {
   const p = playerOf(state, pid);
@@ -122,7 +123,7 @@ export function applyGoldCard(
       return log(cur, {
         t: 'goldDup',
         pid,
-        text: `${ga(nameOf(cur, pid))} 이미 ${eul(def.nameKo)} 가지고 있어 버렸다.`,
+        text: `${ga(nameOf(cur, pid))} 이미 ${eul(nameKo(def))} 가지고 있어 버렸다.`,
       });
     }
     return giveGoldEquip(cur, pid, card);
@@ -145,7 +146,7 @@ export function applyGoldCard(
           as: use.as,
           target,
           text:
-            `${ga(nameOf(cur, pid))} ${eul(def.nameKo)} ${ro(CARD_DEFS[use.as].nameKo)} 썼다` +
+            `${ga(nameOf(cur, pid))} ${eul(nameKo(def))} ${ro(nameKo(CARD_DEFS[use.as]))} 썼다` +
             (target ? ` → ${nameOf(cur, target)}.` : '.'),
         });
       }
@@ -196,7 +197,7 @@ export function applyGoldCard(
           t: 'johnPain',
           pid: taker,
           card: c,
-          text: `${ga(nameOf(cur, taker))} 펼친 ${eul(defOf(c).nameKo)} 손에 넣었다.`,
+          text: `${ga(nameOf(cur, taker))} 펼친 ${eul(nameKo(defOf(c)))} 손에 넣었다.`,
         });
       }
       if (suits.size > 0) frames.push({ k: 'heal', pid, amount: suits.size });

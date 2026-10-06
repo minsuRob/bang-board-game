@@ -10,6 +10,8 @@
  */
 
 import { StyleSheet, Text, View } from 'react-native';
+
+import { useT } from '../../../i18n/use-t';
 import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 
 import {
@@ -44,6 +46,7 @@ function easeBack(t: number) {
 // ── 볼캐닉 ─────────────────────────────────────────────
 
 function VolleyCounter({ progress, cw, ch }: Part) {
+  const t = useT();
   const box = useAnimatedStyle(() => ({ opacity: volleyFrame(progress.value).counter }));
   const inf = useAnimatedStyle(() => {
     const k = volleyFrame(progress.value).inf;
@@ -52,7 +55,7 @@ function VolleyCounter({ progress, cw, ch }: Part) {
   const width = 96;
   return (
     <Animated.View pointerEvents="none" style={[styles.volley, { left: cw * 1.54 - width / 2, top: ch * 0.2, width }, box]}>
-      <Text style={styles.volleyLabel}>뱅!</Text>
+      <Text style={styles.volleyLabel}>{t.ui.fx.bang}</Text>
       <View style={styles.volleyCount}>
         {VOLLEY_SHOTS_MS.map((_, i) => (
           <VolleyDigit key={i} n={i + 1} progress={progress} />

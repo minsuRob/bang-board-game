@@ -18,13 +18,13 @@ type Seat = { uid: string | null; nick: string; ai: boolean };
 export function settleRoomHandler(db: Firestore) {
   return onCall({ memory: '512MiB', timeoutSeconds: 120 }, async (request): Promise<Settlement> => {
     const uid = request.auth?.uid;
-    if (!uid) throw new HttpsError('unauthenticated', '로그인이 필요하다.');
+    if (!uid) throw new HttpsError('unauthenticated', 'Sign-in required.', { reason: 'not-signed-in' });
     const code = String(request.data?.code ?? '').toUpperCase();
-    if (!/^[A-Z0-9]{4,8}$/.test(code)) throw new HttpsError('invalid-argument', '방 코드가 이상하다.');
+    if (!/^[A-Z0-9]{4,8}$/.test(code)) throw new HttpsError('invalid-argument', 'Invalid room code.', { reason: 'bad-room-code' });
 
     const roomRef = db.doc(`rooms/${code}`);
     const roomSnap = await roomRef.get();
-    if (!roomSnap.exists) throw new HttpsError('not-found', '방이 없다.');
+    if (!roomSnap.exists) throw new HttpsError('not-found', 'Room not found.', { reason: 'no-room' });
     const room = roomSnap.data() as {
       status: string;
       seats: Seat[];
@@ -32,18 +32,18 @@ export function settleRoomHandler(db: Firestore) {
       settlement?: Settlement;
     };
     if (room.settlement) return room.settlement;
-    if (room.status === 'lobby') throw new HttpsError('failed-precondition', '아직 시작하지 않은 방이다.');
-    if (!room.seats.some((s) => s.uid === uid)) throw new HttpsError('permission-denied', '이 방의 자리가 아니다.');
+    if (room.status === 'lobby') throw new HttpsError('failed-precondition', 'Room has not started.', { reason: 'not-started' });
+    if (!room.seats.some((s) => s.uid === uid)) throw new HttpsError('permission-denied', 'Caller does not hold a seat in this room.', { reason: 'not-seated' });
 
     const actionsSnap = await roomRef.collection('actions').orderBy('seq').get();
     const actions: Action[] = [];
     actionsSnap.docs.forEach((d, i) => {
       const data = d.data() as { seq: number; action: Action };
-      if (data.seq !== i + 1) throw new HttpsError('failed-precondition', `액션 순번이 비어 있다 (${i + 1}).`);
+      if (data.seq !== i + 1) throw new HttpsError('failed-precondition', `Action sequence has a gap at ${i + 1}.`, { reason: 'action-gap' });
       actions.push(data.action);
     });
     if (actions.length !== room.actionCount) {
-      throw new HttpsError('failed-precondition', '액션 수가 방 문서와 다르다.');
+      throw new HttpsError('failed-precondition', 'Action count does not match the room document.', { reason: 'action-count' });
     }
 
     const seatUids = room.seats.map((s) => (s.ai ? null : s.uid));

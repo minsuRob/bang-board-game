@@ -2,7 +2,7 @@
  * 골드 러시 패널 — 금덩이 · 상점 · 앞에 놓인 장비 · 골드 행동 버튼.
  *
  * 무엇을 누를 수 있는지는 legalActions() 에서 걸러 온 actions 가 전부 정한다.
- * 여기서는 그 액션을 한국어 라벨로 보여 주고 누르면 그대로 보낸다.
+ * 여기서는 그 액션을 현재 언어 라벨로 보여 주고 누르면 그대로 보낸다.
  */
 
 import { Pressable, Text, View } from 'react-native';
@@ -13,10 +13,14 @@ import { CHARACTERS } from '../data/characters';
 import type { Action, Choice, GameState, PlayerId } from '../engine';
 import { buyPriceOf } from '../engine/gold-actions';
 import type { GoldUse } from '../engine/types';
+import { useT } from '../../i18n/use-t';
+import type { Messages } from '../../i18n/types-messages';
 import { WesternFonts } from './menu/western-fonts';
 import { themedStyles } from './theme/use-theme';
 import type { Prompt } from './use-table';
 import { Radius } from '@/constants/theme';
+import { useNames } from '../../i18n/use-names';
+import { namesFor, type Names } from '../../i18n/names';
 
 type Props = {
   view: GameState;
@@ -27,40 +31,32 @@ type Props = {
   respond?: (choice: Choice) => void;
 };
 
-const ABILITY_LABEL: Record<string, string> = {
-  jackyMurieta: '뱅! (금 2)',
-  joshMcCloud: '장비 덱 뽑기 (금 2)',
-  raddieSnake: '카드 1장 (금 1)',
-  goldPan: '사금채취판 카드 1장 (금 1)',
-  rucksack: '배낭 목숨 1 (금 2)',
-};
-
-function who(view: GameState, pid: PlayerId): string {
+function who(view: GameState, pid: PlayerId, names: Names): string {
   const p = view.players.find((x) => x.id === pid);
-  return p ? CHARACTERS[p.character]?.nameKo ?? p.name : pid;
+  return p ? CHARACTERS[p.character] ? names.charName(p.character) : p.name : pid;
 }
 
-function useLabel(view: GameState, use: GoldUse | undefined): string {
+function useLabel(view: GameState, use: GoldUse | undefined, names: Names): string {
   if (!use) return '';
-  const as = use.as ? ` · ${CARD_DEFS[use.as].nameKo}` : '';
-  const target = use.target ? ` → ${who(view, use.target)}` : '';
+  const as = use.as ? ` · ${names.cardName(use.as)}` : '';
+  const target = use.target ? ` → ${who(view, use.target, names)}` : '';
   return as + target;
 }
 
-export function labelOf(view: GameState, a: Action): string {
+export function labelOf(view: GameState, a: Action, t: Messages, names: Names = namesFor('ko')): string {
   switch (a.type) {
     case 'buyGold': {
       const def = goldDefOf(a.card);
-      return `${def.nameKo} 사기 (금 ${buyPriceOf(view, a.pid, a.card)})${useLabel(view, a.use)}`;
+      return t.table.gold.buy(names.goldName(def.kind), buyPriceOf(view, a.pid, a.card)) + useLabel(view, a.use, names);
     }
     case 'removeGold': {
       const def = goldDefOf(a.card);
-      return `${who(view, a.target)}의 ${def.nameKo} 치우기 (금 ${def.cost + 1})`;
+      return t.table.gold.remove(who(view, a.target, names), names.goldName(def.kind), def.cost + 1);
     }
     case 'beerForGold':
-      return '맥주 → 금덩이 1';
+      return t.table.gold.beer;
     case 'goldAbility':
-      return (ABILITY_LABEL[a.ability] ?? a.ability) + (a.target ? ` → ${who(view, a.target)}` : '');
+      return (t.table.gold.ability[a.ability] ?? a.ability) + (a.target ? ` → ${who(view, a.target, names)}` : '');
     default:
       return '';
   }
@@ -68,6 +64,8 @@ export function labelOf(view: GameState, a: Action): string {
 
 export function GoldPanel({ view, viewer, actions, send, prompt, respond }: Props) {
   const styles = useStyles();
+  const t = useT();
+  const names = useNames();
   if (!view.gold) return null;
   const me = viewer ? view.players.find((p) => p.id === viewer) : null;
 
@@ -83,34 +81,34 @@ export function GoldPanel({ view, viewer, actions, send, prompt, respond }: Prop
   const uses = prompt?.goldUses ?? [];
 
   return (
-    <View style={styles.panel} accessibilityLabel="골드 러시">
+    <View style={styles.panel} accessibilityLabel={t.table.gold.panel}>
       <Text style={styles.title}>
-        골드 러시 · 내 금덩이 {me?.nuggets ?? 0}개
+        {t.table.gold.title(me?.nuggets ?? 0)}
       </Text>
 
-      <Text style={styles.label}>상점</Text>
+      <Text style={styles.label}>{t.table.gold.shop}</Text>
       <View style={styles.row}>
         {view.gold.shop.map((card) => {
           const def = goldDefOf(card);
           return (
             <View key={card} style={[styles.card, def.category === 'black' ? styles.black : styles.brown]}>
               <Text style={styles.cardName}>
-                {def.nameKo} · 금 {def.cost}
+                {t.table.gold.shopCard(names.goldName(def.kind), def.cost)}
               </Text>
-              <Text style={styles.cardText}>{def.text}</Text>
+              <Text style={styles.cardText}>{names.goldText(def.kind)}</Text>
             </View>
           );
         })}
       </View>
 
-      <Text style={styles.label}>앞에 놓인 장비</Text>
+      <Text style={styles.label}>{t.table.gold.equipment}</Text>
       {view.players
         .filter((p) => (p.goldEquipment?.length ?? 0) > 0 || (p.nuggets ?? 0) > 0)
         .map((p) => (
           <Text key={p.id} style={styles.cardText}>
-            {who(view, p.id)} — 금 {p.nuggets ?? 0}
+            {t.table.gold.player(who(view, p.id, names), p.nuggets ?? 0)}
             {(p.goldEquipment ?? []).length > 0
-              ? ` · ${(p.goldEquipment ?? []).map((c) => goldDefOf(c).nameKo).join(', ')}`
+              ? ` · ${(p.goldEquipment ?? []).map((c) => names.goldName(goldDefOf(c).kind)).join(', ')}`
               : ''}
           </Text>
         ))}
@@ -126,7 +124,7 @@ export function GoldPanel({ view, viewer, actions, send, prompt, respond }: Prop
                 style={styles.button}
                 onPress={() => respond({ c: 'goldUse', use })}
               >
-                <Text style={styles.buttonText}>{useLabel(view, use).replace(/^ · /, '') || '사용'}</Text>
+                <Text style={styles.buttonText}>{useLabel(view, use, names).replace(/^ · /, '') || t.table.gold.use}</Text>
               </Pressable>
             ))}
           </View>
@@ -137,7 +135,7 @@ export function GoldPanel({ view, viewer, actions, send, prompt, respond }: Prop
         <View style={styles.row}>
           {buttons.map((a, i) => (
             <Pressable key={i} accessibilityRole="button" style={styles.button} onPress={() => send(a)}>
-              <Text style={styles.buttonText}>{labelOf(view, a)}</Text>
+              <Text style={styles.buttonText}>{labelOf(view, a, t, names)}</Text>
             </Pressable>
           ))}
         </View>

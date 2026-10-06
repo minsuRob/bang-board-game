@@ -118,10 +118,21 @@ export type EventState = {
   deadManUsed?: boolean;
 };
 
+/**
+ * 게임이 끝난 까닭. 문장은 화면 쪽이 현재 언어로 만든다 (i18n/content 의 `resultReason`).
+ * lastStanding(와일드 웨스트 쇼)은 마지막 생존자 한 명이 이긴 경우라 winnerIds[0] 의 이름을 문장에 넣는다.
+ */
+export type ResultReason =
+  | 'nobodyAlive'
+  | 'lastStanding'
+  | 'sheriffDownRenegadeLeft'
+  | 'sheriffDown'
+  | 'lawWon';
+
 export type GameResult = {
   winners: Role[];
   winnerIds: PlayerId[];
-  reason: string;
+  reason: ResultReason;
 };
 
 // ---------------------------------------------------------------------------

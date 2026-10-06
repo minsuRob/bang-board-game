@@ -104,13 +104,11 @@ export type CardDef = {
   kind: CardKind;
   /** 도감 표기 (이탈리아어/영어 원어) */
   name: string;
-  nameKo: string;
   category: CardCategory;
   equip?: EquipSlot;
   /** 무기 사정거리. 무기가 아니면 undefined (맨손은 1) */
   weaponRange?: number;
   symbols: CardSymbol[];
-  text: string;
   /** 이 카드를 다른 종류 한 장으로도 친다 (역화 = 빗나감!) */
   countsAs?: CardKind;
   /** 남의 차례에도 낼 수 있다 (탈출·구조!) */
@@ -153,10 +151,8 @@ export type CharacterId =
 export type CharacterDef = {
   id: CharacterId;
   name: string;
-  nameKo: string;
   /** 캐릭터 카드에 그려진 총알 수. 보안관은 여기에 +1 */
   maxHp: number;
-  ability: string;
   /** 확장판 캐릭터면 그 확장판. 없으면 기본판 */
   expansion?: Expansion;
 };
@@ -176,13 +172,8 @@ export type Expansion = 'highnoon' | 'valley' | 'goldrush' | 'wildwestshow' | 'f
 /** 상황(이벤트) 카드 덱을 들여오는 확장판. 한 판에 하나만 쓴다 */
 export type EventExpansion = Extract<Expansion, 'highnoon' | 'wildwestshow' | 'fistful'>;
 
-export const EXPANSION_LABEL: Record<Expansion, string> = {
-  highnoon: '하이 눈',
-  valley: '그림자의 계곡',
-  goldrush: '골드 러시',
-  wildwestshow: '와일드 웨스트 쇼',
-  fistful: '한줌의 카드',
-};
+/** 확장판 id 전부. 화면에 보일 이름은 i18n/content 의 `expansions` 에 있다 */
+export const EXPANSIONS: readonly Expansion[] = ['highnoon', 'valley', 'goldrush', 'wildwestshow', 'fistful'];
 
 export type HighNoonEventId =
   | 'blessing' | 'curse' | 'ghostTown' | 'goldRush' | 'hangover'
@@ -205,8 +196,6 @@ export type EventCardDef = {
   id: EventCardId;
   expansion: Expansion;
   name: string;
-  nameKo: string;
-  text: string;
   /** 이벤트 덱 맨 밑에 고정되는 마지막 카드인가 (하이 눈 · 와일드 웨스트 쇼 · 한줌의 카드) */
   isFinal?: boolean;
 };
@@ -233,14 +222,21 @@ export type GoldCardDef = {
   /** 도감 표기 (이탈리아어) */
   name: string;
   nameEn: string;
-  nameKo: string;
   /** 사는 값 (금덩이). 남의 앞에서 치우려면 여기에 1을 더 낸다 */
   cost: number;
   category: GoldCardCategory;
   /** 덱에 든 장수 */
   count: number;
-  text: string;
 };
 
 /** 골드 러시 카드 한 장. 'gr-<kind>-<n>' */
 export type GoldCardId = string;
+
+// ---------------------------------------------------------------------------
+// 능력 id (Modifier 가 붙이는 버튼·로그 라벨의 키)
+// ---------------------------------------------------------------------------
+
+/** 버튼을 가진 능력의 id. 화면에 보일 설명은 i18n/content 의 `abilities` 에서 찾는다 */
+export type AbilityKey =
+  | 'sidKetchum' | 'derSpotBurstRinger' | 'uncleWill' | 'leeVanKliff' | 'blackFlower' | 'flintWestwood'
+  | 'jackyMurieta' | 'joshMcCloud' | 'raddieSnake' | 'goldPan' | 'rucksack';

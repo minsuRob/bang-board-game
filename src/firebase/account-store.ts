@@ -14,6 +14,7 @@ import { providerOf, type Provider } from './account';
 import { ensureSignedIn } from './auth';
 import { getAuthClient, isFirebaseConfigured } from './config';
 import { ensureProfile, updateNick, watchProfile, watchWallet } from './profile';
+import { getT } from '../i18n/use-t';
 
 export type AccountStatus = 'offline' | 'idle' | 'syncing' | 'ready' | 'error';
 
@@ -26,12 +27,12 @@ export type AccountState = {
   error: string | null;
 };
 
-const DEFAULT_NICK = '이름 없는 총잡이';
+const defaultNick = () => getT().infra.nick.anonymous;
 
 export const accountStore = createStore<AccountState>(() => ({
   status: isFirebaseConfigured() ? 'idle' : 'offline',
   uid: null,
-  nick: DEFAULT_NICK,
+  nick: defaultNick(),
   provider: 'anonymous',
   wallet: null,
   error: null,
@@ -47,7 +48,7 @@ export function startAccountSync(): void {
 
   ensureSignedIn()
     .then(async (user) => {
-      const profile = await ensureProfile(user.uid, DEFAULT_NICK);
+      const profile = await ensureProfile(user.uid, defaultNick());
       accountStore.setState({
         uid: user.uid,
         nick: profile.nick,

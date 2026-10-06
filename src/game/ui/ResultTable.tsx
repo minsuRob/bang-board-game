@@ -6,13 +6,14 @@
 import { Image, ScrollView, Text, View } from 'react-native';
 
 import { CHARACTERS } from '../data/characters';
-import { ROLE_LABEL } from '../data/roles';
 import type { GameState, PlayerId } from '../engine/types';
 import { characterArt } from './card-art';
 import { resultRows } from './result-stats';
 import { WesternFonts } from './menu/western-fonts';
 import { themedStyles, useColors } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
 import { Radius, Spacing } from '@/constants/theme';
+import { useNames } from '../../i18n/use-names';
 
 const CARD_W = 28;
 const CARD_H = Math.round((CARD_W * 389) / 250);
@@ -28,18 +29,20 @@ export function ResultTable({
 }) {
   const styles = useStyles();
   const c = useColors();
+  const t = useT();
+  const names = useNames();
   const rows = resultRows(state);
 
   return (
     <View style={styles.table}>
       <View style={[styles.row, styles.head, compact && styles.rowCompact]}>
-        <Text style={[styles.headText, styles.colWho]}>플레이어</Text>
-        <Text style={[styles.headText, styles.colRole, compact && styles.colRoleCompact]}>역할</Text>
-        <Text style={[styles.headText, styles.colState, compact && styles.colStateCompact]}>상태</Text>
-        <Text style={[styles.headText, styles.colNum, compact && styles.colNumCompact]}>처치</Text>
-        {!compact && <Text style={[styles.headText, styles.colNum]}>준 피해</Text>}
-        {!compact && <Text style={[styles.headText, styles.colNum]}>받은 피해</Text>}
-        <Text style={[styles.headText, styles.colResult, compact && styles.colResultCompact]}>결과</Text>
+        <Text style={[styles.headText, styles.colWho]}>{t.ui.result.player}</Text>
+        <Text style={[styles.headText, styles.colRole, compact && styles.colRoleCompact]}>{t.ui.result.role}</Text>
+        <Text style={[styles.headText, styles.colState, compact && styles.colStateCompact]}>{t.ui.result.state}</Text>
+        <Text style={[styles.headText, styles.colNum, compact && styles.colNumCompact]}>{t.ui.result.kills}</Text>
+        {!compact && <Text style={[styles.headText, styles.colNum]}>{t.ui.result.dealt}</Text>}
+        {!compact && <Text style={[styles.headText, styles.colNum]}>{t.ui.result.taken}</Text>}
+        <Text style={[styles.headText, styles.colResult, compact && styles.colResultCompact]}>{t.ui.result.result}</Text>
       </View>
       <ScrollView style={styles.body}>
         {rows.map((r) => {
@@ -56,16 +59,16 @@ export function ResultTable({
                   {art ? (
                     <Image source={art} style={styles.cardImg} resizeMode="cover" />
                   ) : (
-                    <Text style={styles.cardFallback}>{ch?.nameKo.slice(0, 1) ?? '?'}</Text>
+                    <Text style={styles.cardFallback}>{ch ? names.charName(r.character).slice(0, 1) : '?'}</Text>
                   )}
                 </View>
                 <View style={styles.names}>
                   <Text style={styles.name} numberOfLines={1}>
                     {r.name}
-                    {me && r.name !== '나' ? ' (나)' : ''}
+                    {me && r.name !== t.ui.result.me ? t.ui.result.meSuffix : ''}
                   </Text>
                   <Text style={styles.character} numberOfLines={1}>
-                    {ch?.nameKo ?? r.character}
+                    {ch ? names.charName(r.character) : r.character}
                   </Text>
                 </View>
               </View>
@@ -78,22 +81,22 @@ export function ResultTable({
                   { color: c[r.role] },
                 ]}
               >
-                {ROLE_LABEL[r.role]}
+                {names.roleName(r.role)}
               </Text>
               <Text style={[styles.cell, styles.colState, compact && styles.colStateCompact, !r.alive && styles.muted]}>
                 {r.alive
                   ? `♥ ${r.hp}/${r.maxHp}`
                   : r.outOrder
                     ? compact
-                      ? `탈락 #${r.outOrder}`
-                      : `${r.outOrder}번째 탈락`
-                    : '탈락'}
+                      ? t.ui.result.outShort(r.outOrder)
+                      : t.ui.result.outNth(r.outOrder)
+                    : t.ui.result.out}
               </Text>
               <Text style={[styles.cell, styles.colNum, compact && styles.colNumCompact]}>{r.kills}</Text>
               {!compact && <Text style={[styles.cell, styles.colNum]}>{r.dealt}</Text>}
               {!compact && <Text style={[styles.cell, styles.colNum]}>{r.taken}</Text>}
               <View style={[styles.colResult, compact && styles.colResultCompact]}>
-                <Text style={[styles.badge, r.won ? styles.win : styles.lose]}>{r.won ? '승리' : '패배'}</Text>
+                <Text style={[styles.badge, r.won ? styles.win : styles.lose]}>{r.won ? t.ui.result.win : t.ui.result.lose}</Text>
               </View>
             </View>
           );

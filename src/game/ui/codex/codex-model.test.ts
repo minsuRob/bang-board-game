@@ -4,13 +4,14 @@ import { CARD_DEFS } from '../../data/cards.base';
 import { GOLD_CARD_KINDS } from '../../data/cards.goldrush';
 import { CHARACTER_IDS } from '../../data/characters';
 import { EVENTS } from '../../data/events';
+import { ko as t } from '../../../i18n/messages/ko';
 import { CODEX_TABS, codexSections, deckSpread, formatRanks, roleCounts, sampleCardId, setsIn, type CodexTab } from './codex-model';
 import { ruleNoteIds, ruleNotes } from './rule-notes';
 
 const ALL = { set: 'all', query: '' } as const;
 
 function idsOf(tab: CodexTab): string[] {
-  return codexSections(tab, ALL).flatMap((s) => s.items.map((i) => i.id));
+  return codexSections(tab, ALL, t).flatMap((s) => s.items.map((i) => i.id));
 }
 
 describe('카드 도감', () => {
@@ -23,14 +24,14 @@ describe('카드 도감', () => {
   });
 
   it('플레잉 카드는 확장판 → 즉시 사용 · 무기 · 장비 순이고 무기는 사정거리 순이다', () => {
-    const sections = codexSections('cards', ALL);
+    const sections = codexSections('cards', ALL, t);
     expect(sections.slice(0, 3).map((s) => s.title)).toEqual(['기본판 · 즉시 사용', '기본판 · 무기', '기본판 · 장비']);
     expect(sections[1].items.map((i) => i.id)).toEqual(['volcanic', 'schofield', 'remington', 'carabine', 'winchester']);
     expect(sections.some((s) => s.title.startsWith('그림자의 계곡'))).toBe(true);
   });
 
   it('이벤트의 마지막 카드는 섹션 끝에 온다', () => {
-    for (const s of codexSections('events', ALL)) {
+    for (const s of codexSections('events', ALL, t)) {
       const finals = s.items.filter((i) => EVENTS[i.id as keyof typeof EVENTS].isFinal);
       if (finals.length) expect(s.items[s.items.length - 1]).toBe(finals[0]);
     }
@@ -39,11 +40,11 @@ describe('카드 도감', () => {
   it('확장판 칩과 검색으로 거른다', () => {
     expect(setsIn('cards')).toEqual(['base', 'valley']);
     expect(setsIn('roles')).toEqual(['base']);
-    const valley = codexSections('cards', { set: 'valley', query: '' });
+    const valley = codexSections('cards', { set: 'valley', query: '' }, t);
     expect(valley.every((s) => s.items.every((i) => i.set === 'valley'))).toBe(true);
     expect(idsOf('cards')).toContain('bang');
-    expect(codexSections('cards', { set: 'all', query: '빗나' }).flatMap((s) => s.items.map((i) => i.id))).toEqual(['missed']);
-    expect(codexSections('characters', { set: 'all', query: 'willy' }).flatMap((s) => s.items.map((i) => i.id))).toEqual(['willyTheKid']);
+    expect(codexSections('cards', { set: 'all', query: '빗나' }, t).flatMap((s) => s.items.map((i) => i.id))).toEqual(['missed']);
+    expect(codexSections('characters', { set: 'all', query: 'willy' }, t).flatMap((s) => s.items.map((i) => i.id))).toEqual(['willyTheKid']);
   });
 
   it('뱅!은 25장이고 무늬마다 숫자를 줄여 적는다', () => {
@@ -61,7 +62,7 @@ describe('카드 도감', () => {
   });
 
   it('기본판 카드를 다 세면 80장이다', () => {
-    const base = codexSections('cards', { set: 'base', query: '' }).flatMap((s) => s.items);
+    const base = codexSections('cards', { set: 'base', query: '' }, t).flatMap((s) => s.items);
     expect(base.reduce((n, i) => n + deckSpread(i.id as keyof typeof CARD_DEFS).total, 0)).toBe(80);
     expect(sampleCardId('dynamite')).toMatch(/^dynamite-/);
   });
@@ -76,11 +77,11 @@ describe('카드 도감', () => {
   });
 
   it('규칙 메모는 도감에 있는 항목에만 붙는다', () => {
-    expect(ruleNotes('cards', 'beer').length).toBeGreaterThan(0);
-    expect(ruleNotes('cards', 'nothing')).toEqual([]);
+    expect(ruleNotes('cards', 'beer', t).length).toBeGreaterThan(0);
+    expect(ruleNotes('cards', 'nothing', t)).toEqual([]);
     for (const { tab } of CODEX_TABS) {
       const ids = new Set(idsOf(tab));
-      for (const id of ruleNoteIds(tab)) expect(ids, `${tab}:${id}`).toContain(id);
+      for (const id of ruleNoteIds(tab, t)) expect(ids, `${tab}:${id}`).toContain(id);
     }
   });
 });

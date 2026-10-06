@@ -11,5 +11,5 @@ export const FLINT_WESTWOOD_ABILITY = 'flintWestwood';
 export const flintWestwood: Modifier = {
   id: 'char:flintWestwood',
   from: 'character',
-  swapHand: { key: FLINT_WESTWOOD_ABILITY, label: '카드 1장 ↔ 남의 손 2장', take: 2 },
+  swapHand: { key: FLINT_WESTWOOD_ABILITY, take: 2 },
 };

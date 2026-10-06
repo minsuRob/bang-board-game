@@ -13,6 +13,7 @@
 
 import { Pressable, Text, View } from 'react-native';
 import { useStore } from 'zustand';
+import { useT } from '@/i18n/use-t';
 
 import { CHARACTERS } from '../../data/characters';
 import type { GameState, Player, PlayerId } from '../../engine';
@@ -22,6 +23,7 @@ import { themedStyles } from '../../ui/theme/use-theme';
 import { anchorsStore, characterKey } from '../core/anchors-store';
 import { Radius, Spacing, type ThemeColors } from '@/constants/theme';
 import { HpPips } from '../../ui/HpPips';
+import { useNames } from '@/i18n/use-names';
 
 const TIP_W = 240;
 
@@ -51,6 +53,8 @@ export function CharacterHover({
   onHoverChange: (pid: PlayerId, on: boolean) => void;
 }) {
   const previewStyles = usePreviewStyles();
+  const t = useT().infra.table3d;
+  const names = useNames();
   const anchors = useStore(anchorsStore);
 
   // 드래프트 중에는 캐릭터가 아직 정해지지 않았다
@@ -83,7 +87,7 @@ export function CharacterHover({
               // 마우스로 이미 미리보기 자리에 떠 있으면 또 띄우지 않는다
               if (!(slot && hovered === player.id)) onDetail(player.id);
             }}
-            accessibilityLabel={`${CHARACTERS[player.character].nameKo} 능력 보기`}
+            accessibilityLabel={t.abilityViewA11y(names.charName(player.character))}
             style={[previewStyles.hit, { left: r.left, top, width: r.right - r.left, height: bottom - top }]}
           />
         );
@@ -93,8 +97,8 @@ export function CharacterHover({
 
       {tipFor && !slot && tipRect && tipRect.left !== undefined && tipRect.right !== undefined && (
         <Tooltip
-          name={CHARACTERS[tipFor.character].nameKo}
-          ability={CHARACTERS[tipFor.character].ability}
+          name={names.charName(tipFor.character)}
+          ability={names.charAbility(tipFor.character)}
           hp={tipFor.maxHp}
           cx={(tipRect.left + tipRect.right) / 2}
           top={tipRect.top ?? tipRect.y}

@@ -20,13 +20,11 @@ export type ModCtx = {
 
 export type AnytimeAbility = {
   key: string;
-  label: string;
 };
 
 /** 손패의 아무 카드나 정해진 종류로 쓰는 능력. 차례당 한 번 (엉클 윌) */
 export type PlayAsAbility = {
   key: string;
-  label: string;
   as: CardKind;
   /** 이 종류의 카드만 바꿀 수 있다 (더 스팟: 뱅!만). 없으면 아무 카드나 */
   from?: CardKind[];
@@ -37,10 +35,10 @@ export type PlayAsAbility = {
 };
 
 /** 손의 카드 1장을 남의 손에서 무작위로 뽑은 take 장과 맞바꾼다. 차례당 한 번 (플린트 웨스트우드) */
-export type SwapAbility = { key: string; label: string; take: number };
+export type SwapAbility = { key: string; take: number };
 
 /** from 종류의 카드를 버려 방금 낸 갈색 카드의 효과를 한 번 더 낸다 (리 반 클리프) */
-export type RepeatAbility = { key: string; label: string; from: CardKind };
+export type RepeatAbility = { key: string; from: CardKind };
 
 /** 차례당 한 번 구매 할인 (프리티 루제나) */
 export type GoldDiscount = { key: string; amount: number };
@@ -53,7 +51,6 @@ export type GoldDiscount = { key: string; amount: number };
  */
 export type GoldAbility = {
   key: string;
-  label: string;
   cost: number;
   target?: 'bang';
   perTurn?: number;

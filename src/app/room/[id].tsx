@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
-import { AI_TIERS, AI_TIER_LABEL } from '@/game/ai';
+import { AI_TIERS } from '@/game/ai';
 import type { AiTier } from '@/game/ai/types';
 import { getIdentity, setNickname } from '@/firebase/auth';
 import { isFirebaseConfigured } from '@/firebase/config';
@@ -16,7 +16,6 @@ import {
   updateRoomSettings,
 } from '@/firebase/rooms';
 import { EVENT_EXPANSIONS } from '@/game/data/events';
-import { EXPANSION_LABEL } from '@/game/data/types';
 import { useRoomConnection } from '@/game/store/use-online-game';
 import { Chip } from '@/game/ui/Chip';
 import { MenuBackdrop } from '@/game/ui/menu/MenuBackdrop';
@@ -25,11 +24,15 @@ import { WesternFonts } from '@/game/ui/menu/western-fonts';
 import { PRESENCE_LABEL, PresenceDot, presenceColor } from '@/game/ui/PresenceDot';
 import { themedStyles, useColors } from '@/game/ui/theme/use-theme';
 import { Radius, Spacing } from '@/constants/theme';
+import { useT } from '@/i18n/use-t';
+import { useNames } from '@/i18n/use-names';
 
 const COUNTS = [4, 5, 6, 7];
 
 export default function RoomScreen() {
+  const names = useNames();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const t = useT().routes.room;
   const router = useRouter();
   const styles = useStyles();
   const paperText = usePaperText();
@@ -82,8 +85,8 @@ export default function RoomScreen() {
   if (!isFirebaseConfigured()) {
     return (
       <Notice
-        title="온라인 대전이 꺼져 있다"
-        body={'.env.example 을 .env 로 복사하고 EXPO_PUBLIC_FIREBASE_* 를 채우면 열린다.'}
+        title={t.offTitle}
+        body={t.offBody}
         onBack={() => router.replace('/')}
       />
     );
@@ -91,7 +94,7 @@ export default function RoomScreen() {
 
   const error = localError ?? conn.error;
   if (error) {
-    return <Notice title="문제가 생겼다" body={error} onBack={() => router.replace('/')} />;
+    return <Notice title={t.errorTitle} body={error} onBack={() => router.replace('/')} />;
   }
 
   if (!room || !identity) {
@@ -101,7 +104,7 @@ export default function RoomScreen() {
         <View style={styles.loading}>
           <ActivityIndicator color={c.highlight} />
           <Text style={styles.loadingText}>
-            {id === 'new' && !code ? '방을 만드는 중' : '방에 들어가는 중'}
+            {id === 'new' && !code ? t.creating : t.joining}
           </Text>
         </View>
       </View>
@@ -116,15 +119,15 @@ export default function RoomScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <PaperSheet>
           <View style={styles.codeBlock}>
-            <Text style={styles.codeLabel}>방 코드</Text>
+            <Text style={styles.codeLabel}>{t.codeLabel}</Text>
             <Text style={styles.code} accessibilityRole="header">
               {room.code}
             </Text>
             <View style={styles.doubleRule} />
-            <Text style={paperText.hint}>친구에게 이 코드를 알려 주면 들어온다.</Text>
+            <Text style={paperText.hint}>{t.codeHint}</Text>
           </View>
 
-          <PaperSection title={`자리 (${seated}/${room.playerCount})`}>
+          <PaperSection title={t.seats(seated, room.playerCount)}>
             {room.seats.map((seat, i) => {
               const member = seat.uid ? members[seat.uid] : undefined;
               const presence = seat.uid ? presenceOf(member, now) : null;
@@ -133,10 +136,10 @@ export default function RoomScreen() {
                   <Text style={styles.seatIndex}>{i + 1}</Text>
                   <PresenceDot presence={presence} size={10} />
                   <Text style={[styles.seatName, !seat.uid && styles.seatEmpty]}>
-                    {seat.uid ? member?.nick || seat.nick : '비어 있음 → AI가 앉는다'}
+                    {seat.uid ? member?.nick || seat.nick : t.emptySeat}
                   </Text>
-                  {seat.uid === identity.uid && <Text style={styles.seatBadge}>나</Text>}
-                  {seat.uid === room.hostUid && <Text style={styles.seatBadge}>호스트</Text>}
+                  {seat.uid === identity.uid && <Text style={styles.seatBadge}>{t.me}</Text>}
+                  {seat.uid === room.hostUid && <Text style={styles.seatBadge}>{t.host}</Text>}
                   {presence && (
                     <Text style={[styles.presenceText, { color: presenceColor(c, presence) }]}>
                       {PRESENCE_LABEL[presence]}
@@ -149,94 +152,92 @@ export default function RoomScreen() {
 
           {isHost ? (
             <>
-              <Setting title="인원">
+              <Setting title={t.players}>
                 {COUNTS.map((n) => (
                   <Chip
                     key={n}
-                    label={`${n}인`}
+                    label={t.playerCount(n)}
                     active={room.playerCount === n}
                     onPress={() => updateRoomSettings(room.code, { playerCount: n })}
                   />
                 ))}
               </Setting>
 
-              <Setting title="빈 자리 AI 난이도">
-                {AI_TIERS.map((t: AiTier) => (
+              <Setting title={t.aiTier}>
+                {AI_TIERS.map((x: AiTier) => (
                   <Chip
-                    key={t}
-                    label={AI_TIER_LABEL[t]}
-                    active={room.tier === t}
-                    onPress={() => updateRoomSettings(room.code, { tier: t })}
+                    key={x}
+                    label={names.aiTier(x)}
+                    active={room.tier === x}
+                    onPress={() => updateRoomSettings(room.code, { tier: x })}
                   />
                 ))}
               </Setting>
 
-              <Setting title="상황 카드 확장판">
+              <Setting title={t.eventExpansion}>
                 <Chip
-                  label="기본"
+                  label={t.eventBase}
                   active={roomEventExpansion(room) === null}
                   onPress={() => updateRoomSettings(room.code, { eventExpansion: null })}
                 />
                 {EVENT_EXPANSIONS.map((x) => (
                   <Chip
                     key={x}
-                    label={EXPANSION_LABEL[x]}
+                    label={names.expansionName(x)}
                     active={roomEventExpansion(room) === x}
                     onPress={() => updateRoomSettings(room.code, { eventExpansion: x })}
                   />
                 ))}
               </Setting>
 
-              <Setting title="카드·캐릭터 확장판">
-                <Text style={[paperText.hint, styles.fullWidth]}>
-                  그림자의 계곡과 골드 러시는 상황 카드 확장판과 함께 사용할 수 있습니다.
-                </Text>
+              <Setting title={t.cardExpansion}>
+                <Text style={[paperText.hint, styles.fullWidth]}>{t.cardExpansionHint}</Text>
                 <Chip
-                  label="끄기"
+                  label={t.off}
                   active={!room.valley}
                   onPress={() => updateRoomSettings(room.code, { valley: false })}
                 />
                 <Chip
-                  label="켜기"
+                  label={t.on}
                   active={Boolean(room.valley)}
                   onPress={() => updateRoomSettings(room.code, { valley: true })}
                 />
               </Setting>
 
-              <Setting title="탈락자 채팅">
+              <Setting title={t.deadChat}>
                 <Chip
-                  label="허용"
+                  label={t.allow}
                   active={room.deadChat !== false}
                   onPress={() => updateRoomSettings(room.code, { deadChat: true })}
                 />
                 <Chip
-                  label="읽기만"
+                  label={t.readOnly}
                   active={room.deadChat === false}
                   onPress={() => updateRoomSettings(room.code, { deadChat: false })}
                 />
               </Setting>
 
               <StampButton
-                label="판 열기"
+                label={t.open}
                 onPress={() => markStarted(room.code).catch((err) => setLocalError(err.message))}
               />
             </>
           ) : (
-            <Text style={styles.waiting}>호스트가 판을 열기를 기다리는 중</Text>
+            <Text style={styles.waiting}>{t.waitingHost}</Text>
           )}
 
           <View style={styles.links}>
             <InkLink
-              label="나가기"
+              label={t.leave}
               onPress={async () => {
                 await leaveRoom(room.code, identity.uid).catch(() => {});
                 router.replace('/');
               }}
             />
             <InkLink
-              label="닉네임 바꾸기"
+              label={t.changeNick}
               onPress={async () => {
-                const next = `총잡이 ${Math.floor(Math.random() * 900 + 100)}`;
+                const next = `${t.nickPrefix} ${Math.floor(Math.random() * 900 + 100)}`;
                 await setNickname(next);
                 const id2 = await getIdentity();
                 if (code) await joinRoom(code, id2).catch(() => {});
@@ -260,6 +261,7 @@ function Notice({
 }) {
   const styles = useStyles();
   const paperText = usePaperText();
+  const t = useT().routes.room;
   return (
     <View style={styles.screen}>
       <MenuBackdrop veil={0.55} />
@@ -267,7 +269,7 @@ function Notice({
         <PaperSheet style={styles.noticeSheet}>
           <Text style={styles.noticeTitle}>{title}</Text>
           <Text style={[paperText.hint, styles.noticeBody]}>{body}</Text>
-          <InkLink label="돌아가기" onPress={onBack} />
+          <InkLink label={t.back} onPress={onBack} />
         </PaperSheet>
       </View>
     </View>

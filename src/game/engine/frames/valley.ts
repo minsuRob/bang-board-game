@@ -25,6 +25,7 @@ import { canReachWithBang } from '../distance';
 import { canPlayCard, evadeOptions } from '../hooks';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
 import { eul, ga } from '../josa';
+import { nameKo } from '../legacy-ko';
 
 function takeFromHand(state: GameState, pid: PlayerId, card: string): GameState {
   return updatePlayer(state, pid, (p) => ({ ...p, hand: p.hand.filter((c) => c !== card) }));
@@ -203,7 +204,7 @@ export function respondPoker(
 }
 
 function nameOfCard(card: string): string {
-  return CARD_DEFS[cardOf(card).kind].nameKo;
+  return nameKo(CARD_DEFS[cardOf(card).kind]);
 }
 
 // ---------------------------------------------------------------------------
@@ -297,7 +298,7 @@ export function respondEvade(
     pid: frame.pid,
     card: choice.card,
     target: frame.source,
-    text: `${ga(nameOf(cur, frame.pid))} ${eul(nameOfCard(choice.card))} 내서 ${CARD_DEFS[frame.kind].nameKo}의 효과를 피했다.`,
+    text: `${ga(nameOf(cur, frame.pid))} ${eul(nameOfCard(choice.card))} 내서 ${nameKo(CARD_DEFS[frame.kind])}의 효과를 피했다.`,
   });
 }
 

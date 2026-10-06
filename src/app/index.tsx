@@ -15,6 +15,7 @@ import { WesternFonts } from '@/game/ui/menu/western-fonts';
 import { SettingsSheet, useSettingsSummary } from '@/game/ui/settings/SettingsSheet';
 import { themedStyles, useColors } from '@/game/ui/theme/use-theme';
 import { Spacing } from '@/constants/theme';
+import { useT } from '@/i18n/use-t';
 
 const CODEX = codexCounts();
 
@@ -49,6 +50,7 @@ function GearArt() {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const t = useT().routes.home;
   const online = isFirebaseConfigured();
   const [code, setCode] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -69,8 +71,8 @@ export default function HomeScreen() {
 
   const ai: MenuCardProps = {
     width: cardW,
-    title: 'AI와 대전',
-    desc: '4~7인 · 난이도 상중하\n하이 눈 확장',
+    title: t.aiTitle,
+    desc: t.aiDesc,
     corner: 'A♠',
     primary: true,
     art: bang ? <CroppedArt source={bang} crop={PLAYING_ART} /> : undefined,
@@ -79,8 +81,8 @@ export default function HomeScreen() {
   const room: MenuCardProps = online
     ? {
         width: cardW,
-        title: '방 만들기',
-        desc: '코드를 친구에게\n알려 주면 들어온다',
+        title: t.createRoomTitle,
+        desc: t.createRoomDesc,
         corner: 'K♥',
         red: true,
         art: saloon ? <CroppedArt source={saloon} crop={PLAYING_ART} /> : undefined,
@@ -88,8 +90,8 @@ export default function HomeScreen() {
       }
     : {
         width: cardW,
-        title: '온라인 대전',
-        desc: 'Firebase 설정을\n채우면 열린다',
+        title: t.onlineTitle,
+        desc: t.onlineDesc,
         corner: 'K♥',
         red: true,
         disabled: true,
@@ -97,8 +99,8 @@ export default function HomeScreen() {
       };
   const codex: MenuCardProps = {
     width: cardW,
-    title: '카드 도감',
-    desc: `카드 ${CODEX.cards} · 캐릭터 ${CODEX.characters}\n이벤트 ${CODEX.events} · 규칙 메모`,
+    title: t.codexTitle,
+    desc: t.codexDesc(CODEX.cards, CODEX.characters, CODEX.events),
     corner: 'Q♦',
     red: true,
     art: bart ? <CharacterPortraitImage id="bartCassidy" /> : undefined,
@@ -106,8 +108,8 @@ export default function HomeScreen() {
   };
   const settings: MenuCardProps = {
     width: cardW,
-    title: '설정',
-    desc: `${summary}\n화질과 낮·밤 화면`,
+    title: t.settingsTitle,
+    desc: t.settingsDesc(summary),
     corner: 'J♣',
     art: <GearArt />,
     onPress: () => setSettingsOpen(true),
@@ -127,7 +129,7 @@ export default function HomeScreen() {
             accessibilityRole="header">
             BANG<Text style={styles.bang}>!</Text>
           </Text>
-          <Text style={styles.subtitle}>보안관과 무법자, 그리고 숨어 있는 배신자</Text>
+          <Text style={styles.subtitle}>{t.subtitle}</Text>
         </View>
 
         <View
@@ -153,29 +155,29 @@ export default function HomeScreen() {
           <View style={styles.joinRow}>
             <TextInput
               value={code}
-              onChangeText={(t) => setCode(t.toUpperCase().slice(0, 6))}
-              placeholder="방 코드로 참가"
+              onChangeText={(v) => setCode(v.toUpperCase().slice(0, 6))}
+              placeholder={t.joinPlaceholder}
               placeholderTextColor={c.textMuted}
               autoCapitalize="characters"
               style={styles.input}
-              accessibilityLabel="방 코드"
+              accessibilityLabel={t.joinCodeLabel}
             />
             <Pressable
               style={[styles.chip, code.length < 4 && styles.chipDisabled]}
               disabled={code.length < 4}
               accessibilityRole="button"
-              accessibilityLabel="참가"
+              accessibilityLabel={t.join}
               onPress={() => router.push({ pathname: '/room/[id]', params: { id: code } })}>
               <View style={styles.chipInner}>
-                <Text style={styles.chipText}>참가</Text>
+                <Text style={styles.chipText}>{t.join}</Text>
               </View>
             </Pressable>
           </View>
         )}
 
         <View style={styles.notes}>
-          <Text style={styles.note}>카드를 누르면 낸다. 지목이 필요한 카드는 한 번 더 눌러 상대를 고른다.</Text>
-          <Text style={styles.note}>Q 차례 마치기 · W 반응하지 않음 · 1~0 손패 고르기 · Esc 취소</Text>
+          <Text style={styles.note}>{t.noteTap}</Text>
+          <Text style={styles.note}>{t.noteKeys}</Text>
         </View>
       </ScrollView>
 

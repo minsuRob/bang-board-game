@@ -8,6 +8,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { useT } from '@/i18n/use-t';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { GameState, PlayerId } from '../engine';
@@ -38,6 +39,7 @@ import { SelfStatus } from './SelfStatus';
 import { WesternFonts } from '../ui/menu/western-fonts';
 import { themedStyles } from '../ui/theme/use-theme';
 import { Colors, MobileBreakpoint, Radius, Spacing } from '@/constants/theme';
+import { useNames } from '@/i18n/use-names';
 
 const LOG_WIDTH = 268;
 
@@ -57,6 +59,9 @@ export type Table3DProps = {
 
 export function Table3D({ view, viewer, api, clock }: Table3DProps) {
   const styles = useStyles();
+  const msgs = useT();
+  const names = useNames();
+  const t = msgs.infra.table3d;
   const { width } = useWindowDimensions();
   const wide = width >= MobileBreakpoint;
   // 폰의 노치·홈 바를 피한다
@@ -75,7 +80,7 @@ export function Table3D({ view, viewer, api, clock }: Table3DProps) {
   const viewerIndex = view.players.findIndex((p) => p.id === viewer);
   const me = view.players[viewerIndex];
   const targets = api.selected ? api.targetsFor(api.selected) : [];
-  const headline = statusMessage(view, viewer);
+  const headline = statusMessage(view, viewer, msgs, names);
 
   const onSeatPress = (pid: PlayerId) => {
     if (api.selected && targets.includes(pid)) api.playCard(api.selected, pid);
@@ -186,10 +191,10 @@ export function Table3D({ view, viewer, api, clock }: Table3DProps) {
                 {clock}
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={unread ? '진행 기록과 채팅, 새 글 있음' : '진행 기록과 채팅'}
+                  accessibilityLabel={unread ? t.logA11yUnread : t.logA11y}
                   onPress={() => setLogOpen((v) => !v)}
                   style={styles.logButton}>
-                  <Text style={styles.logButtonText}>{logOpen ? '닫기' : '기록·채팅'}</Text>
+                  <Text style={styles.logButtonText}>{logOpen ? t.close : t.logChat}</Text>
                   {unread && <View style={styles.unreadDot} />}
                 </Pressable>
               </View>
@@ -228,7 +233,7 @@ export function Table3D({ view, viewer, api, clock }: Table3DProps) {
             <ActionBar
               prompt={api.prompt}
               onRespond={api.respond}
-              status={bottomStatus(view, viewer, api)}
+              status={bottomStatus(view, viewer, api, msgs, names)}
               canEndTurn={api.canEndTurn}
               onEndTurn={api.endTurn}
               playerNameOf={(pid) => view.players.find((p) => p.id === pid)?.name ?? pid}
@@ -272,10 +277,10 @@ export function Table3D({ view, viewer, api, clock }: Table3DProps) {
           <SidePanel log={view.log} style={styles.logPanel} panelStyle={styles.logPanelInner} />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="기록 닫기"
+            accessibilityLabel={t.logCloseA11y}
             style={styles.logClose}
             onPress={() => setLogOpen(false)}>
-            <Text style={styles.logCloseText}>닫기</Text>
+            <Text style={styles.logCloseText}>{t.close}</Text>
           </Pressable>
         </View>
       )}
@@ -295,7 +300,7 @@ class GlBoundary extends Component<{ children: ReactNode }, { failed: boolean }>
   }
 
   componentDidCatch(err: unknown) {
-    console.warn('3D 테이블을 못 그렸다. 2D 로 돌아간다', err);
+    console.warn('3D table failed to render; falling back to 2D', err);
     markGlFailed();
   }
 

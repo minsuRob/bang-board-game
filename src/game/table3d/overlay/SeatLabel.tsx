@@ -3,10 +3,10 @@
  */
 
 import { Image, Platform, Pressable, Text, View } from 'react-native';
+import { useT } from '@/i18n/use-t';
 
 import { CARD_DEFS } from '../../data/cards.base';
 import { CHARACTERS } from '../../data/characters';
-import { ROLE_GOAL, ROLE_LABEL } from '../../data/roles';
 import type { CardId, Role } from '../../data/types';
 import { distance, kindOf, type GameState, type Player, type PlayerId } from '../../engine';
 import { usePresence } from '../../store/presence';
@@ -19,6 +19,7 @@ import { WesternFonts } from '../../ui/menu/western-fonts';
 import { themedStyles, useColors } from '../../ui/theme/use-theme';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { HpPips } from '../../ui/HpPips';
+import { useNames } from '@/i18n/use-names';
 
 /** 판 팔레트의 역할 색 (테마를 모르는 곳용). 라벨은 테마 팔레트의 c[role] 을 쓴다 */
 export const ROLE_COLOR: Record<Role, string> = {
@@ -82,10 +83,12 @@ export function SeatLabel({
   canvasHeight,
 }: SeatLabelProps) {
   const styles = useStyles();
+  const t = useT().infra.table3d;
+  const names = useNames();
   const c = useColors();
   const isSelf = player.id === viewer;
   const presence = usePresence(player.id);
-  const presenceText = presence ? ` · ${PRESENCE_LABEL[presence]}` : '';
+  const presenceLabel = presence ? PRESENCE_LABEL[presence] : '';
   const dead = !player.alive && !player.ghost;
   const character = CHARACTERS[player.character];
   const dist = !isSelf && !dead ? safeDistance(view, viewer, player.id) : null;
@@ -127,7 +130,7 @@ export function SeatLabel({
     return (
       <View style={[styles.slot, { left: x - w / 2, width: w }, place]}>
         <View
-          accessibilityLabel={`${player.name}${presenceText} · ${done ? '선택 완료' : '고르는 중'}`}
+          accessibilityLabel={t.seatDraftA11y(player.name, presenceLabel, done)}
           style={[styles.label, done && styles.drafted]}>
           <View style={styles.row}>
             <PresenceDot presence={presence} />
@@ -135,7 +138,7 @@ export function SeatLabel({
               {player.name}
             </Text>
             {(player.roleRevealed || isSelf) && (
-              <Text style={[styles.role, { color: c[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
+              <Text style={[styles.role, { color: c[player.role] }]}>{names.roleName(player.role)}</Text>
             )}
           </View>
           <View style={styles.draftRow}>
@@ -144,10 +147,10 @@ export function SeatLabel({
                 <View style={styles.check}>
                   <Text style={styles.checkText}>✓</Text>
                 </View>
-                <Text style={styles.draftDone}>선택 완료</Text>
+                <Text style={styles.draftDone}>{t.draftDone}</Text>
               </>
             ) : (
-              <Text style={styles.character}>캐릭터 고르는 중…</Text>
+              <Text style={styles.character}>{t.draftPicking}</Text>
             )}
           </View>
         </View>
@@ -160,7 +163,7 @@ export function SeatLabel({
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
-        accessibilityLabel={`${player.name}${presenceText} · ${character.nameKo}${targetable ? '' : ' 상세 보기'}`}
+        accessibilityLabel={t.seatA11y(player.name, presenceLabel, names.charName(player.character), targetable)}
         style={[
           styles.label,
           big && styles.selfLabel,
@@ -178,9 +181,9 @@ export function SeatLabel({
           {!isSelf && <AttackBadges view={view} from={player.id} viewer={viewer} />}
           {(player.roleRevealed || isSelf) &&
             (big ? (
-              <Text style={[styles.roleChip, { backgroundColor: c[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
+              <Text style={[styles.roleChip, { backgroundColor: c[player.role] }]}>{names.roleName(player.role)}</Text>
             ) : (
-              <Text style={[styles.role, { color: c[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
+              <Text style={[styles.role, { color: c[player.role] }]}>{names.roleName(player.role)}</Text>
             ))}
           {!player.roleRevealed && !isSelf && !dead && (
             <RoleGuess pid={player.id} playerCount={view.players.length} />
@@ -188,8 +191,8 @@ export function SeatLabel({
         </View>
         {(!compact || big || player.ghost || dead) && (
           <Text style={[styles.character, big && styles.selfCharacter]} numberOfLines={1}>
-            {character.nameKo}
-            {player.ghost ? ' · 유령' : dead ? ' · 제거됨' : ''}
+            {names.charName(player.character)}
+            {player.ghost ? ` · ${t.ghost}` : dead ? ` · ${t.removed}` : ''}
           </Text>
         )}
         <View style={styles.row}>
@@ -206,16 +209,16 @@ export function SeatLabel({
               </Text>
             )}
           </View>
-          {dist !== null && <Text style={styles.meta}>거리 {dist}</Text>}
+          {dist !== null && <Text style={styles.meta}>{t.distance(dist)}</Text>}
         </View>
         {player.equipment.length > 0 && (
           <Text style={[styles.equipment, big && styles.selfEquipment]} numberOfLines={big ? 2 : 1}>
-            {player.equipment.map((e) => CARD_DEFS[kindOf(e)].nameKo).join(' · ')}
+            {player.equipment.map((e) => names.cardName(kindOf(e))).join(' · ')}
           </Text>
         )}
         {isSelf && (
           <Text style={[styles.detail, styles.selfDetail]} numberOfLines={detail ? 4 : compact ? 1 : 2}>
-            {ROLE_GOAL[player.role]} · {character.ability}
+            {names.roleGoal(player.role)} · {names.charAbility(player.character)}
           </Text>
         )}
       </Pressable>
@@ -225,7 +228,9 @@ export function SeatLabel({
 
 /** 숨은 직업 자리. 탭할 때마다 ??? → ?무법자? → … 로 짐작을 바꾼다. 나만 보인다 */
 function RoleGuess({ pid, playerCount }: { pid: PlayerId; playerCount: number }) {
+  const names = useNames();
   const styles = useStyles();
+  const t = useT().infra.table3d;
   const c = useColors();
   const guess = useRoleGuess(pid);
   return (
@@ -237,10 +242,10 @@ function RoleGuess({ pid, playerCount }: { pid: PlayerId; playerCount: number })
       hitSlop={6}
       // 웹에서 button 역할을 주면 라벨의 <button> 안에 <button> 이 들어가 경고가 난다
       accessibilityRole={Platform.OS === 'web' ? undefined : 'button'}
-      accessibilityLabel={guess ? `직업 짐작: ${ROLE_LABEL[guess]}. 눌러서 바꾸기` : '직업 짐작하기'}
+      accessibilityLabel={guess ? t.guessA11y(names.roleName(guess)) : t.guessAsk}
       style={({ pressed }) => [styles.guess, guess && { borderColor: c[guess] }, pressed && styles.guessPressed]}>
       <Text style={[styles.guessText, guess && { color: c[guess] }]}>
-        {guess ? `?${ROLE_LABEL[guess]}?` : '???'}
+        {guess ? `?${names.roleName(guess)}?` : '???'}
       </Text>
     </Pressable>
   );
@@ -249,9 +254,10 @@ function RoleGuess({ pid, playerCount }: { pid: PlayerId; playerCount: number })
 /** 네모창 윗변에 걸치는 손패 장수. 카드 뒷면 그림 + x8 */
 function HandCount({ count }: { count: number }) {
   const styles = useStyles();
+  const t = useT().infra.table3d;
   const art = cardBackArt();
   return (
-    <View style={styles.handCount} accessibilityLabel={`손패 ${count}장`} pointerEvents="none">
+    <View style={styles.handCount} accessibilityLabel={t.handCountA11y(count)} pointerEvents="none">
       {art ? (
         <Image source={art} style={styles.handCountArt} resizeMode="cover" />
       ) : (

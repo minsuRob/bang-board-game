@@ -14,6 +14,7 @@ import { CardView } from './CardView';
 import { HandArrival } from './HandArrival';
 import { useHandArrivals } from './hand-arrival';
 import { themedStyles } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
 import { Spacing } from '@/constants/theme';
 
 export type HandProps = {
@@ -32,11 +33,12 @@ export type HandProps = {
 
 export function Hand({ cards, playable, selected, onSelect, discardable, showIndex, owner, resetKey }: HandProps) {
   const styles = useStyles();
+  const t = useT();
   const arrivals = useHandArrivals(cards, { waitFor3d: false, owner, resetKey });
   if (cards.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>손패가 없다</Text>
+        <Text style={styles.emptyText}>{t.ui.hand.empty}</Text>
       </View>
     );
   }

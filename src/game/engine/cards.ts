@@ -9,6 +9,7 @@ import { CHARACTERS } from '../data/characters';
 import type { CardDef, CardId, CardInstance, CardKind, Suit } from '../data/types';
 import { shuffle } from './rng';
 import type { Frame, GameEvent, GameState, Player, PlayerId } from './types';
+import { nameKo } from './legacy-ko';
 
 // ---------------------------------------------------------------------------
 // 카드 조회
@@ -94,7 +95,8 @@ export function log(state: GameState, ev: Omit<GameEvent, 'seq'>): GameState {
 /** 로그에 이름을 쓰기 위한 표시용 이름 (닉네임 대신 캐릭터명) */
 export function nameOf(state: GameState, pid: PlayerId): string {
   const p = playerOf(state, pid);
-  return CHARACTERS[p.character]?.nameKo ?? p.name;
+  const def = CHARACTERS[p.character];
+  return def ? nameKo(def) : p.name;
 }
 
 // ---------------------------------------------------------------------------

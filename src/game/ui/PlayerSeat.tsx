@@ -9,7 +9,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CHARACTERS } from '../data/characters';
-import { ROLE_LABEL } from '../data/roles';
 import type { CardId, Role } from '../data/types';
 import type { GameState, Player, PlayerId } from '../engine';
 import { distance } from '../engine';
@@ -19,9 +18,11 @@ import { CharacterPortraitImage } from './CharacterPortraitImage';
 import { DraftSeatStatus } from './DraftSeatStatus';
 import { AttackBadges } from './AttackBadges';
 import { CardView } from './CardView';
-import { PRESENCE_LABEL, PresenceDot } from './PresenceDot';
+import { PresenceDot } from './PresenceDot';
+import { useT } from '../../i18n/use-t';
 import { hpRows } from './hp-rows';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useNames } from '../../i18n/use-names';
 
 const ROLE_COLOR: Record<Role, string> = {
   sheriff: Colors.sheriff,
@@ -56,6 +57,8 @@ export function PlayerSeat({
   onPickEquipment,
   compact,
 }: PlayerSeatProps) {
+  const t = useT();
+  const names = useNames();
   const isSelf = player.id === viewer;
   const character = CHARACTERS[player.character];
   const dead = !player.alive && !player.ghost;
@@ -69,7 +72,7 @@ export function PlayerSeat({
       onPress={onPress}
       disabled={!targetable}
       accessibilityRole={targetable ? 'button' : undefined}
-      accessibilityLabel={`${player.name}${presence ? ` · ${PRESENCE_LABEL[presence]}` : ''} · ${character.nameKo}`}
+      accessibilityLabel={`${player.name}${presence ? ` · ${t.ui.presence[presence]}` : ''} · ${names.charName(player.character)}`}
       style={[
         styles.seat,
         compact && styles.seatCompact,
@@ -86,7 +89,7 @@ export function PlayerSeat({
         {!isSelf && !view.draft && <AttackBadges view={view} from={player.id} viewer={viewer} size="sm" />}
         {player.roleRevealed || isSelf ? (
           <Text style={[styles.role, { color: ROLE_COLOR[player.role] }]}>
-            {ROLE_LABEL[player.role]}
+            {names.roleName(player.role)}
           </Text>
         ) : null}
       </View>
@@ -102,14 +105,14 @@ export function PlayerSeat({
               </View>
             )}
             <Text style={styles.character} numberOfLines={2}>
-              {character.nameKo}
-              {player.ghost ? ' · 유령' : ''}
+              {names.charName(player.character)}
+              {player.ghost ? t.ui.seat.ghost : ''}
             </Text>
           </View>
 
           <View style={styles.row}>
             <Bullets hp={Math.max(0, player.hp)} maxHp={player.maxHp} />
-            {dist !== null && <Text style={styles.distance}>거리 {dist}</Text>}
+            {dist !== null && <Text style={styles.distance}>{t.ui.seat.distance(dist)}</Text>}
           </View>
         </>
       )}
@@ -135,7 +138,7 @@ export function PlayerSeat({
         )}
       </View>
 
-      {dead && <Text style={styles.deadLabel}>제거됨</Text>}
+      {dead && <Text style={styles.deadLabel}>{t.ui.seat.removed}</Text>}
     </Pressable>
   );
 }
@@ -191,7 +194,8 @@ function HandStrip({
   picking: boolean;
   onPick?: (index: number) => void;
 }) {
-  if (count === 0) return <Text style={styles.emptyHand}>손패 없음</Text>;
+  const t = useT();
+  if (count === 0) return <Text style={styles.emptyHand}>{t.ui.seat.noHand}</Text>;
   return (
     <View style={styles.hand}>
       {Array.from({ length: Math.min(count, 8) }, (_, i) => (

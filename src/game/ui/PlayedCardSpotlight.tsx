@@ -37,7 +37,8 @@ import {
   type JudgementPurpose,
   type PlayerId,
 } from '../engine';
-import { ga } from '../engine/josa';
+import { useT } from '../../i18n/use-t';
+import type { Messages } from '../../i18n/types-messages';
 import { fxPacing } from '../store/fx-pacing';
 import { roleArt } from './card-art';
 import { CAN_HOVER, cardPeek, setPeek } from './card-peek';
@@ -101,6 +102,7 @@ import {
 } from './spotlight-pick';
 import type { CenterPick, TableApi } from './use-table';
 import { Colors, Spacing } from '@/constants/theme';
+import { useNames } from '../../i18n/use-names';
 
 const NATIVE_DRIVER = Platform.OS !== 'web';
 
@@ -165,6 +167,7 @@ function useFxStage() {
 }
 
 export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSpotlightProps) {
+  const t = useT();
   const [shown, setShown] = useState<GameEvent | null>(null);
   // 지금 떠 있는 것과, 그 뒤에 줄 선 결과들 (캣 벌로우·강탈의 결과, 판정으로 펼친 카드)
   const shownRef = useRef<GameEvent | null>(null);
@@ -181,7 +184,7 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
   // 잡화점·강탈·캣 벌로우로 고르는 중이면 가운데 창이 가장 앞이다
   const picking = api.prompt?.center ? api.prompt : null;
   // 남이 잡화점에서 고르는 동안에도 펼친 카드를 가운데 창에 띄워 둔다 (설명은 hover·탭)
-  const watching = picking ? null : storeWatch(view);
+  const watching = picking ? null : storeWatch(view, t);
 
   const { hqLayer, progress, geom, layer, stage } = useFxStage();
 
@@ -365,12 +368,12 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
       )}
       {watching && !peeking && (
         <View style={styles.layer}>
-          <PickSpotlight title="잡화점" hint={watching.hint} center={watching.center} compact={compact} />
+          <PickSpotlight title={t.table.spot.storeTitle} hint={watching.hint} center={watching.center} compact={compact} />
         </View>
       )}
       {peeking && !picking && (
         <View style={styles.layer}>
-          <PeekSpot key={peeking} card={peeking} meta={peekHint(api, peeking)} compact={compact} />
+          <PeekSpot key={peeking} card={peeking} meta={peekHint(api, peeking, t)} compact={compact} />
         </View>
       )}
       {/* 카드 위에 그려야 총구 섬광이 카드에 가리지 않는다. 쉬는 동안은 비어 있다 */}
@@ -384,12 +387,12 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
 }
 
 /** 남이 잡화점에서 고르는 중이면 그 사람과 펼친 카드 */
-function storeWatch(view: GameState): { hint: string; center: CenterPick } | null {
+function storeWatch(view: GameState, t: Messages): { hint: string; center: CenterPick } | null {
   const a = view.awaiting;
   if (a?.k !== 'generalStore' || a.options.length === 0) return null;
   const name = view.players.find((p) => p.id === a.pid)?.name;
   return {
-    hint: name ? `${ga(name)} 고르는 중` : '고르는 중',
+    hint: t.table.spot.storeWatching(name),
     center: { cards: a.options, zone: 'option', handCount: 0 },
   };
 }
@@ -418,10 +421,11 @@ export function CardFxPreview({ card, run, onDone }: { card: CardId; run: number
   );
 }
 
-function peekHint(api: PlayedCardSpotlightProps['api'], card: CardId): string {
-  if (api.discardable.has(card)) return CAN_HOVER ? '눌러서 버린다' : '한 번 더 누르면 버린다';
-  if (api.playable.has(card)) return CAN_HOVER ? '눌러서 낸다' : '한 번 더 누르면 낸다';
-  return '지금은 낼 수 없다';
+function peekHint(api: PlayedCardSpotlightProps['api'], card: CardId, t: Messages): string {
+  const p = t.table.peek;
+  if (api.discardable.has(card)) return CAN_HOVER ? p.discardHover : p.discardTap;
+  if (api.playable.has(card)) return CAN_HOVER ? p.playHover : p.playTap;
+  return p.none;
 }
 
 /** 양옆에 세울 사람. 부관은 역할이 보일 때만 표시한다 */
@@ -726,14 +730,12 @@ function hqMs(fx: CardFx) {
   }
 }
 
-/** 결과 명판 위 줄 */
-const TAKE_TITLE: Record<string, string> = { catBalou: '캣 벌로우', panic: '강탈', ricochet: '리코체' };
-
 /**
  * 남의 카드를 버리게·가져간 결과. 공개된 카드면 그 카드, 손패에서 뽑았으면 뒷면을 띄운다.
  * 명판에는 엔진 로그 글을 그대로 쓴다
  */
 function TakenSpot({ event, faces, compact, onDone }: { event: GameEvent; faces: Faces | null; compact?: boolean; onDone: () => void }) {
+  const tr = useT();
   const [t] = useState(() => new Animated.Value(0));
   const done = useRef(onDone);
   useEffect(() => {
@@ -754,12 +756,14 @@ function TakenSpot({ event, faces, compact, onDone }: { event: GameEvent; faces:
   }, [t]);
 
   const card = takenCardOf(event);
-  const hiddenNote = event.t === 'panic' ? '손에서 가져간 카드' : '손에서 뽑아 버린 카드';
+  const sp = tr.table.spot;
+  const takeTitle = (sp.takeTitle as Record<string, string | undefined>)[event.t] ?? '';
+  const hiddenNote = event.t === 'panic' ? sp.takenPanic : sp.takenDiscard;
   return (
     <Animated.View style={[styles.spot, popStyle(t)]}>
       <CardSpotlight
         card={card}
-        meta={card ? (TAKE_TITLE[event.t] ?? '') : `${TAKE_TITLE[event.t] ?? ''} · ${hiddenNote}`}
+        meta={card ? takeTitle : `${takeTitle} · ${hiddenNote}`}
         body={event.text}
         faces={faces}
         compact={compact}
@@ -776,57 +780,25 @@ type RevealRule = {
   hitIsGood: boolean;
   hitText: string;
   missText: string;
-  /** 도장 글. 없으면 좋으면 '성공', 나쁘면 '실패' */
-  hitStamp?: string;
-  missStamp?: string;
+  /** 도장 글. 비어 있으면 좋으면 '성공', 나쁘면 '실패' */
+  hitStamp: string;
+  missStamp: string;
 };
 
-const JUDGEMENT_RULE: Record<JudgementPurpose, RevealRule> = {
-  barrel: { title: '술통 판정', need: '♥', hitIsGood: true, hitText: '빗나감 1회', missText: '막지 못했다' },
-  jourdonnais: { title: '주르도네 판정', need: '♥', hitIsGood: true, hitText: '빗나감 1회', missText: '막지 못했다' },
-  dynamite: {
-    title: '다이너마이트 판정',
-    need: '♠ 2~9',
-    hitIsGood: false,
-    hitText: '펑! 목숨 3을 잃는다',
-    missText: '옆 사람에게 넘어간다',
-    hitStamp: '펑!',
-    missStamp: '불발',
-  },
-  jail: { title: '감옥 판정', need: '♥', hitIsGood: true, hitText: '탈출', missText: '차례를 건너뛴다' },
-  rattlesnake: {
-    title: '방울뱀 판정',
-    need: '♠',
-    hitIsGood: false,
-    hitText: '물렸다 — 목숨 1',
-    missText: '무사하다',
-    hitStamp: '물림',
-    missStamp: '무사',
-  },
-  coloradoBill: { title: '콜로라도 빌', need: '♠', hitIsGood: true, hitText: '피할 수 없는 총알', missText: '평범한 뱅!' },
-  donBell: { title: '돈 벨', need: '♥ ♦', hitIsGood: true, hitText: '차례를 한 번 더', missText: '차례가 끝난다' },
-  terenKill: { title: '테렌 킬', need: '♠ 말고', hitIsGood: true, hitText: '목숨 1로 버틴다', missText: '쓰러졌다' },
-  vendetta: { title: '복수', need: '♥', hitIsGood: true, hitText: '차례를 한 번 더', missText: '차례가 끝난다' },
-  helenaZontero: {
-    title: '헬레나 존테로',
-    need: '♥ ♦',
-    hitIsGood: true,
-    hitText: '역할을 다시 나눈다',
-    missText: '역할은 그대로',
-    hitStamp: '섞임',
-    missStamp: '그대로',
-  },
-};
+/** 조건이 맞은 것이 나쁜 일인 판정 (다이너마이트·방울뱀). 나머지는 맞으면 좋다 */
+const HIT_IS_BAD: Partial<Record<JudgementPurpose, true>> = { dynamite: true, rattlesnake: true };
 
-const OTHER_REVEAL_RULE: Record<string, RevealRule> = {
-  blackJack: { title: '블랙 잭', need: '♥ ♦', hitIsGood: true, hitText: '한 장 더', missText: '그대로' },
-  peyote: { title: '피요테', need: '부른 색', hitIsGood: true, hitText: '맞혔다', missText: '틀렸다' },
-};
+function ruleOf(r: Messages['table']['reveal']['other'], hitIsGood: boolean): RevealRule {
+  return { title: r.title, need: r.need, hitIsGood, hitText: r.hit, missText: r.miss, hitStamp: r.hitStamp, missStamp: r.missStamp };
+}
 
-function revealRuleOf(e: GameEvent): RevealRule {
+function revealRuleOf(e: GameEvent, t: Messages): RevealRule {
+  const reveal = t.table.reveal;
   const purpose = e.reveal?.purpose;
-  if (purpose) return JUDGEMENT_RULE[purpose];
-  return OTHER_REVEAL_RULE[e.t] ?? { title: '카드 펼치기', need: '', hitIsGood: true, hitText: '성공', missText: '실패' };
+  if (purpose) return ruleOf(reveal.judgement[purpose], !HIT_IS_BAD[purpose]);
+  if (e.t === 'blackJack') return ruleOf(reveal.blackJack, true);
+  if (e.t === 'peyote') return ruleOf(reveal.peyote, true);
+  return ruleOf(reveal.other, true);
 }
 
 /**
@@ -834,6 +806,7 @@ function revealRuleOf(e: GameEvent): RevealRule {
  * 이어서 성공·실패 도장이 찍힌다. 명판에는 필요한 무늬와 결과, 엔진 로그 글을 적는다
  */
 function RevealSpot({ event, faces, compact, onDone }: { event: GameEvent; faces: Faces | null; compact?: boolean; onDone: () => void }) {
+  const tr = useT();
   const [t] = useState(() => new Animated.Value(0));
   const [badge] = useState(() => new Animated.Value(0));
   const [stamp] = useState(() => new Animated.Value(0));
@@ -872,9 +845,9 @@ function RevealSpot({ event, faces, compact, onDone }: { event: GameEvent; faces
 
   const reveal = event.reveal!;
   const card = event.card!;
-  const rule = revealRuleOf(event);
+  const rule = revealRuleOf(event, tr);
   const good = reveal.hit === rule.hitIsGood;
-  const stampText = (reveal.hit ? rule.hitStamp : rule.missStamp) ?? (good ? '성공' : '실패');
+  const stampText = (reveal.hit ? rule.hitStamp : rule.missStamp) || (good ? tr.table.spot.stampOk : tr.table.spot.stampFail);
   const printed = cardOf(card).suit;
   const dim = CARD_DIMENSIONS[compact ? 'lg' : 'xl'];
   const tone = good ? Colors.success : Colors.danger;
@@ -883,13 +856,13 @@ function RevealSpot({ event, faces, compact, onDone }: { event: GameEvent; faces
     <Animated.View style={[styles.spot, popStyle(t)]}>
       <CardSpotlight
         card={card}
-        meta={rule.need ? `${rule.title} · 필요 ${rule.need}` : rule.title}
+        meta={rule.need ? tr.table.spot.needMeta(rule.title, rule.need) : rule.title}
         body={
           <>
             <Text style={[plaque.name, { color: tone }]}>{reveal.hit ? rule.hitText : rule.missText}</Text>
             {'  '}
             {event.text}
-            {printed !== reveal.suit ? `  (인쇄 무늬 ${SUIT_GLYPH[printed]} → ${SUIT_GLYPH[reveal.suit]})` : ''}
+            {printed !== reveal.suit ? tr.table.spot.printedSuit(SUIT_GLYPH[printed], SUIT_GLYPH[reveal.suit]) : ''}
           </>
         }
         faces={faces}
@@ -961,18 +934,19 @@ function RevealMarks({
 /** 여러 장을 펼친 결과의 규칙. 어떤 카드에 표시를 할지, 결과 글과 도장 */
 type GroupReveal = { title: string; need: string; good: boolean; result: string; stamp: string; marked: boolean[] };
 
-function groupRevealOf(e: GameEvent): GroupReveal {
+function groupRevealOf(e: GameEvent, t: Messages): GroupReveal {
+  const g = t.table.reveal;
   const cards = e.cards ?? [];
   if (e.t === 'pokerReveal') {
     // 판돈에 에이스가 하나라도 있으면 모두 버려진다. 포커를 낸 사람에게는 실패다
     const aces = cards.map((c) => cardOf(c).rank === 'A');
     const ace = aces.some(Boolean);
     return {
-      title: '포커',
-      need: '에이스가 없어야',
+      title: g.poker.title,
+      need: g.poker.need,
       good: !ace,
-      result: ace ? '에이스! 판돈을 모두 버린다' : '판돈에서 2장까지 가져간다',
-      stamp: ace ? '꽝' : '성공',
+      result: ace ? g.poker.resultAce : g.poker.resultOk,
+      stamp: ace ? g.poker.stampAce : g.poker.stampOk,
       marked: aces,
     };
   }
@@ -985,7 +959,7 @@ function groupRevealOf(e: GameEvent): GroupReveal {
     seen.add(suit);
     return true;
   });
-  return { title: '럼', need: '무늬 가짓수만큼 회복', good: n > 0, result: `목숨 ${n} 회복`, stamp: `+${n}`, marked };
+  return { title: g.rum.title, need: g.rum.need, good: n > 0, result: g.rum.result(n), stamp: `+${n}`, marked };
 }
 
 /** 펼친 카드 사이 간격. 많으면 겹쳐 놓는다 */
@@ -1000,6 +974,7 @@ function groupGap(count: number, width: number, compact?: boolean): number {
  * 조건에 걸린 카드(에이스·새 무늬)가 떠오른 뒤 가운데에 성공·실패 도장이 찍힌다
  */
 function GroupRevealSpot({ event, faces, compact, onDone }: { event: GameEvent; faces: Faces | null; compact?: boolean; onDone: () => void }) {
+  const tr = useT();
   const cards = event.cards ?? [];
   const [t] = useState(() => new Animated.Value(0));
   const [flips] = useState(() => cards.map(() => new Animated.Value(0)));
@@ -1045,7 +1020,7 @@ function GroupRevealSpot({ event, faces, compact, onDone }: { event: GameEvent; 
     };
   }, [t, flips, mark, stamp]);
 
-  const rule = groupRevealOf(event);
+  const rule = groupRevealOf(event, tr);
   const tone = rule.good ? Colors.success : Colors.danger;
   const size = compact ? 'sm' : 'md';
   const dim = CARD_DIMENSIONS[size];
@@ -1123,6 +1098,8 @@ function GroupRevealSpot({ event, faces, compact, onDone }: { event: GameEvent; 
 
 /** 새로 공개된 이벤트 카드. 낸 카드처럼 튀어 올랐다가, 효과를 읽을 만큼 머문 뒤 사라진다 */
 function EventSpot({ def, compact, onDone }: { def: EventCardDef; compact?: boolean; onDone: () => void }) {
+  const names = useNames();
+  const tr = useT();
   const [t] = useState(() => new Animated.Value(0));
   const done = useRef(onDone);
   useEffect(() => {
@@ -1151,12 +1128,12 @@ function EventSpot({ def, compact, onDone }: { def: EventCardDef; compact?: bool
       </View>
       <PaperPlaque compact={compact} style={compact ? styles.plaqueCompact : styles.plaque}>
         <Text style={plaque.meta} numberOfLines={1}>
-          {def.isFinal ? '마지막 이벤트 공개' : '새 이벤트 공개'}
+          {def.isFinal ? tr.table.spot.eventFinal : tr.table.spot.eventNew}
         </Text>
         <Text style={[plaque.text, compact && plaque.textCompact]} numberOfLines={4}>
-          <Text style={plaque.name}>{def.nameKo}</Text>
+          <Text style={plaque.name}>{names.eventName(def.id)}</Text>
           {'  '}
-          {def.text}
+          {names.eventText(def.id)}
         </Text>
       </PaperPlaque>
     </Animated.View>
@@ -1165,6 +1142,7 @@ function EventSpot({ def, compact, onDone }: { def: EventCardDef; compact?: bool
 
 /** 손패에서 살펴보는 카드. 손을 떼거나 다시 누를 때까지 떠 있다. 폰은 창을 누르면 닫힌다 */
 function PeekSpot({ card, meta, compact }: { card: CardId; meta: string; compact?: boolean }) {
+  const tr = useT();
   const [t] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
@@ -1181,7 +1159,7 @@ function PeekSpot({ card, meta, compact }: { card: CardId; meta: string; compact
   // hover 로 열고 닫으므로 창이 마우스를 가로채면 안 된다
   if (CAN_HOVER) return <View style={styles.passThrough}>{body}</View>;
   return (
-    <Pressable onPress={() => setPeek(null)} accessibilityRole="button" accessibilityLabel="카드 설명 닫기">
+    <Pressable onPress={() => setPeek(null)} accessibilityRole="button" accessibilityLabel={tr.table.spot.closePeek}>
       {body}
     </Pressable>
   );
@@ -1208,6 +1186,7 @@ type CardSpotlightProps = {
 };
 
 function CardSpotlight({ card, meta, body, faces, hint, compact, cardStyle, anchorRef, cardWrap, overlay }: CardSpotlightProps) {
+  const names = useNames();
   const def = card ? defOf(card) : null;
   const size = compact ? 'lg' : 'xl';
   const cardNode = (
@@ -1247,9 +1226,9 @@ function CardSpotlight({ card, meta, body, faces, hint, compact, cardStyle, anch
         <Text style={[plaque.text, compact && plaque.textCompact]} numberOfLines={3}>
           {body ?? (
             <>
-              <Text style={plaque.name}>{def?.nameKo}</Text>
+              <Text style={plaque.name}>{def ? names.cardName(def.kind) : ''}</Text>
               {'  '}
-              {def?.text}
+              {def ? names.cardText(def.kind) : ''}
             </>
           )}
         </Text>
@@ -1263,11 +1242,12 @@ const STAR = { cx: 126, cy: 167, span: 176 };
 
 /** 캐릭터 카드 위쪽 가운데에 다는 부관 별. 역할 카드 그림이 없으면 글자 별로 대신한다 */
 function DeputyStar({ size }: { size: number }) {
+  const tr = useT();
   const art = roleArt('deputy');
   const k = size / STAR.span;
   return (
     <View
-      accessibilityLabel="부관"
+      accessibilityLabel={tr.table.spot.deputy}
       style={[styles.star, { width: size, height: size, borderRadius: size / 2, top: -size / 2, marginLeft: -size / 2 }]}>
       {art ? (
         <Image

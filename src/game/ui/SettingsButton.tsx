@@ -7,6 +7,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { useToolbarStyles } from './theme/toolbar';
 import { useColors } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
 
 // 톱니 여덟 개를 바깥 고리에 붙인다
 const TEETH = Array.from({ length: 8 }, (_, i) => {
@@ -21,11 +22,12 @@ const TEETH = Array.from({ length: 8 }, (_, i) => {
 export function SettingsButton({ onPress, style }: { onPress: () => void; style?: StyleProp<ViewStyle> }) {
   const toolbar = useToolbarStyles();
   const c = useColors();
+  const t = useT();
   return (
     <Pressable
       style={({ hovered }: { hovered?: boolean }) => [toolbar.pill, hovered && toolbar.pillHover, style]}
       accessibilityRole="button"
-      accessibilityLabel="설정"
+      accessibilityLabel={t.ui.settingsButton.label}
       onPress={onPress}>
       <Svg width={15} height={15} viewBox="0 0 21 21">
         <Circle cx={10.5} cy={10.5} r={5.4} stroke={c.text} strokeWidth={2.2} fill="none" />

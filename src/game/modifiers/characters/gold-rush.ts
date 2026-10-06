@@ -31,14 +31,14 @@ export const dutchWill: Modifier = {
 export const jackyMurieta: Modifier = {
   id: 'char:jackyMurieta',
   from: 'character',
-  goldAbilities: [{ key: GOLD_ABILITY.jackyMurieta, label: '뱅!을 쐈다', cost: 2, target: 'bang' }],
+  goldAbilities: [{ key: GOLD_ABILITY.jackyMurieta, cost: 2, target: 'bang' }],
 };
 
 /** 조시 맥클라우드 — 금덩이 2개로 장비 덱 맨 위 카드를 가져와 곧바로 쓴다 */
 export const joshMcCloud: Modifier = {
   id: 'char:joshMcCloud',
   from: 'character',
-  goldAbilities: [{ key: GOLD_ABILITY.joshMcCloud, label: '장비 덱 맨 위 카드를 뽑았다', cost: 2 }],
+  goldAbilities: [{ key: GOLD_ABILITY.joshMcCloud, cost: 2 }],
 };
 
 /** 마담 이토 — 누가 맥주를 내든 카드 한 장 (병·위스키 같은 대용은 제외) */
@@ -60,7 +60,7 @@ export const raddieSnake: Modifier = {
   id: 'char:raddieSnake',
   from: 'character',
   goldAbilities: [
-    { key: GOLD_ABILITY.raddieSnake, label: '카드 한 장을 가져왔다', cost: 1, perTurn: 2 },
+    { key: GOLD_ABILITY.raddieSnake, cost: 1, perTurn: 2 },
   ],
 };
 

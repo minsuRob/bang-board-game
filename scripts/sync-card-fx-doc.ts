@@ -2,6 +2,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
 import { CARD_DEFS } from '../src/game/data/cards.base';
+import { ko } from '../src/i18n/content/ko';
 import { CARD_FX } from '../src/game/ui/fx/card-fx';
 
 const START = '<!-- generated:card-fx:start -->';
@@ -11,9 +12,8 @@ function table(): string {
   const rows = Object.entries(CARD_FX)
     .filter((entry): entry is [keyof typeof CARD_DEFS, NonNullable<(typeof CARD_FX)[keyof typeof CARD_FX]>] => Boolean(entry[1]))
     .map(([kind, fx]) => {
-      const d = CARD_DEFS[kind];
       const m = fx.doc;
-      return `| ${d.nameKo} (${kind}) | ${m.prototype} ${m.title} | ${m.durationMs}ms | ${m.placement} | ${m.sounds} | ${m.quality} |`;
+      return `| ${ko.cards[kind as keyof typeof ko.cards].name} (${kind}) | ${m.prototype} ${m.title} | ${m.durationMs}ms | ${m.placement} | ${m.sounds} | ${m.quality} |`;
     })
     .join('\n');
   return [

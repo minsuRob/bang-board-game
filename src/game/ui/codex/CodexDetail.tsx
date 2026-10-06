@@ -13,8 +13,9 @@ import { CARD_DEFS } from '../../data/cards.base';
 import { GOLD_CARD_DEFS } from '../../data/cards.goldrush';
 import { CHARACTERS } from '../../data/characters';
 import { EVENTS } from '../../data/events';
-import { ROLE_GOAL } from '../../data/roles';
 import { SUIT_GLYPH, type CardDef, type CardKind, type Suit } from '../../data/types';
+import { useT } from '../../../i18n/use-t';
+import type { Messages } from '../../../i18n/types-messages';
 import { chipFor } from '../card-symbols';
 import { CARD_FX } from '../fx/card-fx';
 import { fxQuality } from '../fx/quality';
@@ -25,78 +26,76 @@ import { CodexFace } from './CodexFaces';
 import { deckSpread, roleCounts, setLabel, type CodexItem } from './codex-model';
 import { ruleNotes } from './rule-notes';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useNames } from '../../../i18n/use-names';
+import type { Names } from '../../../i18n/names';
 
 const FACE_W = 140;
 
 type Fact = { label: string; value: string; color?: string };
 
-const EQUIP_LABEL: Record<string, string> = {
-  self: '자기 앞에 놓는 장비',
-  other: '다른 사람 앞에 놓는 장비',
-  eliminated: '제거된 사람 앞에 놓는 장비',
-};
-
 function suitColor(suit: Suit, ink: string): string {
   return suit === 'hearts' || suit === 'diamonds' ? Colors.suitRed : ink;
 }
 
-function cardKindLabel(def: CardDef): string {
-  if (def.equip === 'weapon') return `무기 · 사정거리 ${def.weaponRange}`;
-  if (def.equip) return EQUIP_LABEL[def.equip] ?? '장비';
-  return '즉시 사용';
+function cardKindLabel(def: CardDef, t: Messages): string {
+  const d = t.codex.detail;
+  if (def.equip === 'weapon') return d.weapon(def.weaponRange ?? 0);
+  if (def.equip) return (d.equip as Record<string, string>)[def.equip] ?? d.equip.generic;
+  return d.instant;
 }
 
-function bodyText(item: CodexItem): string {
+function bodyText(item: CodexItem, names: Names): string {
   switch (item.tab) {
     case 'cards':
-      return CARD_DEFS[item.id].text;
+      return names.cardText(item.id);
     case 'characters':
-      return CHARACTERS[item.id].ability;
+      return names.charAbility(item.id);
     case 'events':
-      return EVENTS[item.id].text;
+      return names.eventText(item.id);
     case 'gold':
-      return GOLD_CARD_DEFS[item.id].text;
+      return names.goldText(item.id);
     case 'roles':
-      return ROLE_GOAL[item.id];
+      return names.roleGoal(item.id);
   }
 }
 
-function factsOf(item: CodexItem, ink: string): Fact[] {
+function factsOf(item: CodexItem, ink: string, t: Messages, names: Names): Fact[] {
+  const d = t.codex.detail;
   switch (item.tab) {
     case 'cards': {
       const def = CARD_DEFS[item.id];
       const spread = deckSpread(item.id);
       const facts: Fact[] = [
-        { label: '종류', value: cardKindLabel(def) },
-        { label: '매수', value: `${spread.total}장` },
+        { label: d.kind, value: cardKindLabel(def, t) },
+        { label: d.count, value: d.sheets(spread.total) },
         ...spread.bySuit.map((s) => ({
           label: SUIT_GLYPH[s.suit],
-          value: `${s.ranks}  (${s.count}장)`,
+          value: d.spread(s.ranks, s.count),
           color: suitColor(s.suit, ink),
         })),
       ];
-      if (def.countsAs) facts.push({ label: '취급', value: `${CARD_DEFS[def.countsAs].nameKo} 카드로도 친다` });
-      if (def.outOfTurn) facts.push({ label: '때', value: '남의 차례에도 낼 수 있다' });
+      if (def.countsAs) facts.push({ label: d.countsAs, value: d.countsAsValue(names.cardName(def.countsAs)) });
+      if (def.outOfTurn) facts.push({ label: d.when, value: d.outOfTurn });
       const fx = CARD_FX[item.id];
-      if (fx) facts.push({ label: '연출', value: `${fx.doc.title} · ${fx.doc.durationMs}ms · ${fx.doc.quality}` });
+      if (fx) facts.push({ label: d.fx, value: `${fx.doc.title} · ${fx.doc.durationMs}ms · ${fx.doc.quality}` });
       return facts;
     }
     case 'characters': {
       const hp = CHARACTERS[item.id].maxHp;
-      return [{ label: '목숨', value: `${hp} (보안관이면 ${hp + 1})` }];
+      return [{ label: d.hp, value: d.hpValue(hp) }];
     }
     case 'events':
-      return EVENTS[item.id].isFinal ? [{ label: '순서', value: '덱 맨 밑에 고정되는 마지막 카드' }] : [];
+      return EVENTS[item.id].isFinal ? [{ label: d.order, value: d.finalCard }] : [];
     case 'gold': {
       const def = GOLD_CARD_DEFS[item.id];
       return [
-        { label: '값', value: `금덩이 ${def.cost}` },
-        { label: '매수', value: `${def.count}장` },
-        { label: '종류', value: def.category === 'black' ? '검정 · 앞에 두는 장비' : '갈색 · 사서 바로 쓴다' },
+        { label: d.cost, value: t.codex.goldCost(def.cost) },
+        { label: d.count, value: d.sheets(def.count) },
+        { label: d.kind, value: def.category === 'black' ? t.codex.sections.goldBlack : t.codex.sections.goldBrown },
       ];
     }
     case 'roles':
-      return [{ label: '인원', value: roleCounts(item.id).map((r) => `${r.players}인 ${r.count}`).join(' · ') }];
+      return [{ label: d.players, value: roleCounts(item.id).map((r) => d.playersCount(r.players, r.count)).join(' · ') }];
   }
 }
 
@@ -114,32 +113,35 @@ export function CodexDetail({
 }) {
   const styles = useStyles();
   const c = useColors();
+  const t = useT();
+  const names = useNames();
+  const d = t.codex.detail;
   const quality = useStore(fxQuality, (s) => s.quality);
   const fx = item.tab === 'cards' ? CARD_FX[item.id as CardKind] : undefined;
   // 빗나감!은 고화질 연출만 있다
   const fxBlocked = fx?.visual === 'missed' && quality !== 'high';
   const symbols = item.tab === 'cards' ? CARD_DEFS[item.id].symbols : [];
-  const notes = ruleNotes(item.tab, item.id);
+  const notes = ruleNotes(item.tab, item.id, t);
 
   return (
     <View style={styles.layer}>
-      <Pressable accessibilityRole="button" accessibilityLabel="상세 닫기" onPress={onClose} style={styles.backdrop} />
+      <Pressable accessibilityRole="button" accessibilityLabel={d.closeDetail} onPress={onClose} style={styles.backdrop} />
       <View style={[styles.sheet, hidden && styles.hidden]}>
         <ScrollView contentContainerStyle={styles.body}>
           <View style={styles.head}>
             <CodexFace item={item} width={FACE_W} />
             <View style={styles.titles}>
-              <Text style={styles.set}>{setLabel(item.set)}</Text>
-              <Text style={styles.nameKo}>{item.nameKo}</Text>
+              <Text style={styles.set}>{setLabel(item.set, t)}</Text>
+              <Text style={styles.nameKo}>{item.local}</Text>
               <Text style={styles.name}>{item.name}</Text>
             </View>
           </View>
 
           <PaperPlaque>
-            <Text style={plaque.text}>{bodyText(item)}</Text>
+            <Text style={plaque.text}>{bodyText(item, names)}</Text>
           </PaperPlaque>
 
-          {factsOf(item, c.text).map((f, i) => (
+          {factsOf(item, c.text, t, names).map((f, i) => (
             <View key={i} style={styles.fact}>
               <Text style={[styles.factLabel, f.color ? { color: f.color } : null]}>{f.label}</Text>
               <Text style={styles.factValue}>{f.value}</Text>
@@ -148,7 +150,7 @@ export function CodexDetail({
 
           {symbols.length > 0 && (
             <View style={styles.block}>
-              <Text style={styles.heading}>심벌</Text>
+              <Text style={styles.heading}>{d.symbols}</Text>
               <View style={styles.chips}>
                 {symbols.map((s, i) => {
                   const chip = chipFor(s);
@@ -165,7 +167,7 @@ export function CodexDetail({
 
           {notes.length > 0 && (
             <View style={styles.block}>
-              <Text style={styles.heading}>규칙 메모</Text>
+              <Text style={styles.heading}>{d.ruleNotes}</Text>
               {notes.map((n, i) => (
                 <Text key={i} style={styles.note}>
                   · {n}
@@ -179,15 +181,15 @@ export function CodexDetail({
           {fx && (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="연출 보기"
+              accessibilityLabel={d.playFx}
               disabled={fxBlocked}
               onPress={onPlayFx}
               style={[styles.button, styles.fxButton, fxBlocked && styles.disabled]}>
-              <Text style={styles.fxText}>{fxBlocked ? '연출은 고화질에서만' : '연출 보기'}</Text>
+              <Text style={styles.fxText}>{fxBlocked ? d.fxHighOnly : d.playFx}</Text>
             </Pressable>
           )}
-          <Pressable accessibilityRole="button" accessibilityLabel="닫기" onPress={onClose} style={styles.button}>
-            <Text style={styles.closeText}>닫기</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={t.common.close} onPress={onClose} style={styles.button}>
+            <Text style={styles.closeText}>{t.common.close}</Text>
           </Pressable>
         </View>
       </View>

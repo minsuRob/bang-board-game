@@ -15,7 +15,7 @@ import { useStore } from 'zustand';
 import { setFxQuality } from '../fx/quality';
 import { PaperHeading, PaperSection, PaperSheet, usePaperText } from '../menu/PaperUi';
 import { WesternFonts } from '../menu/western-fonts';
-import { InkSegmented, QUALITY_OPTIONS, qualityHint, useFxQuality } from '../QualityPicker';
+import { InkSegmented, qualityOptions, qualityHint, useFxQuality } from '../QualityPicker';
 import { LANG_NAME } from '../../../i18n/lang-names';
 import { langPref, setLangPref } from '../../../i18n/lang-store';
 import { useT } from '../../../i18n/use-t';
@@ -31,7 +31,7 @@ export function useSettingsSummary(): string {
   const quality = useFxQuality();
   const pref = useStore(themePref, (s) => s.pref);
   const lang = useStore(langPref, (s) => s.pref);
-  const q = QUALITY_OPTIONS.find((o) => o.value === quality)?.label ?? '';
+  const q = qualityOptions(t).find((o) => o.value === quality)?.label ?? '';
   return t.settings.summary(q, t.settings.theme[pref], lang === 'system' ? t.settings.lang.system : LANG_NAME[lang]);
 }
 
@@ -92,8 +92,8 @@ export function SettingsSheet({ onClose, children }: { onClose: () => void; chil
           )}
 
           <PaperSection title={t.settings.quality.title}>
-            <InkSegmented label={t.settings.quality.title} options={QUALITY_OPTIONS} value={quality} onChange={setFxQuality} />
-            <Text style={text.hint}>{qualityHint(quality)}</Text>
+            <InkSegmented label={t.settings.quality.title} options={qualityOptions(t)} value={quality} onChange={setFxQuality} />
+            <Text style={text.hint}>{qualityHint(quality, t)}</Text>
           </PaperSection>
 
           <PaperSection title={t.settings.theme.title}>

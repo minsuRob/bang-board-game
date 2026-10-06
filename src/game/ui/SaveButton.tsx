@@ -10,6 +10,7 @@ import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-nat
 import { WesternFonts } from './menu/western-fonts';
 import { useToolbarStyles } from './theme/toolbar';
 import { themedStyles } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
 import { Radius, Spacing } from '@/constants/theme';
 
 export type SaveStatus =
@@ -28,6 +29,7 @@ export function SaveButton({ status, onSave, style }: Props) {
   const saving = status.k === 'saving';
   const toolbar = useToolbarStyles();
   const styles = useStyles();
+  const t = useT();
   return (
     <Pressable
       style={({ hovered }: { hovered?: boolean }) => [
@@ -38,11 +40,11 @@ export function SaveButton({ status, onSave, style }: Props) {
       ]}
       disabled={saving}
       accessibilityRole="button"
-      accessibilityLabel="판 저장"
+      accessibilityLabel={t.ui.save.label}
       accessibilityState={{ busy: saving }}
       onPress={onSave}>
       <Text style={[toolbar.text, status.k === 'saved' && styles.textSaved]}>
-        {saving ? '저장 중…' : '💾 저장'}
+        {saving ? t.ui.save.saving : t.ui.save.button}
       </Text>
     </Pressable>
   );
@@ -51,20 +53,21 @@ export function SaveButton({ status, onSave, style }: Props) {
 /** 저장 결과 알림. 저장됐으면 나가기 버튼을 붙인다 */
 export function SaveNotice({ status, onLeave }: { status: SaveStatus; onLeave: () => void }) {
   const styles = useStyles();
+  const t = useT();
   if (status.k !== 'saved' && status.k !== 'error') return null;
   const error = status.k === 'error';
   return (
     <View style={[styles.notice, error && styles.noticeError]} accessibilityLiveRegion="polite">
       <Text style={styles.noticeText}>
-        {error ? status.message : '저장했다. 판 설정 화면에서 이어 볼 수 있다.'}
+        {error ? status.message : t.ui.save.saved}
       </Text>
       {!error && (
         <Pressable
           style={({ pressed }) => [styles.leave, pressed && styles.leavePressed]}
           accessibilityRole="button"
-          accessibilityLabel="나가기"
+          accessibilityLabel={t.ui.save.leave}
           onPress={onLeave}>
-          <Text style={styles.leaveText}>나가기</Text>
+          <Text style={styles.leaveText}>{t.ui.save.leave}</Text>
         </Pressable>
       )}
     </View>

@@ -38,6 +38,7 @@ import { applyGoldCard, goldCostOf, goldUseOptions, isGoldUseValid } from './gol
 import { canPlayCard, goldAbilitiesOf, goldDiscountOf, onBeerPlayedFrames } from './hooks';
 import type { Action, Choice, Frame, GameState, PlayerId } from './types';
 import { eul, ga } from './josa';
+import { abilityKo, nameKo } from './legacy-ko';
 
 type GoldAction = Extract<
   Action,
@@ -159,7 +160,7 @@ export function applyGoldAction(state: GameState, action: GoldAction): GameState
         pid,
         gold: action.card,
         amount: price,
-        text: `${ga(nameOf(cur, pid))} 금덩이 ${price}개로 ${eul(def.nameKo)} 샀다.`,
+        text: `${ga(nameOf(cur, pid))} 금덩이 ${price}개로 ${eul(nameKo(def))} 샀다.`,
       });
       const use = action.use ?? {};
       if (def.category === 'brown' && !isGoldUseValid(cur, pid, action.card, use)) {
@@ -179,7 +180,7 @@ export function applyGoldAction(state: GameState, action: GoldAction): GameState
         target: action.target,
         gold: action.card,
         amount: price,
-        text: `${ga(nameOf(cur, pid))} 금덩이 ${price}개를 내고 ${nameOf(cur, action.target)}의 ${eul(def.nameKo)} 버리게 했다.`,
+        text: `${ga(nameOf(cur, pid))} 금덩이 ${price}개를 내고 ${nameOf(cur, action.target)}의 ${eul(nameKo(def))} 버리게 했다.`,
       });
     }
     case 'beerForGold': {
@@ -218,7 +219,7 @@ function applyGoldAbility(
     target,
     amount: ab.cost,
     text:
-      `${ga(nameOf(cur, pid))} 금덩이 ${ab.cost}개를 내고 ${ab.label}` +
+      `${ga(nameOf(cur, pid))} 금덩이 ${ab.cost}개를 내고 ${abilityKo(ab.key)}` +
       (target ? ` → ${nameOf(cur, target)}.` : '.'),
   });
 
@@ -251,7 +252,7 @@ function joshDraw(state: GameState, pid: PlayerId): GameState {
     t: 'joshDraw',
     pid,
     gold: card,
-    text: `장비 덱에서 ${eul(def.nameKo)} 가져왔다.`,
+    text: `장비 덱에서 ${eul(nameKo(def))} 가져왔다.`,
   });
   if (def.category === 'black') return applyGoldCard(cur, pid, card, {});
 

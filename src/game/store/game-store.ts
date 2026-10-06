@@ -104,7 +104,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       try {
         next = reduce(prev, action);
       } catch (err) {
-        console.warn('액션을 적용하지 못했다', action, err);
+        console.warn('Failed to apply action', action, err);
         return;
       }
       // 결과가 난 뒤의 액션은 상태를 바꾸지 않으므로 기록에도 넣지 않는다

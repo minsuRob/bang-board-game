@@ -10,14 +10,15 @@ import { Pressable, Text, View } from 'react-native';
 
 import { CARD_DEFS } from '../data/cards.base';
 import { CHARACTERS } from '../data/characters';
-import { ROLE_LABEL } from '../data/roles';
 import type { Role } from '../data/types';
 import { distance, kindOf, type GameState, type Player, type PlayerId } from '../engine';
 import { CharacterCard } from './CharacterCard';
 import { WesternFonts } from './menu/western-fonts';
 import { themedStyles, useColors } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
 import { Radius, Spacing, type ThemeColors } from '@/constants/theme';
 import { HpPips } from './HpPips';
+import { useNames } from '../../i18n/use-names';
 
 /** 역할 색. 테마마다 종이·밤 바탕에서 읽히는 색이 다르다 */
 function roleColor(c: ThemeColors, role: Role): string {
@@ -38,6 +39,8 @@ export function CharacterDetail({
 }) {
   const styles = useStyles();
   const c = useColors();
+  const t = useT();
+  const names = useNames();
   const isSelf = player.id === viewer;
   const dead = !player.alive && !player.ghost;
   const character = CHARACTERS[player.character];
@@ -50,15 +53,15 @@ export function CharacterDetail({
         <View style={styles.info}>
           <View style={styles.head}>
             <Text style={styles.name} numberOfLines={1}>
-              {isSelf ? '나' : player.name}
+              {isSelf ? t.ui.character.me : player.name}
             </Text>
             {(player.roleRevealed || isSelf) && (
-              <Text style={[styles.role, { color: roleColor(c, player.role) }]}>{ROLE_LABEL[player.role]}</Text>
+              <Text style={[styles.role, { color: roleColor(c, player.role) }]}>{names.roleName(player.role)}</Text>
             )}
           </View>
           <Text style={styles.character}>
-            {character.nameKo}
-            {player.ghost ? ' · 유령' : dead ? ' · 제거됨' : ''}
+            {names.charName(player.character)}
+            {player.ghost ? t.ui.character.ghost : dead ? t.ui.character.removed : ''}
           </Text>
           <View style={styles.hpRow}>
             <HpPips hp={hp} maxHp={player.maxHp} style={styles.hp} emptyStyle={styles.hpEmpty} />
@@ -68,20 +71,19 @@ export function CharacterDetail({
           </View>
           {!isSelf && (
             <Text style={styles.meta}>
-              손패 {player.hand.length}
-              {dist !== null ? ` · 거리 ${dist}` : ''}
+              {t.ui.character.meta(player.hand.length, dist)}
             </Text>
           )}
           {player.equipment.length > 0 && (
-            <Text style={styles.equipment}>{player.equipment.map((e) => CARD_DEFS[kindOf(e)].nameKo).join(' · ')}</Text>
+            <Text style={styles.equipment}>{player.equipment.map((e) => names.cardName(kindOf(e))).join(' · ')}</Text>
           )}
         </View>
       </View>
-      <Text style={[styles.ability, compact && styles.abilityCompact]}>{character.ability}</Text>
+      <Text style={[styles.ability, compact && styles.abilityCompact]}>{names.charAbility(player.character)}</Text>
       {/* 그레고리 덱이 빌린 기본판 캐릭터 */}
       {(player.borrowed ?? []).map((b) => (
         <Text key={b} style={[styles.ability, compact && styles.abilityCompact]}>
-          빌린 능력 · {CHARACTERS[b].nameKo}: {CHARACTERS[b].ability}
+          {t.ui.character.borrowed(names.charName(b), names.charAbility(b))}
         </Text>
       ))}
     </View>
@@ -101,13 +103,14 @@ export function CharacterDetailModal({
   onClose: () => void;
 }) {
   const styles = useStyles();
+  const t = useT();
   return (
     <View style={styles.layer}>
-      <Pressable accessibilityRole="button" accessibilityLabel="캐릭터 설명 닫기" onPress={onClose} style={styles.backdrop} />
+      <Pressable accessibilityRole="button" accessibilityLabel={t.ui.character.closeLabel} onPress={onClose} style={styles.backdrop} />
       <View style={styles.sheet}>
         <CharacterDetail view={view} viewer={viewer} player={player} compact={false} />
-        <Pressable accessibilityRole="button" accessibilityLabel="닫기" onPress={onClose} style={styles.close}>
-          <Text style={styles.closeText}>닫기</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t.ui.character.close} onPress={onClose} style={styles.close}>
+          <Text style={styles.closeText}>{t.ui.character.close}</Text>
         </Pressable>
       </View>
     </View>
