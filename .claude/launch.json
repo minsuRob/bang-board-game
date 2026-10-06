@@ -84,6 +84,15 @@
         "docs/card-fx-prototypes"
       ],
       "port": 8095
+    },
+    {
+      "name": "table-prototypes",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "-e",
+        "const h=require('http'),f=require('fs'),p=require('path');const R='/Users/robert/Desktop/Workspace/Personal/bang-board-game';const T={'.html':'text/html; charset=utf-8','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.js':'text/javascript'};h.createServer((q,s)=>{const u=decodeURIComponent(q.url.split('?')[0]);const fp=p.join(R,u.endsWith('/')?u+'index.html':u);if(!fp.startsWith(R)){s.writeHead(403);return s.end();}f.readFile(fp,(e,b)=>{if(e){s.writeHead(404);return s.end();}s.writeHead(200,{'Content-Type':T[p.extname(fp)]||'application/octet-stream'});s.end(b);});}).listen(8096,'127.0.0.1');"
+      ],
+      "port": 8096
     }
   ]
 }

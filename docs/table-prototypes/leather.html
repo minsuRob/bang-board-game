@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>가죽 탁자 변형</title>
+<link href="https://fonts.googleapis.com/css2?family=Rye&family=Black+Han+Sans&family=Gowun+Batang:wght@400;700&family=Special+Elite&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="table.css" />
+</head>
+<body>
+<header>
+  <h1>Leather Tables</h1>
+  <p>3번 안장 가죽에서 갈라진 변형 · 숫자 키로 넘긴다</p>
+  <nav class="pages"><a href="index.html">탁자 시안</a><a href="leather.html" aria-current="page">가죽 변형</a><a href="emblem.html">BANG! 문양</a></nav>
+</header>
+<nav id="tabs" role="tablist"></nav>
+<main id="main"></main>
+
+<script src="_kit.js"></script>
+<script src="_leather.js"></script>
+<script>
+// ---------------------------------------------------------------------------
+// 변형
+// ---------------------------------------------------------------------------
+const DESIGNS = [
+  {
+    key: '1', name: '원안 · 안장 가죽', en: 'SADDLE (ORIGINAL)', bg: '#150d08',
+    swatch: ['#a8703f', '#8a5630', '#3a2214', '#e9d6a8', '#b9bcc0'],
+    why: '앞 장의 3번 그대로. 나머지 변형과 견줘 보려고 둔다.',
+    good: ['따뜻한 세피아라 카드 그림과 잘 섞인다', '얼룩이 크고 부드러워 카드 뒤에서 조용하다'],
+    bad: ['밝은 바탕이라 갈색 카드 뒷면·더미가 덜 뜬다', '잎 문양이 작아 멀리서는 점선처럼 보인다'],
+    cost: { 텍스처: '1024×640 1장 (2.6MB)', 생성: '미리 구운 JPG (앱엔 2D 캔버스가 없다. 첫 화면 바탕과 같은 방식)' },
+    draw(c) {
+      floor(c, '#150d08');
+      ell(c, RX, RY); c.fillStyle = '#3a2214'; c.fill();
+      suede(c, RX - 6, RY - 6, { base: '#a8703f' });
+      c.save(); ell(c, RX - 6, RY - 6); c.clip();
+      band(c, [RX - 6, RY - 6], [RX - 70, RY - 64], 'rgba(70,35,14,.45)');
+      for (const p of along(RX - 38, RY - 35, 120)) {
+        tooled(c, () => {
+          c.save(); c.translate(p.x, p.y); c.rotate(p.tan + (Math.round(p.a * 19) % 2 ? .6 : -.6));
+          c.beginPath(); c.moveTo(-9, 0); c.quadraticCurveTo(0, -9, 9, 0); c.quadraticCurveTo(0, 5, -9, 0); c.restore();
+        });
+      }
+      c.restore();
+      stitch(c, RX - 20, RY - 18); stitch(c, RX - 82, RY - 75);
+      for (const p of along(RX - 38, RY - 35, 8, .5)) concho(c, p.x, p.y, 18);
+      innerShadow(c, RX - 6, RY - 6, .55, 22);
+    },
+  },
+  {
+    key: '2', name: '기름 먹인 흑갈색 · 금실', en: 'OILED & GOLD THREAD', bg: '#0f0905',
+    swatch: ['#4a2b17', '#2e1a0d', '#d9a441', '#fff1c4'],
+    why: '원안의 "카드가 덜 뜬다"를 고치려고 바탕을 확 낮췄다. 기름 먹인 짙은 가죽에 위쪽만 은은한 광, 금실 박음질 두 줄, 놋쇠 콘초 6개. 가장자리는 말아 접은 두꺼운 테.',
+    good: ['카드·보드가 가장 또렷하다. 지금 판의 어두운 톤과도 가깝다', '금색이 차례 하이라이트(#F2C14E)와 한 집안이라 어울린다', '문양이 없어 그리기도 가장 싸다'],
+    bad: ['지금 모양과 거리가 짧다. 바뀐 게 덜 느껴질 수 있다', '광(하이라이트)을 구워 두면 카메라가 돌 때 같이 안 움직인다. 정면 카메라라 괜찮을 것'],
+    cost: { 텍스처: '512² 반복 + 색만으로도 된다 (1MB 이하)', 생성: '색+잡음+광은 지금 Painter 로 바로 된다. 박음질·콘초만 구운 그림' },
+    draw(c) {
+      floor(c, '#0f0905');
+      ell(c, RX, RY); c.fillStyle = '#24140a'; c.fill();
+      suede(c, RX - 4, RY - 4, { base: '#4a2b17', dark: '20,10,4', light: '150,95,55', n: 45, seed: 23, grain: [228, 255] });
+      c.save(); ell(c, RX - 4, RY - 4); c.clip();
+      // 위쪽 광: 램프 빛을 받은 기름 가죽
+      const sh = c.createRadialGradient(CX - 120, CY - 220, 20, CX - 120, CY - 220, 560);
+      sh.addColorStop(0, 'rgba(255,200,140,.20)'); sh.addColorStop(.5, 'rgba(255,200,140,.06)'); sh.addColorStop(1, 'rgba(255,200,140,0)');
+      c.fillStyle = sh; c.fillRect(0, 0, W, H);
+      c.restore();
+      rolledEdge(c, RX - 4, RY - 4, 30, '#2e1a0d');
+      stitch(c, RX - 46, RY - 42, { color: '#d9a441', dash: [7, 6], width: 2 });
+      stitch(c, RX - 56, RY - 51, { color: '#d9a441', dash: [7, 6], width: 2 });
+      for (const p of along(RX - 19, RY - 19, 6, .5)) concho(c, p.x, p.y, 13, 'brass');
+      innerShadow(c, RX - 34, RY - 34, .5, 24);
+    },
+  },
+  {
+    key: '3', name: '셰리던 꽃 각인', en: 'SHERIDAN CARVING', bg: '#150d08',
+    swatch: ['#b98250', '#7a4a26', '#3a2214', '#e9d6a8'],
+    why: '서부 안장의 대표 각인(셰리던 스타일)을 흉내 냈다. 넓은 테두리 띠를 잔점으로 눌러 낮추고, 그 위에 덩굴·소용돌이·잎·장미꽃이 도드라진다. 가운데 면은 비워 둔다.',
+    good: ['다섯 중 가장 "공들인 소품" 같다. 오래 봐도 질리지 않는 장식', '장식이 띠에만 있어 카드가 놓이는 가운데는 원안처럼 조용하다', '테두리 장식이 좌석 사이로 드러나 판이 덜 휑하다'],
+    bad: ['문양이 잘아서 폰 화면에서는 뭉개진다. 텍스처를 1024 아래로 줄이면 안 된다', '띠가 넓어 좌석 보드 가장자리가 장식 위에 걸린다'],
+    cost: { 텍스처: '1024×640 1장 (2.6MB), 구운 JPG ~180KB', 생성: '미리 구운 JPG (앱엔 2D 캔버스가 없다. 첫 화면 바탕과 같은 방식)' },
+    draw(c) {
+      floor(c, '#150d08');
+      const r = rng(31);
+      ell(c, RX, RY); c.fillStyle = '#3a2214'; c.fill();
+      suede(c, RX - 6, RY - 6, { base: '#b98250', seed: 33, n: 50 });
+      const O = [RX - 22, RY - 20], I = [RX - 112, RY - 102], mid = [(O[0] + I[0]) / 2, (O[1] + I[1]) / 2];
+      c.save(); ell(c, RX - 6, RY - 6); c.clip();
+      // 바탕 낮추기: 잔점 도장
+      c.save(); ell(c, O[0], O[1]); c.ellipse(CX, CY, I[0], I[1], 0, 0, Math.PI * 2, true); c.clip('evenodd');
+      c.fillStyle = 'rgba(60,28,10,.35)'; c.fillRect(0, 0, W, H);
+      c.fillStyle = 'rgba(40,18,6,.35)';
+      for (let i = 0; i < 9000; i++) c.fillRect(CX + (r() - .5) * O[0] * 2, CY + (r() - .5) * O[1] * 2, 1.6, 1.6);
+      // 덩굴: 띠 가운데를 물결치며 돈다
+      const N = 360, pts = along(mid[0], mid[1], N);
+      const vine = pts.map((p, i) => {
+        const off = Math.sin((i / N) * Math.PI * 2 * 24) * 20;
+        return [p.x + Math.cos(p.nor) * off, p.y + Math.sin(p.nor) * off];
+      });
+      const vinePath = () => { c.beginPath(); vine.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); c.closePath(); };
+      c.save(); vinePath(); c.strokeStyle = '#b98250'; c.lineWidth = 6; c.stroke(); c.restore();
+      tooled(c, vinePath, 'rgba(40,18,6,.55)', 'rgba(255,225,180,.25)', false);
+      // 물결 마루마다 소용돌이와 잎
+      for (let k = 0; k < 48; k++) {
+        const i = Math.round(((k + .25) / 48) * N) % N, p = pts[i], side = k % 2 ? -1 : 1;
+        const [vx, vy] = vine[i];
+        const cx = vx + Math.cos(p.nor) * side * 14, cy = vy + Math.sin(p.nor) * side * 14;
+        const curl = () => {
+          c.beginPath();
+          for (let t = 0; t < 12; t += .3) {
+            const rad = 11 - t * .85, a = p.tan + side * t * .9;
+            const x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad * .9;
+            t ? c.lineTo(x, y) : c.moveTo(x, y);
+          }
+        };
+        tooled(c, curl, 'rgba(40,18,6,.55)', 'rgba(255,225,180,.22)', false);
+        const leaf = () => {
+          c.save(); c.translate(vx, vy); c.rotate(p.tan + side * 1.1);
+          c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(8, -7, 20, 0); c.quadraticCurveTo(8, 6, 0, 0); c.restore();
+        };
+        c.save(); leaf(); c.fillStyle = '#b98250'; c.fill(); c.restore();
+        tooled(c, leaf, 'rgba(40,18,6,.45)', 'rgba(255,225,180,.25)', false);
+      }
+      // 장미꽃 8개
+      for (const p of along(mid[0], mid[1], 8, .5)) {
+        c.beginPath(); c.arc(p.x, p.y, 30, 0, Math.PI * 2); c.fillStyle = '#b98250'; c.fill();
+        for (let ring = 0; ring < 2; ring++) {
+          for (let k = 0; k < 8; k++) {
+            const a = (k / 8) * Math.PI * 2 + ring * .4, R = ring ? 11 : 21;
+            tooled(c, () => {
+              c.save(); c.translate(p.x + Math.cos(a) * R * .55, p.y + Math.sin(a) * R * .55); c.rotate(a);
+              c.beginPath(); c.ellipse(0, 0, R * .55, R * .3, 0, 0, Math.PI * 2); c.restore();
+            }, 'rgba(40,18,6,.45)', 'rgba(255,225,180,.25)', false);
+          }
+        }
+        c.beginPath(); c.arc(p.x, p.y, 4, 0, Math.PI * 2); c.fillStyle = 'rgba(40,18,6,.7)'; c.fill();
+      }
+      c.restore();
+      // 띠 테두리 홈
+      tooled(c, () => ell(c, O[0], O[1]), 'rgba(40,18,6,.6)', 'rgba(255,225,180,.25)', false);
+      tooled(c, () => ell(c, I[0], I[1]), 'rgba(40,18,6,.6)', 'rgba(255,225,180,.25)', false);
+      c.restore();
+      stitch(c, RX - 13, RY - 12, { dash: [7, 6], width: 2 });
+      innerShadow(c, RX - 6, RY - 6, .55, 22);
+    },
+  },
+  {
+    key: '4', name: '올가미 밧줄 · 낙인', en: 'LARIAT & BRAND', bg: '#120b06',
+    swatch: ['#9c6a3c', '#c8a36a', '#6e4a2b', '#2a160a'],
+    why: '박음질 대신 꼰 밧줄을 테두리에 둘렀다. 가운데는 불에 지진 보안관 별 낙인을 크게, 그 안에 더미·버린 카드가 놓인다.',
+    good: ['밧줄 한 줄로 "서부"가 바로 읽힌다', '낙인 원이 더미 자리를 감싸 가운데에 눈이 간다', '보안관 별이 역할(보안관)과 이어진다'],
+    bad: ['밧줄이 두꺼우면 보드 바깥 손패 부채와 겹친다', '낙인이 보안관 편을 드는 듯 보일 수 있다. 원만 남기고 별을 빼는 안도 있다'],
+    cost: { 텍스처: '1024×640 1장 (2.6MB)', 생성: '미리 구운 JPG (앱엔 2D 캔버스가 없다. 첫 화면 바탕과 같은 방식)' },
+    draw(c) {
+      floor(c, '#120b06');
+      suede(c, RX - 4, RY - 4, { base: '#9c6a3c', seed: 41 });
+      c.save(); ell(c, RX - 4, RY - 4); c.clip();
+      // 낙인: 그을린 번짐 → 탄 홈
+      const burn = (path, w) => {
+        c.save(); c.filter = 'blur(6px)'; path(); c.strokeStyle = 'rgba(40,14,2,.45)'; c.lineWidth = w + 12; c.stroke(); c.restore();
+        path(); c.strokeStyle = 'rgba(35,14,4,.75)'; c.lineWidth = w; c.stroke();
+        c.save(); c.translate(1, 1.5); path(); c.strokeStyle = 'rgba(255,200,140,.12)'; c.lineWidth = 1.2; c.stroke(); c.restore();
+      };
+      burn(() => { c.beginPath(); c.ellipse(CX, CY + 2, 190, 150, 0, 0, Math.PI * 2); }, 7);
+      burn(() => star(c, CX, CY + 2, 150, 62), 6);
+      c.restore();
+      // 밧줄: 바탕 띠 → 가닥
+      ell(c, RX - 15, RY - 15); c.strokeStyle = 'rgba(0,0,0,.5)'; c.lineWidth = 30; c.stroke();
+      ell(c, RX - 16, RY - 16); c.strokeStyle = '#8f6d3c'; c.lineWidth = 24; c.stroke();
+      for (const p of along(RX - 16, RY - 16, 420)) {
+        c.save(); c.translate(p.x, p.y); c.rotate(p.tan + .95);
+        const g = c.createLinearGradient(0, -5, 0, 5);
+        g.addColorStop(0, '#e2c48c'); g.addColorStop(.5, '#c8a36a'); g.addColorStop(1, '#6e4a2b');
+        c.beginPath(); c.ellipse(0, 0, 14, 4.6, 0, 0, Math.PI * 2); c.fillStyle = g; c.fill();
+        c.restore();
+      }
+      // 밧줄 매듭 (위쪽 가운데)
+      const kx = CX, ky = CY - RY + 16;
+      for (let i = 0; i < 3; i++) {
+        c.save(); c.translate(kx - 18 + i * 18, ky); c.rotate(.5);
+        c.beginPath(); c.ellipse(0, 0, 12, 18, 0, 0, Math.PI * 2); c.fillStyle = i % 2 ? '#c8a36a' : '#b48f58'; c.fill();
+        c.strokeStyle = 'rgba(60,35,15,.6)'; c.lineWidth = 1.5; c.stroke(); c.restore();
+      }
+      innerShadow(c, RX - 30, RY - 30, .5, 20);
+    },
+  },
+  {
+    key: '5', name: '조각 이은 가죽', en: 'PATCHWORK & LACING', bg: '#130c07',
+    swatch: ['#a8703f', '#8f5a31', '#b47b48', '#7d4c28', '#d8b98a'],
+    why: '여러 톤의 가죽 조각을 부채꼴로 이어 붙이고, 이음매는 박음질, 바깥 가장자리는 가죽끈으로 감쳐 맸다. 가운데 둥근 조각에 더미가 놓인다.',
+    good: ['조각 경계가 좌석 방향을 은근히 나눠 준다', '손으로 만든 물건 느낌이 가장 강하다', '조각 색만 바꾸면 테마(밤/낮) 변형이 쉽다'],
+    bad: ['이음매가 보드 밑을 지나가 조금 어수선하다. 조각 수를 좌석 수에 맞추면 낫다', '조각 사이 색 차이를 키우면 금방 촌스러워진다'],
+    cost: { 텍스처: '1024×640 1장 (2.6MB)', 생성: '미리 구운 JPG (앱엔 2D 캔버스가 없다. 첫 화면 바탕과 같은 방식)' },
+    draw(c) {
+      floor(c, '#130c07');
+      const tones = ['#a8703f', '#8f5a31', '#b47b48', '#7d4c28'];
+      const P = 10, inner = [175, 125];
+      ell(c, RX, RY); c.fillStyle = '#4a2b17'; c.fill();
+      for (let k = 0; k < P; k++) {
+        const a0 = (k / P) * Math.PI * 2 - Math.PI / 2 + .12, a1 = ((k + 1) / P) * Math.PI * 2 - Math.PI / 2 + .12;
+        c.save();
+        c.beginPath(); c.moveTo(CX, CY); c.ellipse(CX, CY, RX - 10, RY - 10, 0, a0, a1); c.closePath(); c.clip();
+        suede(c, RX - 10, RY - 10, { base: tones[k % 4], seed: 50 + k, n: 18 });
+        c.restore();
+      }
+      suede(c, inner[0], inner[1], { base: '#6b3f1f', seed: 77, n: 10 });
+      // 이음매 박음질
+      c.save(); ell(c, RX - 10, RY - 10); c.clip();
+      for (let k = 0; k < P; k++) {
+        const a = (k / P) * Math.PI * 2 - Math.PI / 2 + .12;
+        const x0 = CX + Math.cos(a) * inner[0], y0 = CY + Math.sin(a) * inner[1];
+        const x1 = CX + Math.cos(a) * RX, y1 = CY + Math.sin(a) * RY;
+        c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.strokeStyle = 'rgba(30,14,4,.55)'; c.lineWidth = 3; c.stroke();
+        c.save(); c.setLineDash([7, 6]); c.lineCap = 'round';
+        for (const s of [-6, 6]) {
+          const nx = -Math.sin(a) * s, ny = Math.cos(a) * s;
+          c.beginPath(); c.moveTo(x0 + nx, y0 + ny); c.lineTo(x1 + nx, y1 + ny); c.strokeStyle = '#e9d6a8'; c.lineWidth = 1.8; c.stroke();
+        }
+        c.restore();
+      }
+      c.restore();
+      ell(c, inner[0], inner[1]); c.strokeStyle = 'rgba(30,14,4,.55)'; c.lineWidth = 3; c.stroke();
+      stitch(c, inner[0] + 8, inner[1] + 8, { dash: [7, 6], width: 1.8 });
+      // 가장자리 감침질: 사선 가죽끈 + 구멍
+      for (const p of along(RX - 12, RY - 12, 170)) {
+        c.save(); c.translate(p.x, p.y); c.rotate(p.tan);
+        c.beginPath(); c.arc(0, 9, 2.4, 0, Math.PI * 2); c.fillStyle = '#1a0d05'; c.fill();
+        c.rotate(-.55);
+        c.beginPath(); c.roundRect(-2.6, -14, 5.2, 24, 2.6);
+        const g = c.createLinearGradient(-3, 0, 3, 0); g.addColorStop(0, '#a4825a'); g.addColorStop(.5, '#e4c99a'); g.addColorStop(1, '#8a6a44');
+        c.fillStyle = g; c.fill(); c.restore();
+      }
+      innerShadow(c, RX - 10, RY - 10, .45, 18);
+    },
+  },
+  {
+    key: '6', name: '탄띠 테두리', en: 'GUN BELT', bg: '#100a06',
+    swatch: ['#b07a46', '#3d2414', '#e0b04a', '#c8703a', '#c9ccd0'],
+    why: '탁자 가장자리를 권총 탄띠로 둘렀다. 고리마다 놋쇠 탄약이 꽂혀 있고, 위쪽 가운데에 은 버클. 탄약 색은 판의 총알(<code>bulletTexture</code> #E0B04A·#C8703A)에서 가져왔다.',
+    good: ['게임 이름(뱅!)과 바로 붙는다. 총알 = 목숨 표시라 의미도 맞다', '띠가 짙어 안쪽 밝은 가죽과 대비가 분명하다', '버클이 "내 자리 반대편"을 표시해 판의 방향이 생긴다'],
+    bad: ['보드의 목숨 총알과 같은 모양이라 헷갈릴 수 있다. 탄약을 더 작게·흐리게', '반복 무늬라 텍스처 해상도가 낮으면 계단이 진다'],
+    cost: { 텍스처: '띠는 탄약 한 칸 64×32 타일을 타원 따라 반복 가능, 바탕 512²', 생성: '미리 구운 JPG (앱엔 2D 캔버스가 없다. 첫 화면 바탕과 같은 방식)' },
+    draw(c) {
+      floor(c, '#100a06');
+      suede(c, RX - 60, RY - 56, { base: '#b07a46', seed: 61, n: 50 });
+      // 띠
+      band(c, [RX, RY], [RX - 60, RY - 56], '#3d2414');
+      c.save(); ell(c, RX, RY); c.ellipse(CX, CY, RX - 60, RY - 56, 0, 0, Math.PI * 2, true); c.clip('evenodd');
+      multiplyTile(c, noiseTile(62, 215, 255, 64), 2);
+      c.restore();
+      stitch(c, RX - 6, RY - 6, { color: '#c9a878', dash: [5, 5], width: 1.6 });
+      stitch(c, RX - 54, RY - 50, { color: '#c9a878', dash: [5, 5], width: 1.6 });
+      // 탄약 고리
+      const top = (a) => Math.abs(((a + Math.PI / 2 + Math.PI * 3) % (Math.PI * 2)) - Math.PI) < .12;
+      for (const p of along(RX - 30, RY - 28, 96, .5)) {
+        if (top(p.a)) continue;
+        c.save(); c.translate(p.x, p.y); c.rotate(p.nor);
+        // 고리 (가로로 띠를 감싼 가죽)
+        c.beginPath(); c.roundRect(-14, -9, 28, 18, 3); c.fillStyle = '#56331b'; c.fill();
+        c.strokeStyle = 'rgba(0,0,0,.45)'; c.lineWidth = 1.2; c.stroke();
+        // 탄약: 놋쇠 몸통이 안쪽, 탄두가 바깥으로
+        const g = c.createLinearGradient(0, -6, 0, 6);
+        g.addColorStop(0, '#f4d27a'); g.addColorStop(.45, '#e0b04a'); g.addColorStop(1, '#9c7424');
+        c.beginPath(); c.roundRect(-20, -5.5, 30, 11, 2); c.fillStyle = g; c.fill();
+        const tg = c.createLinearGradient(0, -5, 0, 5);
+        tg.addColorStop(0, '#e9a06a'); tg.addColorStop(1, '#8c4a22');
+        c.beginPath(); c.moveTo(10, -5.5); c.quadraticCurveTo(24, -4, 26, 0); c.quadraticCurveTo(24, 4, 10, 5.5); c.closePath();
+        c.fillStyle = tg; c.fill();
+        c.restore();
+      }
+      // 버클 (위쪽 가운데)
+      const bx = CX, by = CY - RY + 30;
+      c.save(); c.translate(bx, by);
+      c.beginPath(); c.roundRect(-46, -30, 92, 60, 10);
+      const bg = c.createLinearGradient(0, -30, 0, 30);
+      bg.addColorStop(0, '#f2f3f5'); bg.addColorStop(.5, '#a7abb0'); bg.addColorStop(1, '#55595e');
+      c.fillStyle = bg; c.fill(); c.strokeStyle = 'rgba(0,0,0,.5)'; c.lineWidth = 2; c.stroke();
+      c.beginPath(); c.roundRect(-36, -21, 72, 42, 6); c.strokeStyle = 'rgba(60,62,66,.55)'; c.lineWidth = 2; c.stroke();
+      star(c, 0, 0, 16, 7, 5); c.fillStyle = '#d9a441'; c.fill(); c.strokeStyle = 'rgba(91,58,14,.7)'; c.lineWidth = 1; c.stroke();
+      c.restore();
+      innerShadow(c, RX - 60, RY - 56, .6, 24);
+    },
+  },
+];
+
+startPage(DESIGNS, '1');
+</script>
+</body>
+</html>

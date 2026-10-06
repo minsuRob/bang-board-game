@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BANG! 문양</title>
+<link href="https://fonts.googleapis.com/css2?family=Rye&family=Ewert&family=Stardos+Stencil:wght@700&family=Black+Han+Sans&family=Gowun+Batang:wght@400;700&family=Special+Elite&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="table.css" />
+</head>
+<body>
+<header>
+  <h1>BANG! Emblems</h1>
+  <p>올가미 밧줄 가죽 탁자 가운데에 BANG! 글자와 리볼버 · H 로 카드를 치우고 문양만 본다</p>
+  <nav class="pages"><a href="index.html">탁자 시안</a><a href="leather.html">가죽 변형</a><a href="emblem.html" aria-current="page">BANG! 문양</a></nav>
+</header>
+<nav id="tabs" role="tablist"></nav>
+<main id="main"></main>
+
+<script src="_kit.js"></script>
+<script src="_leather.js"></script>
+<script>
+// ---------------------------------------------------------------------------
+// 바탕: 가죽 변형 4번 (올가미 밧줄) 에서 가운데 별 낙인만 뺐다
+// ---------------------------------------------------------------------------
+function lariatTable(c, emblem) {
+  floor(c, '#120b06');
+  suede(c, RX - 4, RY - 4, { base: '#9c6a3c', seed: 41 });
+  c.save(); ell(c, RX - 4, RY - 4); c.clip();
+  emblem(c);
+  c.restore();
+  ell(c, RX - 15, RY - 15); c.strokeStyle = 'rgba(0,0,0,.5)'; c.lineWidth = 30; c.stroke();
+  ell(c, RX - 16, RY - 16); c.strokeStyle = '#8f6d3c'; c.lineWidth = 24; c.stroke();
+  for (const p of along(RX - 16, RY - 16, 420)) {
+    c.save(); c.translate(p.x, p.y); c.rotate(p.tan + .95);
+    const g = c.createLinearGradient(0, -5, 0, 5);
+    g.addColorStop(0, '#e2c48c'); g.addColorStop(.5, '#c8a36a'); g.addColorStop(1, '#6e4a2b');
+    c.beginPath(); c.ellipse(0, 0, 14, 4.6, 0, 0, Math.PI * 2); c.fillStyle = g; c.fill();
+    c.restore();
+  }
+  const kx = CX, ky = CY - RY + 16;
+  for (let i = 0; i < 3; i++) {
+    c.save(); c.translate(kx - 18 + i * 18, ky); c.rotate(.5);
+    c.beginPath(); c.ellipse(0, 0, 12, 18, 0, 0, Math.PI * 2); c.fillStyle = i % 2 ? '#c8a36a' : '#b48f58'; c.fill();
+    c.strokeStyle = 'rgba(60,35,15,.6)'; c.lineWidth = 1.5; c.stroke(); c.restore();
+  }
+  innerShadow(c, RX - 30, RY - 30, .5, 20);
+}
+
+// ---------------------------------------------------------------------------
+// 배치: 글자는 더미 위, 총은 더미 양옆에서 바깥(좌석 쪽)을 겨눈다.
+// 더미(528·670, 385)와 좌석 보드 사이 빈자리만 쓴다
+// ---------------------------------------------------------------------------
+const TEXT = { x: CX, y: 308, size: 112 };
+const TARGET = { x: CX, y: 385 };
+const GUNS = [
+  { x: 396, y: 404, flip: true },
+  { x: 804, y: 404, flip: false },
+];
+const GUN_SCALE = 1.05, GUN_TILT = -.24;
+
+// ---------------------------------------------------------------------------
+// 리볼버 (싱글 액션). 원점은 실린더 가운데, 총구가 +x
+// ---------------------------------------------------------------------------
+const GUN = (() => {
+  const metal = new Path2D();
+  // 프레임
+  metal.moveTo(-50, -20); metal.lineTo(32, -24); metal.lineTo(32, 14); metal.lineTo(-4, 16);
+  metal.lineTo(-14, 20); metal.lineTo(-34, 16); metal.lineTo(-54, 2); metal.closePath();
+  // 공이치기
+  metal.moveTo(-46, -18); metal.lineTo(-62, -31); metal.lineTo(-67, -27); metal.lineTo(-56, -12); metal.closePath();
+  // 총열 + 가늠쇠
+  metal.rect(28, -16, 110, 14);
+  metal.moveTo(126, -16); metal.lineTo(129, -23); metal.lineTo(136, -23); metal.lineTo(136, -16); metal.closePath();
+  // 탄피 배출봉
+  metal.rect(28, -2, 78, 8);
+  metal.moveTo(110, 2); metal.arc(106, 2, 4, 0, Math.PI * 2);
+  const cylinder = new Path2D();
+  cylinder.roundRect(-24, -21, 52, 36, 6);
+  const grip = new Path2D();
+  grip.moveTo(-30, 12);
+  grip.bezierCurveTo(-26, 34, -34, 58, -40, 76);
+  grip.quadraticCurveTo(-56, 92, -80, 84);
+  grip.bezierCurveTo(-84, 62, -78, 30, -58, -2);
+  grip.closePath();
+  const guard = new Path2D();
+  guard.moveTo(-4, 16); guard.bezierCurveTo(-2, 38, -32, 40, -34, 18);
+  guard.moveTo(-14, 16); guard.quadraticCurveTo(-12, 27, -21, 31);
+  const detail = new Path2D();
+  detail.moveTo(-20, -9); detail.lineTo(24, -9);
+  detail.moveTo(-20, 3); detail.lineTo(24, 3);
+  detail.moveTo(31, -16); detail.lineTo(31, 6);
+  detail.moveTo(-36, -4); detail.arc(-38, -4, 2.5, 0, Math.PI * 2);
+  detail.moveTo(-53, 46); detail.arc(-58, 46, 5, 0, Math.PI * 2);
+  detail.moveTo(-39, 74); detail.quadraticCurveTo(-55, 88, -79, 80);
+  return { metal, cylinder, grip, guard, detail };
+})();
+
+function eachGun(c, paint, guns = GUNS, scale = GUN_SCALE, tilt = GUN_TILT) {
+  for (const g of guns) {
+    c.save();
+    c.translate(g.x, g.y);
+    if (g.flip) c.scale(-1, 1);
+    c.rotate(tilt);
+    c.scale(scale, scale);
+    paint(c, GUN);
+    c.restore();
+  }
+}
+
+function font(c, family, size = TEXT.size) {
+  c.font = `${size}px ${family}`;
+  c.textAlign = 'center';
+  c.textBaseline = 'alphabetic';
+}
+
+/** 그을린 자국: 번진 그을음 → 탄 홈 → 아래로 비낀 밝은 턱 */
+function burn(c, fillPath, strokePath, w = 3) {
+  c.save(); c.filter = 'blur(7px)'; c.globalAlpha = .55; fillPath('rgba(40,14,2,1)'); c.restore();
+  fillPath('rgba(55,22,6,.5)');
+  strokePath('rgba(30,10,2,.82)', w);
+  c.save(); c.translate(1, 1.5); strokePath('rgba(255,200,140,.13)', 1); c.restore();
+}
+
+/** 표적 링 */
+function target(c, radii, paint) {
+  radii.forEach((r, i) => {
+    c.beginPath(); c.arc(TARGET.x, TARGET.y, r, 0, Math.PI * 2);
+    paint(i, r);
+  });
+}
+
+/** 잉크 튄 자국: 큰 방울 + 주변 잔방울 */
+function splat(c, x, y, r, rnd, color) {
+  c.fillStyle = color;
+  c.beginPath();
+  const n = 14;
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * Math.PI * 2, rad = r * (.75 + rnd() * .5);
+    i ? c.lineTo(x + Math.cos(a) * rad, y + Math.sin(a) * rad) : c.moveTo(x + Math.cos(a) * rad, y + Math.sin(a) * rad);
+  }
+  c.fill();
+  for (let i = 0; i < 9; i++) {
+    const a = rnd() * Math.PI * 2, d = r * (1.3 + rnd() * 1.8);
+    c.beginPath(); c.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, 1 + rnd() * r * .18, 0, Math.PI * 2); c.fill();
+  }
+}
+
+/** 총알 자국: 찢긴 테 + 금 + 검은 구멍 */
+function bulletHole(c, x, y, r, rnd) {
+  c.save();
+  c.strokeStyle = 'rgba(40,16,4,.55)'; c.lineWidth = 1.2;
+  for (let i = 0; i < 7; i++) {
+    const a = rnd() * Math.PI * 2, l = r * (1.6 + rnd() * 1.6);
+    c.beginPath(); c.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    c.lineTo(x + Math.cos(a + (rnd() - .5) * .3) * l, y + Math.sin(a + (rnd() - .5) * .3) * l); c.stroke();
+  }
+  c.beginPath(); c.arc(x, y, r * 1.35, 0, Math.PI * 2); c.fillStyle = 'rgba(225,180,130,.35)'; c.fill();
+  const g = c.createRadialGradient(x - r * .2, y - r * .2, 0, x, y, r);
+  g.addColorStop(0, '#050201'); g.addColorStop(.7, '#1a0b04'); g.addColorStop(1, '#3a1d0b');
+  c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fillStyle = g; c.fill();
+  c.restore();
+}
+
+// ---------------------------------------------------------------------------
+// 문양 다섯
+// ---------------------------------------------------------------------------
+const DESIGNS = [
+  {
+    key: '1', name: '낙인', en: 'BRANDED', bg: '#120b06',
+    swatch: ['#9c6a3c', '#371605', '#c8a36a'],
+    why: '앞의 별 낙인과 같은 방식으로 BANG! 글자와 리볼버 두 자루를 가죽에 지졌다. 더미 둘레에는 지진 표적 링.',
+    good: ['가죽·밧줄과 재질이 하나라 가장 자연스럽다', '단색이라 카드 그림과 다투지 않는다'],
+    bad: ['상자 그림처럼 화려한 맛은 없다', '글자가 진하지 않아 폰에서는 흐릿할 수 있다'],
+    cost: { 텍스처: '가죽 탁자와 같은 1장 (문양을 같이 굽는다)', 생성: '미리 구운 JPG' },
+    draw(c) {
+      lariatTable(c, (c) => {
+        // 표적 링 + 십자 눈금
+        target(c, [168, 150], (i) => {
+          const p = new Path2D(); p.arc(TARGET.x, TARGET.y, [168, 150][i], 0, Math.PI * 2);
+          burn(c, () => {}, (col, w) => { c.strokeStyle = col; c.lineWidth = w + (i ? 0 : 2); c.stroke(p); });
+        });
+        for (let k = 0; k < 4; k++) {
+          const a = k * Math.PI / 2, p = new Path2D();
+          p.moveTo(TARGET.x + Math.cos(a) * 140, TARGET.y + Math.sin(a) * 140);
+          p.lineTo(TARGET.x + Math.cos(a) * 184, TARGET.y + Math.sin(a) * 184);
+          burn(c, () => {}, (col, w) => { c.strokeStyle = col; c.lineWidth = w + 1; c.stroke(p); });
+        }
+        eachGun(c, (c, G) => burn(c,
+          (col) => { c.fillStyle = col; c.fill(G.metal); c.fill(G.cylinder); c.fill(G.grip); },
+          (col, w) => {
+            c.strokeStyle = col; c.lineWidth = w / GUN_SCALE; c.lineJoin = 'round';
+            c.stroke(G.metal); c.stroke(G.cylinder); c.stroke(G.grip); c.stroke(G.guard);
+            c.lineWidth = w * .6 / GUN_SCALE; c.stroke(G.detail);
+          }));
+        font(c, 'Rye');
+        burn(c,
+          (col) => { c.fillStyle = col; c.fillText('BANG!', TEXT.x, TEXT.y); },
+          (col, w) => { c.strokeStyle = col; c.lineWidth = w; c.lineJoin = 'round'; c.strokeText('BANG!', TEXT.x, TEXT.y); });
+      });
+    },
+  },
+  {
+    key: '2', name: '상자 그림 로고', en: 'BOX ART', bg: '#120b06',
+    swatch: ['#ffd23a', '#f07a1a', '#c8281e', '#f3e3c0', '#1a1410'],
+    why: '첨부한 상자 그림을 따랐다. 노랑→주황→빨강 글자에 굵은 검은 테, 더미 뒤에 빨강·크림 표적, 둘레에 먹물 튄 자국. 총은 쇠 몸통에 나무 손잡이.',
+    good: ['상자를 연 것 같은 첫인상. 게임 정체성이 가장 세다', '표적이 더미 자리를 정확히 짚어 준다'],
+    bad: ['색이 강해 카드가 놓이면 시선이 갈린다. 빨강이 피격 플래시와 겹친다', '가죽 탁자 위에 인쇄 스티커를 붙인 듯 따로 놀 수 있다'],
+    cost: { 텍스처: '가죽 탁자와 같은 1장', 생성: '미리 구운 JPG' },
+    draw(c) {
+      const r = rng(88);
+      lariatTable(c, (c) => {
+        // 먹물
+        for (let i = 0; i < 9; i++) {
+          const a = r() * Math.PI * 2, d = 175 + r() * 70;
+          splat(c, TARGET.x + Math.cos(a) * d * 1.25, TARGET.y + Math.sin(a) * d * .8, 8 + r() * 14, r, 'rgba(26,20,16,.85)');
+        }
+        // 표적
+        target(c, [158, 124, 90, 56, 24], (i) => {
+          c.fillStyle = i % 2 ? '#f3e3c0' : '#c8281e'; c.fill();
+          c.strokeStyle = '#1a1410'; c.lineWidth = i ? 2 : 5; c.stroke();
+        });
+        // 총
+        eachGun(c, (c, G) => {
+          c.lineJoin = 'round';
+          c.save(); c.shadowColor = 'rgba(0,0,0,.5)'; c.shadowOffsetY = 6; c.shadowBlur = 8;
+          const m = c.createLinearGradient(0, -30, 0, 20);
+          m.addColorStop(0, '#c9d0d6'); m.addColorStop(.45, '#7d868e'); m.addColorStop(1, '#30353a');
+          c.fillStyle = m; c.fill(G.metal);
+          const w = c.createLinearGradient(-80, 0, -30, 0);
+          w.addColorStop(0, '#4a200c'); w.addColorStop(1, '#8a4620');
+          c.fillStyle = w; c.fill(G.grip);
+          c.restore();
+          const cy = c.createLinearGradient(0, -21, 0, 15);
+          cy.addColorStop(0, '#d6dce1'); cy.addColorStop(1, '#4a5056');
+          c.fillStyle = cy; c.fill(G.cylinder);
+          c.strokeStyle = '#120d0a'; c.lineWidth = 3.4; c.stroke(G.metal); c.stroke(G.cylinder); c.stroke(G.grip);
+          c.lineWidth = 4; c.stroke(G.guard);
+          c.lineWidth = 1.8; c.stroke(G.detail);
+        });
+        // 글자
+        font(c, 'Rye', 120);
+        const tx = TEXT.x, ty = TEXT.y;
+        c.lineJoin = 'round';
+        c.strokeStyle = '#1a1410'; c.lineWidth = 18;
+        c.save(); c.translate(5, 7); c.strokeText('BANG!', tx, ty); c.fillStyle = '#1a1410'; c.fillText('BANG!', tx, ty); c.restore();
+        c.strokeText('BANG!', tx, ty);
+        const g = c.createLinearGradient(0, ty - 92, 0, ty + 6);
+        g.addColorStop(0, '#ffe066'); g.addColorStop(.4, '#f7a823'); g.addColorStop(.75, '#e2541b'); g.addColorStop(1, '#b3261e');
+        c.fillStyle = g; c.fillText('BANG!', tx, ty);
+        c.strokeStyle = 'rgba(255,245,200,.55)'; c.lineWidth = 2;
+        c.save(); c.translate(-1.5, -2); c.beginPath(); c.rect(0, 0, W, ty - 50); c.clip(); c.strokeText('BANG!', tx, ty); c.restore();
+      });
+    },
+  },
+  {
+    key: '3', name: '가죽 각인', en: 'TOOLED EMBOSS', bg: '#120b06',
+    swatch: ['#9c6a3c', '#6b4220', '#e2bd8a'],
+    why: '가죽 변형 3번(셰리던 꽃 각인)의 눌러 찍는 방식으로 글자와 총을 새겼다. 둘레는 장식 홈 두 줄과 잎 문양.',
+    good: ['가장 은은하다. 오래 봐도 질리지 않는다', '테마를 바꿔도 가죽 색만 따라 바뀌어 손이 덜 간다'],
+    bad: ['밝기 차이가 작아 판 카메라에서는 잘 안 보인다. 글자를 더 깊게 눌러야 할 수 있다'],
+    cost: { 텍스처: '가죽 탁자와 같은 1장', 생성: '미리 구운 JPG' },
+    draw(c) {
+      lariatTable(c, (c) => tooledEmblem(c, MOCK_SPEC));
+    },
+  },
+  {
+    key: '4', name: '금박', en: 'GOLD FOIL', bg: '#120b06',
+    swatch: ['#fff1c4', '#d9a441', '#8a5a18', '#9c6a3c'],
+    why: '가죽 책 표지에 금박을 찍듯이. 장식 글꼴(Ewert) BANG!, 총은 금선으로만 그린 선화, 밑에 두 줄 괘선과 작은 별, 더미 둘레엔 금 점선 표적.',
+    good: ['고급스럽다. 금색이 차례 하이라이트(#F2C14E)·놋쇠 장식과 한 집안', '선으로만 그려 카드가 올라가도 덜 시끄럽다'],
+    bad: ['금박 광택은 구워 두면 각도가 바뀌어도 그대로라 평평해 보인다', '장식 글꼴이 작게 보이면 읽기 어렵다'],
+    cost: { 텍스처: '가죽 탁자와 같은 1장', 생성: '미리 구운 JPG' },
+    draw(c) {
+      lariatTable(c, (c) => {
+        const gold = (y0, y1) => {
+          const g = c.createLinearGradient(0, y0, 0, y1);
+          g.addColorStop(0, '#fff1c4'); g.addColorStop(.35, '#e7b84f'); g.addColorStop(.6, '#b9842c'); g.addColorStop(1, '#f2c96a');
+          return g;
+        };
+        // 금 점선 표적
+        c.save(); c.setLineDash([2, 9]); c.lineCap = 'round';
+        target(c, [160, 140], () => { c.strokeStyle = '#e7b84f'; c.lineWidth = 3; c.stroke(); });
+        c.restore();
+        // 총: 금선
+        eachGun(c, (c, G) => {
+          c.lineJoin = 'round';
+          c.strokeStyle = 'rgba(60,30,8,.55)'; c.lineWidth = 5 / GUN_SCALE;
+          for (const p of [G.metal, G.cylinder, G.grip, G.guard]) c.stroke(p);
+          c.strokeStyle = gold(-30, 86); c.lineWidth = 2.6 / GUN_SCALE;
+          for (const p of [G.metal, G.cylinder, G.grip, G.guard]) c.stroke(p);
+          c.lineWidth = 1.4 / GUN_SCALE; c.stroke(G.detail);
+        });
+        // 글자
+        font(c, 'Ewert', 104);
+        c.fillStyle = 'rgba(50,22,5,.6)'; c.fillText('BANG!', TEXT.x + 2, TEXT.y + 3);
+        c.fillStyle = gold(TEXT.y - 80, TEXT.y);
+        c.fillText('BANG!', TEXT.x, TEXT.y);
+        // 괘선 + 별
+        for (const [dy, w] of [[14, 2.4], [21, 1]]) {
+          c.beginPath(); c.moveTo(TEXT.x - 200, TEXT.y + dy); c.lineTo(TEXT.x + 200, TEXT.y + dy);
+          c.strokeStyle = '#d9a441'; c.lineWidth = w; c.stroke();
+        }
+        for (const sx of [-232, 232]) { star(c, TEXT.x + sx, TEXT.y + 17, 11, 4.5); c.fillStyle = gold(TEXT.y + 5, TEXT.y + 30); c.fill(); }
+      });
+    },
+  },
+  {
+    key: '5', name: '스텐실 · 총알 자국', en: 'STENCIL & BULLET HOLES', bg: '#120b06',
+    swatch: ['#b3261e', '#1a1410', '#9c6a3c', '#050201'],
+    why: '상자 그림의 빨강·검정을 페인트 스텐실로 뿌렸다. 글자는 스텐실 글꼴, 총은 검은 실루엣에 번진 분무 자국, 탁자 곳곳에 총알 구멍.',
+    good: ['거칠고 시끌벅적한 "뱅!" 분위기가 가장 잘 산다', '실루엣이라 작게 보여도 총인 게 바로 읽힌다'],
+    bad: ['총알 구멍이 카드 밑에 걸리면 지저분해 보인다. 위치를 좌석 사이로만', '가죽에 페인트라 고급스러운 맛은 덜하다'],
+    cost: { 텍스처: '가죽 탁자와 같은 1장', 생성: '미리 구운 JPG' },
+    draw(c) {
+      const r = rng(55);
+      lariatTable(c, (c) => {
+        // 분무 자국
+        const mist = (x, y, w, h, n, col) => {
+          c.fillStyle = col;
+          for (let i = 0; i < n; i++) {
+            const a = r() * Math.PI * 2, d = Math.sqrt(r());
+            c.fillRect(x + Math.cos(a) * w * d, y + Math.sin(a) * h * d, 1.6, 1.6);
+          }
+        };
+        mist(TEXT.x, TEXT.y - 40, 300, 90, 2600, 'rgba(179,38,30,.35)');
+        // 표적: 검은 분무 링
+        c.save(); c.shadowColor = 'rgba(26,20,16,.7)'; c.shadowBlur = 10;
+        target(c, [150, 104], (i) => { c.strokeStyle = 'rgba(26,20,16,.75)'; c.lineWidth = i ? 6 : 9; c.stroke(); });
+        c.restore();
+        // 총: 검은 실루엣
+        eachGun(c, (c, G) => {
+          c.save(); c.shadowColor = 'rgba(26,20,16,.8)'; c.shadowBlur = 14;
+          c.fillStyle = 'rgba(26,20,16,.92)';
+          c.fill(G.metal); c.fill(G.cylinder); c.fill(G.grip);
+          c.strokeStyle = 'rgba(26,20,16,.92)'; c.lineWidth = 5; c.stroke(G.guard);
+          c.restore();
+          c.strokeStyle = 'rgba(156,106,60,.6)'; c.lineWidth = 1.6; c.stroke(G.detail);
+        });
+        // 글자: 스텐실
+        font(c, '"Stardos Stencil"', 124);
+        c.save(); c.font = `700 124px "Stardos Stencil"`;
+        c.shadowColor = 'rgba(179,38,30,.7)'; c.shadowBlur = 8;
+        c.fillStyle = '#b3261e'; c.fillText('BANG!', TEXT.x, TEXT.y);
+        c.restore();
+        // 물감 흘러내림
+        for (let i = 0; i < 7; i++) {
+          const x = TEXT.x - 190 + r() * 380, l = 10 + r() * 30;
+          c.beginPath(); c.roundRect(x, TEXT.y - 4, 3 + r() * 2.5, l, 2); c.fillStyle = 'rgba(179,38,30,.8)'; c.fill();
+        }
+        // 총알 구멍
+        for (const [x, y, s] of [[300, 262, 9], [915, 290, 8], [968, 515, 7], [258, 520, 8], [772, 236, 6]]) bulletHole(c, x, y, s, r);
+      });
+    },
+  },
+];
+
+// ---------------------------------------------------------------------------
+// 3번 가죽 각인: 판에 들어간 문양 (assets/board/table-emblem.png)
+// ---------------------------------------------------------------------------
+
+/**
+ * 시안 화면 배치. 좌석·더미 모형에 맞춘 값이라 실제 판과는 다르다
+ */
+const MOCK_SPEC = {
+  px: 1,
+  ring: { x: TARGET.x, y: TARGET.y + 10, rx: 330, ry: 205, gap: 14, leaves: 56 },
+  guns: GUNS, gunScale: GUN_SCALE, gunTilt: GUN_TILT,
+  text: { x: TEXT.x, y: TEXT.y, size: TEXT.size },
+};
+
+/**
+ * 실제 판 배치. 1024×544 투명 그림 = 월드 6.0×3.19, 그림 가운데 = 더미 가운데(layout.center)에서 +z 0.45.
+ * 1 월드 = 170.67px. 판 좌표는 src/game/table3d/core/layout.ts (가로 화면 rx 4.3 · ry 2.7)
+ * - 총: 더미(±0.85) 바깥 x ±1.75, 손잡이가 더미 칸(±1.29) 밑으로 가지 않게 z +0.35
+ * - 글자: 더미 아래와 내 보드 윗변(z +1.86) 사이. 위쪽은 이벤트 카드·위 좌석이 차지한다
+ * - 고리: 옆 좌석 안쪽 모서리(x ±3.3) 안에서 더미·총·글자를 두른다
+ */
+const GAME_W = 1024, GAME_H = 544, PX_PER_WORLD = 1024 / 6;
+const gameY = (z) => GAME_H / 2 + (z - 0.45) * PX_PER_WORLD;
+const GAME_SPEC = {
+  px: 1.9,
+  ring: { x: GAME_W / 2, y: GAME_H / 2, rx: 2.75 * PX_PER_WORLD, ry: 1.45 * PX_PER_WORLD, gap: 24, leaves: 80 },
+  guns: [
+    { x: GAME_W / 2 - 1.75 * PX_PER_WORLD, y: gameY(0.35), flip: true },
+    { x: GAME_W / 2 + 1.75 * PX_PER_WORLD, y: gameY(0.35), flip: false },
+  ],
+  gunScale: .99, gunTilt: GUN_TILT,
+  text: { x: GAME_W / 2, y: gameY(1.45), size: 130 },
+};
+
+function tooledEmblem(c, S) {
+  const k = S.px;
+  const DARK = 'rgba(55,24,6,.6)', LIGHT = 'rgba(255,225,180,.32)', FILL = 'rgba(70,32,10,.28)';
+  // 눌린 면 → 위왼쪽 그늘 → 아래오른쪽 턱
+  const press = (fill, stroke) => {
+    fill(FILL);
+    c.save(); c.translate(-1.2 * k, -1.4 * k); stroke(DARK, 2.2 * k); c.restore();
+    c.save(); c.translate(1.3 * k, 1.7 * k); stroke(LIGHT, 1.2 * k); c.restore();
+  };
+  const R = S.ring;
+  const ring = (rx, ry) => { const p = new Path2D(); p.ellipse(R.x, R.y, rx, ry, 0, 0, Math.PI * 2); return p; };
+  for (const p of [ring(R.rx, R.ry), ring(R.rx - R.gap, R.ry - R.gap * .6)]) {
+    press(() => {}, (col, w) => { c.strokeStyle = col; c.lineWidth = w; c.stroke(p); });
+  }
+  const leafShape = new Path2D();
+  leafShape.moveTo(-7 * k, 0); leafShape.quadraticCurveTo(0, -6 * k, 7 * k, 0); leafShape.quadraticCurveTo(0, 4 * k, -7 * k, 0);
+  for (const q of along(R.rx - R.gap / 2, R.ry - R.gap * .3, R.leaves)) {
+    const leaf = new Path2D();
+    const m = new DOMMatrix().translate(q.x - CX + R.x, q.y - CY + R.y)
+      .rotate((q.tan * 180) / Math.PI + (Math.round(q.a * 9) % 2 ? 35 : -35));
+    leaf.addPath(leafShape, m);
+    press((col) => { c.fillStyle = col; c.fill(leaf); }, (col, w) => { c.strokeStyle = col; c.lineWidth = w * .7; c.stroke(leaf); });
+  }
+  eachGun(c, (c, G) => press(
+    (col) => { c.fillStyle = col; c.fill(G.metal); c.fill(G.cylinder); c.fill(G.grip); },
+    (col, w) => {
+      c.strokeStyle = col; c.lineWidth = w / S.gunScale; c.lineJoin = 'round';
+      c.stroke(G.metal); c.stroke(G.cylinder); c.stroke(G.grip); c.stroke(G.guard); c.stroke(G.detail);
+    }), S.guns, S.gunScale, S.gunTilt);
+  font(c, 'Rye', S.text.size);
+  press(
+    (col) => { c.fillStyle = col; c.fillText('BANG!', S.text.x, S.text.y); },
+    (col, w) => { c.strokeStyle = col; c.lineWidth = w; c.lineJoin = 'round'; c.strokeText('BANG!', S.text.x, S.text.y); });
+}
+
+/**
+ * 판에 넣을 그림을 굽는다. ?bake=leather | emblem
+ * 결과는 data URL 로 #out 에 쓴다 (docs/table-design.md 의 굽기 명령이 읽어 간다)
+ */
+async function bakeOut(part) {
+  await Promise.all([document.fonts.ready, document.fonts.load('130px Rye')]);
+  const cv = document.createElement('canvas');
+  if (part === 'leather') {
+    // 탁자 원판(CircleGeometry)은 정사각 그림의 내접원을 쓴다. 시안의 타원을 정사각에 맞춰 눌러 담으면
+    // 가로 화면 판(6.3×4.5)에서 다시 늘어나 원래 모양에 가깝게 돌아온다
+    cv.width = cv.height = 1024;
+    const c = cv.getContext('2d');
+    c.setTransform(1024 / (2 * RX), 0, 0, 1024 / (2 * RY), -(CX - RX) * 1024 / (2 * RX), -(CY - RY) * 1024 / (2 * RY));
+    lariatTable(c, () => {});
+  } else {
+    cv.width = GAME_W; cv.height = GAME_H;
+    tooledEmblem(cv.getContext('2d'), GAME_SPEC);
+  }
+  const out = document.createElement('pre');
+  out.id = 'out';
+  out.textContent = cv.toDataURL('image/png');
+  document.body.replaceChildren(out);
+}
+
+const BAKE = new URLSearchParams(location.search).get('bake');
+if (BAKE) bakeOut(BAKE);
+else startPage(DESIGNS, '1', ['112px Rye', '104px Ewert', '700 124px "Stardos Stencil"']);
+</script>
+</body>
+</html>

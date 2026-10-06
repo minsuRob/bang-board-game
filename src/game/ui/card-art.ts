@@ -161,6 +161,16 @@ export function feltArt(): ImageSourcePropType | null {
   return board('felt.jpg');
 }
 
+/** 3D 탁자 원판: 올가미 밧줄을 두른 가죽 (docs/table-design.md) */
+export function tableLeatherArt(): ImageSourcePropType | null {
+  return board('table-leather.jpg');
+}
+
+/** 3D 탁자 가운데에 눌러 찍은 BANG! 과 리볼버. 투명 PNG (docs/table-design.md) */
+export function tableEmblemArt(): ImageSourcePropType | null {
+  return board('table-emblem.png');
+}
+
 /** 좌석마다 까는 플레이어 보드 (총알 5칸 · 직업/캐릭터/무기 슬롯) */
 export function playerBoardArt(): ImageSourcePropType | null {
   return board('player-board.webp', 'player-board.jpg', 'player-board.png');

@@ -242,6 +242,11 @@ export function setMaterialSwapListener(fn: (() => void) | null) {
   onMaterialSwapped = fn;
 }
 
+/** 머티리얼 밖에서 그림을 갈아 끼웠을 때 (탁자 원판 등) */
+export function notifyMaterialSwapped() {
+  onMaterialSwapped?.();
+}
+
 let cardGeometry: THREE.PlaneGeometry | null = null;
 
 export function cardPlaneGeometry(w: number, h: number): THREE.PlaneGeometry {

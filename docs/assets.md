@@ -68,6 +68,8 @@ assets-source/
   board/leather-1.jpg              테이블 표면
   board/player-board.webp          좌석마다 까는 플레이어 보드 (총알 5칸 · 직업/캐릭터/무기 슬롯)
   board/menu-high-noon.jpg         첫 화면 바탕. 원본 없이 시안 HTML 로 그려 뽑는다 (docs/menu-design.md)
+  board/table-leather.jpg          3D 탁자 원판 (밧줄 두른 가죽). 시안 HTML 로 굽는다 (docs/table-design.md)
+  board/table-emblem.png           3D 탁자 가운데 BANG! 각인 (투명). 같은 곳에서 굽는다
 ```
 
 이름은 `src/game/data/` 의 id 와 정확히 같아야 한다. 확장판 그림은 `docs/expansion-playbook.md` 2단계를 따른다.

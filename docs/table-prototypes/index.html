@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>탁자 시안</title>
+<link href="https://fonts.googleapis.com/css2?family=Rye&family=Black+Han+Sans&family=Gowun+Batang:wght@400;700&family=Special+Elite&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="table.css" />
+</head>
+<body>
+<header>
+  <h1>Table Designs</h1>
+  <p>판 탁자 시안 · 텍스처 한 장으로 굽는 것만 · 숫자 키로 넘긴다</p>
+  <nav class="pages"><a href="index.html" aria-current="page">탁자 시안</a><a href="leather.html">가죽 변형</a><a href="emblem.html">BANG! 문양</a></nav>
+</header>
+<nav id="tabs" role="tablist"></nav>
+<main id="main"></main>
+
+<script src="_kit.js"></script>
+<script>
+// ---------------------------------------------------------------------------
+// 시안
+// ---------------------------------------------------------------------------
+const DESIGNS = [
+  {
+    key: '0', name: '지금 모양', en: 'CURRENT', bg: '#1b120b',
+    swatch: ['#3B2A19', '#5C452C', '#1B120B'],
+    why: '<code>TableGeometry.ts</code> 의 펠트 원판 <code>#3B2A19</code> × 128² 잡음, 림 <code>Colors.border</code>.',
+    good: ['가장 가볍다', '카드·보드가 어떤 색이든 묻히지 않는다'],
+    bad: ['나무인지 천인지 알 수 없다. 바닥과 판이 한 덩어리로 보인다', '림이 평평한 띠라 탁자 가장자리처럼 안 보인다'],
+    cost: { 텍스처: '128² 잡음 1장 (64KB)', 생성: '절차, 1ms 미만', 변경: '없음' },
+    draw(c) {
+      floor(c, '#1b120b');
+      ell(c, RX, RY); c.fillStyle = '#5c452c'; c.fill();
+      ell(c, RX - 14, RY - 14); c.fillStyle = '#3b2a19'; c.fill();
+      c.save(); ell(c, RX - 14, RY - 14); c.clip();
+      multiplyTile(c, noiseTile(7, 225, 255), 1.2); c.restore();
+    },
+  },
+  {
+    key: '1', name: '살롱 포커 펠트', en: 'SALOON FELT', bg: '#120c07',
+    swatch: ['#2f6b45', '#1a4029', '#6b3f1f', '#d9a441'],
+    why: '첫 화면 시안 D(<code>menu-prototypes/d-cardtable.html</code>)의 초록 펠트를 그대로 가져와 탁자로 만들었다. 나무 레일 + 놋쇠 징, 가운데 보안관 별을 옅게 찍었다.',
+    good: ['"카드 게임 탁자"가 한눈에 읽힌다', '갈색 카드 테두리·황토 보드와 보색이라 판 위가 또렷하다', '첫 화면을 고를 때 이미 좋다고 한 색'],
+    bad: ['초록이 서부극 세피아 톤에서 혼자 튈 수 있다', '파랑 장착 카드(#3D6E9E)는 초록 위에서 조금 덜 산다'],
+    cost: { 텍스처: '림·펠트 1024×512 1장 (2MB) 또는 색+잡음만 (64KB)', 생성: '색+잡음은 지금 Painter 그대로, 레일·별까지 넣으면 미리 구운 JPG', 변경: '펠트색·림 결·징 추가' },
+    draw(c) {
+      floor(c, '#120c07');
+      woodRail(c, { inner: [RX - 52, RY - 46], base: '#6b3f1f', dark: '#3a200e', light: '#8a5630', studs: 24, seed: 11 });
+      c.save(); ell(c, RX - 52, RY - 46); c.clip();
+      const g = c.createRadialGradient(CX, CY - 40, 40, CX, CY, RX);
+      g.addColorStop(0, '#2f6b45'); g.addColorStop(.6, '#1d4a2f'); g.addColorStop(1, '#0e2416');
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+      multiplyTile(c, noiseTile(21, 215, 255), 1);
+      // 금박 놀이선
+      c.setLineDash([2, 10]); c.lineCap = 'round';
+      ell(c, RX - 110, RY - 96); c.strokeStyle = 'rgba(242,193,78,.35)'; c.lineWidth = 2.5; c.stroke();
+      c.setLineDash([]);
+      ell(c, RX - 122, RY - 106); c.strokeStyle = 'rgba(242,193,78,.18)'; c.lineWidth = 1; c.stroke();
+      // 가운데 별
+      star(c, CX, CY, 150, 62); c.strokeStyle = 'rgba(242,193,78,.13)'; c.lineWidth = 3; c.stroke();
+      c.font = '30px Rye'; c.textAlign = 'center'; c.fillStyle = 'rgba(242,193,78,.16)';
+      c.fillText('BANG!', CX, CY - 175);
+      c.restore();
+      innerShadow(c, RX - 52, RY - 46, .7, 34);
+    },
+  },
+  {
+    key: '2', name: '낡은 판자 탁자', en: 'RANCH PLANKS', bg: '#100a06',
+    swatch: ['#6b4426', '#5a381f', '#7a4e2b', '#2a1a0e'],
+    why: '<code>assets/board/wood-tile.jpg</code> 의 판자와 <code>theme.ts</code> 주석의 "낡은 종이/나무 질감 위에 카드"(SC2 원본 캡처)를 따랐다. 판자는 카메라 쪽으로 길게 깔아 원근이 산다.',
+    good: ['지금 갈색 톤을 그대로 두면서 "나무 탁자"로 읽힌다', '판자 줄이 원근을 잡아 줘서 3D 느낌이 커진다', '테마 바꿀 일이 가장 적다'],
+    bad: ['결·옹이가 많으면 카드 뒷면(갈색)과 섞인다. 결 대비를 낮게 둬야 한다', '판자 틈이 좌석 보드 밑을 지나가 조금 어수선하다'],
+    cost: { 텍스처: '1024×640 1장 (2.6MB), 판자 한 장 타일 반복이면 256²', 생성: '미리 구운 JPG (앱엔 2D 캔버스가 없다. 첫 화면 바탕과 같은 방식). 또는 wood-tile.jpg 재사용', 변경: '펠트 머티리얼 map 교체' },
+    draw(c) {
+      floor(c, '#100a06');
+      const r = rng(5);
+      c.save(); ell(c, RX, RY); c.clip();
+      const pw = 92, cols = ['#6b4426', '#5a381f', '#7a4e2b', '#4d2f1a', '#654023'];
+      for (let x = CX - RX - 20, i = 0; x < CX + RX; x += pw, i++) {
+        c.fillStyle = cols[Math.floor(r() * cols.length)];
+        c.fillRect(x, 0, pw, H);
+        // 결
+        const ph = r() * 10, knotY = 120 + r() * 540, hasKnot = r() < .45;
+        for (let k = 0; k < 26; k++) {
+          const gx = x + 4 + (k / 26) * (pw - 8);
+          c.beginPath();
+          for (let y = 0; y <= H; y += 12) {
+            let dx = Math.sin(y * .012 + ph + k * .3) * 2.2;
+            if (hasKnot) { const d = y - knotY; dx += (gx - (x + pw / 2)) * 0.9 * Math.exp(-(d * d) / 1800); }
+            y ? c.lineTo(gx + dx, y) : c.moveTo(gx + dx, y);
+          }
+          c.strokeStyle = r() < .7 ? `rgba(25,12,4,${.1 + r() * .18})` : `rgba(255,210,150,${.04 + r() * .06})`;
+          c.lineWidth = .5 + r() * 1.2; c.stroke();
+        }
+        if (hasKnot) {
+          for (let k = 0; k < 4; k++) {
+            c.beginPath(); c.ellipse(x + pw / 2, knotY, 4 + k * 4, 9 + k * 7, 0, 0, Math.PI * 2);
+            c.strokeStyle = `rgba(30,14,4,${.5 - k * .1})`; c.lineWidth = 1.4; c.stroke();
+          }
+        }
+        // 틈과 못
+        c.fillStyle = 'rgba(15,8,3,.85)'; c.fillRect(x - 1.5, 0, 3, H);
+        c.fillStyle = 'rgba(255,220,170,.08)'; c.fillRect(x + 1.5, 0, 1.5, H);
+        for (const ny of [CY - RY * .78, CY + RY * .78]) {
+          c.beginPath(); c.arc(x + pw / 2, ny + (r() - .5) * 10, 3.2, 0, Math.PI * 2);
+          c.fillStyle = '#1c130c'; c.fill();
+        }
+      }
+      multiplyTile(c, noiseTile(9, 210, 255), 1, .8);
+      // 가운데가 손때로 조금 밝다
+      const lg = c.createRadialGradient(CX, CY, 30, CX, CY, RX);
+      lg.addColorStop(0, 'rgba(255,215,160,.10)'); lg.addColorStop(1, 'rgba(0,0,0,.35)');
+      c.fillStyle = lg; c.fillRect(0, 0, W, H);
+      c.restore();
+      // 모서리 깎은 면
+      ell(c, RX - 9, RY - 9); c.strokeStyle = '#2a1a0e'; c.lineWidth = 18; c.stroke();
+      ell(c, RX - 18, RY - 18); c.strokeStyle = 'rgba(255,215,160,.16)'; c.lineWidth = 2; c.stroke();
+      ell(c, RX - 1, RY - 1); c.strokeStyle = '#0d0804'; c.lineWidth = 3; c.stroke();
+    },
+  },
+  {
+    key: '3', name: '안장 가죽', en: 'TOOLED LEATHER', bg: '#150d08',
+    swatch: ['#a8703f', '#8a5630', '#3a2214', '#e9d6a8'],
+    why: '<code>assets/board/felt.jpg</code> 가 사실은 가죽 사진이었던 것(<code>menu-design.md</code>)에서 출발했다. 무두질한 황갈색 스웨이드에 크림색 박음질, 가장자리 띠에 눌러 찍은 문양, 은 콘초 8개.',
+    good: ['서부극 소품(안장·권총집)과 바로 이어진다', '따뜻한 세피아라 카드 그림 톤과 가장 잘 섞인다', '얼룩이 크고 부드러워 카드 뒤에서 시끄럽지 않다'],
+    bad: ['밝은 바탕이라 갈색 카드 뒷면·더미가 덜 뜬다. 판 그림자를 조금 진하게 줘야 한다', '보드 테두리(#241810)가 가죽 위에서 더 무겁게 보인다'],
+    cost: { 텍스처: '1024×640 1장 (2.6MB)', 생성: '미리 구운 JPG (앱엔 2D 캔버스가 없다. 첫 화면 바탕과 같은 방식)', 변경: '펠트 map 교체, 림 메시 빼도 됨' },
+    draw(c) {
+      floor(c, '#150d08');
+      const r = rng(17);
+      ell(c, RX, RY); c.fillStyle = '#3a2214'; c.fill();
+      c.save(); ell(c, RX - 6, RY - 6); c.clip();
+      c.fillStyle = '#a8703f'; c.fillRect(0, 0, W, H);
+      for (let i = 0; i < 60; i++) {
+        const x = CX + (r() - .5) * RX * 2, y = CY + (r() - .5) * RY * 2, rad = 40 + r() * 140;
+        const g = c.createRadialGradient(x, y, 0, x, y, rad);
+        const tone = r() < .55 ? '70,35,12' : '220,170,110';
+        g.addColorStop(0, `rgba(${tone},${.08 + r() * .1})`); g.addColorStop(1, `rgba(${tone},0)`);
+        c.fillStyle = g; c.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+      }
+      multiplyTile(c, noiseTile(31, 220, 255, 64), 2);
+      // 가장자리 띠: 더 짙은 가죽
+      ell(c, RX - 6, RY - 6); c.ellipse(CX, CY, RX - 70, RY - 64, 0, 0, Math.PI * 2, true);
+      c.fillStyle = 'rgba(70,35,14,.45)'; c.fill('evenodd');
+      // 눌러 찍은 문양: 잎 덩굴
+      const band = [(RX - 6 + RX - 70) / 2, (RY - 6 + RY - 64) / 2];
+      for (let i = 0; i < 120; i++) {
+        const a = (i / 120) * Math.PI * 2;
+        const x = CX + Math.cos(a) * band[0], y = CY + Math.sin(a) * band[1];
+        const tang = Math.atan2(Math.cos(a) * band[1], -Math.sin(a) * band[0]);
+        c.save(); c.translate(x, y); c.rotate(tang + (i % 2 ? .6 : -.6));
+        c.beginPath(); c.moveTo(-9, 0); c.quadraticCurveTo(0, -9, 9, 0); c.quadraticCurveTo(0, 5, -9, 0);
+        c.fillStyle = 'rgba(40,18,6,.45)'; c.fill();
+        c.strokeStyle = 'rgba(255,220,170,.22)'; c.lineWidth = 1; c.translate(.8, 1.2); c.stroke();
+        c.restore();
+      }
+      c.restore();
+      // 박음질 두 줄
+      c.setLineDash([9, 7]); c.lineCap = 'round';
+      for (const [dx, dy] of [[20, 18], [82, 75]]) {
+        ell(c, RX - dx, RY - dy); c.strokeStyle = 'rgba(30,14,4,.5)'; c.lineWidth = 3.5; c.stroke();
+        ell(c, RX - dx, RY - dy - 1); c.strokeStyle = '#e9d6a8'; c.lineWidth = 2.2; c.stroke();
+      }
+      c.setLineDash([]);
+      // 은 콘초
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+        const x = CX + Math.cos(a) * band[0], y = CY + Math.sin(a) * band[1];
+        const g = c.createRadialGradient(x - 5, y - 6, 2, x, y, 20);
+        g.addColorStop(0, '#ffffff'); g.addColorStop(.5, '#b9bcc0'); g.addColorStop(1, '#4b4e52');
+        c.beginPath(); c.arc(x, y, 18, 0, Math.PI * 2); c.fillStyle = g; c.fill();
+        c.strokeStyle = 'rgba(0,0,0,.4)'; c.lineWidth = 1.5; c.stroke();
+        star(c, x, y, 10, 4, 6); c.fillStyle = 'rgba(60,62,66,.6)'; c.fill();
+      }
+      innerShadow(c, RX - 6, RY - 6, .55, 22);
+    },
+  },
+  {
+    key: '4', name: '수채 마을 지도', en: 'INK & WASH MAP', bg: '#24180f',
+    swatch: ['#ecdcb8', '#c99a5a', '#7fa7b5', '#2b1d10'],
+    why: '첫 화면 수채 바탕(<code>sketch-backgrounds.html</code>)의 <code>wash</code>·<code>ink</code> 그림체를 판으로 옮겼다. 나무 테 안에 큰길 마을 지도를 펼쳐 놓은 모양. 라이트 테마의 종이·잉크 UI 와 같은 말투다.',
+    good: ['첫 화면 → 판으로 넘어갈 때 그림체가 끊기지 않는다', '카드 일러스트(연필·잉크·수채)와 같은 손맛', '밝은 종이라 카드가 "놓인" 느낌이 가장 강하다'],
+    bad: ['밝은 바탕 + 다크 테마 UI 패널이 붙으면 대비가 세다. 다크에서는 종이에 밤빛을 덮는 변형이 필요하다', '지도 그림이 보드 밑으로 가려져 아깝다. 그림을 가운데로 모아야 한다'],
+    cost: { 텍스처: '1024×640 1장 (2.6MB). 시안처럼 미리 구워 JPG 로 두면 ~150KB', 생성: '미리 구운 JPG (앱엔 2D 캔버스가 없다. 첫 화면 바탕과 같은 방식)', 변경: '펠트 map 을 그림으로' },
+    draw(c) {
+      floor(c, '#24180f');
+      woodRail(c, { inner: [RX - 30, RY - 27], base: '#7a4e2b', dark: '#3d2410', light: '#9a6a3e', seed: 41 });
+      const r = rng(23);
+      c.save(); ell(c, RX - 30, RY - 27); c.clip();
+      c.fillStyle = '#ecdcb8'; c.fillRect(0, 0, W, H);
+      multiplyTile(c, noiseTile(51, 228, 255, 96), 1.5);
+      // 큰길 (가운데를 가로지른다)
+      wash(c, [[60, 330], [1140, 300], [1140, 440], [60, 470]], '#c99a5a', r, 12, .07, 22);
+      // 개울
+      wash(c, [[300, 40], [380, 200], [330, 300], [360, 320], [420, 210], [350, 40]], '#7fa7b5', r, 10, .08, 18);
+      wash(c, [[820, 470], [860, 600], [800, 760], [860, 760], [910, 600], [870, 470]], '#7fa7b5', r, 10, .08, 18);
+      // 메사 그림자
+      wash(c, [[160, 560], [300, 520], [420, 600], [380, 690], [200, 700]], '#b5643a', r, 8, .06, 24);
+      wash(c, [[760, 90], [930, 70], [1010, 160], [900, 220], [790, 190]], '#b5643a', r, 8, .06, 24);
+      // 잉크: 건물 줄
+      c.strokeStyle = 'rgba(43,29,16,.75)'; c.lineWidth = 1.3; c.lineJoin = 'round';
+      for (let i = 0; i < 9; i++) {
+        const x = 250 + i * 80 + (r() - .5) * 10;
+        const w = 46 + r() * 16, h = 30 + r() * 18;
+        inkLine(c, [[x, 300 - h], [x + w, 300 - h], [x + w, 300], [x, 300]], r, 1.2, true);
+        inkLine(c, [[x + 6, 300 - h + 8], [x + w - 6, 300 - h + 8]], r, 1);
+        const y2 = 470 + (i % 2) * 6;
+        inkLine(c, [[x + 20, y2], [x + 20 + w, y2], [x + 20 + w, y2 + h], [x + 20, y2 + h]], r, 1.2, true);
+      }
+      // 길 가장자리
+      inkLine(c, [[60, 318], [1140, 290]], r, 1.6);
+      inkLine(c, [[60, 452], [1140, 425]], r, 1.6);
+      // 오솔길
+      c.setLineDash([6, 8]);
+      inkLine(c, [[600, 452], [640, 560], [580, 660], [620, 760]], r, 1.4);
+      c.setLineDash([]);
+      // 선인장
+      for (const [x, y] of [[180, 220], [1000, 560], [480, 640], [1050, 250]]) {
+        inkLine(c, [[x, y], [x, y - 34]], r, 1.2);
+        inkLine(c, [[x, y - 14], [x - 10, y - 14], [x - 10, y - 26]], r, 1);
+        inkLine(c, [[x, y - 20], [x + 9, y - 20], [x + 9, y - 30]], r, 1);
+      }
+      // 나침반
+      c.save(); c.translate(965, 600);
+      c.strokeStyle = 'rgba(43,29,16,.7)';
+      inkLine(c, Array.from({ length: 24 }, (_, i) => [Math.cos(i / 24 * 6.283) * 34, Math.sin(i / 24 * 6.283) * 34]), r, 1, true);
+      star(c, 0, 0, 30, 6, 4); c.fillStyle = 'rgba(179,38,30,.55)'; c.fill();
+      c.font = '16px "Special Elite"'; c.fillStyle = 'rgba(43,29,16,.8)'; c.textAlign = 'center'; c.fillText('N', 0, -40);
+      c.restore();
+      // 가장자리 바랜 종이
+      const vg = c.createRadialGradient(CX, CY, 260, CX, CY, RX);
+      vg.addColorStop(0, 'rgba(120,80,40,0)'); vg.addColorStop(1, 'rgba(120,80,40,.35)');
+      c.fillStyle = vg; c.fillRect(0, 0, W, H);
+      c.restore();
+      innerShadow(c, RX - 30, RY - 27, .5, 18);
+    },
+  },
+  {
+    key: '5', name: '사라페 담요', en: 'SARAPE BLANKET', bg: '#100a06',
+    swatch: ['#8e2a1f', '#d39b32', '#2e3f6b', '#e8d9b5', '#2f8a83'],
+    why: '국경 마을 살롱 소품. 나무 탁자 위에 줄무늬 담요를 덮었다. 줄무늬는 가장자리로 몰고, 가운데는 카드가 놓이게 조용한 붉은 면 + 계단 마름모만 뒀다.',
+    good: ['다섯 중 가장 색이 많아 판이 화사하고 기억에 남는다', '가로 줄무늬가 원근 방향과 엇갈려 좌석 위치가 잘 보인다', '줄무늬는 1×N 줄 텍스처 하나로도 그릴 수 있어 아주 싸다'],
+    bad: ['줄무늬가 보드 밑을 지나며 시끄럽다. 채도를 더 낮춰야 할 수 있다', '빨강이 피격 플래시(#D9442F)와 겹친다'],
+    cost: { 텍스처: '줄무늬는 1×256 (1KB) + 직조 8² 타일, 가운데 무늬만 256²', 생성: '줄무늬·직조는 Painter 로 바로, 마름모만 구운 그림', 변경: '펠트 map 교체 + 직조 타일' },
+    draw(c) {
+      floor(c, '#100a06');
+      woodRail(c, { inner: [RX - 34, RY - 30], base: '#5a381f', dark: '#2a1709', light: '#7a4e2b', seed: 61 });
+      c.save(); ell(c, RX - 34, RY - 30); c.clip();
+      c.fillStyle = '#8e2a1f'; c.fillRect(0, 0, W, H);
+      // 위아래 대칭 줄무늬
+      const bands = [
+        ['#1d1410', 14], ['#e8d9b5', 4], ['#2e3f6b', 18], ['#d39b32', 6], ['#e8d9b5', 3], ['#2f8a83', 12],
+        ['#1d1410', 3], ['#d39b32', 10], ['#8e2a1f', 8], ['#e8d9b5', 4], ['#2e3f6b', 6], ['#8e2a1f', 22],
+        ['#d39b32', 3], ['#1d1410', 2],
+      ];
+      for (const dir of [1, -1]) {
+        let y = dir > 0 ? CY - RY + 30 : CY + RY - 30;
+        for (const [col, h] of bands) {
+          c.fillStyle = col;
+          c.fillRect(0, dir > 0 ? y : y - h * 1.6, W, h * 1.6);
+          y += dir * h * 1.6;
+        }
+      }
+      // 가운데 계단 마름모
+      const step = 14;
+      for (let k = 9; k >= 1; k--) {
+        c.fillStyle = k % 3 === 0 ? '#e8d9b5' : k % 3 === 1 ? '#1d1410' : '#d39b32';
+        c.beginPath();
+        for (let i = -k; i <= k; i++) {
+          const half = (k - Math.abs(i)) * step * 1.4;
+          c.rect(CX - half - step, CY + i * step * .9 - step * .45, half * 2 + step * 2, step * .9);
+        }
+        c.fill();
+      }
+      c.fillStyle = '#8e2a1f'; c.fillRect(CX - 18, CY - 10, 36, 20);
+      // 직조: 사선 트윌 8² 타일
+      const tw = document.createElement('canvas'); tw.width = tw.height = 8;
+      const tx = tw.getContext('2d');
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+        const v = (x + y) % 4 < 2 ? 255 : 222;
+        tx.fillStyle = `rgb(${v},${v},${v})`; tx.fillRect(x, y, 1, 1);
+      }
+      multiplyTile(c, tw, 1.5);
+      multiplyTile(c, noiseTile(71, 215, 255), 1, .8);
+      // 채도·밝기 낮춤 (카드가 뜨게)
+      c.fillStyle = 'rgba(30,18,10,.22)'; c.fillRect(0, 0, W, H);
+      c.restore();
+      innerShadow(c, RX - 34, RY - 30, .65, 26);
+    },
+  },
+];
+
+startPage(DESIGNS, '1');
+</script>
+</body>
+</html>

@@ -1,6 +1,9 @@
 /**
  * 펠트·림·좌석 보드·더미 받침. 조명 없이 색만.
  *
+ * 탁자 그림(assets/board/table-*.png|jpg)이 있으면 펠트를 올가미 밧줄 가죽으로 갈아 끼우고,
+ * 가운데 더미 둘레에 BANG! 각인을 얹는다. 없으면 갈색 펠트 + 잡음 그대로다 (docs/table-design.md).
+ *
  * 좌석마다 플레이어 보드 그림을 깐다. 차례·지목·피격 색은 보드 밑 테두리가 받는다.
  * 그림에 색을 곱하면 탁해지기 때문이다. 탈락자는 보드 위에 어두운 막을 덮는다.
  */
@@ -9,8 +12,9 @@ import * as THREE from 'three';
 
 import { Colors } from '@/constants/theme';
 import { BOARD_SIZE, CARD_SIZE, type TableLayout } from '../core/types';
-import { boardMaterial } from '../materials/card-materials';
-import { feltNoiseTexture } from '../materials/textures';
+import { tableEmblemArt, tableLeatherArt } from '../../ui/card-art';
+import { boardMaterial, notifyMaterialSwapped } from '../materials/card-materials';
+import { feltNoiseTexture, loadArtTexture } from '../materials/textures';
 
 function roundedRect(w: number, h: number, r: number): THREE.ShapeGeometry {
   const s = new THREE.Shape();
@@ -43,10 +47,21 @@ const FLASH_COLOR = { red: '#D9442F', green: '#4FB35E', gold: '#E2B23A' } as con
 /** 테두리 두께 */
 const RIM = 0.07;
 
+/**
+ * 가운데 각인 그림이 덮는 월드 크기와 자리. 그림 가운데가 더미 가운데(layout.center)에서 +z 로 밀려 있다.
+ * 각인 그림(1024×544)을 구울 때 쓴 값과 같아야 한다 (docs/table-prototypes/emblem.html 의 GAME_SPEC)
+ */
+const EMBLEM = { w: 6.0, h: 6.0 * (544 / 1024), dz: 0.45 } as const;
+
+/** 가죽 그림을 깔면 바깥 테두리는 밧줄 그림자로 어둡게 */
+const LEATHER_RIM = '#1E130A';
+
 export class TableGeometry {
   readonly root = new THREE.Group();
-  private readonly felt: THREE.Mesh;
-  private readonly rim: THREE.Mesh;
+  private readonly felt: THREE.Mesh<THREE.CircleGeometry, THREE.MeshBasicMaterial>;
+  private readonly rim: THREE.Mesh<THREE.CircleGeometry, THREE.MeshBasicMaterial>;
+  /** 가운데 BANG! 각인. 그림이 도착하기 전에는 숨긴다 */
+  private readonly emblem: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
   private readonly boardGeometry = new THREE.PlaneGeometry(BOARD_SIZE.w, BOARD_SIZE.h);
   private readonly slotGeometry = roundedRect(CARD_SIZE.w + 0.18, CARD_SIZE.h + 0.18, 0.08);
   private readonly boardRimGeometry = roundedRect(BOARD_SIZE.w + RIM * 2, BOARD_SIZE.h + RIM * 2, 0.1);
@@ -75,7 +90,42 @@ export class TableGeometry {
     );
     this.felt.rotation.x = -Math.PI / 2;
     this.felt.position.y = -0.01;
-    this.root.add(this.rim, this.felt);
+    this.emblem = new THREE.Mesh(
+      new THREE.PlaneGeometry(EMBLEM.w, EMBLEM.h),
+      new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }),
+    );
+    this.emblem.rotation.x = -Math.PI / 2;
+    this.emblem.position.y = -0.005;
+    this.emblem.visible = false;
+    this.root.add(this.rim, this.felt, this.emblem);
+    this.loadArt();
+  }
+
+  /** 탁자 그림이 있으면 갈아 끼운다. 비스듬히 보는 판이라 이방성 필터를 조금 준다 */
+  private loadArt() {
+    const leather = tableLeatherArt();
+    if (leather) {
+      void loadArtTexture(leather).then((tex) => {
+        if (!tex) return;
+        tex.anisotropy = 4;
+        this.felt.material.map = tex;
+        this.felt.material.color.set('#FFFFFF');
+        this.felt.material.needsUpdate = true;
+        this.rim.material.color.set(LEATHER_RIM);
+        notifyMaterialSwapped();
+      });
+    }
+    const emblem = tableEmblemArt();
+    if (emblem) {
+      void loadArtTexture(emblem).then((tex) => {
+        if (!tex) return;
+        tex.anisotropy = 4;
+        this.emblem.material.map = tex;
+        this.emblem.material.needsUpdate = true;
+        this.emblem.visible = true;
+        notifyMaterialSwapped();
+      });
+    }
   }
 
   setLayout(layout: TableLayout) {
@@ -84,6 +134,8 @@ export class TableGeometry {
     const fz = layout.ry + 1.8;
     this.felt.scale.set(fx, fz, 1);
     this.rim.scale.set(fx + 0.14, fz + 0.14, 1);
+    this.emblem.position.x = layout.center[0];
+    this.emblem.position.z = layout.center[2] + EMBLEM.dz;
 
     while (this.boards.length < layout.n) {
       const board = new THREE.Mesh(this.boardGeometry, boardMaterial());

@@ -57,6 +57,11 @@ Skia 캔버스는 판마다 하나만 띄운다 (WebGL 컨텍스트가 넘치면
 첫 화면은 정오의 큰길 수채 바탕 위에 메뉴를 카드 부채로 펼친다. 바탕 그림은 시안 HTML 에서
 그려 뽑은 `assets/board/menu-high-noon.jpg` 다. 고치기 전에 `docs/menu-design.md` 를 본다.
 
+## 판 탁자
+
+3D 판의 탁자는 올가미 밧줄 가죽(`assets/board/table-leather.jpg`) 위에 BANG! 각인(`table-emblem.png`)을 얹는다.
+둘 다 `docs/table-prototypes/emblem.html` 에서 구운 그림이다. 고치기 전에 `docs/table-design.md` 를 본다.
+
 ## 화면 테마
 
 라이트·다크 테마가 있다. UI 색은 `useColors()` / `themedStyles()`(`src/game/ui/theme/use-theme.ts`)로 읽는다.
