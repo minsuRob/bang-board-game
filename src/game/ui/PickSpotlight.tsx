@@ -4,6 +4,8 @@
  * 낸 카드가 뜨는 자리(PlayedCardSpotlight)에 같은 명판 모양으로 뜬다.
  * 앞면 카드는 웹이면 hover, 폰이면 첫 탭에 크게 보여 주고, 누르면(폰은 한 번 더) 고른다.
  * 남의 손패처럼 안 보이는 카드는 뒷면으로 깔고 바로 고른다.
+ * 덱에서 막 펼친 카드(잡화점·럭키 듀크, center.fromDeck)는 창이 처음 뜰 때 덱에서 한 장씩 날아와 뒤집힌다.
+ * 한 번 펼친 카드는 dealt 에 적어 두고, 창이 다시 그려져도(내 차례 ↔ 구경) 다시 날리지 않는다.
  *
  * onRespond 가 없으면 구경만 한다 (남이 잡화점에서 고르는 동안). 설명은 똑같이 볼 수 있다.
  */
@@ -15,6 +17,7 @@ import type { CardId } from '../data/types';
 import { defOf, type Choice } from '../engine';
 import { CAN_HOVER } from './card-peek';
 import { CardBack, CardView, type CardSize } from './CardView';
+import { DRAW_STAGGER_MS, DeckDraw } from './DeckDraw';
 import { PaperPlaque, plaque } from './PaperPlaque';
 import type { CenterPick } from './use-table';
 import { Spacing } from '@/constants/theme';
@@ -26,14 +29,21 @@ export type PickSpotlightProps = {
   /** 없으면 구경만 한다 */
   onRespond?: (choice: Choice) => void;
   compact?: boolean;
+  /** 이미 덱에서 펼친 카드. 창이 열려 있는 동안 부모가 쥐고 있는다 */
+  dealt?: Set<CardId>;
 };
 
-export function PickSpotlight({ title, hint, center, onRespond, compact }: PickSpotlightProps) {
+export function PickSpotlight({ title, hint, center, onRespond, compact, dealt }: PickSpotlightProps) {
   const [focus, setFocus] = useState<CardId | null>(null);
   // 고를 카드가 바뀌면 (잡화점에서 한 장씩 빠진다) 살펴보던 카드를 놓는다
   useEffect(() => {
     if (focus && !center.cards.includes(focus)) setFocus(null);
   }, [center.cards, focus]);
+  // 이번에 날아올 카드. 그린 뒤에 적어 둔다 (DeckDraw 는 처음 그릴 때의 instant 만 본다)
+  const fresh = center.fromDeck ? center.cards.filter((c) => !dealt?.has(c)) : [];
+  useEffect(() => {
+    if (center.fromDeck) center.cards.forEach((c) => dealt?.add(c));
+  }, [center.cards, center.fromDeck, dealt]);
 
   const size: CardSize = compact ? 'md' : 'lg';
   const pickCard = (card: CardId) =>
@@ -58,8 +68,8 @@ export function PickSpotlight({ title, hint, center, onRespond, compact }: PickS
           <CardBack size={size} />
         </Pressable>
       ))}
-      {center.cards.map((card) => (
-        <View key={card} style={[styles.card, focus === card && styles.lifted]}>
+      {center.cards.map((card) => {
+        const face = (
           <CardView
             card={card}
             size={size}
@@ -68,8 +78,20 @@ export function PickSpotlight({ title, hint, center, onRespond, compact }: PickS
             onHoverIn={() => setFocus(card)}
             onHoverOut={() => setFocus((cur) => (cur === card ? null : cur))}
           />
-        </View>
-      ))}
+        );
+        const order = fresh.indexOf(card);
+        return (
+          <View key={card} style={[styles.card, focus === card && styles.lifted]}>
+            {center.fromDeck ? (
+              <DeckDraw size={size} instant={order < 0} delayMs={Math.max(0, order) * DRAW_STAGGER_MS}>
+                {face}
+              </DeckDraw>
+            ) : (
+              face
+            )}
+          </View>
+        );
+      })}
     </>
   );
   return (

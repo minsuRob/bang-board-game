@@ -85,6 +85,8 @@ export type CenterPick = {
   zone: 'option' | 'equipment';
   /** 뒷면으로 깔 손패 장수 */
   handCount: number;
+  /** 덱에서 막 펼친 카드다 (잡화점·럭키 듀크). 창이 처음 뜰 때 덱에서 한 장씩 날아와 뒤집힌다 */
+  fromDeck?: boolean;
 };
 
 export type TableApi = {
@@ -739,6 +741,8 @@ export function buildPrompt(view: GameState): Prompt | null {
         title: '카드 펼치기',
         hint: '두 장 중 어느 쪽을 펼칠지 고른다',
         cardOptions: a.options,
+        // 덱에서 뽑은 두 장을 가운데 창에 펼친다
+        center: { cards: a.options, zone: 'option', handCount: 0, fromDeck: true },
       };
     case 'generalStore':
       return {
@@ -749,7 +753,7 @@ export function buildPrompt(view: GameState): Prompt | null {
         ...(a.canPass ? { passLabel: '그만 가져감 (W)' } : {}),
         // 숫자키로 고를 수 있게 cardOptions 도 둔다. 카드는 가운데 창에만 그린다
         cardOptions: a.options,
-        center: { cards: a.options, zone: 'option', handCount: 0 },
+        center: { cards: a.options, zone: 'option', handCount: 0, fromDeck: a.reason !== 'poker' },
       };
     case 'kitCarlson':
       return {

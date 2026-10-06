@@ -79,16 +79,18 @@ describe('planFx', () => {
     for (const d of deals) expect(d.face).toBe('up');
   });
 
-  it('다이너마이트 판정은 뒤집어 보여 주고 터지면 폭발한다', () => {
+  it('다이너마이트 판정은 덱에서 버린 카드로 가고 터지면 폭발한다', () => {
     const prev = scenario({
       players: [{ hand: [], equipment: ['dynamite'], hp: 4 }, { hand: [] }],
       deckTop: [{ kind: 'missed', suit: 'spades', rank: '5' }],
       activeSeat: 1,
     });
     const { cmds, next } = step(prev, { type: 'endTurn', pid: prev.players[1].id });
-    const reveal = of(cmds, 'moveCard').find((m) => m.style === 'reveal');
-    expect(reveal).toBeDefined();
-    expect(reveal!.from).toEqual({ z: 'deck' });
+    // 뒤집는 모습은 오버레이(DeckDraw)가 그린다. 3D 카드는 그동안 덱에 머문다
+    const drawn = of(cmds, 'moveCard').find((m) => m.from?.z === 'deck' && m.to?.z === 'discard');
+    expect(drawn).toBeDefined();
+    expect(drawn!.style).toBe('drop');
+    expect(drawn!.delayMs).toBeGreaterThan(0);
     expect(of(cmds, 'caption').length).toBeGreaterThan(0);
     expect(next.log.some((e) => e.t === 'dynamite')).toBe(true);
     expect(of(cmds, 'shockwave').some((s) => s.strength >= 3)).toBe(true);

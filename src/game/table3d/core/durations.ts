@@ -13,6 +13,8 @@ export const DUR = {
   scatter: 520,
   reveal: 640,
   revealHold: 650,
+  /** 판정 카드를 화면 위 오버레이(DeckDraw)가 덱에서 뽑아 뒤집기까지. DRAW_TOTAL_MS 와 맞춘다 */
+  revealDraw: 860,
   via: 300,
   slam: 150,
   ring: 420,

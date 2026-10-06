@@ -43,6 +43,7 @@ import { roleArt } from './card-art';
 import { CAN_HOVER, cardPeek, setPeek } from './card-peek';
 import { CharacterCard } from './CharacterCard';
 import { CARD_DIMENSIONS, CardBack, CardView } from './CardView';
+import { DRAW_STAGGER_MS, DRAW_TOTAL_MS, DeckDraw } from './DeckDraw';
 import { EventCardFace } from './EventCardFace';
 import { CARD_FX, cardFxFor, type CardFx } from './fx/card-fx';
 import { GUNSHOT_MS, GunshotFx, recoilStyle, screenFlashStyle } from './fx/GunshotFx';
@@ -120,12 +121,12 @@ function beyondFour(scale: number): number {
   return Math.max(1, scale / 4);
 }
 
-/** 펼친 카드는 무늬 배지와 도장까지 읽을 시간을 더 준다 (1배속) */
-const REVEAL_SHOW_MS = 2600;
+/** 펼친 카드가 앞면으로 뒤집힌 뒤 무늬 배지와 도장까지 읽으며 머무는 시간 (1배속) */
+const REVEAL_HOLD_MS = 2000;
 /** 지금 연출 뒤에 줄 세워 둘 수 있는 최대 개수 */
 const MAX_PENDING = 4;
-/** 카드가 올라선 뒤 무늬 배지가 튀어 오르기까지, 배지가 뜬 뒤 도장이 찍히기까지 (1배속) */
-const BADGE_DELAY_MS = 260;
+/** 카드가 뒤집힌 뒤 무늬 배지가 튀어 오르기까지, 배지가 뜬 뒤 도장이 찍히기까지 (1배속) */
+const BADGE_DELAY_MS = 140;
 const STAMP_DELAY_MS = 320;
 
 /** 카드가 튀어 오른 뒤 총이 터지기까지 (1배속) */
@@ -182,6 +183,12 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
   const picking = api.prompt?.center ? api.prompt : null;
   // 남이 잡화점에서 고르는 동안에도 펼친 카드를 가운데 창에 띄워 둔다 (설명은 hover·탭)
   const watching = picking ? null : storeWatch(view);
+  // 덱에서 펼쳐 가운데 창에 띄운 카드. 창이 닫히면 비운다 (PickSpotlight 의 dealt)
+  const [dealt] = useState(() => new Set<CardId>());
+  const dealing = Boolean(picking?.center?.fromDeck || watching?.center.fromDeck);
+  useEffect(() => {
+    if (!dealing) dealt.clear();
+  }, [dealing, dealt]);
 
   const { hqLayer, progress, geom, layer, stage } = useFxStage();
 
@@ -231,7 +238,8 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
       let seq = 1_000_000;
       const make = (): GameEvent => ({ ...samples[i++ % samples.length], seq: seq++ });
       show(make());
-      const timer = setInterval(() => show(make()), REVEAL_SHOW_MS + 800);
+      // 럼처럼 여러 장이 덱에서 날아오는 것까지 다 볼 만큼
+      const timer = setInterval(() => show(make()), DRAW_TOTAL_MS + 3 * DRAW_STAGGER_MS + REVEAL_HOLD_MS + 1400);
       return () => clearInterval(timer);
     }
     if (mode === 'take') {
@@ -360,12 +368,13 @@ export function PlayedCardSpotlight({ view, viewer, api, compact }: PlayedCardSp
             center={picking.center!}
             onRespond={api.respond}
             compact={compact}
+            dealt={dealt}
           />
         </View>
       )}
       {watching && !peeking && (
         <View style={styles.layer}>
-          <PickSpotlight title="잡화점" hint={watching.hint} center={watching.center} compact={compact} />
+          <PickSpotlight title="잡화점" hint={watching.hint} center={watching.center} compact={compact} dealt={dealt} />
         </View>
       )}
       {peeking && !picking && (
@@ -390,7 +399,7 @@ function storeWatch(view: GameState): { hint: string; center: CenterPick } | nul
   const name = view.players.find((p) => p.id === a.pid)?.name;
   return {
     hint: name ? `${ga(name)} 고르는 중` : '고르는 중',
-    center: { cards: a.options, zone: 'option', handCount: 0 },
+    center: { cards: a.options, zone: 'option', handCount: 0, fromDeck: a.reason !== 'poker' },
   };
 }
 
@@ -830,8 +839,9 @@ function revealRuleOf(e: GameEvent): RevealRule {
 }
 
 /**
- * 판정·블랙 잭·피요테로 펼친 카드. 카드가 올라서면 나온 무늬가 큰 배지로 튀어 오르고,
- * 이어서 성공·실패 도장이 찍힌다. 명판에는 필요한 무늬와 결과, 엔진 로그 글을 적는다
+ * 판정·블랙 잭·피요테로 펼친 카드. 덱에서 뒷면으로 뽑혀 날아와 한 박자 쉬고 뒤집힌다(DeckDraw).
+ * 앞면이 드러나면 나온 무늬가 큰 배지로 튀어 오르고, 이어서 성공·실패 도장이 찍힌다.
+ * 명판에는 필요한 무늬와 결과, 엔진 로그 글을 적는다
  */
 function RevealSpot({ event, faces, compact, onDone }: { event: GameEvent; faces: Faces | null; compact?: boolean; onDone: () => void }) {
   const [t] = useState(() => new Animated.Value(0));
@@ -841,34 +851,42 @@ function RevealSpot({ event, faces, compact, onDone }: { event: GameEvent; faces
   useEffect(() => {
     done.current = onDone;
   });
+  const after = useRef<Animated.CompositeAnimation | null>(null);
 
+  // 카드는 DeckDraw 가 날린다. 감싸개는 자리를 잴 수 있게 투명도만 바꾼다
   useEffect(() => {
     const scale = Math.max(1, fxPacing.getState().timeScale);
-    const anim = Animated.sequence([
-      Animated.spring(t, { toValue: 1, friction: 6, tension: 140, useNativeDriver: NATIVE_DRIVER }),
-      Animated.delay(Math.max(900 / beyondFour(scale), REVEAL_SHOW_MS / scale - 400)),
-      Animated.timing(t, { toValue: 0, duration: 220, useNativeDriver: NATIVE_DRIVER }),
-    ]);
-    // 배지 스프링이 다 가라앉기를 기다리지 않고 도장은 제 시간에 찍는다
-    const marks = Animated.parallel([
+    const fadeIn = Animated.timing(t, { toValue: 1, duration: 180 / scale, useNativeDriver: NATIVE_DRIVER });
+    fadeIn.start();
+    return () => {
+      fadeIn.stop();
+      after.current?.stop();
+    };
+  }, [t]);
+
+  // 앞면이 드러났다. 배지·도장을 찍고, 읽을 만큼 머문 뒤 사라진다
+  const onFlip = () => {
+    if (after.current) return;
+    const scale = Math.max(1, fxPacing.getState().timeScale);
+    after.current = Animated.parallel([
       Animated.sequence([
         Animated.delay(BADGE_DELAY_MS / scale),
         Animated.spring(badge, { toValue: 1, friction: 4, tension: 160, useNativeDriver: NATIVE_DRIVER }),
       ]),
+      // 배지 스프링이 다 가라앉기를 기다리지 않고 도장은 제 시간에 찍는다
       Animated.sequence([
         Animated.delay((BADGE_DELAY_MS + STAMP_DELAY_MS) / scale),
         Animated.timing(stamp, { toValue: 1, duration: 160, easing: Easing.out(Easing.back(2)), useNativeDriver: NATIVE_DRIVER }),
       ]),
+      Animated.sequence([
+        Animated.delay(Math.max(900 / beyondFour(scale), REVEAL_HOLD_MS / scale)),
+        Animated.timing(t, { toValue: 0, duration: 220, useNativeDriver: NATIVE_DRIVER }),
+      ]),
     ]);
-    anim.start(({ finished }) => {
+    after.current.start(({ finished }) => {
       if (finished) done.current();
     });
-    marks.start();
-    return () => {
-      anim.stop();
-      marks.stop();
-    };
-  }, [t, badge, stamp]);
+  };
 
   const reveal = event.reveal!;
   const card = event.card!;
@@ -876,11 +894,12 @@ function RevealSpot({ event, faces, compact, onDone }: { event: GameEvent; faces
   const good = reveal.hit === rule.hitIsGood;
   const stampText = (reveal.hit ? rule.hitStamp : rule.missStamp) ?? (good ? '성공' : '실패');
   const printed = cardOf(card).suit;
-  const dim = CARD_DIMENSIONS[compact ? 'lg' : 'xl'];
+  const size = compact ? 'lg' : 'xl';
+  const dim = CARD_DIMENSIONS[size];
   const tone = good ? Colors.success : Colors.danger;
 
   return (
-    <Animated.View style={[styles.spot, popStyle(t)]}>
+    <Animated.View style={[styles.spot, { opacity: t }]}>
       <CardSpotlight
         card={card}
         meta={rule.need ? `${rule.title} · 필요 ${rule.need}` : rule.title}
@@ -894,6 +913,11 @@ function RevealSpot({ event, faces, compact, onDone }: { event: GameEvent; faces
         }
         faces={faces}
         compact={compact}
+        cardWrap={(node) => (
+          <DeckDraw size={size} onFlip={onFlip}>
+            {node}
+          </DeckDraw>
+        )}
         overlay={<RevealMarks suit={reveal.suit} good={good} stampText={stampText} badge={badge} stamp={stamp} width={dim.width} height={dim.height} />}
       />
     </Animated.View>
@@ -996,54 +1020,57 @@ function groupGap(count: number, width: number, compact?: boolean): number {
 }
 
 /**
- * 포커 판돈·럼처럼 여러 장을 한꺼번에 펼친 결과. 카드가 한 장씩 뒤집혀 올라오고,
- * 조건에 걸린 카드(에이스·새 무늬)가 떠오른 뒤 가운데에 성공·실패 도장이 찍힌다
+ * 포커 판돈·럼처럼 여러 장을 한꺼번에 펼친 결과. 한 장씩 차례로 뒤집힌다(DeckDraw).
+ * 럼은 덱에서 뽑은 카드라 덱 자리에서 날아오고, 포커 판돈은 손에서 엎어 낸 카드라 제자리에 뒷면으로 깔린다.
+ * 다 뒤집히면 조건에 걸린 카드(에이스·새 무늬)가 떠오른 뒤 가운데에 성공·실패 도장이 찍힌다
  */
 function GroupRevealSpot({ event, faces, compact, onDone }: { event: GameEvent; faces: Faces | null; compact?: boolean; onDone: () => void }) {
   const cards = event.cards ?? [];
   const [t] = useState(() => new Animated.Value(0));
-  const [flips] = useState(() => cards.map(() => new Animated.Value(0)));
   const [mark] = useState(() => new Animated.Value(0));
   const [stamp] = useState(() => new Animated.Value(0));
   const done = useRef(onDone);
   useEffect(() => {
     done.current = onDone;
   });
+  const flipped = useRef(0);
+  const after = useRef<Animated.CompositeAnimation | null>(null);
+
+  // 마지막 카드가 뒤집혔다. 표시와 도장을 찍고, 읽을 만큼 머문 뒤 사라진다
+  const onFlip = () => {
+    flipped.current += 1;
+    if (flipped.current < cards.length || after.current) return;
+    const scale = Math.max(1, fxPacing.getState().timeScale);
+    after.current = Animated.parallel([
+      Animated.spring(mark, { toValue: 1, friction: 5, tension: 160, useNativeDriver: NATIVE_DRIVER }),
+      // 표시 스프링이 다 가라앉기를 기다리지 않고 도장은 제 시간에 찍는다
+      Animated.sequence([
+        Animated.delay(STAMP_DELAY_MS / scale),
+        Animated.timing(stamp, { toValue: 1, duration: 160, easing: Easing.out(Easing.back(2)), useNativeDriver: NATIVE_DRIVER }),
+      ]),
+      Animated.sequence([
+        Animated.delay(Math.max(1100 / beyondFour(scale), (REVEAL_HOLD_MS + 600) / scale)),
+        Animated.timing(t, { toValue: 0, duration: 220, useNativeDriver: NATIVE_DRIVER }),
+      ]),
+    ]);
+    after.current.start(({ finished }) => {
+      if (finished) done.current();
+    });
+  };
 
   useEffect(() => {
     const scale = Math.max(1, fxPacing.getState().timeScale);
-    const step = 140 / scale;
-    const flipsIn = flips.length * step;
-    const anim = Animated.sequence([
-      Animated.spring(t, { toValue: 1, friction: 6, tension: 140, useNativeDriver: NATIVE_DRIVER }),
-      Animated.delay(Math.max(1100 / beyondFour(scale), (REVEAL_SHOW_MS + 600) / scale - 400) + flipsIn),
-      Animated.timing(t, { toValue: 0, duration: 220, useNativeDriver: NATIVE_DRIVER }),
-    ]);
-    // 표시 스프링이 다 가라앉기를 기다리지 않고 도장은 제 시간에 찍는다
-    const shown = flipsIn + 220 / scale;
-    const marks = Animated.parallel([
-      Animated.stagger(
-        step,
-        flips.map((f) => Animated.timing(f, { toValue: 1, duration: 220 / scale, easing: Easing.out(Easing.back(1.6)), useNativeDriver: NATIVE_DRIVER })),
-      ),
-      Animated.sequence([
-        Animated.delay(shown),
-        Animated.spring(mark, { toValue: 1, friction: 5, tension: 160, useNativeDriver: NATIVE_DRIVER }),
-      ]),
-      Animated.sequence([
-        Animated.delay(shown + STAMP_DELAY_MS / scale),
-        Animated.timing(stamp, { toValue: 1, duration: 160, easing: Easing.out(Easing.back(2)), useNativeDriver: NATIVE_DRIVER }),
-      ]),
-    ]);
-    anim.start(({ finished }) => {
-      if (finished) done.current();
-    });
-    marks.start();
+    const fadeIn = Animated.timing(t, { toValue: 1, duration: 180 / scale, useNativeDriver: NATIVE_DRIVER });
+    fadeIn.start();
+    // 펼칠 카드가 없으면(손패가 모두 빈 포커) 뒤집기를 기다리지 않는다
+    if (cards.length === 0) onFlip();
     return () => {
-      anim.stop();
-      marks.stop();
+      fadeIn.stop();
+      after.current?.stop();
     };
-  }, [t, flips, mark, stamp]);
+    // 처음 한 번만 시작한다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
 
   const rule = groupRevealOf(event);
   const tone = rule.good ? Colors.success : Colors.danger;
@@ -1052,9 +1079,11 @@ function GroupRevealSpot({ event, faces, compact, onDone }: { event: GameEvent; 
   const gap = groupGap(cards.length, dim.width, compact);
   const faceW = compact ? FACE_W_COMPACT * 0.8 : FACE_W * 0.8;
   const actor = faces?.actor;
+  // 럼은 덱에서 뽑는다. 포커 판돈은 손에서 엎어 낸 카드다
+  const from = event.t === 'rhum' ? 'deck' : 'place';
 
   return (
-    <Animated.View style={[styles.spot, popStyle(t)]}>
+    <Animated.View style={[styles.spot, { opacity: t }]}>
       <View style={styles.faceRow}>
         {actor && (
           <View style={[{ width: faceW }, styles.cardShadow, styles.faceActor]}>
@@ -1063,24 +1092,21 @@ function GroupRevealSpot({ event, faces, compact, onDone }: { event: GameEvent; 
         )}
         <View style={styles.groupRow}>
           {cards.map((c, i) => {
-            const f = flips[i];
             const lit = rule.marked[i];
             return (
               <Animated.View
                 key={c}
                 style={[
-                  styles.cardShadow,
                   { marginLeft: i === 0 ? 0 : gap, zIndex: lit ? 2 : 1 },
                   {
-                    opacity: f.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 1, 1] }),
-                    transform: [
-                      { perspective: 600 },
-                      { rotateY: f.interpolate({ inputRange: [0, 1], outputRange: ['80deg', '0deg'] }) },
-                      { translateY: lit ? mark.interpolate({ inputRange: [0, 1], outputRange: [0, -dim.height * 0.12] }) : 0 },
-                    ],
+                    transform: [{ translateY: lit ? mark.interpolate({ inputRange: [0, 1], outputRange: [0, -dim.height * 0.12] }) : 0 }],
                   },
                 ]}>
-                <CardView card={c} size={size} />
+                <DeckDraw size={size} from={from} delayMs={i * DRAW_STAGGER_MS} onFlip={onFlip}>
+                  <View style={styles.cardShadow}>
+                    <CardView card={c} size={size} />
+                  </View>
+                </DeckDraw>
                 {lit && (
                   <Animated.View
                     style={[

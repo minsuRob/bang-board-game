@@ -170,8 +170,10 @@ export function planFx(t: Transition, moves: CardMove[], viewer: PlayerId | null
       }
 
       case 'judgement': {
+        // 뽑아 뒤집는 모습은 화면 위 오버레이(DeckDraw)가 크게 그린다. 3D 카드까지 가운데로 날면 두 장이 겹친다.
+        // 3D 카드는 덱에 머물다가 오버레이가 결과를 보이는 동안 버린 카드 더미로 간다
         const m = moveOf(e.card);
-        if (m) push(moveCmd(m, 'reveal', { holdMs: DUR.revealHold }), { k: 'caption', text: e.text, ms: DUR.caption });
+        if (m) push(moveCmd(m, 'drop', { delayMs: DUR.revealDraw + DUR.revealHold }), { k: 'caption', text: e.text, ms: DUR.caption });
         break;
       }
 
