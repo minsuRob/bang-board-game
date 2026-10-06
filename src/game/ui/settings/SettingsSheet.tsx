@@ -1,5 +1,5 @@
 /**
- * 설정 팝업: 프로필·지갑, 연출 화질, 화면 테마.
+ * 설정 팝업: 프로필·지갑, 연출 화질, 화면 테마, 언어.
  *
  * 첫 화면의 "설정" 카드와 게임 중 ⚙ 버튼이 연다. 폰 폭의 판에서는 위쪽 버튼 줄(AI 속도·일시정지 등)을
  * 접어서 children 으로 넘기고, 맨 위 "이 판" 칸에 보여 준다. 고르는 즉시 저장되고 화면도 바로 바뀐다.
@@ -16,37 +16,32 @@ import { setFxQuality } from '../fx/quality';
 import { PaperHeading, PaperSection, PaperSheet, usePaperText } from '../menu/PaperUi';
 import { WesternFonts } from '../menu/western-fonts';
 import { InkSegmented, QUALITY_OPTIONS, qualityHint, useFxQuality } from '../QualityPicker';
+import { LANG_NAME } from '../../../i18n/lang-names';
+import { langPref, setLangPref } from '../../../i18n/lang-store';
+import { useT } from '../../../i18n/use-t';
+import type { LangPref } from '../../../i18n/types';
 import { setThemePref, themePref, type ThemePref } from '../theme/theme-store';
 import { themedStyles } from '../theme/use-theme';
 import { ProfileSection } from './ProfileSection';
 import { WalletSection } from './WalletSection';
 
-const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
-  { value: 'system', label: '시스템' },
-  { value: 'light', label: '라이트' },
-  { value: 'dark', label: '다크' },
-];
-
-const THEME_HINT: Record<ThemePref, string> = {
-  system: '기기의 밝은·어두운 화면 설정을 따른다.',
-  light: '크림색 종이에 잉크로 찍은 낮의 화면.',
-  dark: '램프를 켠 밤 살롱 같은 어두운 화면.',
-};
-
 /** 설정 요약 한 줄 (첫 화면 카드 설명) */
 export function useSettingsSummary(): string {
+  const t = useT();
   const quality = useFxQuality();
   const pref = useStore(themePref, (s) => s.pref);
+  const lang = useStore(langPref, (s) => s.pref);
   const q = QUALITY_OPTIONS.find((o) => o.value === quality)?.label ?? '';
-  const t = THEME_OPTIONS.find((o) => o.value === pref)?.label ?? '';
-  return `연출 ${q} · 테마 ${t}`;
+  return t.settings.summary(q, t.settings.theme[pref], lang === 'system' ? t.settings.lang.system : LANG_NAME[lang]);
 }
 
 export function SettingsSheet({ onClose, children }: { onClose: () => void; children?: ReactNode }) {
   const styles = useStyles();
+  const t = useT();
   const text = usePaperText();
   const quality = useFxQuality();
   const pref = useStore(themePref, (s) => s.pref);
+  const lang = useStore(langPref, (s) => s.pref);
   const account = useAccount();
 
   // 로그인돼 있으면(= Firebase 구성이 있으면) 프로필·지갑을 보인다
@@ -64,39 +59,56 @@ export function SettingsSheet({ onClose, children }: { onClose: () => void; chil
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const themeOptions: { value: ThemePref; label: string }[] = [
+    { value: 'system', label: t.settings.theme.system },
+    { value: 'light', label: t.settings.theme.light },
+    { value: 'dark', label: t.settings.theme.dark },
+  ];
+  const langOptions: { value: LangPref; label: string }[] = [
+    { value: 'system', label: t.settings.lang.system },
+    { value: 'ko', label: LANG_NAME.ko },
+    { value: 'en', label: LANG_NAME.en },
+    { value: 'it', label: LANG_NAME.it },
+  ];
+
   return (
     <View style={styles.layer}>
-      <Pressable accessibilityRole="button" accessibilityLabel="설정 닫기" onPress={onClose} style={styles.scrim} />
+      <Pressable accessibilityRole="button" accessibilityLabel={t.settings.closeLabel} onPress={onClose} style={styles.scrim} />
       <PaperSheet style={styles.sheet}>
         <ScrollView contentContainerStyle={styles.body}>
-          <PaperHeading eyebrow="SETTINGS" title="설정" />
+          <PaperHeading eyebrow="SETTINGS" title={t.settings.title} />
 
-          {children && <PaperSection title="이 판">{children}</PaperSection>}
+          {children && <PaperSection title={t.settings.thisGame}>{children}</PaperSection>}
 
           {account.status !== 'offline' && (
             <>
-              <PaperSection title="프로필">
+              <PaperSection title={t.settings.profile}>
                 <ProfileSection />
               </PaperSection>
-              <PaperSection title="지갑">
+              <PaperSection title={t.settings.wallet}>
                 <WalletSection />
               </PaperSection>
             </>
           )}
 
-          <PaperSection title="연출 화질">
-            <InkSegmented label="연출 화질" options={QUALITY_OPTIONS} value={quality} onChange={setFxQuality} />
+          <PaperSection title={t.settings.quality.title}>
+            <InkSegmented label={t.settings.quality.title} options={QUALITY_OPTIONS} value={quality} onChange={setFxQuality} />
             <Text style={text.hint}>{qualityHint(quality)}</Text>
           </PaperSection>
 
-          <PaperSection title="화면 테마">
-            <InkSegmented label="화면 테마" options={THEME_OPTIONS} value={pref} onChange={setThemePref} />
-            <Text style={text.hint}>{THEME_HINT[pref]}</Text>
+          <PaperSection title={t.settings.theme.title}>
+            <InkSegmented label={t.settings.theme.title} options={themeOptions} value={pref} onChange={setThemePref} />
+            <Text style={text.hint}>{t.settings.theme.hint[pref]}</Text>
+          </PaperSection>
+
+          <PaperSection title={t.settings.lang.title}>
+            <InkSegmented label={t.settings.lang.title} options={langOptions} value={lang} onChange={setLangPref} />
+            <Text style={text.hint}>{t.settings.lang.hint[lang]}</Text>
           </PaperSection>
         </ScrollView>
 
-        <Pressable accessibilityRole="button" accessibilityLabel="닫기" onPress={onClose} style={styles.close}>
-          <Text style={styles.closeText}>닫기</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t.common.close} onPress={onClose} style={styles.close}>
+          <Text style={styles.closeText}>{t.common.close}</Text>
         </Pressable>
       </PaperSheet>
     </View>

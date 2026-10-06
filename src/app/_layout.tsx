@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { useDocumentLang } from '@/i18n/use-t';
 import { preloadArt } from '@/game/ui/art-preload';
 import { useColors, useScheme } from '@/game/ui/theme/use-theme';
 
@@ -12,6 +13,7 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const scheme = useScheme();
   const c = useColors();
+  useDocumentLang();
 
   useEffect(() => {
     SplashScreen.hideAsync();
