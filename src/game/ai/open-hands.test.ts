@@ -37,6 +37,12 @@ function duel(state: GameState): Action {
 }
 
 describe('펼쳐진 손패로 결투를 셈한다', () => {
+  it('손이 빈 상대가 목숨 1개면 확실히 죽이는 결투라 같은 조건의 멀쩡한 상대보다 훨씬 높다', () => {
+    const last = table({ hand: [], hp: 1 }, { hand: ['duel'] }, null);
+    const full = table({ hand: [], hp: 3 }, { hand: ['duel'] }, null);
+    expect(score(last, 'b', duel(last))).toBeGreaterThan(score(full, 'b', duel(full)) + 10);
+  });
+
   it('상대가 뱅!을 더 쥐었으면 지는 결투로 보고 걸지 않는다', () => {
     const s = table({ hand: ['bang', 'bang'] }, { hand: ['duel', 'bang'] });
     expect(isHopelessDuel(viewFor(s, 'b'), 'b', duel(s))).toBe(true);

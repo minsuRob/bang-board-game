@@ -399,17 +399,21 @@ function scorePlay(
       if (!target) return -10;
       if (friend) return -12;
       if (isHopelessDuel(view, me, action)) return -15;
+      // 마지막 한 대면 크게 오른다. 뱅!과 같은 잣대로, 확실히 죽이는 결투가 다른 수에 밀리지 않게 한다
+      const kill = target.hp === 1 ? 18 * enemy : 0;
       // 상대 손이 비었으면 뱅!을 낼 수 없으니 반드시 이긴다
-      if (target.hand.length === 0) return 16 * enemy;
+      if (target.hand.length === 0) return 16 * enemy + kill;
       // 손패가 펼쳐져 있으면 이기는 결투다. 상대가 낼 뱅!만큼 내 뱅!도 쓴다
       if (duelOutcome(view, me, target.id, action.card) === 'win') {
         const theirs = knownReactive(view, target.id, 'bang') ?? 0;
-        return (16 + (target.hp === 1 ? 14 : 0)) * enemy - theirs * 1.5;
+        return 16 * enemy + kill - theirs * 1.5;
       }
       // 내 손의 뱅!이 많을수록 이길 가능성이 높다
       const myBangs = duelAmmo(view, me, action.card);
       const edge = myBangs - Math.min(2, target.hand.length / 2);
-      return 10 * enemy + edge * 3;
+      // 이길지 모르는 결투는 죽이는 값을 이길 가능성만큼만 친다
+      const odds = Math.max(0.3, Math.min(0.9, 0.5 + edge * 0.15));
+      return 10 * enemy + edge * 3 + kill * odds;
     }
     case 'panic': {
       if (!target) return -10;
