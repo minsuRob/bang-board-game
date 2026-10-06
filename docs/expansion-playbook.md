@@ -43,7 +43,7 @@ AGENTS.md 와 docs/expansion-playbook.md 를 먼저 읽고 그 규칙을 지킨�
   - `reference/sc2-arcade/analysis/new_strings_by_version.json` 의 패치노트를 본다.
   - `docs/edge-cases.md` 의 "부록: 범위 밖 확장판 케이스" 에 원문이 이미 모여 있다. 이것을 본문 EC 번호로 옮긴다.
   - EC 번호는 마지막 번호 다음부터 매긴다.
-- **한글 표기**: 원본 맵 패치노트를 따른다. 없으면 음차 후보를 들고 사용자에게 묻는다.
+- **이름 표기**: ko 는 원본 맵 패치노트를 따르고, en 은 공식 영문판, it 는 dV Giochi 원판 이름을 쓴다. `content/{ko,en,it}` 에 넣는다. 없으면 음차 후보를 들고 사용자에게 묻는다.
 
 ## 2. 그림
 
@@ -82,7 +82,7 @@ AGENTS.md 와 docs/expansion-playbook.md 를 먼저 읽고 그 규칙을 지킨�
   - 연출(`fx-plan.ts`, `card-fx.ts`), 공격 표시(`attacks.ts`), AI 추론(`belief.ts`)은 모두 `e.as ?? kindOf(e.card)` 로 읽는다.
 - **숙취·새로운 신분**: 능력 무효(숙취)와 캐릭터 교체(새로운 신분)는 `getModifiers` 가 알아서 처리한다. 테스트로 확인만 한다.
 - **차례당 한 번**: `Player.usedThisTurn` 에 능력 key 를 넣어 막는다.
-- **로그 문구**: 한국어로 쓰고, 조사는 `engine/josa.ts` 로 붙인다.
+- **로그 문구**: 엔진은 `LogMsg` 만 남긴다. 문장은 `src/i18n/log/{ko,en,it}.ts` 에 3개 언어로 쓰고, ko 의 조사는 `engine/josa.ts` 로 붙인다.
 
 ## 5. UI
 

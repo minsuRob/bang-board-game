@@ -67,6 +67,7 @@
     "fx:docs:check": "npm run fx:docs && git diff --exit-code -- docs/card-fx.md",
     "gen:sfx": "node scripts/gen-sfx.mjs",
     "art:check": "tsx scripts/art/check.ts",
+    "i18n:check": "tsx scripts/i18n/check.ts",
     "deploy": "expo export --platform web && firebase deploy --only hosting",
     "postinstall": "setup-skia-web public"
   },
