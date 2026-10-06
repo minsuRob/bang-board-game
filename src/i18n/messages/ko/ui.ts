@@ -1,4 +1,4 @@
-import { eul } from '../../../game/engine/josa';
+import { eul, ro } from '../../../game/engine/josa';
 
 /** src/game/ui 의 공용 화면 문구 (도감·행동 막대·스포트라이트·판 위 문구는 table·codex 쪽) */
 export const ui = {
@@ -42,9 +42,11 @@ export const ui = {
     pick: '캐릭터를 고른다',
     done: (done: number, total: number) => `${done}/${total}명 완료`,
     seconds: (n: number) => `${n}초`,
-    hintMouse: '카드에 마우스를 올려 능력을 보고, 눌러서 고른다',
-    hintTouch: '카드를 눌러 능력을 보고, 한 번 더 눌러 고른다',
+    hintMouse: '카드에 마우스를 올려 능력을 보고, 눌러서 고른 뒤 확정을 누른다',
+    hintTouch: '카드를 눌러 능력을 보고 고른 뒤, 확정을 누른다',
     pickLabel: (name: string) => `${name} 고르기`,
+    confirm: '확정',
+    confirmLabel: (name: string) => `${ro(name)} 확정`,
     seatDone: '선택 완료',
     seatPicking: '고르는 중…',
   },

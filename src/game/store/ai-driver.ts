@@ -8,7 +8,7 @@
  * useTimeoutDriver 가 기본 행동(timeout)을 넣는다.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { aiDraftActions, aiNextAction } from '../ai/driver-policy';
 import { fxPacing } from './fx-pacing';
@@ -20,6 +20,9 @@ export const AI_STEP_MS = 3000;
 
 /** 연출 배율 상한. 혼자 하는 판의 '최대'(100배)까지 따라간다 */
 export const MAX_TIME_SCALE = 100;
+
+/** 온라인 드래프트에서 낸 AI 픽이 이만큼 지나도 돌아오지 않으면 다시 낸다 */
+export const DRAFT_RETRY_MS = 3000;
 
 /**
  * 다음 AI 수까지 기다릴 시간. 연출이 더 오래 걸리면 연출이 끝난 뒤에 둔다.
@@ -62,23 +65,49 @@ export function useAiDriver(enabled = true, speed = 1, online = false) {
     fxPacing.setState({ timeScale: Math.min(Math.max(1, speed), MAX_TIME_SCALE) });
   }, [speed]);
 
-  // 캐릭터 드래프트: AI 는 뜸 들이지 않고 모두 한꺼번에 바로 고른다.
-  // 제출한 액션이 돌아오기 전에 효과가 다시 돌 수 있으니 이미 낸 자리는 기억해 둔다.
-  const drafted = useRef(new Set<string>());
+  // 캐릭터 드래프트: AI 는 뜸 들이지 않고 바로 고른다.
+  // 온라인에서는 한 자리씩 차례로 낸다. 한꺼번에 내면 Firestore 트랜잭션끼리 순서를 다투다
+  // 몇 개가 밀려 사라지고, 그 AI 는 드래프트 시계가 다 갈 때까지 '고르는 중' 으로 남았다.
+  // 낸 픽이 DRAFT_RETRY_MS 안에 돌아오지 않으면 같은 픽을 다시 낸다.
+  const inFlight = useRef<{ pid: string; at: number } | null>(null);
+  const [retryTick, setRetryTick] = useState(0);
   useEffect(() => {
     if (!state?.draft) {
-      drafted.current.clear();
+      inFlight.current = null;
       return;
     }
     if (!enabled || !drives) return;
     // 시드 공식은 driver-policy 에 있다. 서버의 판 검증기가 같은 함수로 다시 계산한다
-    for (const action of aiDraftActions(state, seats, controlled, seed)) {
-      if (action.type !== 'pickCharacter' || drafted.current.has(action.pid)) continue;
-      if (!aiPlaysSeat(seats, controlled, action.pid, online)) continue;
-      drafted.current.add(action.pid);
-      submit(action);
+    const picks = aiDraftActions(state, seats, controlled, seed).filter(
+      (a) => a.type === 'pickCharacter' && aiPlaysSeat(seats, controlled, a.pid, online),
+    );
+    if (picks.length === 0) {
+      inFlight.current = null;
+      return;
     }
-  }, [enabled, drives, state, seats, controlled, submit, seed, online]);
+    const waitFor = (ms: number) => {
+      const timer = setTimeout(() => setRetryTick((n) => n + 1), ms);
+      return () => clearTimeout(timer);
+    };
+
+    // 로컬은 순서 경쟁이 없다. 모두 바로 낸다
+    if (!online) {
+      if (inFlight.current) return;
+      inFlight.current = { pid: '*', at: Date.now() };
+      for (const action of picks) submit(action);
+      return;
+    }
+
+    const sent = inFlight.current;
+    const elapsed = sent ? Date.now() - sent.at : Infinity;
+    if (sent && picks.some((a) => 'pid' in a && a.pid === sent.pid) && elapsed < DRAFT_RETRY_MS) {
+      return waitFor(DRAFT_RETRY_MS - elapsed);
+    }
+    const next = picks[0];
+    inFlight.current = { pid: 'pid' in next ? next.pid : '', at: Date.now() };
+    submit(next);
+    return waitFor(DRAFT_RETRY_MS);
+  }, [enabled, drives, state, seats, controlled, submit, seed, online, retryTick]);
 
   useEffect(() => {
     if (!enabled || !state || state.result || state.draft) return;

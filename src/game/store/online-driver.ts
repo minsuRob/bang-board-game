@@ -32,6 +32,9 @@ export const TIME_LIMIT_MS = {
   dorothyPlay: 120_000,
 } as const;
 
+/** 드래프트 시계가 다 간 뒤에도 못 고른 사람이 남아 있으면 이 간격으로 timeout 을 다시 낸다 */
+const DRAFT_TIMEOUT_RETRY_MS = 3000;
+
 /** 반응(낼지 말지)이 아니라 카드를 골라야 하는 입력 */
 const PICK_INPUTS: ReadonlySet<PendingInput['k']> = new Set<PendingInput['k']>([
   'generalStore', // 잡화점
@@ -89,12 +92,14 @@ export function useTimeoutDriver(controlled: string[], enabled = true) {
     if (!drives || !state?.draft || startedAt === null) return;
 
     // 드래프트: 시계는 액션마다 다시 재지 않는다. 끝나면 못 고른 사람 전원을 기본 선택시킨다.
-    const timer = setTimeout(
-      () => {
-        for (const pid of selectActors(state)) submit({ type: 'timeout', pid });
-      },
-      Math.max(0, startedAt + TIME_LIMIT_MS.draft - Date.now()),
-    );
+    // 낸 timeout 이 순서 경쟁에서 밀려 사라지면 상태가 안 바뀌어 다시 낼 계기가 없다.
+    // 그래서 드래프트가 닫힐 때까지 조금씩 간격을 두고 다시 낸다.
+    let timer: ReturnType<typeof setTimeout>;
+    const fire = () => {
+      for (const pid of selectActors(state)) submit({ type: 'timeout', pid });
+      timer = setTimeout(fire, DRAFT_TIMEOUT_RETRY_MS);
+    };
+    timer = setTimeout(fire, Math.max(0, startedAt + TIME_LIMIT_MS.draft - Date.now()));
     return () => clearTimeout(timer);
   }, [state, drives, submit]);
 
