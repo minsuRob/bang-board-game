@@ -17,22 +17,11 @@ export const ROLE_DISTRIBUTION: Record<number, readonly Role[]> = {
   8: ['sheriff', 'deputy', 'deputy', 'outlaw', 'outlaw', 'outlaw', 'renegade', 'renegade'],
 };
 
+/** 직업 id 전부. 화면에 보일 이름·목표는 i18n/content 의 `roles` 에 있다 */
+export const ROLE_IDS: readonly Role[] = ['sheriff', 'deputy', 'outlaw', 'renegade'];
+
 export const MIN_PLAYERS = 4;
 export const MAX_PLAYERS = 8;
-
-export const ROLE_LABEL: Record<Role, string> = {
-  sheriff: '보안관',
-  deputy: '부관',
-  outlaw: '무법자',
-  renegade: '배신자',
-};
-
-export const ROLE_GOAL: Record<Role, string> = {
-  sheriff: '모든 무법자와 배신자를 제거한다.',
-  deputy: '보안관을 지키고, 모든 무법자와 배신자를 제거한다.',
-  outlaw: '보안관을 제거한다.',
-  renegade: '마지막까지 혼자 살아남는다.',
-};
 
 /** 무법자를 처치하면 받는 현상금 (카드 장수) */
 export const BOUNTY_CARDS = 3;

@@ -12,6 +12,7 @@ import { doc, getDoc, onSnapshot, serverTimestamp, setDoc, updateDoc } from 'fir
 import { cleanNick, isProfile, isWallet, type UserProfile, type Wallet } from '../game/economy/model';
 import { getDb } from './config';
 import { loadNickname, saveNickname } from './storage';
+import { getT } from '../i18n/use-t';
 
 const profileRef = (uid: string) => doc(getDb(), 'users', uid);
 const walletRef = (uid: string) => doc(getDb(), 'users', uid, 'wallet', 'main');
@@ -22,7 +23,7 @@ export async function ensureProfile(uid: string, fallbackNick: string): Promise<
   const data = snap.data();
   if (snap.exists() && isProfile(data)) return data;
   const stored = await loadNickname();
-  const nick = cleanNick(stored ?? '') ?? cleanNick(fallbackNick) ?? '총잡이';
+  const nick = cleanNick(stored ?? '') ?? cleanNick(fallbackNick) ?? getT().infra.nick.short;
   const profile: UserProfile = { nick, createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
   await setDoc(profileRef(uid), profile);
   return { nick };

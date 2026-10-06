@@ -20,7 +20,9 @@ import { PaperPlaque, plaque } from './PaperPlaque';
 import type { DraftInfo } from './use-table';
 import { WesternFonts } from './menu/western-fonts';
 import { themedStyles } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
 import { Radius, Spacing } from '@/constants/theme';
+import { useNames } from '../../i18n/use-names';
 
 /** 마우스로 올려 볼 수 있는 화면. 폰 브라우저는 앱처럼 첫 탭이 보기다 */
 const WEB = CAN_HOVER;
@@ -34,6 +36,8 @@ export type DraftPanelProps = {
 
 export function DraftPanel({ draft, viewer, onPick, compact }: DraftPanelProps) {
   const styles = useStyles();
+  const t = useT();
+  const names = useNames();
   const hover = useSyncExternalStore(
     draftUi.subscribe,
     () => draftUi.getState().hover[viewer] ?? null,
@@ -64,12 +68,12 @@ export function DraftPanel({ draft, viewer, onPick, compact }: DraftPanelProps) 
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <Text style={styles.title}>{draft.picked ? '다른 사람을 기다린다' : '캐릭터를 고른다'}</Text>
+        <Text style={styles.title}>{draft.picked ? t.ui.draft.waiting : t.ui.draft.pick}</Text>
         <Text style={styles.progress}>
-          {draft.done}/{draft.total}명 완료
+          {t.ui.draft.done(draft.done, draft.total)}
         </Text>
         {left !== null && (
-          <Text style={[styles.timer, left <= 5 && styles.timerUrgent]}>{left}초</Text>
+          <Text style={[styles.timer, left <= 5 && styles.timerUrgent]}>{t.ui.draft.seconds(left)}</Text>
         )}
       </View>
 
@@ -93,13 +97,13 @@ export function DraftPanel({ draft, viewer, onPick, compact }: DraftPanelProps) 
       <PaperPlaque compact={compact} style={[styles.plaque, compact && styles.plaqueCompact]}>
         {focused ? (
           <Text style={[plaque.text, compact && plaque.textCompact]} numberOfLines={2}>
-            <Text style={plaque.name}>{CHARACTERS[focused].nameKo}</Text>
+            <Text style={plaque.name}>{names.charName(focused)}</Text>
             {'  '}
-            {CHARACTERS[focused].ability}
+            {names.charAbility(focused)}
           </Text>
         ) : (
           <Text style={[plaque.text, plaque.hint, compact && plaque.textCompact]} numberOfLines={2}>
-            {WEB ? '카드에 마우스를 올려 능력을 보고, 눌러서 고른다' : '카드를 눌러 능력을 보고, 한 번 더 눌러 고른다'}
+            {WEB ? t.ui.draft.hintMouse : t.ui.draft.hintTouch}
           </Text>
         )}
       </PaperPlaque>
@@ -121,6 +125,8 @@ type OfferCardProps = {
 
 function OfferCard({ id, compact, lifted, picked, dimmed, disabled, onHoverIn, onHoverOut, onPress }: OfferCardProps) {
   const styles = useStyles();
+  const t = useT();
+  const names = useNames();
   const [lift] = useState(() => new Animated.Value(0));
   useEffect(() => {
     Animated.spring(lift, {
@@ -145,7 +151,7 @@ function OfferCard({ id, compact, lifted, picked, dimmed, disabled, onHoverIn, o
       onHoverOut={onHoverOut}
       disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel={`${CHARACTERS[id].nameKo} 고르기`}>
+      accessibilityLabel={t.ui.draft.pickLabel(names.charName(id))}>
       <Animated.View style={[styles.offer, { transform }, lifted && styles.offerLifted, dimmed && styles.dimmed]}>
         <CharacterCard id={id} compact={compact} />
         {picked && (

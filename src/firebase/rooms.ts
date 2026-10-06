@@ -22,6 +22,7 @@ import type { EventExpansion } from '../game/data/types';
 import { MAX_PLAYERS, MIN_PLAYERS } from '../game/data/roles';
 import { getDb } from './config';
 import type { Identity } from './auth';
+import { AppError } from './errors';
 import type { Presence, RoomDoc, RoomMember, RoomSeat } from './room-model';
 
 export {
@@ -87,7 +88,7 @@ export async function createRoom(host: Identity, options: CreateRoomOptions): Pr
     await touchMember(code, host);
     return code;
   }
-  throw new Error('방 코드를 만들지 못했다. 잠시 뒤 다시 시도해라.');
+  throw new AppError('room-code-failed');
 }
 
 /** 빈 자리에 앉는다. 이미 앉아 있으면 그 자리를 그대로 돌려준다. */
@@ -97,15 +98,15 @@ export async function joinRoom(code: string, me: Identity): Promise<number> {
 
   const seat = await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
-    if (!snap.exists()) throw new Error('그런 방이 없다.');
+    if (!snap.exists()) throw new AppError('no-room');
     const room = snap.data() as RoomDoc;
 
     const mine = room.seats.findIndex((s) => s.uid === me.uid);
     if (mine >= 0) return mine;
-    if (room.status !== 'lobby') throw new Error('이미 시작된 방이다.');
+    if (room.status !== 'lobby') throw new AppError('room-started');
 
     const free = room.seats.findIndex((s) => s.uid === null);
-    if (free < 0) throw new Error('자리가 다 찼다.');
+    if (free < 0) throw new AppError('room-full');
 
     const seats = room.seats.map((s, i) =>
       i === free ? { uid: me.uid, nick: me.nickname, ai: false } : s,
@@ -148,7 +149,7 @@ export async function updateRoomSettings(
 
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
-    if (!snap.exists()) throw new Error('그런 방이 없다.');
+    if (!snap.exists()) throw new AppError('no-room');
     const room = snap.data() as RoomDoc;
 
     let seats = room.seats;
@@ -177,7 +178,7 @@ export async function markStarted(code: string): Promise<RoomDoc> {
 
   return runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
-    if (!snap.exists()) throw new Error('그런 방이 없다.');
+    if (!snap.exists()) throw new AppError('no-room');
     const room = snap.data() as RoomDoc;
     if (room.status !== 'lobby') return room;
 

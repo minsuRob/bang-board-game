@@ -7,15 +7,18 @@ import { useEffect } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useStore } from 'zustand';
 
+import type { Messages } from '../../i18n/types-messages';
 import { fxQuality, type FxQuality } from './fx/quality';
 import { loadSkiaFx } from './fx/skia/load';
 import { WesternFonts } from './menu/western-fonts';
 import { themedStyles } from './theme/use-theme';
 
-const OPTIONS: { value: FxQuality; label: string }[] = [
-  { value: 'high', label: '고화질' },
-  { value: 'normal', label: '일반' },
-];
+export function qualityOptions(t: Messages): { value: FxQuality; label: string }[] {
+  return [
+    { value: 'high', label: t.ui.quality.high },
+    { value: 'normal', label: t.ui.quality.normal },
+  ];
+}
 
 /** 지금 고른 화질. 고화질이면 Skia 를 미리 불러 둔다 */
 export function useFxQuality(): FxQuality {
@@ -27,10 +30,8 @@ export function useFxQuality(): FxQuality {
 }
 
 /** 화질별 설명 */
-export function qualityHint(quality: FxQuality): string {
-  return quality === 'high'
-    ? '총격을 Skia 로 세밀하게 그린다. 웹은 처음 한 번 약 3MB 를 받는다.'
-    : '가벼운 연출. 느린 기기에서 권한다.';
+export function qualityHint(quality: FxQuality, t: Messages): string {
+  return quality === 'high' ? t.ui.quality.highHint : t.ui.quality.normalHint;
 }
 
 /** 잉크 테두리 안에 칸을 붙여 놓은 고르기. 고른 칸만 도장처럼 찬다. 설정 팝업이 쓴다 */
@@ -66,8 +67,6 @@ export function InkSegmented<T extends string>({
     </View>
   );
 }
-
-export const QUALITY_OPTIONS = OPTIONS;
 
 const useStyles = themedStyles((c) => ({
   segment: {

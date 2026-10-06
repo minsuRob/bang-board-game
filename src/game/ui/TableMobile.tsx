@@ -20,7 +20,6 @@ import {
 import { CARD_DEFS } from '../data/cards.base';
 import { EVENTS } from '../data/events';
 import { CHARACTERS } from '../data/characters';
-import { ROLE_LABEL } from '../data/roles';
 import type { DimensionValue } from 'react-native';
 
 import type { CardId, Role } from '../data/types';
@@ -33,7 +32,7 @@ import { DraftPanel } from './DraftPanel';
 import { CharacterDetailModal } from './CharacterDetail';
 import { AutoPlayBanner } from './AutoPlayBanner';
 import { PlayedCardSpotlight } from './PlayedCardSpotlight';
-import { PRESENCE_LABEL, PresenceDot } from './PresenceDot';
+import { PresenceDot } from './PresenceDot';
 import { DraftSeatStatus } from './DraftSeatStatus';
 import { cardBackArt, characterArt, eventArt, woodArt } from './card-art';
 import { AttackBadges } from './AttackBadges';
@@ -46,10 +45,12 @@ import { SidePanel } from './SidePanel';
 import { WesternFonts } from './menu/western-fonts';
 import { useToolbarStyles } from './theme/toolbar';
 import { themedStyles } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
 import { glowingSeat } from './glowing-seat';
 import type { TableApi } from './use-table';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { HpPips } from './HpPips';
+import { useNames } from '../../i18n/use-names';
 
 const ROLE_COLOR: Record<Role, string> = {
   sheriff: Colors.sheriff,
@@ -83,6 +84,8 @@ export function TableMobile({
   clock,
 }: TableMobileProps) {
   const styles = useStyles();
+  const t = useT();
+  const names = useNames();
   const tb = useToolbarStyles();
   const [logOpen, setLogOpen] = useState(false);
   // 탭해서 띄운 캐릭터 카드와 상세 설명
@@ -132,10 +135,10 @@ export function TableMobile({
           {clock}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={unread ? '진행 기록과 채팅, 새 글 있음' : '진행 기록과 채팅'}
+            accessibilityLabel={unread ? t.ui.mobile.logChatNew : t.ui.mobile.logChat}
             onPress={() => setLogOpen((v) => !v)}
             style={[tb.pill, logOpen && tb.pillActive]}>
-            <Text style={[tb.text, logOpen && tb.textActive]}>{logOpen ? '닫기' : '기록·채팅'}</Text>
+            <Text style={[tb.text, logOpen && tb.textActive]}>{logOpen ? t.ui.mobile.close : t.ui.mobile.logTab}</Text>
             {unread && <View style={styles.unreadDot} />}
           </Pressable>
         </View>
@@ -162,7 +165,7 @@ export function TableMobile({
           </View>
 
           <View style={styles.center}>
-            <Pile label={`덱 ${view.deck.length}`}>
+            <Pile label={t.ui.pile.deck(view.deck.length)}>
               <View ref={deck} collapsable={false}>
                 {back ? (
                   <Image source={back} style={styles.cardBackArt} resizeMode="cover" />
@@ -173,17 +176,17 @@ export function TableMobile({
                 )}
               </View>
             </Pile>
-            <Pile label={`버린 더미 ${view.discard.length}`}>
+            <Pile label={t.ui.pile.discard(view.discard.length)}>
               {top ? <CardView card={top} size="sm" /> : <View style={styles.emptyPile} />}
             </Pile>
             {event && (
-              <Pile label="이벤트">
+              <Pile label={t.ui.pile.event}>
                 {eventImage ? (
                   <Image source={eventImage} style={styles.eventArt} resizeMode="cover" />
                 ) : (
                   <View style={styles.eventCard}>
                     <Text style={styles.eventName} numberOfLines={2}>
-                      {event.nameKo}
+                      {names.eventName(event.id)}
                     </Text>
                   </View>
                 )}
@@ -260,13 +263,13 @@ export function TableMobile({
 
       {logOpen && (
         <View style={styles.logOverlay}>
-          <SidePanel log={view.log} style={styles.logPanel} panelStyle={styles.logPanelInner} />
+          <SidePanel log={view.log} players={view.players} style={styles.logPanel} panelStyle={styles.logPanelInner} />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="기록 닫기"
+            accessibilityLabel={t.ui.mobile.closeLog}
             style={[tb.pill, styles.logClose]}
             onPress={() => setLogOpen(false)}>
-            <Text style={tb.text}>닫기</Text>
+            <Text style={tb.text}>{t.ui.mobile.close}</Text>
           </Pressable>
         </View>
       )}
@@ -313,6 +316,8 @@ function CompactSeat({
   basis,
 }: CompactSeatProps) {
   const styles = useStyles();
+  const t = useT();
+  const names = useNames();
   const isSelf = player.id === viewer;
   const dead = !player.alive && !player.ghost;
   const dist = !isSelf && !dead ? safeDistance(view, viewer, player.id) : null;
@@ -323,7 +328,7 @@ function CompactSeat({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${player.name}${presence ? ` · ${PRESENCE_LABEL[presence]}` : ''} · ${CHARACTERS[player.character].nameKo}${targetable || view.draft ? '' : ' 상세 보기'}`}
+      accessibilityLabel={`${player.name}${presence ? ` · ${t.ui.presence[presence]}` : ''} · ${names.charName(player.character)}${targetable || view.draft ? '' : t.ui.mobile.detail}`}
       style={[
         styles.compact,
         basis ? { flexBasis: basis } : null,
@@ -341,7 +346,7 @@ function CompactSeat({
         {!isSelf && !view.draft && <AttackBadges view={view} from={player.id} viewer={viewer} />}
         {(player.roleRevealed || isSelf) && (
           <Text style={[styles.compactRole, { color: ROLE_COLOR[player.role] }]}>
-            {ROLE_LABEL[player.role]}
+            {names.roleName(player.role)}
           </Text>
         )}
       </View>
@@ -357,9 +362,9 @@ function CompactSeat({
               </View>
             )}
             <Text style={styles.compactCharacter} numberOfLines={2}>
-              {CHARACTERS[player.character].nameKo}
-              {player.ghost ? ' · 유령' : ''}
-              {dead ? ' · 제거됨' : ''}
+              {names.charName(player.character)}
+              {player.ghost ? t.ui.seat.ghost : ''}
+              {dead ? t.ui.character.removed : ''}
             </Text>
           </View>
 
@@ -370,7 +375,7 @@ function CompactSeat({
               style={styles.compactHp}
               emptyStyle={styles.compactHpEmpty}
             />
-            {dist !== null && <Text style={styles.compactMeta}>거리 {dist}</Text>}
+            {dist !== null && <Text style={styles.compactMeta}>{t.ui.seat.distance(dist)}</Text>}
           </View>
         </>
       )}
@@ -395,7 +400,7 @@ function CompactSeat({
             onPress={() => onPickEquipment(card)}
             style={[styles.equipChip, picking && styles.equipChipPickable]}>
             <Text style={styles.equipText} numberOfLines={1}>
-              {CARD_DEFS[kindOf(card)].nameKo}
+              {names.cardName(kindOf(card))}
             </Text>
           </Pressable>
         ))}

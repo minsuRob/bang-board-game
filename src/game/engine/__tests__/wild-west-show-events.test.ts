@@ -134,8 +134,8 @@ describe('도로시 레이지', () => {
     for (const viewer of ['a', 'c', 'd']) {
       const seen = viewFor(s, viewer).log.find((e) => e.t === 'dorothyRageMiss');
       expect(seen?.cards).toEqual(shown?.cards);
-      expect(seen?.text).toContain('맥주');
-      expect(seen?.text).toContain('빗나감!');
+      expect(seen?.msg).toMatchObject({ k: 'dorothyRageMiss' });
+      expect(seen?.msg.k === 'dorothyRageMiss' && seen.msg.hand.slice().sort()).toEqual(['beer', 'missed']);
     }
   });
 

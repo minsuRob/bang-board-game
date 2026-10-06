@@ -109,4 +109,14 @@ describe('엔진 경계', () => {
     }
     expect(offenders).toEqual([]);
   });
+
+  it('순수 영역에서 번역 사전(src/i18n)을 import 하지 않는다', () => {
+    const offenders: string[] = [];
+    for (const file of files) {
+      for (const imp of importsOf(readFileSync(file, 'utf8'))) {
+        if (/(^|\/)i18n(\/|$)/.test(imp)) offenders.push(`${file.replace(process.cwd(), '')} → ${imp}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
 });

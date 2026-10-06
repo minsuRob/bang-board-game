@@ -43,7 +43,7 @@ function table(roles: Role[] = ROLES_7): GameState {
 }
 
 function ev(t: string, pid: string, target?: string, card?: string): GameEvent {
-  return { t, pid, target, card, text: '', seq: 0 };
+  return { t, pid, target, card, msg: { k: 'timeout' }, seq: 0 };
 }
 
 function shoot(pid: string, target: string): GameEvent {

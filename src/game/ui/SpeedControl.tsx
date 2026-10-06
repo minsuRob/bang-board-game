@@ -7,7 +7,8 @@
 
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { AI_SPEEDS, speedLabel, type LocalAiSpeed } from '../ai/types';
+import { AI_SPEEDS, type LocalAiSpeed } from '../ai/types';
+import { useT } from '../../i18n/use-t';
 import { useToolbarStyles } from './theme/toolbar';
 import { Radius, Spacing } from '@/constants/theme';
 
@@ -24,10 +25,12 @@ type Props = {
 
 export function SpeedControl({ speed, onChange, speeds = AI_SPEEDS, style, hideLabel }: Props) {
   const toolbar = useToolbarStyles();
+  const t = useT();
+  const speedLabel = (s: number) => (s >= 100 ? t.ui.speed.maxWord : `${s}×`);
   if (!onChange) {
     return (
-      <View style={[toolbar.pill, styles.root, style]} accessibilityLabel={`AI 속도 ${speed}배`}>
-        <Text style={[toolbar.textMuted, styles.label]}>AI 속도</Text>
+      <View style={[toolbar.pill, styles.root, style]} accessibilityLabel={t.ui.speed.readonly(speed)}>
+        <Text style={[toolbar.textMuted, styles.label]}>{t.ui.speed.label}</Text>
         <Text style={[toolbar.text, styles.readonly]}>{speedLabel(speed)}</Text>
       </View>
     );
@@ -35,7 +38,7 @@ export function SpeedControl({ speed, onChange, speeds = AI_SPEEDS, style, hideL
 
   return (
     <View style={[toolbar.pill, styles.root, hideLabel && styles.rootBare, style]}>
-      {!hideLabel && <Text style={[toolbar.textMuted, styles.label]}>AI 속도</Text>}
+      {!hideLabel && <Text style={[toolbar.textMuted, styles.label]}>{t.ui.speed.label}</Text>}
       {speeds.map((s) => {
         const active = s === speed;
         return (
@@ -48,7 +51,7 @@ export function SpeedControl({ speed, onChange, speeds = AI_SPEEDS, style, hideL
             ]}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
-            accessibilityLabel={s >= 100 ? 'AI 속도 최대' : `AI 속도 ${s}배`}
+            accessibilityLabel={s >= 100 ? t.ui.speed.max : t.ui.speed.set(s)}
             onPress={() => onChange(s)}>
             <Text style={[toolbar.textMuted, active && toolbar.textActive]}>{speedLabel(s)}</Text>
           </Pressable>

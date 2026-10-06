@@ -11,6 +11,7 @@
 
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useStore } from 'zustand';
+import { useT } from '@/i18n/use-t';
 
 import { EVENTS } from '../../data/events';
 import type { EventCardId } from '../../data/types';
@@ -22,6 +23,7 @@ import { ANCHOR_EVENT, anchorsStore } from '../core/anchors-store';
 import { usePreviewStyles, type PreviewSlot } from './CharacterHover';
 import { themedStyles } from '../../ui/theme/use-theme';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useNames } from '@/i18n/use-names';
 
 const TIP_W = 240;
 /** 이벤트 스캔 비율 (260×389) */
@@ -40,6 +42,8 @@ export function EventHover({
   slot: PreviewSlot | null;
 }) {
   const styles = useStyles();
+  const t = useT().infra.table3d;
+  const names = useNames();
   const previewStyles = usePreviewStyles();
   const anchors = useStore(anchorsStore);
   const current = view.event?.current ?? null;
@@ -57,13 +61,13 @@ export function EventHover({
         {...(CAN_HOVER
           ? { onHoverIn: () => onHoverChange(true), onHoverOut: () => onHoverChange(false) }
           : { onPress: () => onHoverChange(!hovered) })}
-        accessibilityLabel={`${def.nameKo} 이벤트 보기`}
+        accessibilityLabel={t.eventViewA11y(names.eventName(def.id))}
         style={[styles.hit, { left: r.left, top, width: r.right - r.left, height: bottom - top }]}
       />
       {hovered && slot && <EventPanel view={view} id={current} slot={slot} />}
       {hovered && !CAN_HOVER && (
         // 폰: 설명 창은 포인터를 받지 않으니 화면 아무 데나 눌러 닫는 막을 깐다
-        <Pressable accessibilityLabel="이벤트 설명 닫기" style={StyleSheet.absoluteFill} onPress={() => onHoverChange(false)} />
+        <Pressable accessibilityLabel={t.eventCloseA11y} style={StyleSheet.absoluteFill} onPress={() => onHoverChange(false)} />
       )}
       {hovered && !slot && (
         <View
@@ -76,8 +80,8 @@ export function EventHover({
             },
           ]}
         >
-          <Text style={previewStyles.tipName}>{def.nameKo}</Text>
-          <Text style={previewStyles.tipAbility}>{def.text}</Text>
+          <Text style={previewStyles.tipName}>{names.eventName(def.id)}</Text>
+          <Text style={previewStyles.tipAbility}>{names.eventText(def.id)}</Text>
         </View>
       )}
     </>
@@ -86,6 +90,8 @@ export function EventHover({
 
 function EventPanel({ view, id, slot }: { view: GameState; id: EventCardId; slot: PreviewSlot }) {
   const styles = useStyles();
+  const t = useT().infra.table3d;
+  const names = useNames();
   const previewStyles = usePreviewStyles();
   const def = EVENTS[id];
   const art = eventArt(id);
@@ -100,37 +106,37 @@ function EventPanel({ view, id, slot }: { view: GameState; id: EventCardId; slot
         ) : (
           <View style={[styles.art, styles.artFallback]}>
             <Text style={styles.artFallbackText} numberOfLines={3}>
-              {def.nameKo}
+              {names.eventName(def.id)}
             </Text>
           </View>
         )}
         <View style={previewStyles.panelInfo}>
-          <Text style={styles.kicker}>{def.isFinal ? '이벤트 · 마지막 카드' : '이벤트'}</Text>
+          <Text style={styles.kicker}>{def.isFinal ? t.eventKickerFinal : t.eventKicker}</Text>
           <Text style={previewStyles.panelName} numberOfLines={1}>
-            {def.nameKo}
+            {names.eventName(def.id)}
           </Text>
           <Text style={previewStyles.panelMeta}>{def.name}</Text>
-          <Text style={[previewStyles.panelAbility, styles.effect]}>{def.text}</Text>
+          <Text style={[previewStyles.panelAbility, styles.effect]}>{names.eventText(def.id)}</Text>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>지나간 이벤트 {past.length}</Text>
+        <Text style={styles.sectionTitle}>{t.pastEvents(past.length)}</Text>
         {past.length === 0 ? (
-          <Text style={previewStyles.panelMeta}>아직 없다</Text>
+          <Text style={previewStyles.panelMeta}>{t.pastNone}</Text>
         ) : (
           <View style={styles.chips}>
             {past.map((p) => (
               <Text key={p} style={styles.chip}>
-                {EVENTS[p].nameKo}
+                {names.eventName(p)}
               </Text>
             ))}
           </View>
         )}
         <Text style={previewStyles.panelMeta}>
           {remaining > 0
-            ? `남은 이벤트 ${remaining}장 · ${eventDeckNote(view.config.expansions)}`
-            : '남은 이벤트 없음 · 게임 끝까지 이어진다'}
+            ? t.remainingEvents(remaining, eventDeckNote(view.config.expansions, undefined, names))
+            : t.noRemainingEvents}
         </Text>
       </View>
     </View>

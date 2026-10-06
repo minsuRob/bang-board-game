@@ -12,5 +12,5 @@ export const UNCLE_WILL_ABILITY = 'uncleWill';
 export const uncleWill: Modifier = {
   id: 'char:uncleWill',
   from: 'character',
-  playAnyAs: { key: UNCLE_WILL_ABILITY, label: '카드 1장 → 잡화점', as: 'generalStore' },
+  playAnyAs: { key: UNCLE_WILL_ABILITY, as: 'generalStore' },
 };

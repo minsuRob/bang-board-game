@@ -19,8 +19,10 @@ import { CARD_DEFS } from '../data/cards.base';
 import { SUIT_GLYPH, type CardId } from '../data/types';
 import { cardOf, kindOf } from '../engine';
 import { cardBackArt, playingCardArt } from './card-art';
+import { useT } from '../../i18n/use-t';
 import { chipFor } from './card-symbols';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useNames } from '../../i18n/use-names';
 
 export type CardSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -58,6 +60,8 @@ function CardViewBase({
   onHoverOut,
   showSuit = true,
 }: CardViewProps) {
+  const t = useT();
+  const names = useNames();
   const dim = CARD_DIMENSIONS[size];
   const inst = cardOf(card);
   const kind = kindOf(card);
@@ -66,6 +70,9 @@ function CardViewBase({
     inst.suit === 'hearts' || inst.suit === 'diamonds' ? Colors.suitRed : Colors.suitBlack;
   const accent = def.category === 'blue' ? Colors.cardBlue : Colors.cardBrown;
   const art = playingCardArt(kind);
+  // 그림에는 원어 이름이 인쇄돼 있다. 현재 언어 이름이 그것과 같으면(이탈리아어) 띠를 덧씌우지 않는다
+  const localName = names.cardName(kind);
+  const showBand = localName.toLowerCase() !== def.name.toLowerCase();
 
   const frame = [
     styles.card,
@@ -79,10 +86,10 @@ function CardViewBase({
     <View style={[...frame, styles.artCard]}>
       <Image source={art} style={styles.art} resizeMode="cover" />
 
-      {size !== 'sm' && (
+      {size !== 'sm' && showBand && (
         <View style={styles.nameStrip}>
           <Text style={[styles.stripText, { fontSize: dim.title - 1 }]} numberOfLines={1}>
-            {def.nameKo}
+            {localName}
           </Text>
         </View>
       )}
@@ -105,9 +112,9 @@ function CardViewBase({
       )}
 
       <Text style={[styles.name, { fontSize: dim.title }]} numberOfLines={2}>
-        {def.nameKo}
+        {localName}
       </Text>
-      {size !== 'sm' && (
+      {size !== 'sm' && showBand && (
         <Text style={styles.nameEn} numberOfLines={1}>
           {def.name}
         </Text>
@@ -115,7 +122,7 @@ function CardViewBase({
 
       <View style={styles.symbols}>
         {def.symbols.slice(0, 3).map((symbol, i) => {
-          const chip = chipFor(symbol);
+          const chip = chipFor(symbol, t);
           return (
             <Text key={i} style={[styles.symbol, { color: chip.color }]}>
               {chip.glyph}
@@ -134,7 +141,7 @@ function CardViewBase({
       onHoverOut={onHoverOut}
       // 흐린 카드도 살펴볼 수는 있어야 한다. 낼 수 있는지는 누른 쪽이 판단한다
       disabled={disabled && !onHoverIn}
-      accessibilityLabel={def.nameKo}>
+      accessibilityLabel={localName}>
       {body}
     </Pressable>
   );

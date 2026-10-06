@@ -19,6 +19,7 @@ import { EconomyError, matchId, type RejectReason, type RoomSettlement } from '.
 import type { Applied } from '../economy/wallet';
 import type { GameState } from '../engine';
 import { useGameStore } from './game-store';
+import { getT } from '../../i18n/use-t';
 
 export type SettlementView =
   | { status: 'none' }
@@ -83,7 +84,7 @@ export function useSettlement({ online, code, room, state, uid }: Args): Settlem
       .then(({ id, outcome }) => {
         if (!alive) return;
         if (outcome === 'exists') {
-          setLocal({ status: 'rejected', reason: null, message: '같은 시드로 이미 보상을 받은 판이다.' });
+          setLocal({ status: 'rejected', reason: null, message: getT().infra.settle.alreadyRewarded });
           return;
         }
         stop = watchMatch(
@@ -93,13 +94,13 @@ export function useSettlement({ online, code, room, state, uid }: Args): Settlem
             if (doc.status === 'settled' && doc.credit) setLocal({ status: 'settled', credit: doc.credit });
             else if (doc.status === 'rejected') setLocal({ status: 'rejected', reason: doc.reason ?? null });
           },
-          () => setLocal({ status: 'rejected', reason: null, message: '정산 결과를 읽지 못했다.' }),
+          () => setLocal({ status: 'rejected', reason: null, message: getT().infra.settle.readFailed }),
         );
       })
       .catch((err: unknown) => {
         if (!alive) return;
         const message =
-          err instanceof EconomyError ? err.message : err instanceof Error ? err.message : '기록을 올리지 못했다.';
+          err instanceof EconomyError ? err.message : err instanceof Error ? err.message : getT().infra.settle.uploadFailed;
         setLocal({ status: 'rejected', reason: null, message });
       });
 

@@ -10,9 +10,8 @@
 
 import { CHARACTERS } from '../data/characters';
 import type { CharacterId } from '../data/types';
-import { log, nameOf, push } from './cards';
+import { log, push } from './cards';
 import { startingHandOf } from './hooks';
-import { ga } from './josa';
 import type { GameState, PlayerId } from './types';
 
 /** 아직 고르지 않은 사람들 (좌석 순) */
@@ -32,7 +31,7 @@ export function applyPick(state: GameState, pid: PlayerId, character: CharacterI
   cur = log(cur, {
     t: 'draftPick',
     pid,
-    text: `${ga(nameOf(cur, pid))} 캐릭터를 골랐다.`,
+    msg: { k: 'draftPick', who: pid },
   });
   return undrafted(cur).length === 0 ? finishDraft(cur) : cur;
 }
@@ -54,12 +53,9 @@ function finishDraft(state: GameState): GameState {
   });
 
   let cur: GameState = { ...state, players, deck, draft: null };
-  const reveal = players
-    .map((p) => `${p.name}·${CHARACTERS[p.character].nameKo}`)
-    .join(', ');
   cur = log(cur, {
     t: 'draftDone',
-    text: `모두 캐릭터를 골랐다. ${reveal}`,
+    msg: { k: 'draftDone', picks: players.map((p) => ({ who: p.id, character: p.character })) },
   });
 
   const sheriff = players.find((p) => p.role === 'sheriff')!;

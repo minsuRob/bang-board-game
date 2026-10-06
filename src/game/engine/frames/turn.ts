@@ -12,18 +12,7 @@
 import { EVENTS } from '../../data/events';
 import { CHARACTERS } from '../../data/characters';
 import { SUIT_GLYPH, type Suit } from '../../data/types';
-import {
-  defOf,
-  heldAsGhost,
-  inPlay,
-  log,
-  nameOf,
-  playerOf,
-  popFrame,
-  pushSeq,
-  toDiscard,
-  updatePlayer,
-} from '../cards';
+import { defOf, heldAsGhost, inPlay, log, playerOf, popFrame, pushSeq, toDiscard, updatePlayer, kindOf } from '../cards';
 import {
   beforeDrawFrames,
   drawCountOf,
@@ -42,7 +31,6 @@ import {
 } from '../hooks';
 import { reviveFromBoneOrchard } from './wildwest';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
-import { eul, ga, neun, ro } from '../josa';
 
 /**
  * 감옥에 걸려 차례를 건너뛸 때, 이번 차례의 남은 단계를 스택에서 걷어낸다.
@@ -85,7 +73,7 @@ export function resolveTurnStart(state: GameState, frame: Frame & { k: 'turnStar
     },
   };
   cur = updatePlayer(cur, pid, (x) => ({ ...x, usedThisTurn: [] }));
-  cur = log(cur, { t: 'turnStart', pid, text: `${nameOf(cur, pid)}의 차례.` });
+  cur = log(cur, { t: 'turnStart', pid, msg: { k: 'turnStart', who: pid } });
 
   // 하이 눈·한줌의 카드: 이벤트는 보안관의 두 번째 차례부터 공개된다.
   // 와일드 웨스트 쇼는 역마차·웰스 파고를 낼 때 공개한다 (engine/play.ts → revealEventOnPlayFrames).
@@ -122,8 +110,11 @@ export function resolveRevealEvent(state: GameState, frame: Frame & { k: 'reveal
       past: ev.current ? [...ev.past, ev.current] : ev.past,
     },
   };
-  const by = frame.pid ? `${ga(nameOf(cur, frame.pid))} 더미를 가져가 ` : '';
-  cur = log(cur, { t: 'event', card: next, text: `${by}이벤트 공개 — ${EVENTS[next].nameKo}` });
+  cur = log(cur, {
+    t: 'event',
+    card: next,
+    msg: { k: 'event', event: next, ...(frame.pid ? { by: frame.pid } : {}) },
+  });
 
   return pushSeq(cur, onEventEnterFrames(cur, revealer));
 }
@@ -195,7 +186,7 @@ export function resolveTurnEnd(state: GameState, frame: Frame & { k: 'turnEnd' }
     cur = log(cur, {
       t: 'ghostDiscard',
       pid,
-      text: `${neun(nameOf(cur, pid))} 유령이라 차례 끝에 손패 ${p.hand.length}장을 모두 버렸다.`,
+      msg: { k: 'ghostDiscard', who: pid, amount: p.hand.length },
     });
   }
 
@@ -210,7 +201,7 @@ export function resolveTurnEnd(state: GameState, frame: Frame & { k: 'turnEnd' }
     cur = log(cur, {
       t: 'missSusanna',
       pid,
-      text: `미스 수잔나: ${neun(nameOf(cur, pid))} 카드를 ${played}장만 내서 목숨 1을 잃는다.`,
+      msg: { k: 'missSusanna', who: pid, played },
     });
     endFrames.unshift({ k: 'damage', target: pid, amount: 1, source: null, cause: 'missSusanna' });
   }
@@ -225,7 +216,7 @@ export function resolveTurnEnd(state: GameState, frame: Frame & { k: 'turnEnd' }
   if (p.ghost && !heldAsGhost(p)) {
     cur = updatePlayer(cur, pid, (x) => ({ ...x, ghost: false, hand: [] }));
     cur = toDiscard(cur, p.hand);
-    cur = log(cur, { t: 'ghostLeave', pid, text: `${nameOf(cur, pid)}의 유령이 사라졌다.` });
+    cur = log(cur, { t: 'ghostLeave', pid, msg: { k: 'ghostLeave', who: pid } });
     leaving.push(...onEliminatedFrames(cur, pid), { k: 'eliminateCleanup', target: pid });
   }
 
@@ -246,7 +237,7 @@ export function resolveAdvanceTurn(
       cur = log(cur, {
         t: 'extraTurn',
         pid: extraFor,
-        text: `${ga(nameOf(cur, extraFor))} 차례를 한 번 더 진행한다.`,
+        msg: { k: 'extraTurn', who: extraFor },
       });
       return pushSeq(cur, [{ k: 'turnStart', pid: extraFor, extra: true }]);
     }
@@ -268,7 +259,7 @@ export function resolveAdvanceTurn(
       cur = log(cur, {
         t: 'ladyRoseSkip',
         pid: cand.id,
-        text: `${neun(nameOf(cur, cand.id))} 자리를 빼앗겨 이번 차례를 건너뛴다.`,
+        msg: { k: 'ladyRoseSkip', who: cand.id },
       });
       continue;
     }
@@ -288,7 +279,7 @@ export function resolveAdvanceTurn(
       cur = log(cur, {
         t: 'deadMan',
         pid: cand.id,
-        text: `${ga(nameOf(cur, cand.id))} 망자로 돌아왔다 (목숨 ${revival.hp}).`,
+        msg: { k: 'deadMan', who: cand.id, hp: revival.hp },
       });
       return pushSeq(cur, [
         { k: 'drawCards', pid: cand.id, count: revival.cards, reason: 'deadMan' },
@@ -300,7 +291,7 @@ export function resolveAdvanceTurn(
       cur = log(cur, {
         t: 'ghostRise',
         pid: cand.id,
-        text: `${ga(nameOf(cur, cand.id))} 유령으로 되살아났다.`,
+        msg: { k: 'ghostRise', who: cand.id, fromCard: false },
       });
       return pushSeq(cur, [{ k: 'turnStart', pid: cand.id }]);
     }
@@ -336,11 +327,10 @@ export function respondNewIdentity(
     return log(cur, {
       t: 'newIdentity',
       pid: frame.pid,
-      text: `${neun(nameOf(cur, frame.pid))} 신분을 그대로 유지했다.`,
+      msg: { k: 'newIdentityKeep', who: frame.pid },
     });
   }
   const next = p.spareCharacter;
-  const prevNameKo = CHARACTERS[p.character].nameKo;
   const bonus = p.role === 'sheriff' ? 1 : 0;
   cur = updatePlayer(cur, frame.pid, (x) => ({
     ...x,
@@ -352,7 +342,7 @@ export function respondNewIdentity(
   return log(cur, {
     t: 'newIdentity',
     pid: frame.pid,
-    text: `${ga(prevNameKo)} ${ro(CHARACTERS[next].nameKo)} 신분을 바꿨다 (목숨 2).`,
+    msg: { k: 'newIdentitySwap', from: p.character, to: next },
   });
 }
 
@@ -380,7 +370,7 @@ export function respondDeclareSuit(
     {
       t: 'declareSuit',
       pid: frame.pid,
-      text: `${ga(nameOf(cur, frame.pid))} 무늬 ${SUIT_GLYPH[suit]}를 선언했다.`,
+      msg: { k: 'declareSuit', who: frame.pid, suit },
     },
   );
 }
@@ -426,7 +416,7 @@ export function respondDaltonsDiscard(
     t: 'daltons',
     pid,
     card,
-    text: `달톤 형제: ${ga(nameOf(cur, pid))} ${eul(defOf(card).nameKo)} 버렸다.`,
+    msg: { k: 'daltons', who: pid, card: kindOf(card) },
   });
 
   return {

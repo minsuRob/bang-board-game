@@ -25,7 +25,9 @@ import { FloatingNumbers } from './FloatingNumbers';
 import { LABEL_W, LABEL_W_COMPACT, LABEL_W_SELF, LABEL_W_SELF_COMPACT, SeatLabel } from './SeatLabel';
 import { glowingSeat } from '../../ui/glowing-seat';
 import { themedStyles, useColors } from '../../ui/theme/use-theme';
+import { useT } from '@/i18n/use-t';
 import type { ThemeColor } from '@/constants/theme';
+import { useNames } from '@/i18n/use-names';
 
 export type Overlay3DProps = {
   view: GameState;
@@ -41,6 +43,8 @@ type HoverTarget = { k: 'player'; pid: PlayerId } | { k: 'event' } | null;
 
 export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Overlay3DProps) {
   const anchors = useStore(anchorsStore);
+  const t = useT().infra.table3d;
+  const names = useNames();
   const [hover, setHover] = useState<HoverTarget>(null);
   // 폰에는 hover 가 없다. 탭해서 가운데에 띄운 캐릭터 상세
   const [detail, setDetail] = useState<PlayerId | null>(null);
@@ -131,9 +135,9 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
         );
       })}
 
-      {deck?.visible && <Pill x={deck.x} y={deck.y} text={`덱 ${view.deck.length}`} />}
-      {discard?.visible && <Pill x={discard.x} y={discard.y} text={`버린 더미 ${view.discard.length}`} />}
-      {event && ev?.visible && <Pill x={ev.x} y={ev.y} text={event.nameKo} tone="renegade" />}
+      {deck?.visible && <Pill x={deck.x} y={deck.y} text={t.deckPill(view.deck.length)} />}
+      {discard?.visible && <Pill x={discard.x} y={discard.y} text={t.discardPill(view.discard.length)} />}
+      {event && ev?.visible && <Pill x={ev.x} y={ev.y} text={names.eventName(event.id)} tone="renegade" />}
 
       <CharacterHover
         view={view}

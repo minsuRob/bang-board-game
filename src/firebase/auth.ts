@@ -11,6 +11,7 @@ import { onAuthStateChanged, signInAnonymously, type User } from 'firebase/auth'
 import { getAuthClient } from './config';
 import { readProfileNick, updateNick } from './profile';
 import { loadNickname, saveNickname } from './storage';
+import { getT } from '../i18n/use-t';
 
 export type Identity = { uid: string; nickname: string };
 
@@ -48,7 +49,7 @@ export function ensureSignedIn(): Promise<User> {
   return pending;
 }
 
-export async function getIdentity(fallbackNickname = '이름 없는 총잡이'): Promise<Identity> {
+export async function getIdentity(fallbackNickname = getT().infra.nick.anonymous): Promise<Identity> {
   const user = await ensureSignedIn();
   const profile = await readProfileNick(user.uid);
   if (profile) return { uid: user.uid, nickname: profile };

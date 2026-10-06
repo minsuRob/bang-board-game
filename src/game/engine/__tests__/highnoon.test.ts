@@ -692,7 +692,7 @@ describe('달톤 형제', () => {
     const s0 = scenario({ players: [{ equipment: ['mustang'] }, {}, {}, {}] });
     const s = settle(revealEvent(s0, 'theDaltons'));
     const e = s.log.find((x) => x.t === 'daltons');
-    expect(e?.text).toContain('야생마를 버렸다');
+    expect(e?.msg).toMatchObject({ k: 'daltons', card: 'mustang' });
   });
 
   it('파랑 카드가 없으면 건너뛴다', () => {
@@ -958,9 +958,8 @@ describe('새로운 신분', () => {
     });
     let s = beginTurn(withSpare(base, 'p0', 'paulRegret'), 'p0');
     s = reduce(s, { type: 'respond', pid: 'p0', choice: { c: 'yes' } });
-    const text = s.log.filter((e) => e.t === 'newIdentity').map((e) => e.text).join('\n');
-    expect(text).toContain('폴 리그렛으로 신분을 바꿨다');
-    expect(text).not.toContain('(으)로');
+    const msgs = s.log.filter((e) => e.t === 'newIdentity').map((e) => e.msg);
+    expect(msgs).toContainEqual({ k: 'newIdentitySwap', from: 'willyTheKid', to: 'paulRegret' });
   });
 
   it('거절하면 캐릭터도 목숨도 그대로다', () => {

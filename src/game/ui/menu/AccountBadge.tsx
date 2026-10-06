@@ -10,10 +10,12 @@ import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-nat
 import { startAccountSync, useAccount } from '../../../firebase/account-store';
 import { levelFromXp } from '../../economy/level';
 import { themedStyles } from '../theme/use-theme';
+import { useT } from '../../../i18n/use-t';
 import { WesternFonts } from './western-fonts';
 
 export function AccountBadge({ onPress, style }: { onPress: () => void; style?: StyleProp<ViewStyle> }) {
   const styles = useStyles();
+  const t = useT();
   const account = useAccount();
 
   useEffect(() => {
@@ -31,10 +33,10 @@ export function AccountBadge({ onPress, style }: { onPress: () => void; style?: 
     <Pressable
       style={({ pressed }) => [styles.badge, pressed && styles.pressed, style]}
       accessibilityRole="button"
-      accessibilityLabel={`프로필 ${account.nick} ${label}`}
+      accessibilityLabel={t.ui.account.profile(account.nick, label)}
       onPress={onPress}>
       <Text style={styles.nick} numberOfLines={1}>
-        {account.status === 'error' ? '로그인 실패' : account.nick}
+        {account.status === 'error' ? t.ui.account.loginFailed : account.nick}
       </Text>
       <View style={styles.rule} />
       <Text style={styles.stats}>{label}</Text>

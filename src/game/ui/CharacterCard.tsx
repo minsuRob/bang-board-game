@@ -13,6 +13,7 @@ import { characterArt } from './card-art';
 import { CharacterPortraitImage } from './CharacterPortraitImage';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { HpPips } from './HpPips';
+import { useNames } from '../../i18n/use-names';
 
 // 그림은 카드 통째가 아니라 초상 칸만 잘라 쓴다. 이름은 아래 띠가 한국어로 대신한다
 export const CHARACTER_CARD = { width: 150, height: 214 } as const;
@@ -21,6 +22,7 @@ const BORDER = 2;
 /** `width` 를 주면 그 폭에 원래 비율로 맞춘다 */
 export function CharacterCard({ id, compact, width }: { id: CharacterId; compact?: boolean; width?: number }) {
   const def = CHARACTERS[id];
+  const names = useNames();
   const art = characterArt(id);
   const w = width ?? (compact ? 112 : CHARACTER_CARD.width);
   const h = width ? Math.round((width * CHARACTER_CARD.height) / CHARACTER_CARD.width) : compact ? 160 : CHARACTER_CARD.height;
@@ -35,7 +37,7 @@ export function CharacterCard({ id, compact, width }: { id: CharacterId; compact
           <CharacterPortraitImage id={id} width={w - BORDER * 2} height={h - BORDER * 2} />
           <View style={[styles.strip, tiny && styles.stripTiny]}>
             <Text style={[styles.stripName, tiny && styles.stripNameTiny]} numberOfLines={1}>
-              {def.nameKo}
+              {names.charName(id)}
             </Text>
             {showHp && <HpPips hp={def.maxHp} maxHp={def.maxHp} style={styles.stripHp} />}
           </View>
@@ -43,7 +45,7 @@ export function CharacterCard({ id, compact, width }: { id: CharacterId; compact
       ) : (
         <View style={styles.plain}>
           <Text style={[styles.name, compact && { fontSize: 14 }]} numberOfLines={1}>
-            {def.nameKo}
+            {names.charName(id)}
           </Text>
           <Text style={styles.nameEn} numberOfLines={1}>
             {def.name}
@@ -51,7 +53,7 @@ export function CharacterCard({ id, compact, width }: { id: CharacterId; compact
           <HpPips hp={def.maxHp} maxHp={def.maxHp} style={styles.hp} />
           <View style={styles.rule} />
           <Text style={[styles.ability, compact && { fontSize: 10, lineHeight: 13 }]} numberOfLines={compact ? 6 : 8}>
-            {def.ability}
+            {names.charAbility(id)}
           </Text>
         </View>
       )}

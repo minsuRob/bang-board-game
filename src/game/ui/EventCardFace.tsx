@@ -9,24 +9,28 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 
 import type { EventCardDef } from '../data/types';
 import { eventArt } from './card-art';
+import { useT } from '../../i18n/use-t';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useNames } from '../../i18n/use-names';
 
 /** 이벤트 스캔 비율 (260×389) */
 export const EVENT_RATIO = 260 / 389;
 
 export function EventCardFace({ def, width }: { def: EventCardDef; width: number }) {
+  const t = useT();
+  const names = useNames();
   const art = eventArt(def.id);
   const size = { width, height: Math.round(width / EVENT_RATIO) };
   if (art) {
-    return <Image source={art} style={[styles.art, size]} resizeMode="cover" accessibilityLabel={def.nameKo} />;
+    return <Image source={art} style={[styles.art, size]} resizeMode="cover" accessibilityLabel={names.eventName(def.id)} />;
   }
   // 작게 그릴 때는 글자를 줄인다
   const small = width < 110;
   return (
     <View style={[styles.fallback, size]}>
-      <Text style={styles.kicker}>이벤트</Text>
+      <Text style={styles.kicker}>{t.ui.eventCard.kicker}</Text>
       <Text style={[styles.name, small && styles.nameSmall]} numberOfLines={2}>
-        {def.nameKo}
+        {names.eventName(def.id)}
       </Text>
       <Text style={styles.en} numberOfLines={1}>
         {def.name}

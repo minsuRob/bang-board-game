@@ -92,7 +92,7 @@ describe('저장할 수 있는가', () => {
 
   it('판이 끝났으면 못 한다', () => {
     const { state } = findHumanOut();
-    const ended: GameState = { ...state, result: { winners: ['sheriff'], winnerIds: [], reason: '' } };
+    const ended: GameState = { ...state, result: { winners: ['sheriff'], winnerIds: [], reason: 'lawWon' } };
     expect(canSaveGame(ended, ['p0'])).toBe(false);
   });
 });
@@ -110,6 +110,22 @@ describe('저장 레코드', () => {
     expect(back.controlled).toEqual(['p0']);
     expect(back.seats).toEqual(seats);
     expect(JSON.stringify(back.state)).toBe(JSON.stringify(state));
+  });
+
+  it('예전 저장 파일의 로그(text)는 legacyText 로 옮겨 한국어 그대로 읽는다', () => {
+    const { state } = findHumanOut();
+    const old = {
+      ...state,
+      log: [
+        { t: 'turnStart', pid: 'p0', text: '블랙 잭의 차례.', seq: 1 },
+        { t: 'panic', pid: 'p1', target: 'p0', text: '카드를 강탈했다.', seq: 2, secret: { to: ['p0'], card: 'bang-1', text: '"뱅!"을 강탈했다.' } },
+      ],
+    };
+    const rec = record(old as unknown as GameState);
+    const back = readSaveRecord(rec).state;
+    expect(back.log[0]).toEqual({ t: 'turnStart', pid: 'p0', msg: { k: 'legacy' }, legacyText: '블랙 잭의 차례.', seq: 1 });
+    expect(back.log[1].secret).toEqual({ to: ['p0'], card: 'bang-1', msg: { k: 'legacy' }, legacyText: '"뱅!"을 강탈했다.' });
+    expect(JSON.stringify(back.log)).not.toContain('"text"');
   });
 
   it('이어 둔 판은 저장하지 않고 둔 판과 똑같이 흘러간다', () => {

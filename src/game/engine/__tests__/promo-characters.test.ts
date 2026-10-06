@@ -66,7 +66,7 @@ describe('엉클 윌', () => {
     expect(s1.turn.bangsPlayed).toBe(0);
     const ev = s1.log.find((e) => e.t === 'playCard');
     expect(ev?.as).toBe('generalStore');
-    expect(ev?.text).toContain('잡화점으로');
+    expect(ev?.msg).toMatchObject({ k: 'played', as: 'generalStore' });
 
     const s2 = finishStore(s1);
     expect(p(s2, 'p0').usedThisTurn).toContain(UNCLE_WILL_ABILITY);

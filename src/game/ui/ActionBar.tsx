@@ -11,12 +11,14 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { CARD_DEFS } from '../data/cards.base';
 import { SUIT_GLYPH, type Suit } from '../data/types';
 import { kindOf } from '../engine';
+import { useT } from '../../i18n/use-t';
 import { waitClock } from '../store/wait-clock';
 import { CardView } from './CardView';
 import type { Prompt, UiChoice } from './use-table';
 import { WesternFonts } from './menu/western-fonts';
 import { themedStyles } from './theme/use-theme';
 import { Radius, Spacing } from '@/constants/theme';
+import { useNames } from '../../i18n/use-names';
 
 export type ActionBarProps = {
   prompt: Prompt | null;
@@ -57,6 +59,8 @@ export function ActionBar({
   stacked,
 }: ActionBarProps) {
   const styles = useStyles();
+  const t = useT();
+  const names = useNames();
   const content = !prompt ? (
     <>
       <View style={styles.statusRow}>
@@ -66,7 +70,7 @@ export function ActionBar({
       <View style={styles.buttons}>
         {abilities.length > 0 && (
           <Button
-            label={`능력 · ${abilities[0].label}`}
+            label={t.table.ability(abilities[0].label)}
             onPress={() => onUseAbility(abilities[0].key, abilities[0].cards)}
           />
         )}
@@ -77,13 +81,13 @@ export function ActionBar({
         )}
         {onArm &&
           (armed ? (
-            <Button label="취소 (Esc)" onPress={() => onArm(null)} />
+            <Button label={t.table.cancelEsc} onPress={() => onArm(null)} />
           ) : (
             playAs.map((ab) => (
               <Button key={ab.key} label={ab.label} onPress={() => onArm(ab.key)} />
             ))
           ))}
-        {canEndTurn && <Button label="차례 마치기 (Q)" onPress={onEndTurn} primary />}
+        {canEndTurn && <Button label={t.table.action.endTurn} onPress={onEndTurn} primary />}
       </View>
     </>
   ) : (
@@ -106,7 +110,7 @@ export function ActionBar({
                 highlighted
                 onPress={() => onRespond({ c: 'card', card })}
               />
-              <Text style={styles.cardLabel}>{CARD_DEFS[kindOf(card)].nameKo}</Text>
+              <Text style={styles.cardLabel}>{names.cardName(kindOf(card))}</Text>
             </View>
           ))}
 
@@ -130,17 +134,17 @@ export function ActionBar({
             />
           ))}
 
-          {prompt.yesNo && <Button label="그렇게 한다" onPress={() => onRespond({ c: 'yes' })} primary />}
+          {prompt.yesNo && <Button label={t.table.action.yes} onPress={() => onRespond({ c: 'yes' })} primary />}
 
           {prompt.colors && (
             <>
-              <Button label="♥♦ 빨강" onPress={() => onRespond({ c: 'color', color: 'red' })} />
-              <Button label="♣♠ 검정" onPress={() => onRespond({ c: 'color', color: 'black' })} />
+              <Button label={t.table.action.red} onPress={() => onRespond({ c: 'color', color: 'red' })} />
+              <Button label={t.table.action.black} onPress={() => onRespond({ c: 'color', color: 'black' })} />
             </>
           )}
 
           {prompt.canPass && (
-            <Button label={prompt.passLabel ?? '반응하지 않음 (W)'} onPress={() => onRespond({ c: 'pass' })} />
+            <Button label={prompt.passLabel ?? t.table.action.pass} onPress={() => onRespond({ c: 'pass' })} />
           )}
         </View>
       </ScrollView>
@@ -170,6 +174,7 @@ export function ActionBar({
 /** 지금 기다리는 차례의 남은 초. 기다리는 게 없으면 아무것도 그리지 않는다 */
 function WaitSeconds() {
   const styles = useStyles();
+  const tt = useT();
   const deadline = useSyncExternalStore(
     waitClock.subscribe,
     () => waitClock.getState().deadline,
@@ -184,7 +189,7 @@ function WaitSeconds() {
   }, [deadline]);
   if (deadline === null) return null;
   const left = Math.max(0, Math.ceil((deadline - now) / 1000));
-  return <Text style={[styles.seconds, left <= 5 && styles.secondsUrgent]}>{left}초</Text>;
+  return <Text style={[styles.seconds, left <= 5 && styles.secondsUrgent]}>{tt.table.action.seconds(left)}</Text>;
 }
 
 function Button({

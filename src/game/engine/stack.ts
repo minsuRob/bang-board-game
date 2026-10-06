@@ -5,7 +5,7 @@
  * (카드 사용 단계·버리기 단계)에 닿을 때까지 프레임을 하나씩 해결한다.
  */
 
-import { heldAsGhost, inPlay, log, nameOf, playerOf, toDiscard, topFrame, updatePlayer } from './cards';
+import { heldAsGhost, inPlay, log, playerOf, toDiscard, topFrame, updatePlayer } from './cards';
 import { resolveFrame } from './frames';
 import { handLimitOf, onHandEmptyFrames, resurrectsEliminated } from './hooks';
 import type { GameState } from './types';
@@ -74,7 +74,7 @@ export function sweepGhosts(state: GameState): GameState {
     const cards = [...p.hand, ...p.equipment];
     cur = updatePlayer(cur, p.id, (x) => ({ ...x, ghost: false, hand: [], equipment: [] }));
     cur = toDiscard(cur, cards);
-    cur = log(cur, { t: 'ghostLeave', pid: p.id, text: `${nameOf(cur, p.id)}의 유령이 사라졌다.` });
+    cur = log(cur, { t: 'ghostLeave', pid: p.id, msg: { k: 'ghostLeave', who: p.id } });
     // 유령도 승리 판정의 '남은 사람'이었으므로 다시 판정한다
     cur = { ...cur, stack: [...cur.stack, { k: 'checkWin' }] };
   }

@@ -15,6 +15,7 @@ import { handCard, p, scenario } from './helpers';
 import type { GameState } from '../types';
 
 const lastOf = (s: GameState, t: string) => [...s.log].reverse().find((e) => e.t === t);
+const msgOf = (s: GameState, t: string) => lastOf(s, t)?.msg;
 
 function steal(kind: 'panic' | 'catBalou', zone: 'hand' | 'equipment') {
   const s0 = scenario({
@@ -41,7 +42,7 @@ describe('강탈·캣 벌로우 로그', () => {
     expect(e?.card).toBe(p(s0, 'p0').hand[0]);
     expect(e?.fromHand).toBe(true);
     for (const pid of ['p0', 'p1', 'p2']) {
-      expect(lastOf(viewFor(s, pid), 'catBalou')?.text).toContain('"뱅!"을 버리게 했다');
+      expect(msgOf(viewFor(s, pid), 'catBalou')).toMatchObject({ k: 'catBalou', fromHand: true, card: 'bang' });
     }
   });
 
@@ -50,26 +51,26 @@ describe('강탈·캣 벌로우 로그', () => {
     const e = lastOf(s, kind);
     expect(e?.target).toBe('p0');
     expect(e?.card).toBe(p(s0, 'p0').equipment[0]);
-    expect(e?.text).toContain('술통을');
+    expect(msgOf(s, kind)).toMatchObject({ k: kind, fromHand: false, card: 'barrel' });
   });
 
   it('강탈: 손패에서 뽑으면 텍스트에도 이름을 적지 않는다', () => {
     const { s } = steal('panic', 'hand');
     const e = lastOf(s, 'panic');
-    expect(e?.text).toContain('카드를');
-    expect(e?.text).not.toContain('뱅!');
+    expect(msgOf(s, 'panic')).toEqual({ k: 'panic', who: 'p1', target: 'p0', fromHand: true });
   });
 
   it('강탈: 가져간 사람과 빼앗긴 사람만 카드 이름을 본다', () => {
     const { s } = steal('panic', 'hand');
     for (const pid of ['p0', 'p1']) {
       const e = lastOf(viewFor(s, pid), 'panic');
-      expect(e?.text).toContain('"뱅!"을 강탈했다');
+      expect(msgOf(viewFor(s, pid), 'panic')).toMatchObject({ k: 'panic', fromHand: true, card: 'bang' });
       expect(e?.card).toBeUndefined();
     }
     const other = lastOf(viewFor(s, 'p2'), 'panic');
-    expect(other?.text).toContain('카드를 강탈했다');
+    expect(msgOf(viewFor(s, 'p2'), 'panic')).toEqual({ k: 'panic', who: 'p1', target: 'p0', fromHand: true });
     expect(other?.secret).toBeUndefined();
-    expect(JSON.stringify(viewFor(s, 'p2').log)).not.toContain('뱅!');
+    // 가려진 쪽의 msg 에는 카드 종류가 없다
+    expect(other?.msg).toEqual({ k: 'panic', who: 'p1', target: 'p0', fromHand: true });
   });
 });

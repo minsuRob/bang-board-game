@@ -12,7 +12,9 @@ import type { GameState, PlayerId } from '../engine';
 import { ATTACK_KINDS, attacksBy } from './attacks';
 import { playingCardArt } from './card-art';
 import { themedStyles } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
 import { Colors } from '@/constants/theme';
+import { useNames } from '../../i18n/use-names';
 
 const SIZES = {
   xs: { w: 13, h: 19, font: 10 },
@@ -31,6 +33,8 @@ type Props = {
 export const AttackBadges = memo(function AttackBadges({ view, from, viewer, size = 'xs' }: Props) {
   const counts = useMemo(() => attacksBy(view.log, from, viewer), [view.log, from, viewer]);
   const styles = useStyles();
+  const t = useT();
+  const names = useNames();
   const kinds = ATTACK_KINDS.filter((k) => counts[k]);
   if (kinds.length === 0) return null;
   const s = SIZES[size];
@@ -38,7 +42,7 @@ export const AttackBadges = memo(function AttackBadges({ view, from, viewer, siz
   return (
     <View
       style={styles.wrap}
-      accessibilityLabel={`나에게 ${kinds.map((k) => `${CARD_DEFS[k].nameKo} ${counts[k]}번`).join(', ')}`}>
+      accessibilityLabel={t.ui.attack.label(kinds.map((k) => t.ui.attack.item(names.cardName(k), counts[k] ?? 0)))}>
       {kinds.map((kind) => {
         const def = CARD_DEFS[kind];
         const art = playingCardArt(kind);
@@ -50,7 +54,7 @@ export const AttackBadges = memo(function AttackBadges({ view, from, viewer, siz
               {art ? (
                 <Image source={art} style={styles.art} resizeMode="cover" />
               ) : (
-                <Text style={[styles.glyph, { fontSize: s.font - 1 }]}>{def.nameKo.charAt(0)}</Text>
+                <Text style={[styles.glyph, { fontSize: s.font - 1 }]}>{names.cardName(kind).charAt(0)}</Text>
               )}
             </View>
             <Text style={[styles.count, { fontSize: s.font }]}>×{counts[kind]}</Text>

@@ -33,7 +33,7 @@ describe('레벨 곡선', () => {
 });
 
 describe('정산', () => {
-  const result: GameResult = { winners: ['sheriff', 'deputy'], winnerIds: ['p0', 'p2'], reason: '' };
+  const result: GameResult = { winners: ['sheriff', 'deputy'], winnerIds: ['p0', 'p2'], reason: 'lawWon' };
 
   it('사람 자리만, 이긴 사람은 더 받는다', () => {
     const credits = settleResult(result, [

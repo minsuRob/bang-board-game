@@ -9,7 +9,9 @@ import { ALL_CARDS, CARD_DEFS } from '../../data/cards.base';
 import { GOLD_CARD_DEFS, GOLD_CARD_KINDS } from '../../data/cards.goldrush';
 import { CHARACTER_IDS, CHARACTERS } from '../../data/characters';
 import { EVENTS } from '../../data/events';
-import { ROLE_DISTRIBUTION, ROLE_LABEL } from '../../data/roles';
+import { ROLE_DISTRIBUTION } from '../../data/roles';
+import type { Messages } from '../../../i18n/types-messages';
+import { namesFor, type Names } from '../../../i18n/names';
 import {
   RANKS,
   type CardDef,
@@ -26,31 +28,27 @@ import {
 
 export type CodexTab = 'cards' | 'characters' | 'events' | 'gold' | 'roles';
 
-export const CODEX_TABS: readonly { tab: CodexTab; label: string }[] = [
-  { tab: 'cards', label: '플레잉 카드' },
-  { tab: 'characters', label: '캐릭터' },
-  { tab: 'events', label: '이벤트' },
-  { tab: 'gold', label: '골드 장비' },
-  { tab: 'roles', label: '직업' },
+export const CODEX_TABS: readonly { tab: CodexTab }[] = [
+  { tab: 'cards' },
+  { tab: 'characters' },
+  { tab: 'events' },
+  { tab: 'gold' },
+  { tab: 'roles' },
 ];
+
+/** 탭 이름이 현재 언어로 붙은 목록 */
+export function codexTabs(t: Messages): { tab: CodexTab; label: string }[] {
+  return CODEX_TABS.map(({ tab }) => ({ tab, label: t.codex.tabs[tab] }));
+}
 
 /** 기본판이거나 확장판 하나 */
 export type CodexSet = 'base' | Expansion;
 
-// 확장판이 새로 붙어도 깨지지 않게 문자열 키로 둔다. 모르는 확장판은 id 그대로 보인다
-const SET_LABEL: Record<string, string> = {
-  base: '기본판',
-  highnoon: '하이 눈',
-  valley: '그림자의 계곡',
-  goldrush: '골드 러시',
-  wildwestshow: '와일드 웨스트 쇼',
-  fistful: '한줌의 카드',
-};
-
 const SET_ORDER: readonly string[] = ['base', 'highnoon', 'valley', 'goldrush', 'wildwestshow', 'fistful'];
 
-export function setLabel(set: CodexSet): string {
-  return SET_LABEL[set] ?? set;
+// 확장판이 새로 붙어도 깨지지 않게 문자열 키로 읽는다. 모르는 확장판은 id 그대로 보인다
+export function setLabel(set: CodexSet, t: Messages): string {
+  return (t.codex.sets as Record<string, string>)[set] ?? set;
 }
 
 function setRank(set: CodexSet): number {
@@ -59,11 +57,11 @@ function setRank(set: CodexSet): number {
 }
 
 export type CodexItem =
-  | { tab: 'cards'; id: CardKind; set: CodexSet; nameKo: string; name: string }
-  | { tab: 'characters'; id: CharacterId; set: CodexSet; nameKo: string; name: string }
-  | { tab: 'events'; id: EventCardId; set: CodexSet; nameKo: string; name: string }
-  | { tab: 'gold'; id: GoldCardKind; set: CodexSet; nameKo: string; name: string }
-  | { tab: 'roles'; id: Role; set: CodexSet; nameKo: string; name: string };
+  | { tab: 'cards'; id: CardKind; set: CodexSet; local: string; name: string }
+  | { tab: 'characters'; id: CharacterId; set: CodexSet; local: string; name: string }
+  | { tab: 'events'; id: EventCardId; set: CodexSet; local: string; name: string }
+  | { tab: 'gold'; id: GoldCardKind; set: CodexSet; local: string; name: string }
+  | { tab: 'roles'; id: Role; set: CodexSet; local: string; name: string };
 
 export type CodexSection = { key: string; title: string; items: CodexItem[] };
 
@@ -71,7 +69,8 @@ export type CodexFilter = { set: CodexSet | 'all'; query: string };
 
 export const ROLES: readonly Role[] = ['sheriff', 'deputy', 'outlaw', 'renegade'];
 
-const ROLE_NAME_EN: Record<Role, string> = {
+/** 도감의 직업 카드에 인쇄된 이름 (dV Giochi 이탈리아어판) */
+const ROLE_NAME_PRINTED: Record<Role, string> = {
   sheriff: 'Sceriffo',
   deputy: 'Vice',
   outlaw: 'Fuorilegge',
@@ -81,30 +80,30 @@ const ROLE_NAME_EN: Record<Role, string> = {
 const CARD_KINDS = Object.keys(CARD_DEFS) as CardKind[];
 const EVENT_IDS = Object.keys(EVENTS) as EventCardId[];
 
-function itemsOf(tab: CodexTab): CodexItem[] {
+function itemsOf(tab: CodexTab, names: Names = namesFor('ko')): CodexItem[] {
   switch (tab) {
     case 'cards':
       return CARD_KINDS.map((id) => {
         const d = CARD_DEFS[id];
-        return { tab, id, set: d.expansion ?? 'base', nameKo: d.nameKo, name: d.name };
+        return { tab, id, set: d.expansion ?? 'base', local: names.cardName(id), name: d.name };
       });
     case 'characters':
       return CHARACTER_IDS.map((id) => {
         const d = CHARACTERS[id];
-        return { tab, id, set: d.expansion ?? 'base', nameKo: d.nameKo, name: d.name };
+        return { tab, id, set: d.expansion ?? 'base', local: names.charName(id), name: d.name };
       });
     case 'events':
       return EVENT_IDS.map((id) => {
         const d = EVENTS[id];
-        return { tab, id, set: d.expansion, nameKo: d.nameKo, name: d.name };
+        return { tab, id, set: d.expansion, local: names.eventName(id), name: d.name };
       });
     case 'gold':
       return GOLD_CARD_KINDS.map((id) => {
         const d = GOLD_CARD_DEFS[id];
-        return { tab, id, set: 'goldrush', nameKo: d.nameKo, name: d.nameEn };
+        return { tab, id, set: 'goldrush', local: names.goldName(id), name: d.nameEn };
       });
     case 'roles':
-      return ROLES.map((id) => ({ tab, id, set: 'base', nameKo: ROLE_LABEL[id], name: ROLE_NAME_EN[id] }));
+      return ROLES.map((id) => ({ tab, id, set: 'base', local: names.roleName(id), name: ROLE_NAME_PRINTED[id] }));
   }
 }
 
@@ -122,11 +121,12 @@ function matches(item: CodexItem, filter: CodexFilter): boolean {
   if (filter.set !== 'all' && item.set !== filter.set) return false;
   const q = squash(filter.query);
   if (!q) return true;
-  return squash(item.nameKo).includes(q) || squash(item.name).includes(q);
+  return squash(item.local).includes(q) || squash(item.name).includes(q);
 }
 
 /** 같은 확장판끼리 모으고, 확장판 안에서 다시 group 으로 나눈다. 빈 섹션은 뺀다 */
 function sectionsBy(
+  t: Messages,
   items: CodexItem[],
   groups: { key: string; title: string | null; test: (i: CodexItem) => boolean }[],
   sort?: (a: CodexItem, b: CodexItem) => number,
@@ -139,7 +139,7 @@ function sectionsBy(
       const picked = inSet.filter(g.test);
       if (sort) picked.sort(sort);
       if (picked.length === 0) continue;
-      out.push({ key: `${set}:${g.key}`, title: g.title ? `${setLabel(set)} · ${g.title}` : setLabel(set), items: picked });
+      out.push({ key: `${set}:${g.key}`, title: g.title ? `${setLabel(set, t)} · ${g.title}` : setLabel(set, t), items: picked });
     }
   }
   return out;
@@ -149,42 +149,46 @@ function cardDef(i: CodexItem): CardDef {
   return CARD_DEFS[i.id as CardKind];
 }
 
-export function codexSections(tab: CodexTab, filter: CodexFilter): CodexSection[] {
-  const items = itemsOf(tab).filter((i) => matches(i, filter));
+export function codexSections(tab: CodexTab, filter: CodexFilter, t: Messages, names: Names = namesFor('ko')): CodexSection[] {
+  const sec = t.codex.sections;
+  const items = itemsOf(tab, names).filter((i) => matches(i, filter));
   switch (tab) {
     case 'cards':
       return sectionsBy(
+        t,
         items,
         [
-          { key: 'brown', title: '즉시 사용', test: (i) => cardDef(i).category === 'brown' },
-          { key: 'weapon', title: '무기', test: (i) => cardDef(i).equip === 'weapon' },
-          { key: 'gear', title: '장비', test: (i) => cardDef(i).category === 'blue' && cardDef(i).equip !== 'weapon' },
+          { key: 'brown', title: sec.brown, test: (i) => cardDef(i).category === 'brown' },
+          { key: 'weapon', title: sec.weapon, test: (i) => cardDef(i).equip === 'weapon' },
+          { key: 'gear', title: sec.gear, test: (i) => cardDef(i).category === 'blue' && cardDef(i).equip !== 'weapon' },
         ],
         // 무기만 사정거리 순. 나머지는 데이터 순서 그대로 (정렬은 안정적이다)
         (a, b) => (cardDef(a).weaponRange ?? 0) - (cardDef(b).weaponRange ?? 0),
       );
     case 'characters':
-      return sectionsBy(items, [{ key: 'all', title: null, test: () => true }]).map((s) =>
-        s.key.startsWith('highnoon:') ? { ...s, title: '하이 눈 프로모' } : s,
+      return sectionsBy(t, items, [{ key: 'all', title: null, test: () => true }]).map((s) =>
+        s.key.startsWith('highnoon:') ? { ...s, title: t.codex.highnoonPromo } : s,
       );
     case 'events':
       // 덱 맨 밑에 고정되는 마지막 카드는 섹션 끝으로
       return sectionsBy(
+        t,
         items,
         [{ key: 'all', title: null, test: () => true }],
         (a, b) => Number(!!EVENTS[a.id as EventCardId].isFinal) - Number(!!EVENTS[b.id as EventCardId].isFinal),
       );
     case 'gold':
       return sectionsBy(
+        t,
         items,
         [
-          { key: 'brown', title: '갈색 · 사서 바로 쓴다', test: (i) => GOLD_CARD_DEFS[i.id as GoldCardKind].category === 'brown' },
-          { key: 'black', title: '검정 · 앞에 두는 장비', test: (i) => GOLD_CARD_DEFS[i.id as GoldCardKind].category === 'black' },
+          { key: 'brown', title: sec.goldBrown, test: (i) => GOLD_CARD_DEFS[i.id as GoldCardKind].category === 'brown' },
+          { key: 'black', title: sec.goldBlack, test: (i) => GOLD_CARD_DEFS[i.id as GoldCardKind].category === 'black' },
         ],
         (a, b) => GOLD_CARD_DEFS[a.id as GoldCardKind].cost - GOLD_CARD_DEFS[b.id as GoldCardKind].cost,
-      ).map((s) => ({ ...s, title: s.title.replace(`${setLabel('goldrush')} · `, '') }));
+      ).map((s) => ({ ...s, title: s.title.replace(`${setLabel('goldrush', t)} · `, '') }));
     case 'roles':
-      return items.length ? [{ key: 'roles', title: '직업', items }] : [];
+      return items.length ? [{ key: 'roles', title: sec.roles, items }] : [];
   }
 }
 
@@ -243,7 +247,7 @@ export function formatRanks(ranks: readonly Rank[]): string {
 /** CardView 에 넘길 이 종류의 아무 한 장 */
 export function sampleCardId(kind: CardKind): CardId {
   const card = ALL_CARDS.find((c) => c.kind === kind);
-  if (!card) throw new Error(`덱에 없는 카드 종류: ${kind}`);
+  if (!card) throw new Error(`card kind not in the deck: ${kind}`);
   return card.id;
 }
 

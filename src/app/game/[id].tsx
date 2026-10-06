@@ -6,7 +6,6 @@ import { LOCAL_AI_SPEEDS, type AiSpeed, type AiTier, type LocalAiSpeed } from '@
 import { setAiSpeed } from '@/firebase/rooms';
 import { EVENTS, eventExpansionOf, expansionsFor, isEventExpansion } from '@/game/data/events';
 import type { EventCardId } from '@/game/data/types';
-import { ROLE_LABEL } from '@/game/data/roles';
 import { makeView, useGameStore, type SeatSetup } from '@/game/store/game-store';
 import { useAiDriver } from '@/game/store/ai-driver';
 import {
@@ -42,8 +41,8 @@ import { useTable } from '@/game/ui/use-table';
 import { WesternFonts } from '@/game/ui/menu/western-fonts';
 import { themedStyles, useColors } from '@/game/ui/theme/use-theme';
 import { Colors, MobileBreakpoint, Radius, Spacing } from '@/constants/theme';
-
-const AI_NAMES = ['보안관보', '건슬링어', '떠돌이', '광부', '바텐더', '현상금꾼', '무법자'];
+import { useT } from '@/i18n/use-t';
+import { useNames } from '@/i18n/use-names';
 
 /** 개발용 주소 옵션(devEvent · notimer)은 웹 개발 모드에서만 받는다. fxloop 과 같은 관례다 */
 const DEV_WEB = __DEV__ && Platform.OS === 'web';
@@ -79,6 +78,11 @@ export default function GameScreen() {
   const router = useRouter();
   const styles = useStyles();
   const c = useColors();
+  const t = useT().routes.game;
+  const names = useNames();
+  // 판을 짤 때 한 번만 읽는다. 언어가 바뀌어도 진행 중인 판의 자리 이름은 그대로 둔다
+  const tRef = useRef(t);
+  tRef.current = t;
   // 설정 팝업. 열어도 판은 멈추지 않는다 (온라인 판과 같게)
   const [settingsOpen, setSettingsOpen] = useState(false);
   // 폰 폭에서는 위쪽 버튼 줄이 좌석을 가린다. ⚙ 하나만 두고 나머지는 설정 팝업 안으로 접는다
@@ -103,11 +107,11 @@ export default function GameScreen() {
     getSaveBackend()
       .load(saveParam)
       .then((record) => {
-        if (!record) throw new SaveError('저장한 판을 찾지 못했다.');
+        if (!record) throw new SaveError(tRef.current.saveNotFound);
         if (alive) setLoaded({ id: saveParam, game: readSaveRecord(record) });
       })
       .catch((err) => {
-        const error = err instanceof SaveError ? err.message : '저장한 판을 불러오지 못했다.';
+        const error = err instanceof SaveError ? err.message : tRef.current.saveLoadFailed;
         if (alive) setLoaded({ id: saveParam, error });
       });
     return () => {
@@ -150,7 +154,7 @@ export default function GameScreen() {
     const goldrush = params.goldrush === '1';
     const seats: SeatSetup[] = Array.from({ length: players }, (_, i) => ({
       id: `p${i}`,
-      name: i === 0 ? '나' : AI_NAMES[(i - 1) % AI_NAMES.length],
+      name: i === 0 ? tRef.current.me : tRef.current.aiNames[(i - 1) % tRef.current.aiNames.length],
       human: i === 0,
       tier,
     }));
@@ -246,7 +250,7 @@ export default function GameScreen() {
         elapsedMs: stopwatch.elapsed(),
       });
     } catch (err) {
-      setSaveStatus({ k: 'error', message: err instanceof SaveError ? err.message : '저장하지 못했다.' });
+      setSaveStatus({ k: 'error', message: err instanceof SaveError ? err.message : t.saveFailed });
       return;
     }
     setSaveStatus({ k: 'saving' });
@@ -254,9 +258,9 @@ export default function GameScreen() {
       .put(record)
       .then(() => setSaveStatus({ k: 'saved' }))
       .catch((err) =>
-        setSaveStatus({ k: 'error', message: err instanceof SaveError ? err.message : '저장하지 못했다.' }),
+        setSaveStatus({ k: 'error', message: err instanceof SaveError ? err.message : t.saveFailed }),
       );
-  }, [stopwatch]);
+  }, [stopwatch, t.saveFailed]);
   useEffect(() => {
     if (saveStatus.k !== 'saved' && saveStatus.k !== 'error') return;
     const timer = setTimeout(() => setSaveStatus({ k: 'idle' }), 6000);
@@ -335,9 +339,9 @@ export default function GameScreen() {
         <Pressable
           style={({ pressed }) => [styles.secondary, pressed && styles.secondaryPressed]}
           accessibilityRole="button"
-          accessibilityLabel="돌아가기"
+          accessibilityLabel={t.back}
           onPress={() => router.replace('/local')}>
-          <Text style={styles.secondaryText}>돌아가기</Text>
+          <Text style={styles.secondaryText}>{t.back}</Text>
         </Pressable>
       </View>
     );
@@ -350,12 +354,12 @@ export default function GameScreen() {
         <Text style={styles.loadingText}>
           {conn.error ??
             (!artReady
-              ? `그림을 불러오는 중${artProgress.total ? ` ${artProgress.loaded}/${artProgress.total}` : ''}`
+              ? t.loadingArt(artProgress.loaded, artProgress.total)
               : online
-                ? '판을 받아오는 중'
+                ? t.receiving
                 : saveParam
-                  ? '저장한 판을 불러오는 중'
-                  : '판을 짜는 중')}
+                  ? t.loadingSave
+                  : t.setting)}
         </Text>
       </View>
     );
@@ -411,14 +415,14 @@ export default function GameScreen() {
 
       {halted && (
         <View style={styles.pausedBanner}>
-          <Text style={styles.pausedText}>일시정지</Text>
+          <Text style={styles.pausedText}>{t.paused}</Text>
         </View>
       )}
 
       {online && status !== 'ready' && (
         <View style={styles.connection}>
           <Text style={styles.connectionText}>
-            {status === 'connecting' ? '연결하는 중' : '연결이 끊겼다. 다시 붙는 중'}
+            {status === 'connecting' ? t.connecting : t.disconnected}
           </Text>
         </View>
       )}
@@ -427,9 +431,9 @@ export default function GameScreen() {
         <Pressable
           style={styles.resultPill}
           accessibilityRole="button"
-          accessibilityLabel="결과 다시 보기"
+          accessibilityLabel={t.showResult}
           onPress={() => setResultHidden(false)}>
-          <Text style={styles.resultPillText}>결과 다시 보기</Text>
+          <Text style={styles.resultPillText}>{t.showResult}</Text>
         </Pressable>
       )}
 
@@ -437,37 +441,37 @@ export default function GameScreen() {
         <View style={[styles.overlay, compact && styles.overlayCompact]}>
           <View style={[styles.resultCard, compact && styles.resultCardCompact]}>
             <Text style={styles.resultTitle}>
-              {state.result.winners.map((r) => ROLE_LABEL[r]).join('·')} 승리
+              {t.winTitle(state.result.winners.map((r) => names.roleName(r)).join('·'))}
             </Text>
-            <Text style={styles.resultReason}>{state.result.reason}</Text>
+            <Text style={styles.resultReason}>{names.resultReason(state.result, state.players)}</Text>
             {/* 판이 끝나면 스톱워치가 서므로 이 값이 최종 시간이다 */}
-            <Text style={styles.resultElapsed}>걸린 시간 {formatElapsed(stopwatch.elapsed())}</Text>
+            <Text style={styles.resultElapsed}>{t.elapsed(formatElapsed(stopwatch.elapsed()))}</Text>
             <RewardLine view={settlement} />
             <ResultTable state={state} viewer={viewer} compact={compact} />
             <View style={styles.resultButtons}>
               <Pressable
                 style={({ pressed }) => [styles.secondary, pressed && styles.secondaryPressed]}
                 accessibilityRole="button"
-                accessibilityLabel="판 보기"
+                accessibilityLabel={t.viewTable}
                 onPress={() => setResultHidden(true)}>
-                <Text style={styles.secondaryText}>판 보기</Text>
+                <Text style={styles.secondaryText}>{t.viewTable}</Text>
               </Pressable>
               {/* 주 행동은 빨간 도장 */}
               <Pressable
                 style={({ pressed }) => [styles.stamp, pressed && styles.stampPressed]}
                 accessibilityRole="button"
-                accessibilityLabel="다시 하기"
+                accessibilityLabel={t.again}
                 onPress={() => router.replace('/local')}>
                 <View style={styles.stampInner}>
-                  <Text style={styles.stampText}>다시 하기</Text>
+                  <Text style={styles.stampText}>{t.again}</Text>
                 </View>
               </Pressable>
               <Pressable
                 style={({ pressed }) => [styles.secondary, pressed && styles.secondaryPressed]}
                 accessibilityRole="button"
-                accessibilityLabel="처음으로"
+                accessibilityLabel={t.toHome}
                 onPress={() => router.replace('/')}>
-                <Text style={styles.secondaryText}>처음으로</Text>
+                <Text style={styles.secondaryText}>{t.toHome}</Text>
               </Pressable>
             </View>
           </View>
@@ -478,7 +482,7 @@ export default function GameScreen() {
         <SettingsSheet onClose={() => setSettingsOpen(false)}>
           {compact && !state.result && (
             <View style={styles.sheetControls}>
-              <Text style={styles.sheetLabel}>AI 속도</Text>
+              <Text style={styles.sheetLabel}>{t.aiSpeed}</Text>
               {speedControl}
               <View style={styles.sheetButtons}>
                 {gameButtons}

@@ -5,11 +5,12 @@
  * 그 판 이벤트 덱의 전체 장수에서 공개된 만큼을 빼서 센다.
  */
 
-import { CARD_DEFS } from '../data/cards.base';
-import { EVENTS, eventDeckFor, eventDeckSize } from '../data/events';
+import { eventDeckFor, eventDeckSize } from '../data/events';
 import type { EventCardId, Expansion } from '../data/types';
 import type { GameState } from '../engine';
-import { eul } from '../engine/josa';
+import { ko } from '../../i18n/messages/ko';
+import type { Messages } from '../../i18n/types-messages';
+import { namesFor, type Names } from '../../i18n/names';
 
 export function eventProgress(
   ev: NonNullable<GameState['event']>,
@@ -27,11 +28,11 @@ export function eventProgress(
 }
 
 /** 남은 장수 옆에 붙이는 안내 — 맨 밑 고정 카드와, 카드를 내서 여는 덱이면 그 카드 (와일드 웨스트 쇼) */
-export function eventDeckNote(expansions: readonly Expansion[]): string {
+export function eventDeckNote(expansions: readonly Expansion[], t: Messages = ko, names: Names = namesFor('ko')): string {
   const deck = eventDeckFor(expansions);
   if (!deck) return '';
-  const last = `마지막은 ${EVENTS[deck.final].nameKo}`;
+  const last = t.ui.eventDeck.last(names.eventName(deck.final));
   if (deck.revealOn.k !== 'playCard') return last;
-  const cards = deck.revealOn.kinds.map((k) => CARD_DEFS[k].nameKo).join('·');
-  return `${last} · ${eul(cards)} 내면 다음 장이 열린다`;
+  const cards = deck.revealOn.kinds.map((k) => names.cardName(k)).join('·');
+  return t.ui.eventDeck.reveal(last, cards);
 }

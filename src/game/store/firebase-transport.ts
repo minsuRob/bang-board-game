@@ -23,6 +23,7 @@ import {
 import { getDb } from '../../firebase/config';
 import type { Action } from '../engine';
 import type { Transport, TransportStatus } from './transport';
+import { AppError } from '../../firebase/errors';
 
 type ActionDoc = {
   seq: number;
@@ -81,7 +82,7 @@ export function createFirebaseTransport(code: string, uid: string): Transport {
       try {
         await runTransaction(db, async (tx) => {
           const snap = await tx.get(roomRef);
-          if (!snap.exists()) throw new Error('방이 사라졌다.');
+          if (!snap.exists()) throw new AppError('room-gone');
           const count = (snap.data().actionCount as number) ?? 0;
           const seq = count + 1;
 

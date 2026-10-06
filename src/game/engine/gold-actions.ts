@@ -13,7 +13,6 @@ import {
   giveCards,
   kindOf,
   log,
-  nameOf,
   playerOf,
   popFrame,
   pushSeq,
@@ -37,7 +36,6 @@ import {
 import { applyGoldCard, goldCostOf, goldUseOptions, isGoldUseValid } from './gold-cards';
 import { canPlayCard, goldAbilitiesOf, goldDiscountOf, onBeerPlayedFrames } from './hooks';
 import type { Action, Choice, Frame, GameState, PlayerId } from './types';
-import { eul, ga } from './josa';
 
 type GoldAction = Extract<
   Action,
@@ -159,7 +157,7 @@ export function applyGoldAction(state: GameState, action: GoldAction): GameState
         pid,
         gold: action.card,
         amount: price,
-        text: `${ga(nameOf(cur, pid))} 금덩이 ${price}개로 ${eul(def.nameKo)} 샀다.`,
+        msg: { k: 'buyGold', who: pid, gold: def.kind, price },
       });
       const use = action.use ?? {};
       if (def.category === 'brown' && !isGoldUseValid(cur, pid, action.card, use)) {
@@ -179,7 +177,7 @@ export function applyGoldAction(state: GameState, action: GoldAction): GameState
         target: action.target,
         gold: action.card,
         amount: price,
-        text: `${ga(nameOf(cur, pid))} 금덩이 ${price}개를 내고 ${nameOf(cur, action.target)}의 ${eul(def.nameKo)} 버리게 했다.`,
+        msg: { k: 'removeGold', who: pid, target: action.target, gold: def.kind, price },
       });
     }
     case 'beerForGold': {
@@ -193,7 +191,7 @@ export function applyGoldAction(state: GameState, action: GoldAction): GameState
         t: 'beerForGold',
         pid,
         card: action.card,
-        text: `${ga(nameOf(cur, pid))} 맥주를 금덩이 1개로 바꿨다.`,
+        msg: { k: 'beerForGold', who: pid },
       });
       return pushSeq(cur, onBeerPlayedFrames(cur, pid));
     }
@@ -217,9 +215,7 @@ function applyGoldAbility(
     pid,
     target,
     amount: ab.cost,
-    text:
-      `${ga(nameOf(cur, pid))} 금덩이 ${ab.cost}개를 내고 ${ab.label}` +
-      (target ? ` → ${nameOf(cur, target)}.` : '.'),
+    msg: { k: 'goldAbility', who: pid, ability: ab.key, cost: ab.cost, ...(target ? { to: target } : {}) },
   });
 
   switch (key) {
@@ -251,7 +247,7 @@ function joshDraw(state: GameState, pid: PlayerId): GameState {
     t: 'joshDraw',
     pid,
     gold: card,
-    text: `장비 덱에서 ${eul(def.nameKo)} 가져왔다.`,
+    msg: { k: 'joshDraw', gold: def.kind },
   });
   if (def.category === 'black') return applyGoldCard(cur, pid, card, {});
 
@@ -324,7 +320,7 @@ function gainDutchNugget(state: GameState, pid: PlayerId): GameState {
   return log(cur, {
     t: 'dutchWill',
     pid,
-    text: `${ga(nameOf(cur, pid))} 카드 1장을 버리고 금덩이 1개를 받았다.`,
+    msg: { k: 'dutchWill', who: pid },
   });
 }
 
@@ -340,6 +336,6 @@ export function resolveGainNuggets(
     t: 'nugget',
     pid: frame.pid,
     amount: frame.amount,
-    text: `${ga(nameOf(cur, frame.pid))} 금덩이 ${frame.amount}개를 받았다.`,
+    msg: { k: 'nugget', who: frame.pid, amount: frame.amount },
   });
 }

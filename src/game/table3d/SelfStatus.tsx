@@ -7,10 +7,10 @@
  */
 
 import { Pressable, Text, View } from 'react-native';
+import { useT } from '@/i18n/use-t';
 
 import { CARD_DEFS } from '../data/cards.base';
 import { CHARACTERS } from '../data/characters';
-import { ROLE_GOAL, ROLE_LABEL } from '../data/roles';
 import { kindOf, type Player } from '../engine';
 import { usePresence } from '../store/presence';
 import { PRESENCE_LABEL, PresenceDot } from '../ui/PresenceDot';
@@ -18,6 +18,7 @@ import { ROLE_COLOR } from './overlay/SeatLabel';
 import { themedStyles } from '../ui/theme/use-theme';
 import { Radius, Spacing } from '@/constants/theme';
 import { HpPips } from '../ui/HpPips';
+import { useNames } from '@/i18n/use-names';
 
 export function SelfStatus({
   player,
@@ -34,10 +35,12 @@ export function SelfStatus({
   compact?: boolean;
 }) {
   const styles = useStyles();
+  const t = useT().infra.table3d;
+  const names = useNames();
   const dead = !player.alive && !player.ghost;
   const character = CHARACTERS[player.character];
   const hp = Math.max(0, player.hp);
-  const equipment = player.equipment.map((c) => CARD_DEFS[kindOf(c)].nameKo).join(' · ');
+  const equipment = player.equipment.map((c) => names.cardName(kindOf(c))).join(' · ');
   const presence = usePresence(player.id);
 
   if (compact) {
@@ -46,17 +49,17 @@ export function SelfStatus({
         onPress={onPress}
         disabled={!targetable}
         accessibilityRole={targetable ? 'button' : undefined}
-        accessibilityLabel={`나${presence ? ` · ${PRESENCE_LABEL[presence]}` : ''} · ${character.nameKo} · 목숨 ${hp}/${player.maxHp}`}
+        accessibilityLabel={t.selfA11y(presence ? PRESENCE_LABEL[presence] : '', names.charName(player.character), hp, player.maxHp)}
         style={[styles.wrap, styles.wrapCompact, active && styles.active, targetable && styles.targetable, dead && styles.dead]}>
         <View style={styles.row}>
           <PresenceDot presence={presence} size={8} />
-          <Text style={[styles.name, styles.nameCompact]}>나</Text>
+          <Text style={[styles.name, styles.nameCompact]}>{t.me}</Text>
           <Text style={[styles.character, styles.characterCompact]} numberOfLines={1}>
-            {character.nameKo}
-            {player.ghost ? ' · 유령' : dead ? ' · 제거됨' : ''}
+            {names.charName(player.character)}
+            {player.ghost ? ` · ${t.ghost}` : dead ? ` · ${t.removed}` : ''}
           </Text>
           <Text style={[styles.roleChip, styles.roleChipCompact, { backgroundColor: ROLE_COLOR[player.role] }]}>
-            {ROLE_LABEL[player.role]}
+            {names.roleName(player.role)}
           </Text>
           <View style={[styles.hpRow, styles.hpRowCompact]}>
             <HpPips hp={hp} maxHp={player.maxHp} style={[styles.hp, styles.hpCompact]} emptyStyle={styles.hpEmpty} />
@@ -67,7 +70,7 @@ export function SelfStatus({
         </View>
         <Text style={styles.detail} numberOfLines={1}>
           {!!equipment && <Text style={styles.equipmentInline}>{equipment} · </Text>}
-          {ROLE_GOAL[player.role]} · {character.ability}
+          {names.roleGoal(player.role)} · {names.charAbility(player.character)}
         </Text>
       </Pressable>
     );
@@ -78,16 +81,16 @@ export function SelfStatus({
       onPress={onPress}
       disabled={!targetable}
       accessibilityRole={targetable ? 'button' : undefined}
-      accessibilityLabel={`나${presence ? ` · ${PRESENCE_LABEL[presence]}` : ''} · ${character.nameKo} · 목숨 ${hp}/${player.maxHp}`}
+      accessibilityLabel={t.selfA11y(presence ? PRESENCE_LABEL[presence] : '', names.charName(player.character), hp, player.maxHp)}
       style={[styles.wrap, active && styles.active, targetable && styles.targetable, dead && styles.dead]}>
       <View style={styles.row}>
         <PresenceDot presence={presence} size={10} />
-        <Text style={styles.name}>나</Text>
+        <Text style={styles.name}>{t.me}</Text>
         <Text style={styles.character} numberOfLines={1}>
-          {character.nameKo}
-          {player.ghost ? ' · 유령' : dead ? ' · 제거됨' : ''}
+          {names.charName(player.character)}
+          {player.ghost ? ` · ${t.ghost}` : dead ? ` · ${t.removed}` : ''}
         </Text>
-        <Text style={[styles.roleChip, { backgroundColor: ROLE_COLOR[player.role] }]}>{ROLE_LABEL[player.role]}</Text>
+        <Text style={[styles.roleChip, { backgroundColor: ROLE_COLOR[player.role] }]}>{names.roleName(player.role)}</Text>
       </View>
       <View style={styles.row}>
         <View style={styles.hpRow}>

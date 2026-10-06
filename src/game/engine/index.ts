@@ -5,6 +5,7 @@
  */
 
 export { reduce, defaultAction } from './reducer';
+export type { LogMsg } from './log-msg';
 export { createGame, draftOfferCount } from './setup';
 export { legalActions, actionKey, hasReaction, actorsOf, isRepeatableBrown } from './legal';
 export { checkWin } from './frames/win';

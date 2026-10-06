@@ -14,7 +14,6 @@ import {
   alivePlayers,
   kindOf,
   log,
-  nameOf,
   playerOf,
   popFrame,
   pushSeq,
@@ -37,7 +36,6 @@ import {
 import { goldKindOf } from '../../data/cards.goldrush';
 import { addNuggets, discardGold, goldEnabled, goldEquipOf, nuggetsOf, woundsBeforeLast } from '../gold';
 import type { Choice, Frame, GameState } from '../types';
-import { ga, neun } from '../josa';
 
 export function resolveDamage(state: GameState, frame: Frame & { k: 'damage' }): GameState {
   // 구조!: 목숨을 잃기 직전에 다른 사람이 막을 수 있다
@@ -59,7 +57,7 @@ export function resolveDamage(state: GameState, frame: Frame & { k: 'damage' }):
     return log(cur, {
       t: 'ghostImmune',
       target: p.id,
-      text: `${neun(nameOf(cur, p.id))} 유령이라 피해를 받지 않는다.`,
+      msg: { k: 'ghostImmune', who: p.id, from: 'damage' },
     });
   }
 
@@ -72,7 +70,7 @@ export function resolveDamage(state: GameState, frame: Frame & { k: 'damage' }):
     pid: frame.source ?? undefined,
     target: p.id,
     amount: frame.amount,
-    text: `${ga(nameOf(cur, p.id))} 목숨 ${frame.amount}을 잃었다 (남은 목숨 ${Math.max(0, hp)}).`,
+    msg: { k: 'damage', who: p.id, amount: frame.amount, left: Math.max(0, hp) },
   });
 
   // 골드 러시: 남에게 입힌 상처 1점마다 금덩이 1개. 자해와 죽이는 마지막 한 점은 세지 않는다.
@@ -86,7 +84,7 @@ export function resolveDamage(state: GameState, frame: Frame & { k: 'damage' }):
         t: 'nugget',
         pid: wounder,
         amount: n,
-        text: `${ga(nameOf(cur, wounder))} 금덩이 ${n}개를 얻었다.`,
+        msg: { k: 'nugget', who: wounder, amount: n },
       });
     }
   }
@@ -119,7 +117,7 @@ export function resolveHeal(state: GameState, frame: Frame & { k: 'heal' }): Gam
     t: 'heal',
     target: p.id,
     amount: hp - p.hp,
-    text: `${ga(nameOf(cur, p.id))} 목숨을 회복했다 (${hp}).`,
+    msg: { k: 'heal', who: p.id, hp },
   });
 }
 
@@ -203,7 +201,7 @@ export function respondCheckDeath(
     t: 'beerSurvive',
     pid: p.id,
     card,
-    text: `${ga(nameOf(cur, p.id))} 맥주를 마시고 버텼다.`,
+    msg: { k: 'beerSurvive', who: p.id },
   });
   // 프레임은 그대로 둔다. 아직 목숨이 0 이하면 다시 물어본다.
   // 그 위에 맥주에 반응하는 훅(레모네이드 짐·마담 이토)을 먼저 해결한다.
@@ -238,7 +236,7 @@ export function resolveEliminate(
     t: 'eliminate',
     target: p.id,
     pid: frame.killer ?? undefined,
-    text: `${ga(nameOf(cur, p.id))} 게임에서 제거되었다. 역할은 ${p.role}.`,
+    msg: { k: 'eliminate', who: p.id, role: p.role },
   });
   // 망자(한줌의 카드)가 나중에 공개될 수 있으니, 이벤트 덱을 쓰면 첫 희생자를 늘 적어 둔다.
   if (cur.event && cur.event.firstOut === undefined) {
@@ -292,7 +290,7 @@ export function resolveWantedReward(
     t: 'wanted',
     pid: killer.id,
     target: victim.id,
-    text: `수배범을 잡았다. ${ga(nameOf(cur, killer.id))} 카드 2장과 금덩이 1개를 받는다.`,
+    msg: { k: 'wanted', who: killer.id },
   });
   return pushSeq(cur, [{ k: 'drawCards', pid: killer.id, count: 2, reason: 'wanted' }]);
 }
@@ -317,7 +315,7 @@ export function resolveBountyOrPenalty(
     cur = log(cur, {
       t: 'bounty',
       pid: killer.id,
-      text: `${ga(nameOf(cur, killer.id))} 무법자를 처치해 현상금 ${BOUNTY_CARDS}장을 받는다.`,
+      msg: { k: 'bounty', who: killer.id, cards: BOUNTY_CARDS },
     });
     return pushSeq(cur, [
       { k: 'drawCards', pid: killer.id, count: BOUNTY_CARDS, reason: 'bounty' },
@@ -331,7 +329,7 @@ export function resolveBountyOrPenalty(
     return log(cur, {
       t: 'penalty',
       pid: killer.id,
-      text: `보안관이 부관을 쏘았다. ${neun(nameOf(cur, killer.id))} 손패와 장비를 전부 잃는다.`,
+      msg: { k: 'penalty', who: killer.id },
     });
   }
   return cur;

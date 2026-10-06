@@ -15,12 +15,14 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { CardId } from '../data/types';
 import { defOf, type Choice } from '../engine';
+import { useT } from '../../i18n/use-t';
 import { CAN_HOVER } from './card-peek';
 import { CardBack, CardView, type CardSize } from './CardView';
 import { DRAW_STAGGER_MS, DeckDraw } from './DeckDraw';
 import { PaperPlaque, plaque } from './PaperPlaque';
 import type { CenterPick } from './use-table';
 import { Spacing } from '@/constants/theme';
+import { useNames } from '../../i18n/use-names';
 
 export type PickSpotlightProps = {
   title: string;
@@ -34,6 +36,8 @@ export type PickSpotlightProps = {
 };
 
 export function PickSpotlight({ title, hint, center, onRespond, compact, dealt }: PickSpotlightProps) {
+  const t = useT();
+  const names = useNames();
   const [focus, setFocus] = useState<CardId | null>(null);
   // 고를 카드가 바뀌면 (잡화점에서 한 장씩 빠진다) 살펴보던 카드를 놓는다
   useEffect(() => {
@@ -63,7 +67,7 @@ export function PickSpotlight({ title, hint, center, onRespond, compact, dealt }
           onPress={() => onRespond?.({ c: 'pick', pick: { zone: 'hand', index } })}
           disabled={!onRespond}
           accessibilityRole="button"
-          accessibilityLabel={`손패 ${index + 1}번째 카드`}
+          accessibilityLabel={t.table.pick.handCard(index + 1)}
           style={({ hovered }: { hovered?: boolean }) => [styles.card, hovered && styles.lifted]}>
           <CardBack size={size} />
         </Pressable>
@@ -110,19 +114,19 @@ export function PickSpotlight({ title, hint, center, onRespond, compact, dealt }
       )}
       <PaperPlaque compact={compact} style={compact ? styles.plaqueCompact : styles.plaque}>
         <Text style={[plaque.meta, plaque.hint]} numberOfLines={1}>
-          {title} — {focus && !CAN_HOVER && onRespond ? '한 번 더 누르면 고른다' : hint}
+          {title} — {focus && !CAN_HOVER && onRespond ? t.table.pick.pressAgain : hint}
         </Text>
         <Text style={[plaque.text, compact && plaque.textCompact]} numberOfLines={3}>
           {def ? (
             <>
-              <Text style={plaque.name}>{def.nameKo}</Text>
+              <Text style={plaque.name}>{names.cardName(def.kind)}</Text>
               {'  '}
-              {def.text}
+              {names.cardText(def.kind)}
             </>
           ) : center.handCount > 0 ? (
-            '뒷면 카드는 손패에서 무작위로 한 장을 고른다'
+            t.table.pick.hiddenHint
           ) : (
-            CAN_HOVER ? '카드에 마우스를 올리면 설명을 본다' : '카드를 누르면 설명을 본다'
+            CAN_HOVER ? t.table.pick.hoverHint : t.table.pick.tapHint
           )}
         </Text>
       </PaperPlaque>

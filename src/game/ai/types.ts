@@ -11,12 +11,6 @@ export type AiTier = 'easy' | 'medium' | 'hard';
 
 export const AI_TIERS: AiTier[] = ['easy', 'medium', 'hard'];
 
-export const AI_TIER_LABEL: Record<AiTier, string> = {
-  easy: '하',
-  medium: '중',
-  hard: '상',
-};
-
 /** AI 가 두는 빠르기. 방장이 판 도중에 고른다 (1배 = 한 수에 3초) */
 export type AiSpeed = 1 | 2 | 3 | 4;
 
@@ -29,11 +23,6 @@ export const AI_SPEEDS: AiSpeed[] = [1, 2, 3, 4];
 export type LocalAiSpeed = AiSpeed | 8 | 16 | 32 | 100;
 
 export const LOCAL_AI_SPEEDS: LocalAiSpeed[] = [1, 2, 4, 8, 16, 32, 100];
-
-/** 배속 칩에 적는 글자 */
-export function speedLabel(speed: number): string {
-  return speed >= 100 ? '최대' : `${speed}×`;
-}
 
 export type AiContext = {
   /** 가려진 상태 */

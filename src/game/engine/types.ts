@@ -19,6 +19,7 @@ import type {
   Suit,
 } from '../data/types';
 import type { RngState } from './rng';
+import type { LogMsg } from './log-msg';
 
 export type PlayerId = string;
 
@@ -118,10 +119,21 @@ export type EventState = {
   deadManUsed?: boolean;
 };
 
+/**
+ * 게임이 끝난 까닭. 문장은 화면 쪽이 현재 언어로 만든다 (i18n/content 의 `resultReason`).
+ * lastStanding(와일드 웨스트 쇼)은 마지막 생존자 한 명이 이긴 경우라 winnerIds[0] 의 이름을 문장에 넣는다.
+ */
+export type ResultReason =
+  | 'nobodyAlive'
+  | 'lastStanding'
+  | 'sheriffDownRenegadeLeft'
+  | 'sheriffDown'
+  | 'lawWon';
+
 export type GameResult = {
   winners: Role[];
   winnerIds: PlayerId[];
-  reason: string;
+  reason: ResultReason;
 };
 
 // ---------------------------------------------------------------------------
@@ -459,13 +471,15 @@ export type GameEvent = {
    * hit 는 카드의 조건이 맞았다는 뜻이다. 좋은 결과인지는 목적마다 다르다 (다이너마이트 hit = 폭발)
    */
   reveal?: { suit: Suit; hit: boolean; purpose?: JudgementPurpose };
-  /** UI 에 그대로 보여줄 한국어 문장 */
-  text: string;
+  /** 무슨 일이 있었나. 문장은 화면의 렌더러(i18n/log)가 현재 언어로 만든다 */
+  msg: LogMsg;
+  /** 옛 저장 파일에 남은 한국어 문장 (msg 는 {k:'legacy'}). 그대로 보여 준다 */
+  legacyText?: string;
   /**
-   * 몇 사람만 아는 내용 (강탈로 손패에서 가져간 카드). viewFor 가 to 에게만 text·card 를
+   * 몇 사람만 아는 내용 (강탈로 손패에서 가져간 카드). viewFor 가 to 에게만 msg·card 를
    * 이것으로 바꿔 보여 주고, 나머지에게서는 지운다
    */
-  secret?: { to: PlayerId[]; card: CardId; text: string };
+  secret?: { to: PlayerId[]; card: CardId; msg: LogMsg; legacyText?: string };
   /** 캣 벌로우가 장비가 아니라 손패에서 뽑아 버렸다. card 는 버린 더미에 앞면으로 놓여 공개된다 */
   fromHand?: boolean;
   /** 이 로그를 만든 액션의 순번 */

@@ -5,10 +5,9 @@
 
 import { CHARACTERS, charactersFor } from '../../data/characters';
 import type { CharacterId } from '../../data/types';
-import { inPlay, log, nameOf, playerOf, popFrame, pushSeq, replaceTop, toDiscard, updatePlayer } from '../cards';
+import { inPlay, log, playerOf, popFrame, pushSeq, replaceTop, toDiscard, updatePlayer } from '../cards';
 import { nextInt, shuffle } from '../rng';
 import type { Choice, Frame, GameState, PlayerId } from '../types';
-import { ga, neun } from '../josa';
 
 // ---------------------------------------------------------------------------
 // 그레고리 덱 — 기본판 캐릭터를 뽑아 능력을 빌린다
@@ -40,7 +39,7 @@ export function respondBorrowCharacters(
   return log(cur, {
     t: 'borrowKeep',
     pid: frame.pid,
-    text: `${neun(nameOf(cur, frame.pid))} 빌린 능력을 그대로 둔다.`,
+    msg: { k: 'borrowKeep', who: frame.pid },
   });
 }
 
@@ -56,11 +55,10 @@ function borrow(state: GameState, pid: PlayerId, count: number): GameState {
   const picked = rolled.value.slice(0, count);
 
   const cur = updatePlayer({ ...state, rng: rolled.rng }, pid, (p) => ({ ...p, borrowed: picked }));
-  const names = picked.map((c) => CHARACTERS[c].nameKo).join(', ');
   return log(cur, {
     t: 'borrowCharacters',
     pid,
-    text: `${ga(nameOf(cur, pid))} ${names}의 능력을 빌렸다.`,
+    msg: { k: 'borrowCharacters', who: pid, characters: picked },
   });
 }
 
@@ -115,7 +113,7 @@ export function respondGifts(
     t: 'youlGrinner',
     pid: giver,
     target: frame.pid,
-    text: `${ga(nameOf(cur, giver))} ${nameOf(cur, frame.pid)}에게 카드 1장을 건넸다.`,
+    msg: { k: 'youlGrinner', who: giver, to: frame.pid },
   });
 }
 
@@ -147,7 +145,7 @@ export function resolveHandRedraw(state: GameState, frame: Frame & { k: 'handRed
     t: 'darlingValentine',
     pid: frame.pid,
     cards: p.hand,
-    text: `달링 발렌타인: ${ga(nameOf(cur, frame.pid))} 손패 ${n}장을 버리고 새로 가져온다.`,
+    msg: { k: 'darlingValentine', who: frame.pid, amount: n },
   });
   return pushSeq(cur, [{ k: 'drawCards', pid: frame.pid, count: n, reason: 'darlingValentine' }]);
 }
@@ -163,7 +161,7 @@ export function shuffleLivingRoles(state: GameState): GameState {
   });
   return log(cur, {
     t: 'rolesShuffled',
-    text: '헬레나 존테로: 보안관을 뺀 살아 있는 사람들의 역할을 섞어 다시 나눴다.',
+    msg: { k: 'rolesShuffled' },
   });
 }
 
@@ -186,6 +184,6 @@ export function reviveFromBoneOrchard(state: GameState, pid: PlayerId): GameStat
   return log(cur, {
     t: 'rolesShuffled',
     pid,
-    text: `묘지: ${ga(nameOf(cur, pid))} 목숨 1로 돌아왔다. 역할은 제거된 사람들의 것 중에서 다시 받았다.`,
+    msg: { k: 'boneOrchard', who: pid },
   });
 }

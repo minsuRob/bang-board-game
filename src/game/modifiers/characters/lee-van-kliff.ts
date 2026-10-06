@@ -12,5 +12,5 @@ export const LEE_VAN_KLIFF_ABILITY = 'leeVanKliff';
 export const leeVanKliff: Modifier = {
   id: 'char:leeVanKliff',
   from: 'character',
-  repeatBrown: { key: LEE_VAN_KLIFF_ABILITY, label: '뱅!을 버려 한 번 더', from: 'bang' },
+  repeatBrown: { key: LEE_VAN_KLIFF_ABILITY, from: 'bang' },
 };

@@ -18,6 +18,7 @@
     "expo-glass-effect": "~57.0.2",
     "expo-image": "~57.0.4",
     "expo-linking": "~57.0.9",
+    "expo-localization": "~57.0.2",
     "expo-router": "~57.0.20",
     "expo-splash-screen": "~57.0.8",
     "expo-status-bar": "~57.0.1",
@@ -66,6 +67,7 @@
     "fx:docs:check": "npm run fx:docs && git diff --exit-code -- docs/card-fx.md",
     "gen:sfx": "node scripts/gen-sfx.mjs",
     "art:check": "tsx scripts/art/check.ts",
+    "i18n:check": "tsx scripts/i18n/check.ts",
     "deploy": "expo export --platform web && firebase deploy --only hosting",
     "postinstall": "setup-skia-web public"
   },

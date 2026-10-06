@@ -8,7 +8,7 @@ import { CARD_DIMENSIONS } from '@/game/ui/CardView';
 import { CodexDetail } from '@/game/ui/codex/CodexDetail';
 import { CodexFace } from '@/game/ui/codex/CodexFaces';
 import {
-  CODEX_TABS,
+  codexTabs,
   codexSections,
   sampleCardId,
   setLabel,
@@ -24,12 +24,17 @@ import { WesternFonts } from '@/game/ui/menu/western-fonts';
 import { CardFxPreview } from '@/game/ui/PlayedCardSpotlight';
 import { themedStyles, useColors } from '@/game/ui/theme/use-theme';
 import { Spacing } from '@/constants/theme';
+import { useNames } from '@/i18n/use-names';
+import { useT } from '@/i18n/use-t';
 
 /** 이 폭보다 좁으면 격자 카드를 한 단계 작게 */
 const NARROW = 520;
 
 export default function CardCodexScreen() {
   const router = useRouter();
+  const msgs = useT();
+  const names = useNames();
+  const t = msgs.routes.codex;
   const { width } = useWindowDimensions();
   const styles = useStyles();
   const paperText = usePaperText();
@@ -45,7 +50,7 @@ export default function CardCodexScreen() {
   const [playing, setPlaying] = useState(false);
 
   const sets = useMemo(() => setsIn(tab), [tab]);
-  const sections = useMemo(() => codexSections(tab, { set, query }), [tab, set, query]);
+  const sections = useMemo(() => codexSections(tab, { set, query }, msgs, names), [tab, set, query, msgs, names]);
 
   const fxCard =
     selected?.tab === 'cards' && CARD_FX[selected.id as CardKind] ? sampleCardId(selected.id as CardKind) : null;
@@ -72,23 +77,23 @@ export default function CardCodexScreen() {
         <PaperSheet>
           <View style={styles.header}>
             <View style={styles.backLink}>
-              <InkLink label="← 돌아가기" onPress={back} />
+              <InkLink label={t.back} onPress={back} />
             </View>
-            <PaperHeading eyebrow="CARD CATALOG" title="카드 도감" />
+            <PaperHeading eyebrow={t.eyebrow} title={t.title} />
           </View>
 
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="이름으로 찾기 (한글·원어)"
+            placeholder={t.searchPlaceholder}
             placeholderTextColor={c.textMuted}
             style={styles.search}
-            accessibilityLabel="이름으로 찾기"
+            accessibilityLabel={t.searchLabel}
             autoCorrect={false}
           />
 
           <View style={styles.segment} accessibilityRole="tablist">
-            {CODEX_TABS.map((t) => (
+            {codexTabs(msgs).map((t) => (
               <Pressable
                 key={t.tab}
                 accessibilityRole="tab"
@@ -102,14 +107,14 @@ export default function CardCodexScreen() {
 
           {sets.length > 1 && (
             <View style={styles.row}>
-              <Chip label="전체" active={set === 'all'} onPress={() => setSet('all')} />
+              <Chip label={t.all} active={set === 'all'} onPress={() => setSet('all')} />
               {sets.map((s) => (
-                <Chip key={s} label={setLabel(s)} active={set === s} onPress={() => setSet(s)} />
+                <Chip key={s} label={setLabel(s, msgs)} active={set === s} onPress={() => setSet(s)} />
               ))}
             </View>
           )}
 
-          {sections.length === 0 && <Text style={[paperText.hint, styles.empty]}>찾는 카드가 없다.</Text>}
+          {sections.length === 0 && <Text style={[paperText.hint, styles.empty]}>{t.empty}</Text>}
 
           {sections.map((section) => (
             <PaperSection key={section.key} title={`${section.title} · ${section.items.length}`}>
@@ -118,7 +123,7 @@ export default function CardCodexScreen() {
                   <Pressable
                     key={item.id}
                     accessibilityRole="button"
-                    accessibilityLabel={item.nameKo}
+                    accessibilityLabel={item.local}
                     onPress={() => open(item)}
                     style={({ pressed }) => [styles.tile, pressed && styles.pressed]}>
                     <CodexFace item={item} width={tileW} />

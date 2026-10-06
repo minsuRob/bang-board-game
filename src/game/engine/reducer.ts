@@ -15,7 +15,6 @@ import {
   giveCards,
   kindOf,
   log,
-  nameOf,
   pushSeq,
   putOnDeck,
   toDiscard,
@@ -39,7 +38,6 @@ import { createGame } from './setup';
 import { resolveStack } from './stack';
 import type { CardId } from '../data/types';
 import type { Action, Choice, GameState, JudgementPurpose, PlayerId } from './types';
-import { ga } from './josa';
 
 export function reduce(state: GameState | null, action: Action): GameState {
   if (action.type === 'startGame') {
@@ -63,7 +61,7 @@ export function reduce(state: GameState | null, action: Action): GameState {
     return log(cur, {
       t: 'rejected',
       pid: action.pid,
-      text: `허용되지 않는 행동이라 무시되었다 (${action.type}).`,
+      msg: { k: 'rejected', action: action.type },
     });
   }
   return applyAction(cur, action, false);
@@ -75,7 +73,7 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
     cur = log(cur, {
       t: 'timeout',
       pid: 'pid' in action ? action.pid : undefined,
-      text: `제한시간이 지나 기본 행동이 대신 수행되었다.`,
+      msg: { k: 'timeout' },
     });
   }
 
@@ -132,7 +130,7 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
           pid: looter,
           target: action.pid,
           card: action.card,
-          text: `${ga(nameOf(cur, looter))} ${nameOf(cur, action.pid)}의 버린 카드를 챙겼다.`,
+          msg: { k: 'garyLooter', who: looter, from: action.pid },
         });
         break;
       }
@@ -143,9 +141,7 @@ function applyAction(state: GameState, action: Action, viaTimeout: boolean): Gam
         t: 'discard',
         pid: action.pid,
         card: toDeck ? undefined : action.card,
-        text: toDeck
-          ? `${ga(nameOf(cur, action.pid))} 카드를 덱 위에 뒷면으로 올렸다.`
-          : `${ga(nameOf(cur, action.pid))} 카드를 버렸다.`,
+        msg: { k: 'discard', who: action.pid, onDeck: toDeck },
       });
       break;
     }
@@ -217,7 +213,7 @@ function applyAbility(
     t: 'sidKetchum',
     pid,
     cards,
-    text: `${ga(nameOf(cur, pid))} 카드 2장을 버리고 목숨을 1 회복했다.`,
+    msg: { k: 'sidKetchum', who: pid },
   });
 }
 

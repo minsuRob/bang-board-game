@@ -9,5 +9,5 @@ export const DER_SPOT_ABILITY = 'derSpotBurstRinger';
 export const derSpotBurstRinger: Modifier = {
   id: 'char:derSpotBurstRinger',
   from: 'character',
-  playAnyAs: { key: DER_SPOT_ABILITY, label: '뱅! → 기관총', as: 'gatling', from: ['bang'] },
+  playAnyAs: { key: DER_SPOT_ABILITY, as: 'gatling', from: ['bang'] },
 };

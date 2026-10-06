@@ -7,40 +7,11 @@
  */
 
 import { RANK_VALUE, SUIT_GLYPH, type Suit } from '../../data/types';
-import {
-  cardOf,
-  defOf,
-  drawFromDeck,
-  effectiveSuit,
-  giveCards,
-  inPlay,
-  log,
-  nameOf,
-  playerOf,
-  popFrame,
-  pushSeq,
-  replaceTop,
-  toDiscard,
-  updatePlayer,
-} from '../cards';
+import { cardOf, defOf, drawFromDeck, effectiveSuit, giveCards, inPlay, log, playerOf, popFrame, pushSeq, replaceTop, toDiscard, updatePlayer, kindOf } from '../cards';
 import { judgementCardTaker, judgementPeekOf, turnDirectionOf } from '../hooks';
 import type { Choice, Frame, GameState, JudgementPurpose, PlayerId } from '../types';
 import { skipRestOfTurn } from './turn';
 import { shuffleLivingRoles } from './wildwest';
-import { eul, ga, neun } from '../josa';
-
-const PURPOSE_LABEL: Record<JudgementPurpose, string> = {
-  barrel: '술통',
-  jourdonnais: '주르도네',
-  dynamite: '다이너마이트',
-  jail: '감옥',
-  rattlesnake: '방울뱀',
-  coloradoBill: '콜로라도 빌',
-  terenKill: '테렌 킬',
-  donBell: '돈 벨',
-  vendetta: '복수',
-  helenaZontero: '헬레나 존테로',
-};
 
 /**
  * 사람이 아니라 카드가 저절로 펼치는 판정. 존 페인이 그 카드를 가져가지 않는다.
@@ -188,7 +159,7 @@ function applyJudgement(
     pid,
     card,
     reveal: { suit, hit, purpose },
-    text: `${nameOf(cur, pid)}의 ${PURPOSE_LABEL[purpose]} 판정: ${inst.rank}${SUIT_GLYPH[suit]}`,
+    msg: { k: 'judgement', who: pid, purpose, rank: inst.rank, suit },
   });
   if (taker) {
     cur = giveCards(cur, taker, [card]);
@@ -196,7 +167,7 @@ function applyJudgement(
       t: 'johnPain',
       pid: taker,
       card,
-      text: `${ga(nameOf(cur, taker))} 펼친 ${eul(defOf(card).nameKo)} 손에 넣었다.`,
+      msg: { k: 'johnPain', who: taker, card: kindOf(card) },
     });
   }
 
@@ -208,7 +179,7 @@ function applyJudgement(
       return log(cur, {
         t: 'dodge',
         pid,
-        text: `${PURPOSE_LABEL[purpose]} 효과로 빗나감 1회를 얻었다.`,
+        msg: { k: 'dodge', purpose },
       });
     }
     case 'dynamite':
@@ -217,19 +188,19 @@ function applyJudgement(
       return resolveJailResult(cur, pid, hit);
     case 'rattlesnake':
       if (!hit) return cur;
-      cur = log(cur, { t: 'rattlesnake', pid, text: `방울뱀이 ${ga(nameOf(cur, pid))} 물었다.` });
+      cur = log(cur, { t: 'rattlesnake', pid, msg: { k: 'rattlesnake', who: pid } });
       return pushSeq(cur, [{ k: 'damage', target: pid, amount: 1, source: null, cause: 'rattlesnake' }]);
     case 'coloradoBill':
       if (!hit) return cur;
       cur = markUnavoidable(cur);
-      return log(cur, { t: 'coloradoBill', pid, text: '♠ — 이 총알은 피할 수 없다.' });
+      return log(cur, { t: 'coloradoBill', pid, msg: { k: 'coloradoBill', who: pid } });
     case 'donBell': {
       if (!hit) return cur;
       cur = { ...cur, turn: { ...cur.turn, extraTurnFor: pid } };
       return log(cur, {
         t: 'donBell',
         pid,
-        text: `${neun(nameOf(cur, pid))} 붉은 무늬가 나와 차례를 한 번 더 얻었다.`,
+        msg: { k: 'donBell', who: pid },
       });
     }
     case 'terenKill': {
@@ -238,7 +209,7 @@ function applyJudgement(
       cur = log(cur, {
         t: 'terenKill',
         pid,
-        text: `${neun(nameOf(cur, pid))} 쓰러지지 않았다. 목숨 1로 버틴다.`,
+        msg: { k: 'terenKill', who: pid },
       });
       return pushSeq(cur, [{ k: 'drawCards', pid, count: 1, reason: 'terenKill' }]);
     }
@@ -249,13 +220,13 @@ function applyJudgement(
       return log(cur, {
         t: 'vendetta',
         pid,
-        text: `복수: ${neun(nameOf(cur, pid))} ♥가 나와 차례를 한 번 더 얻었다.`,
+        msg: { k: 'vendetta', who: pid },
       });
     }
     case 'helenaZontero':
       // ♥·♦ 면 보안관을 뺀 살아 있는 사람의 역할을 다시 나눈다
       if (suit !== 'hearts' && suit !== 'diamonds') {
-        return log(cur, { t: 'helenaZontero', pid, text: '헬레나 존테로: 검은 무늬라 역할은 그대로다.' });
+        return log(cur, { t: 'helenaZontero', pid, msg: { k: 'helenaKeep' } });
       }
       return shuffleLivingRoles(cur);
   }
@@ -274,7 +245,7 @@ function resolveDynamiteResult(state: GameState, pid: PlayerId, explodes: boolea
 
   if (explodes) {
     cur = toDiscard(cur, [dyn]);
-    cur = log(cur, { t: 'dynamite', pid, text: `다이너마이트가 터졌다! ${ga(nameOf(cur, pid))} 목숨 3을 잃는다.` });
+    cur = log(cur, { t: 'dynamite', pid, msg: { k: 'dynamite', who: pid } });
     return pushSeq(cur, [
       { k: 'damage', target: pid, amount: 3, source: null, cause: 'dynamite' },
     ]);
@@ -292,7 +263,7 @@ function resolveDynamiteResult(state: GameState, pid: PlayerId, explodes: boolea
       t: 'dynamitePass',
       pid,
       target: cand.id,
-      text: `다이너마이트가 ${nameOf(cur, cand.id)}에게 넘어갔다.`,
+      msg: { k: 'dynamitePass', to: cand.id },
     });
   }
   return toDiscard(cur, [dyn]);
@@ -310,8 +281,8 @@ function resolveJailResult(state: GameState, pid: PlayerId, escapes: boolean): G
   cur = toDiscard(cur, [jailCard]);
 
   if (escapes) {
-    return log(cur, { t: 'jailEscape', pid, text: `${ga(nameOf(cur, pid))} 감옥에서 탈출했다.` });
+    return log(cur, { t: 'jailEscape', pid, msg: { k: 'jailEscape', who: pid } });
   }
-  cur = log(cur, { t: 'jailSkip', pid, text: `${neun(nameOf(cur, pid))} 감옥에 갇혀 차례를 건너뛴다.` });
+  cur = log(cur, { t: 'jailSkip', pid, msg: { k: 'jailSkip', who: pid } });
   return skipRestOfTurn(cur, pid);
 }

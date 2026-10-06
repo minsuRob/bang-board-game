@@ -6,22 +6,23 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
 import {
-  GOOGLE_LINK_HINT,
+  googleLinkHint,
   GOOGLE_LINK_SUPPORTED,
   linkGoogle,
   PROVIDER_LABEL,
 } from '../../../firebase/account';
 import { changeNick, refreshProvider, useAccount } from '../../../firebase/account-store';
 import { NICK_MAX } from '../../economy/constants';
-import { eul } from '../../engine/josa';
 import { usePaperText } from '../menu/PaperUi';
 import { WesternFonts } from '../menu/western-fonts';
 import { themedStyles, useColors } from '../theme/use-theme';
+import { useT } from '../../../i18n/use-t';
 
 export function ProfileSection() {
   const styles = useStyles();
   const text = usePaperText();
   const c = useColors();
+  const t = useT();
   const account = useAccount();
   // null 이면 아직 고치지 않은 것이라 서버의 닉네임을 그대로 보인다
   const [edited, setEdited] = useState<string | null>(null);
@@ -44,13 +45,13 @@ export function ProfileSection() {
     setBusy(true);
     try {
       const nick = await changeNick(draft);
-      if (!nick) setNotice('닉네임이 비어 있다.');
+      if (!nick) setNotice(t.ui.profile.nickEmpty);
       else {
         setEdited(null);
-        setNotice(`${eul(nick)} 저장했다.`);
+        setNotice(t.ui.profile.saved(nick));
       }
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : '저장하지 못했다.');
+      setNotice(err instanceof Error ? err.message : t.ui.profile.saveFailed);
     } finally {
       setBusy(false);
     }
@@ -61,15 +62,15 @@ export function ProfileSection() {
     setBusy(true);
     const res = await linkGoogle();
     refreshProvider();
-    setNotice(res.ok ? 'Google 계정을 연결했다. 다른 기기에서도 같은 지갑을 쓴다.' : res.message);
+    setNotice(res.ok ? t.ui.profile.linked : res.message);
     setBusy(false);
   };
 
   if (account.status === 'offline') {
-    return <Text style={text.hint}>Firebase 설정을 채우면 프로필과 지갑이 열린다.</Text>;
+    return <Text style={text.hint}>{t.ui.profile.offline}</Text>;
   }
   if (account.status === 'error') {
-    return <Text style={text.hint}>로그인하지 못했다. {account.error}</Text>;
+    return <Text style={text.hint}>{t.ui.profile.loginFailed(account.error ?? undefined)}</Text>;
   }
 
   return (
@@ -80,10 +81,10 @@ export function ProfileSection() {
           onChangeText={setDraft}
           maxLength={NICK_MAX}
           editable={ready && !busy}
-          placeholder="닉네임"
+          placeholder={t.ui.profile.nick}
           placeholderTextColor={c.textMuted}
           style={styles.input}
-          accessibilityLabel="닉네임"
+          accessibilityLabel={t.ui.profile.nick}
           onSubmitEditing={save}
           returnKeyType="done"
         />
@@ -91,13 +92,13 @@ export function ProfileSection() {
           style={({ pressed }) => [styles.save, (!changed || !ready || busy) && styles.saveDisabled, pressed && styles.savePressed]}
           disabled={!changed || !ready || busy}
           accessibilityRole="button"
-          accessibilityLabel="닉네임 저장"
+          accessibilityLabel={t.ui.profile.saveNick}
           onPress={save}>
-          <Text style={styles.saveText}>저장</Text>
+          <Text style={styles.saveText}>{t.ui.profile.save}</Text>
         </Pressable>
       </View>
       <Text style={text.hint}>
-        {ready ? `로그인: ${PROVIDER_LABEL[account.provider]}` : '로그인하는 중…'}
+        {ready ? t.ui.profile.loginWith(PROVIDER_LABEL[account.provider]) : t.ui.profile.loggingIn}
         {account.uid ? ` · ${account.uid.slice(0, 6)}` : ''}
       </Text>
       {ready && account.provider === 'anonymous' && (
@@ -105,13 +106,13 @@ export function ProfileSection() {
           <Pressable
             style={({ pressed }) => [styles.link, pressed && styles.savePressed]}
             accessibilityRole="button"
-            accessibilityLabel="Google 계정 연결"
+            accessibilityLabel={t.ui.profile.link}
             disabled={busy}
             onPress={link}>
-            <Text style={styles.linkText}>Google 계정 연결</Text>
+            <Text style={styles.linkText}>{t.ui.profile.link}</Text>
           </Pressable>
         ) : (
-          <Text style={text.hint}>{GOOGLE_LINK_HINT}</Text>
+          <Text style={text.hint}>{googleLinkHint()}</Text>
         )
       )}
       {notice && <Text style={[text.hint, styles.notice]}>{notice}</Text>}

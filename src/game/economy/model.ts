@@ -11,7 +11,7 @@
  */
 
 import type { AiTier } from '../ai/types';
-import { EXPANSION_LABEL } from '../data/types';
+import { EXPANSIONS } from '../data/types';
 import type { Action, PlayerId } from '../engine/types';
 import { utf8Length } from '../save/save-model';
 import { MAX_MATCH_LOG_BYTES, NICK_MAX } from './constants';
@@ -67,20 +67,6 @@ export type RejectReason =
   | 'unfinished'
   | 'tooShort'
   | 'replay';
-
-export const REJECT_LABEL: Record<RejectReason, string> = {
-  shape: '기록 모양이 어긋난다',
-  seed: '시드가 기록과 다르다',
-  seats: '좌석이 기록과 다르다',
-  controlled: '사람 자리가 하나가 아니다',
-  config: '보상이 없는 설정의 판이다',
-  illegal: '둘 수 없는 수가 들어 있다',
-  aiMismatch: 'AI 의 수가 다시 계산한 것과 다르다',
-  aiTimeout: 'AI 자리의 시간 만료가 들어 있다',
-  unfinished: '끝나지 않은 판이다',
-  tooShort: '너무 짧게 끝난 판이다',
-  replay: '기록을 다시 접지 못했다',
-};
 
 export type MatchDoc = {
   uid: string;
@@ -242,7 +228,7 @@ export function isMatchDoc(x: unknown): x is MatchDoc {
 }
 
 export function isKnownExpansion(x: unknown): boolean {
-  return typeof x === 'string' && x in EXPANSION_LABEL;
+  return typeof x === 'string' && (EXPANSIONS as readonly string[]).includes(x);
 }
 
 /** 온라인 방의 정산 기록. rooms/{code}.settlement 에 Functions 가 한 번 쓴다 */

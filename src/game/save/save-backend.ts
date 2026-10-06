@@ -12,6 +12,7 @@
  * 이 파일은 AsyncStorage 를 직접 import 하지 않는다 (index.ts 가 끼운다). 테스트는 메모리 저장소로 돈다.
  */
 
+import { saveLocale } from './save-text';
 import { isSaveMeta, MAX_SAVES, SaveError, sortSaves, type SaveMeta, type SaveRecord } from './save-model';
 
 export type SaveBackendKind = 'device' | 'cloud';
@@ -37,7 +38,7 @@ const INDEX_KEY = 'bang.saves';
 const bodyKey = (id: string) => `bang.save.${id}`;
 
 export function fullSlotsMessage(limit: number): string {
-  return `저장 칸이 가득 찼다 (${limit}칸). 판 설정 화면에서 저장한 판을 지우고 다시 저장해라.`;
+  return saveLocale().t.infra.save.slotsFull(limit);
 }
 
 export function createDeviceSaveBackend(kv: KeyValueStore, limit = MAX_SAVES): SaveBackend {
@@ -79,14 +80,14 @@ export function createDeviceSaveBackend(kv: KeyValueStore, limit = MAX_SAVES): S
         await kv.setItem(bodyKey(record.meta.id), record.body);
       } catch {
         // 웹 localStorage 가 가득 차면 QuotaExceededError 가 난다
-        throw new SaveError('기기 저장 공간이 모자라 저장하지 못했다.');
+        throw new SaveError(saveLocale().t.infra.save.noSpace);
       }
       try {
         await writeIndex([...index.filter((m) => m.id !== record.meta.id), record.meta]);
       } catch {
         // 새 칸이었다면 목록에 없는 본문이 남지 않게 치운다. 덮어쓰던 칸은 예전 목록이 그대로다
         if (!exists) await kv.removeItem(bodyKey(record.meta.id)).catch(() => {});
-        throw new SaveError('기기 저장 공간이 모자라 저장하지 못했다.');
+        throw new SaveError(saveLocale().t.infra.save.noSpace);
       }
     },
 

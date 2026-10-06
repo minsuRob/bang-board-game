@@ -42,7 +42,8 @@
           "enableBackgroundRecording": false,
           "enableBackgroundPlayback": false
         }
-      ]
+      ],
+      ["expo-localization", { "supportedLocales": { "ios": ["en", "ko", "it"], "android": ["en", "ko", "it"] } }]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -10,9 +10,11 @@ import { levelFromXp } from '../../economy/level';
 import { usePaperText } from '../menu/PaperUi';
 import { WesternFonts } from '../menu/western-fonts';
 import { themedStyles } from '../theme/use-theme';
+import { useT } from '../../../i18n/use-t';
 
 export function WalletSection() {
   const styles = useStyles();
+  const t = useT();
   const text = usePaperText();
   const account = useAccount();
 
@@ -27,17 +29,17 @@ export function WalletSection() {
     <View style={styles.wrap}>
       <View style={styles.row}>
         <View style={styles.cell}>
-          <Text style={styles.label}>돈</Text>
+          <Text style={styles.label}>{t.ui.wallet.cash}</Text>
           <Text style={text.value}>${wallet?.cash ?? 0}</Text>
         </View>
         <View style={styles.cell}>
-          <Text style={styles.label}>레벨</Text>
+          <Text style={styles.label}>{t.ui.wallet.level}</Text>
           <Text style={text.value}>Lv {level}</Text>
         </View>
         <View style={styles.cell}>
-          <Text style={styles.label}>전적</Text>
+          <Text style={styles.label}>{t.ui.wallet.record}</Text>
           <Text style={text.value}>
-            {wallet?.games ?? 0}판 {wallet?.wins ?? 0}승
+            {t.ui.wallet.games(wallet?.games ?? 0, wallet?.wins ?? 0)}
           </Text>
         </View>
       </View>
@@ -45,7 +47,7 @@ export function WalletSection() {
         <View style={[styles.fill, { width: `${pct}%` }]} />
       </View>
       <Text style={text.hint}>
-        다음 레벨까지 {span - into} XP · 한 판 ${CASH_PLAY}·{XP_PLAY} XP, 이기면 ${CASH_WIN}·{XP_WIN} XP 더
+        {t.ui.wallet.next(span - into, CASH_PLAY, XP_PLAY, CASH_WIN, XP_WIN)}
       </Text>
     </View>
   );

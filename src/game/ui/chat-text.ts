@@ -5,9 +5,9 @@
  * 그래서 누가 탈락하거나 판이 끝나 직업이 드러나면 예전 글의 (???) 도 함께 풀린다.
  */
 
-import { CHARACTERS } from '../data/characters';
-import { ROLE_LABEL } from '../data/roles';
 import type { Role } from '../data/types';
+import type { Messages } from '../../i18n/types-messages';
+import { namesFor, type Names } from '../../i18n/names';
 import { roleVisibleTo, type GameState, type Player, type PlayerId } from '../engine';
 
 export const UNKNOWN_ROLE = '???';
@@ -25,22 +25,22 @@ export type ChatSpeaker = {
  * `state` 는 가리지 않은 상태다. 가린 상태는 모르는 직업을 무법자로 채워 두므로
  * 여기서 직접 roleVisibleTo 로 거른다.
  */
-export function chatSpeaker(state: GameState, viewer: PlayerId | null, seat: number): ChatSpeaker {
+export function chatSpeaker(t: Messages, state: GameState, viewer: PlayerId | null, seat: number, names: Names = namesFor('ko')): ChatSpeaker {
   const p = state.players.find((x) => x.seat === seat);
-  if (!p) return { name: `${seat + 1}번 자리`, role: null, label: `${seat + 1}번 자리(${UNKNOWN_ROLE})` };
+  if (!p) return { name: t.ui.chat.seatNumber(seat + 1), role: null, label: `${t.ui.chat.seatNumber(seat + 1)}(${UNKNOWN_ROLE})` };
 
   // 드래프트 중의 character 는 자리표시자(후보 첫 장)다. 남의 후보가 새지 않게 닉네임을 쓴다.
-  const name = state.draft ? p.name : CHARACTERS[p.character].nameKo;
+  const name = state.draft ? p.name : names.charName(p.character);
   // 판이 끝나면 결과 화면처럼 모두 드러낸다
   const known = Boolean(state.result) || (viewer === null ? p.roleRevealed : roleVisibleTo(viewer, p));
   const role = known ? p.role : null;
-  return { name, role, label: `${name}(${role ? ROLE_LABEL[role] : UNKNOWN_ROLE})` };
+  return { name, role, label: `${name}(${role ? names.roleName(role) : UNKNOWN_ROLE})` };
 }
 
 export type ChatMode = 'local' | 'online';
 
 /** 입력창을 잠가야 하면 그 이유. 말할 수 있으면 null */
-export function chatBlockReason(opts: {
+export function chatBlockReason(t: Messages, opts: {
   mode: ChatMode;
   /** 온라인에서 내가 앉은 자리의 플레이어. 자리 없이 보는 중이면 null */
   me: Player | null;
@@ -49,10 +49,10 @@ export function chatBlockReason(opts: {
   /** 재갈(와일드 웨스트 쇼)이 걸려 있다 */
   gagged?: boolean;
 }): string | null {
-  if (opts.mode === 'local') return '채팅은 온라인 판에서만 쓸 수 있다';
-  if (opts.gagged) return '재갈: 지금은 아무도 말할 수 없다';
-  if (!opts.me) return '자리에 앉은 사람만 말할 수 있다';
+  if (opts.mode === 'local') return t.ui.chat.blocked.local;
+  if (opts.gagged) return t.ui.chat.blocked.gagged;
+  if (!opts.me) return t.ui.chat.blocked.noSeat;
   const out = !opts.me.alive && !opts.me.ghost;
-  if (out && !opts.deadChat) return '탈락한 뒤에는 읽기만 할 수 있다';
+  if (out && !opts.deadChat) return t.ui.chat.blocked.dead;
   return null;
 }

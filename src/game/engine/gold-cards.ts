@@ -11,26 +11,12 @@
 import { CARD_DEFS } from '../data/cards.base';
 import { GOLD_CARD_DEFS, goldDefOf, goldKindOf } from '../data/cards.goldrush';
 import type { CardKind, GoldCardId } from '../data/types';
-import {
-  alivePlayers,
-  defOf,
-  drawFromDeck,
-  effectiveSuit,
-  giveCards,
-  log,
-  nameOf,
-  playerOf,
-  pushSeq,
-  seatedPlayers,
-  toDiscard,
-  updatePlayer,
-} from './cards';
+import { alivePlayers, defOf, drawFromDeck, effectiveSuit, giveCards, log, playerOf, pushSeq, seatedPlayers, toDiscard, updatePlayer, kindOf } from './cards';
 import { canReachAtRange, canReachWithBang } from './distance';
 import { generalStoreQueue } from './frames/cards';
 import { discardGold, giveGoldEquip, hasGoldKind } from './gold';
 import { judgementCardTaker, rhumFlipCountOf } from './hooks';
 import type { Frame, GameState, GoldUse, PlayerId } from './types';
-import { eul, ga, ro } from './josa';
 
 function hasCards(state: GameState, pid: PlayerId): boolean {
   const p = playerOf(state, pid);
@@ -122,7 +108,7 @@ export function applyGoldCard(
       return log(cur, {
         t: 'goldDup',
         pid,
-        text: `${ga(nameOf(cur, pid))} 이미 ${eul(def.nameKo)} 가지고 있어 버렸다.`,
+        msg: { k: 'goldDup', who: pid, gold: def.kind },
       });
     }
     return giveGoldEquip(cur, pid, card);
@@ -144,9 +130,7 @@ export function applyGoldCard(
           pid,
           as: use.as,
           target,
-          text:
-            `${ga(nameOf(cur, pid))} ${eul(def.nameKo)} ${ro(CARD_DEFS[use.as].nameKo)} 썼다` +
-            (target ? ` → ${nameOf(cur, target)}.` : '.'),
+          msg: { k: 'goldAs', who: pid, gold: def.kind, as: use.as, ...(target ? { to: target } : {}) },
         });
       }
       break;
@@ -161,7 +145,7 @@ export function applyGoldCard(
       cur = log(cur, {
         t: 'goldRush',
         pid,
-        text: `${ga(nameOf(cur, pid))} 목숨을 모두 회복하고 차례를 마친 뒤 한 번 더 진행한다.`,
+        msg: { k: 'goldRush', who: pid },
       });
       break;
     }
@@ -172,7 +156,7 @@ export function applyGoldCard(
         t: 'wantedPlaced',
         pid,
         target,
-        text: `${nameOf(cur, target)}에게 수배가 붙었다.`,
+        msg: { k: 'wantedPlaced', to: target },
       });
     case 'rhum': {
       const drawn = drawFromDeck(cur, rhumFlipCountOf(cur, pid));
@@ -182,7 +166,7 @@ export function applyGoldCard(
         pid,
         cards: drawn.cards,
         amount: suits.size,
-        text: `럼: 카드 ${drawn.cards.length}장을 펼쳐 무늬 ${suits.size}가지가 나왔다.`,
+        msg: { k: 'rhum', count: drawn.cards.length, suits: suits.size },
       });
       // 펼친 카드도 판정 카드다. 존 페인은 손패가 찰 때까지 한 장씩 가져간다 (골드 러시 FAQ Q12)
       for (const c of drawn.cards) {
@@ -196,7 +180,7 @@ export function applyGoldCard(
           t: 'johnPain',
           pid: taker,
           card: c,
-          text: `${ga(nameOf(cur, taker))} 펼친 ${eul(defOf(c).nameKo)} 손에 넣었다.`,
+          msg: { k: 'johnPain', who: taker, card: kindOf(c) },
         });
       }
       if (suits.size > 0) frames.push({ k: 'heal', pid, amount: suits.size });

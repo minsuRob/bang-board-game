@@ -4,31 +4,36 @@
 
 import { Text, View } from 'react-native';
 
-import { REJECT_LABEL } from '../economy/model';
+import type { Messages } from '../../i18n/types-messages';
 import type { SettlementView } from '../store/use-settlement';
 import { WesternFonts } from './menu/western-fonts';
 import { themedStyles } from './theme/use-theme';
+import { useT } from '../../i18n/use-t';
+import { namesFor, type Names } from '../../i18n/names';
+import { useNames } from '../../i18n/use-names';
 
-export function rewardText(view: SettlementView): string | null {
+export function rewardText(view: SettlementView, t: Messages, names: Names = namesFor('ko')): string | null {
   switch (view.status) {
     case 'none':
       return null;
     case 'pending':
-      return '보상 확인 중…';
+      return t.ui.reward.pending;
     case 'settled': {
       const { credit } = view;
       const parts = [`+$${credit.cash}`, `+${credit.xp} XP`];
-      if (credit.capped) return `오늘 보상 한도에 닿았다 · ${parts.join(' · ')}`;
+      if (credit.capped) return t.ui.reward.capped(parts.join(' · '));
       return parts.join(' · ');
     }
     case 'rejected':
-      return `보상 없음 · ${view.message ?? (view.reason ? REJECT_LABEL[view.reason] : '정산하지 못했다')}`;
+      return t.ui.reward.rejected(view.message ?? (view.reason ? names.rejectReason(view.reason) : t.ui.reward.failed));
   }
 }
 
 export function RewardLine({ view }: { view: SettlementView }) {
   const styles = useStyles();
-  const text = rewardText(view);
+  const t = useT();
+  const names = useNames();
+  const text = rewardText(view, t, names);
   if (!text) return null;
   const tone =
     view.status === 'settled' && !view.credit.capped

@@ -10,19 +10,22 @@
  * 상세는 손패 HUD 위에 그려야 해서 패널 안이 아니라 게임 화면 맨 위에 둔다. 스토어(detailPeek)로 잇는다.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Pressable, ScrollView, Text, View, type TextProps } from 'react-native';
 import { useStore } from 'zustand';
 
 import type { CardId } from '../data/types';
-import { defOf, type GameEvent } from '../engine';
+import { defOf, type GameEvent, type Player } from '../engine';
 import { CAN_HOVER, detailPeek, setDetailPeek } from './card-peek';
 import { CardView } from './CardView';
 import { splitLogText, type LogSegment } from './log-text';
 import { PaperPlaque, plaque } from './PaperPlaque';
 import { WesternFonts } from './menu/western-fonts';
 import { themedStyles, useColors } from './theme/use-theme';
+import { useLang, useT } from '../../i18n/use-t';
+import { logCtx, renderLog } from '../../i18n/log';
 import { Radius, Spacing, type ThemeColors } from '@/constants/theme';
+import { useNames } from '../../i18n/use-names';
 
 const setPeek = setDetailPeek;
 
@@ -51,10 +54,13 @@ function toneOf(c: ThemeColors, t: string): string {
   }
 }
 
-export function LogPanel({ log, style }: { log: GameEvent[]; style?: object }) {
+export function LogPanel({ log, players, style }: { log: GameEvent[]; players: readonly Player[]; style?: object }) {
   const ref = useRef<ScrollView>(null);
   const styles = useStyles();
   const c = useColors();
+  const t = useT();
+  const lang = useLang();
+  const ctx = useMemo(() => logCtx(lang, players), [lang, players]);
   const recent = log.slice(-120);
 
   useEffect(() => {
@@ -63,11 +69,11 @@ export function LogPanel({ log, style }: { log: GameEvent[]; style?: object }) {
 
   return (
     <View style={[styles.panel, style]}>
-      <Text style={styles.heading}>진행 기록</Text>
+      <Text style={styles.heading}>{t.ui.log.heading}</Text>
       <ScrollView ref={ref} style={styles.list} showsVerticalScrollIndicator={false}>
         {recent.map((e, i) => (
           <Text key={`${e.seq}-${i}`} style={[styles.line, { color: toneOf(c, e.t) }]}>
-            {splitLogText(e).map((seg, j) => (seg.card ? <CardName key={j} seg={seg} onPeek={setPeek} /> : seg.text))}
+            {splitLogText(e, renderLog(e, lang, ctx), lang).map((seg, j) => (seg.card ? <CardName key={j} seg={seg} onPeek={setPeek} /> : seg.text))}
           </Text>
         ))}
       </ScrollView>
@@ -95,6 +101,8 @@ function CardName({ seg, onPeek }: { seg: Extract<LogSegment, { card: string }>;
  */
 export function LogCardPeek() {
   const styles = useStyles();
+  const t = useT();
+  const names = useNames();
   const card = useStore(detailPeek, (s) => (s.hosted ? null : s.card));
   // 판을 떠나면 닫는다
   useEffect(() => () => setPeek(null), []);
@@ -104,16 +112,16 @@ export function LogCardPeek() {
     <Pressable
       onPress={() => setPeek(null)}
       disabled={CAN_HOVER}
-      accessibilityLabel={`${def.nameKo} 카드 상세`}
+      accessibilityLabel={t.ui.log.cardDetail(names.cardName(def.kind))}
       style={[styles.detail, CAN_HOVER && styles.passThrough]}>
       <View style={styles.detailShadow}>
         <CardView card={card} size="lg" />
       </View>
       <PaperPlaque style={styles.detailPlaque}>
         <Text style={plaque.text}>
-          <Text style={plaque.name}>{def.nameKo}</Text>
+          <Text style={plaque.name}>{names.cardName(def.kind)}</Text>
           {'  '}
-          {def.text}
+          {names.cardText(def.kind)}
         </Text>
       </PaperPlaque>
     </Pressable>

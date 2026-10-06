@@ -11,5 +11,5 @@ export const BLACK_FLOWER_ABILITY = 'blackFlower';
 export const blackFlower: Modifier = {
   id: 'char:blackFlower',
   from: 'character',
-  playAnyAs: { key: BLACK_FLOWER_ABILITY, label: '♣ 카드 → 추가 뱅!', as: 'bang', suit: 'clubs', extra: true },
+  playAnyAs: { key: BLACK_FLOWER_ABILITY, as: 'bang', suit: 'clubs', extra: true },
 };

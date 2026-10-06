@@ -39,7 +39,7 @@ export const GOLD_MODIFIERS: Partial<Record<GoldCardKind, (card: GoldCardId) => 
   goldPan: (card) => ({
     ...base('goldPan', card),
     goldAbilities: [
-      { key: GOLD_ABILITY.goldPan, label: '사금채취판으로 카드 한 장을 가져왔다', cost: 1, perTurn: 2 },
+      { key: GOLD_ABILITY.goldPan, cost: 1, perTurn: 2 },
     ],
   }),
   /** 장화 — 목숨 1을 잃을 때마다 카드 한 장. 마지막 목숨은 제외 */
@@ -62,7 +62,7 @@ export const GOLD_MODIFIERS: Partial<Record<GoldCardKind, (card: GoldCardId) => 
   rucksack: (card) => ({
     ...base('rucksack', card),
     goldAbilities: [
-      { key: GOLD_ABILITY.rucksack, label: '배낭으로 목숨 1을 회복했다', cost: 2, whenDying: true },
+      { key: GOLD_ABILITY.rucksack, cost: 2, whenDying: true },
     ],
   }),
 };

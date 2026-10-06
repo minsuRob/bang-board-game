@@ -11,13 +11,12 @@
 
 import { CARD_DEFS } from '../data/cards.base';
 import type { CardKind } from '../data/types';
-import { defOf, log, nameOf, playerOf, updatePlayer } from './cards';
+import { defOf, log, playerOf, updatePlayer, kindOf } from './cards';
 import { rightNeighborOf } from './distance';
 import { turnDirectionOf } from './hooks';
 import { eventAbilityKey, forcedPlayOf } from './legal';
 import { applyPlayCard } from './play';
 import type { Action, GameState, PlayerId } from './types';
-import { ga, eul, neun, wa } from './josa';
 
 export function applyEventAbility(state: GameState, action: Extract<Action, { type: 'eventAbility' }>): GameState {
   const { pid, ability } = action;
@@ -45,7 +44,7 @@ function swapWithRight(state: GameState, pid: PlayerId): GameState {
       t: 'ladyRose',
       pid,
       target: other,
-      text: `레이디 로즈 오브 텍사스: ${ga(nameOf(state, pid))} ${wa(nameOf(state, other))} 자리를 바꿨다. ${neun(nameOf(state, other))} 다음 차례를 건너뛴다.`,
+      msg: { k: 'ladyRose', who: pid, other },
     },
   );
 }
@@ -58,25 +57,22 @@ function forcePlay(
   kind: CardKind,
   target: PlayerId | undefined,
 ): GameState {
-  const name = CARD_DEFS[kind].nameKo;
-  const aim = target ? ` → ${nameOf(state, target)}` : '';
   let cur = log(state, {
     t: 'dorothyRage',
     pid,
     target: forced,
-    text: `도로시 레이지: ${ga(nameOf(state, pid))} ${nameOf(state, forced)}에게 ${eul(name)} 내라고 시켰다${aim}.`,
+    msg: { k: 'dorothyRage', who: pid, forced, card: kind, ...(target ? { to: target } : {}) },
   });
   const play = forcedPlayOf(cur, forced, kind, target);
   if (!play) {
     // 공식 해설: 시킨 카드가 없으면 손패를 보여 준다. 누구에게나 (FAQ Q20 "All players.")
     // 공개 로그(secret 없음)라 viewFor 가 가리지 않는다.
     const hand = playerOf(cur, forced).hand;
-    const shown = hand.length ? hand.map((c) => defOf(c).nameKo).join(', ') : '없음';
     return log(cur, {
       t: 'dorothyRageMiss',
       pid: forced,
       cards: [...hand],
-      text: `${neun(nameOf(cur, forced))} ${eul(name)} 낼 수 없어 손패를 모두에게 보여 줬다: ${shown}.`,
+      msg: { k: 'dorothyRageMiss', who: forced, card: kind, hand: hand.map((c) => kindOf(c)) },
     });
   }
   const { bangsPlayed, lastBrown } = cur.turn;

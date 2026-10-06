@@ -74,16 +74,23 @@ Skia 캔버스는 판마다 하나만 띄운다 (WebGL 컨텍스트가 넘치면
 AI 시드 공식은 `src/game/ai/driver-policy.ts` 한 곳에만 둔다. 서버가 같은 함수로 AI 수를 다시 계산해
 로컬 판 기록을 검증하기 때문이다. 자세한 것은 `docs/economy.md`.
 
-## 한국어
+## 문구와 언어
 
-로그와 UI 문구는 한국어다. 조사는 `engine/josa.ts` 로 받침에 맞춰 붙인다.
-`이(가)` 같은 표기를 남기지 않는다.
+화면 문구는 한국어·English·Italiano 세 언어다. 자세한 것은 `docs/i18n.md`.
+
+- 문구는 `useT()` 로 넣는다. 리터럴을 컴포넌트에 쓰지 않는다 (`no-hangul.test.ts` 가 막는다)
+- `ko` 사전이 원본이다. en·it 는 같은 커밋에 넣는다. 키가 빠지면 `npm run typecheck` 가 실패한다
+- 조사는 ko 렌더러에서 `engine/josa.ts` 로 받침에 맞춰 붙인다. `이(가)` 같은 표기를 남기지 않는다
+- 엔진은 문장을 만들지 않는다. 로그는 `LogMsg`(`engine/log-msg.ts`)로 남기고, 문장은 `src/i18n/log/` 가 만든다
+- 카드·캐릭터 이름과 설명은 `src/i18n/content/` 에 둔다. `data/` 에는 규칙과 숫자만 둔다
+- 용어는 `src/i18n/glossary.md` 를 따른다
 
 ## 확인
 
 ```bash
 npm test && npm run typecheck
 npm run simulate -- --games 100 --players 7
+npm run i18n:check
 ```
 
 규칙을 건드렸으면 시뮬레이터까지 돌린다. 테스트가 놓친 것을 여러 번 잡아냈다.
