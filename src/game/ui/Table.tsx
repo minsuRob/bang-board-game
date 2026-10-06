@@ -22,6 +22,7 @@ import { feltArt, woodArt } from './card-art';
 import { Hand } from './Hand';
 import { HandFlights } from './HandFlights';
 import { PlayerSeat } from './PlayerSeat';
+import { AutoPlayBanner } from './AutoPlayBanner';
 import { PlayedCardSpotlight } from './PlayedCardSpotlight';
 import { SidePanel } from './SidePanel';
 import { TableCenter } from './TableCenter';
@@ -144,6 +145,7 @@ export function Table({ view, viewer, api, clock }: TableProps) {
       </View>
 
       <PlayedCardSpotlight view={view} viewer={viewer} api={api} />
+      <AutoPlayBanner view={view} viewer={viewer} />
 
       {clock && <View style={styles.clockSlot}>{clock}</View>}
     </View>

@@ -264,7 +264,8 @@ export default function GameScreen() {
   }, [saveStatus]);
 
   // 관전 모드는 예전처럼 6배 이상으로 흘려 보고, 배속 칩으로 더 올릴 수 있다
-  useAiDriver(!halted, setup.auto ? Math.max(6, speed) : speed);
+  // 온라인에서는 남의 사람 자리를 AI 가 두지 않는다 (제한시간만 넘긴다)
+  useAiDriver(!halted, setup.auto ? Math.max(6, speed) : speed, online);
   // 개발용 ?notimer=1: 확인하는 동안 내 차례가 시간에 넘어가지 않게 한다
   const noTimer = DEV_WEB && params.notimer === '1';
   useTimeoutDriver(controlled, !halted && !noTimer);

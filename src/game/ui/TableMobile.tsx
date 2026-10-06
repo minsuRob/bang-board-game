@@ -31,6 +31,7 @@ import { EventAbilityPanel } from './EventAbilityPanel';
 import { GoldPanel } from './GoldPanel';
 import { DraftPanel } from './DraftPanel';
 import { CharacterDetailModal } from './CharacterDetail';
+import { AutoPlayBanner } from './AutoPlayBanner';
 import { PlayedCardSpotlight } from './PlayedCardSpotlight';
 import { PRESENCE_LABEL, PresenceDot } from './PresenceDot';
 import { DraftSeatStatus } from './DraftSeatStatus';
@@ -191,6 +192,7 @@ export function TableMobile({
           </View>
         </ScrollView>
         <PlayedCardSpotlight view={view} viewer={viewer} api={api} compact />
+        <AutoPlayBanner view={view} viewer={viewer} />
       </View>
 
       {api.draft ? (

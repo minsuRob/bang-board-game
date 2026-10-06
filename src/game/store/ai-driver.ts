@@ -3,13 +3,16 @@
  *
  * 사람이 앉지 않은 자리는 이 훅이 대신 둔다. 로컬 대전에서는 항상,
  * 온라인에서는 드라이버로 뽑힌 클라이언트 하나만 이걸 돌린다.
+ *
+ * 온라인에서 남이 앉은 사람 자리는 절대 두지 않는다. 그 자리는 제한시간이 지났을 때만
+ * useTimeoutDriver 가 기본 행동(timeout)을 넣는다.
  */
 
 import { useEffect, useRef } from 'react';
 
 import { aiDraftActions, aiNextAction } from '../ai/driver-policy';
 import { fxPacing } from './fx-pacing';
-import { selectActor, seatOf, useGameStore } from './game-store';
+import { selectActor, seatOf, useGameStore, type SeatSetup } from './game-store';
 import { setWaitDeadline } from './wait-clock';
 
 /** 1배속에서 AI 가 한 과정(액션 하나)마다 들이는 뜸. 사람이 흐름을 따라올 수 있는 정도 */
@@ -28,7 +31,25 @@ export function aiDelayMs(speed: number, holdMs: number): number {
   return Math.max(AI_STEP_MS / s, holdMs + margin);
 }
 
-export function useAiDriver(enabled = true, speed = 1) {
+/**
+ * 이 클라이언트의 AI 가 이 자리를 대신 두는가.
+ *
+ * 로컬 대전은 내가 조작하지 않는 자리를 전부 둔다 (관전 모드는 사람 자리 p0 도 둔다).
+ * 온라인은 사람이 앉은 자리를 두지 않는다. 예전에는 드라이버가 남의 사람 자리까지
+ * 3초 만에 AI 로 둬서, 접속해 있는 사람의 차례·반응이 저절로 넘어갔다.
+ */
+export function aiPlaysSeat(
+  seats: readonly Pick<SeatSetup, 'id' | 'human'>[],
+  controlled: readonly string[],
+  pid: string,
+  online: boolean,
+): boolean {
+  if (controlled.includes(pid)) return false;
+  if (!online) return true;
+  return seats.find((s) => s.id === pid)?.human === false;
+}
+
+export function useAiDriver(enabled = true, speed = 1, online = false) {
   const state = useGameStore((s) => s.state);
   const seats = useGameStore((s) => s.seats);
   const controlled = useGameStore((s) => s.controlled);
@@ -53,16 +74,17 @@ export function useAiDriver(enabled = true, speed = 1) {
     // 시드 공식은 driver-policy 에 있다. 서버의 판 검증기가 같은 함수로 다시 계산한다
     for (const action of aiDraftActions(state, seats, controlled, seed)) {
       if (action.type !== 'pickCharacter' || drafted.current.has(action.pid)) continue;
+      if (!aiPlaysSeat(seats, controlled, action.pid, online)) continue;
       drafted.current.add(action.pid);
       submit(action);
     }
-  }, [enabled, drives, state, seats, controlled, submit, seed]);
+  }, [enabled, drives, state, seats, controlled, submit, seed, online]);
 
   useEffect(() => {
     if (!enabled || !state || state.result || state.draft) return;
 
     const actor = selectActor(state);
-    if (!actor || controlled.includes(actor)) return;
+    if (!actor || !aiPlaysSeat(seats, controlled, actor, online)) return;
 
     const seat = seatOf(seats, actor);
     // 연출이 끝나기 전에는 두지 않는다. 2D 모드에서는 busyUntil 이 0 이다.
@@ -86,5 +108,5 @@ export function useAiDriver(enabled = true, speed = 1) {
       clearTimeout(timer);
       clear();
     };
-  }, [enabled, drives, state, seats, controlled, submit, seed, speed]);
+  }, [enabled, drives, state, seats, controlled, submit, seed, speed, online]);
 }

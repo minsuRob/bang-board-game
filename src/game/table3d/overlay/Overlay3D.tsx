@@ -13,6 +13,7 @@ import type { GameState, PlayerId } from '../../engine';
 import { clearRoleGuesses } from '../../store/role-guess';
 import { detailPeek, setDetailHosted } from '../../ui/card-peek';
 import { CharacterDetailModal } from '../../ui/CharacterDetail';
+import { AutoPlayBanner } from '../../ui/AutoPlayBanner';
 import { PlayedCardSpotlight } from '../../ui/PlayedCardSpotlight';
 import type { TableApi } from '../../ui/use-table';
 import { ANCHOR_DECK, ANCHOR_DISCARD, ANCHOR_EVENT, anchorsStore, seatKey } from '../core/anchors-store';
@@ -148,6 +149,7 @@ export function Overlay3D({ view, viewer, api, targets, onSeatPress, wide }: Ove
       {peekCard && slot && <CardPreviewPanel view={view} viewer={viewer} card={peekCard} slot={slot} />}
       <FloatingNumbers view={view} />
       <PlayedCardSpotlight view={view} viewer={viewer} api={api} compact={!wide} />
+      <AutoPlayBanner view={view} viewer={viewer} />
       <Caption />
       {detailPlayer && (
         <CharacterDetailModal view={view} viewer={viewer} player={detailPlayer} onClose={() => setDetail(null)} />

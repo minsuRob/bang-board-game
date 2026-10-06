@@ -12,7 +12,7 @@ import {
   type RoomMember,
 } from '../../firebase/room-model';
 import type { Action, GameState } from '../engine';
-import { aiDelayMs } from './ai-driver';
+import { aiDelayMs, aiPlaysSeat } from './ai-driver';
 import { createLocalTransport } from './local-transport';
 import { selectActor, useGameStore } from './game-store';
 import type { Transport } from './transport';
@@ -286,6 +286,27 @@ describe('AI 박자', () => {
     expect(aiDelayMs(100, 0)).toBe(30);
     expect(aiDelayMs(16, 100)).toBe(187.5);
     expect(aiDelayMs(100, 100)).toBe(110);
+  });
+});
+
+describe('AI 가 두는 자리', () => {
+  // 온라인 3인: p0·p2 는 사람, p1 은 AI. 이 클라이언트는 p0 이고 드라이버다
+  const online = [
+    { id: 'p0', human: true },
+    { id: 'p1', human: false },
+    { id: 'p2', human: true },
+  ];
+
+  it('온라인 드라이버는 AI 자리만 두고, 남의 사람 자리는 두지 않는다', () => {
+    expect(aiPlaysSeat(online, ['p0'], 'p1', true)).toBe(true);
+    expect(aiPlaysSeat(online, ['p0'], 'p2', true)).toBe(false);
+    expect(aiPlaysSeat(online, ['p0'], 'p0', true)).toBe(false);
+  });
+
+  it('혼자 하는 판은 내가 조작하지 않는 자리를 전부 둔다 (관전 모드의 p0 포함)', () => {
+    expect(aiPlaysSeat(seats, ['p0'], 'p1', false)).toBe(true);
+    expect(aiPlaysSeat(seats, ['p0'], 'p0', false)).toBe(false);
+    expect(aiPlaysSeat(seats, [], 'p0', false)).toBe(true);
   });
 });
 
